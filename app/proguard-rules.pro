@@ -1,0 +1,45 @@
+# === Firebase and Firestore DTO Rules ===
+
+# Notification-related DTOs
+-keep class com.iota.campusX.Feature.Notification.domain.NotificationDTO { *; }
+-keep class com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO { *; }
+-keep class com.iota.campusX.Feature.Notification.domain.Reply { *; }
+
+# Referenced User model
+-keep class com.iota.campusX.Feature.Post.domain.User { *; }
+
+# Post-related DTOs (already mostly present)
+-keep class com.iota.campusX.Feature.Post.domain.** { *; }
+
+# Firebase SDK
+# Firebase Firestore rules
+-keep class com.google.firebase.** { *; }
+-keep class com.google.firestore.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+
+
+# General rule to preserve constructors for all classes
+-keepclassmembers class * {
+    public <init>();
+}
+
+# Optional: Keep everything in your model packages (helpful during dev/debugging)
+# You can scope this down for production to only required classes
+-keep class com.iota.campusX.Feature.**.domain.** { *; }
+-keep class com.iota.campusX.Feature.**.data.** { *; }
+
+
+# Please add these rules to your existing keep rules in order to suppress warnings.
+# This is generated automatically by the Android Gradle plugin.
+-dontwarn java.lang.management.ManagementFactory
+-dontwarn javax.management.InstanceNotFoundException
+-dontwarn javax.management.MBeanRegistrationException
+-dontwarn javax.management.MBeanServer
+-dontwarn javax.management.MalformedObjectNameException
+-dontwarn javax.management.ObjectInstance
+-dontwarn javax.management.ObjectName
+-dontwarn javax.servlet.ServletContainerInitializer
+-dontwarn org.codehaus.janino.ClassBodyEvaluator
+-dontwarn org.codehaus.janino.ScriptEvaluator
+-dontwarn sun.reflect.Reflection
