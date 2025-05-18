@@ -91,13 +91,14 @@ fun ChatScreen(
         StatusScreen(
             isActive = chatList.userChats.isEmpty(),
             text = "No Messages!",
-            image = R.drawable.anonymous
+            image = R.drawable.undraw_chatting_2b1g,
+
         )
 
         StatusScreen(
             isActive = chatList.error.isNotEmpty(),
             text = chatList.error.toString(),
-            image = R.drawable.anonymous
+            image = null
         )
 
         LoadingUI(isLoading = chatList.isLoading)

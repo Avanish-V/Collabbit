@@ -113,56 +113,7 @@ fun CreatePostScreen(
     )
     val snackbarHostState = remember { SnackbarHostState() }
     val mode = homeViewModel.switchState.collectAsState().value.isActive
-    val uploadStatus = postViewModel.uploadingProgress.collectAsState().value
 
-    LaunchedEffect(uploadStatus.status) {
-
-        if (uploadStatus.status == "COMPLETED") {
-
-            val image = if (selectedImages != null) Uri.parse(selectedImages.toString()) else null
-
-            scope.launch {
-                snackbarHostState.showSnackbar("Post created successfully")
-            }
-            navHostController.navigate(Routes.Main.Home.routes).apply {
-                postViewModel.updatePost(
-                    PostDTO(
-                        postId = postId,
-                        postedAt = getTimeMillis(),
-                        creatorDetail = CreatorDetail(
-                            isCurrentUser = true,
-                            isVerified = false,
-                            isPremium = false,
-                            type = selectedMode,
-                            profile = User(
-                                userName = userProfile?.userName ?: "",
-                                _id = authViewModel.userId(),
-                                userImage = userProfile?.userImage ?: ""
-                            )
-                        ),
-                        reference = Reference(
-                            icon = selectedPod?.icon ?: "",
-                            title = selectedPod?.title ?: ""
-
-                        ),
-                        postMode = selectedMode,
-                        postContent = PostContent(
-                            postType = "TEXT",
-                            postData = PostData(
-                                postText = text,
-                                postImage = image.toString()
-                            )
-                        ),
-                        postActions = PostActions(
-                            isLiked = false,
-                            )
-                    )
-                )
-            }
-
-
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -220,7 +171,9 @@ fun CreatePostScreen(
                     ),
                     onClick = {
 
-                        if (selectedPod != null && selectedImages != null || text.isNotBlank()) {
+                        if (selectedPod == null) return@Button
+
+                        if (selectedImages != null || text.isNotBlank()) {
 
                             postViewModel.createPost(
                                 CreatePostDTO(
@@ -244,7 +197,18 @@ fun CreatePostScreen(
                                     )
                                 ),
                                 postMode = mode,
-                                imageUri = selectedImages
+                                imageUri = selectedImages,
+                                user = User(
+                                    userName = userProfile?.userName ?: "",
+                                    _id = userProfile?._id ?: "",
+                                    userImage = userProfile?.userImage ?: ""
+                                ),
+                                onCompletion = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Post Created")
+                                        navHostController.popBackStack()
+                                    }
+                                }
                             )
 
                         }

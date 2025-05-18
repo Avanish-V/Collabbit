@@ -72,7 +72,6 @@ import com.iota.campusX.Screens.NotificationScreen
 import com.iota.campusX.Screens.PostReplyScreen
 import com.iota.campusX.Screens.Profile.EditProfileScreen
 import com.iota.campusX.Screens.Profile.ProfileScreen
-import com.iota.campusX.Screens.ProfileByID
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.initCloudinary
@@ -235,12 +234,12 @@ class MainActivity : ComponentActivity() {
 
                                     composable(route = Routes.Main.ProfileByID.routes) {
 
-                                        ProfileByID(
-                                            navHostController = navHostController,
-                                            userProfileViewModel = userProfileViewModel,
-                                            postViewModel = postViewModel,
-                                            authViewModel = googleAuthViewModel
-                                        )
+//                                        ProfileByID(
+//                                            navHostController = navHostController,
+//                                            userProfileViewModel = userProfileViewModel,
+//                                            postViewModel = postViewModel,
+//                                            authViewModel = googleAuthViewModel
+//                                        )
                                     }
 
 
@@ -283,7 +282,8 @@ class MainActivity : ComponentActivity() {
                                             navHostController,
                                             postViewModel = postViewModel,
                                             profileViewModel = userProfileViewModel,
-                                            googleSignInViewModel = googleAuthViewModel
+                                            googleSignInViewModel = googleAuthViewModel,
+                                            navigationViewModel = navigationViewModel
                                         )
                                     }
 
@@ -322,7 +322,8 @@ class MainActivity : ComponentActivity() {
                                         PostReplyScreen(
                                             navHostController,
                                             userProfileViewModel,
-                                            postViewModel
+                                            postViewModel,
+
                                         )
                                     }
 

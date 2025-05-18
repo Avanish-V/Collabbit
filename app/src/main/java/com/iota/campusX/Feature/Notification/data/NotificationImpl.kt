@@ -6,12 +6,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
-import com.iota.campusX.Feature.Notification.domain.Reply
+import com.iota.campusX.Feature.Notification.domain.Content
+import com.iota.campusX.Feature.Post.domain.PostDTO
 import com.iota.campusX.Feature.Post.domain.ReplyDTO
 import com.iota.campusX.Feature.Post.domain.User
 import com.iota.campusX.Feature.UserProfile.data.LinkUpRequestDTO
 import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.Utils.getTimeAgo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +41,7 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
 
                             val notificationData = data.toObject(CreateNotificationDTO::class.java)
 
+
                             val likedByDeferred = async {
                                 firestore.collection("Users")
                                     .document(notificationData.actionBy)
@@ -50,11 +51,11 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                             }
 
                             val repliesDeferred = async {
-                                if (notificationData.postId != null && notificationData.reply?.replyId != null) {
-                                    firestore.collection("Posts")
+                                if (notificationData.postId != null && notificationData.content?.contentId != null) {
+                                    firestore.collection("GlobalPosts")
                                         .document(notificationData.postId!!)
                                         .collection("Replies")
-                                        .document(notificationData.reply!!.replyId!!)
+                                        .document(notificationData.content!!.contentId!!)
                                         .get()
                                         .await()
                                         .toObject(ReplyDTO::class.java)
@@ -63,27 +64,50 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                                 }
                             }
 
-                            val linkUpRequestDeferred = async {
-                                if (notificationData.postId != null && notificationData.reply?.replyId != null) {
-                                    firestore.collection("Users")
-                                        .document(notificationData.actionBy)
-                                        .collection("LinkUpRequests")
+                            val likedPost = async {
+                                if (notificationData.postId != null) {
+                                    val snapshot = firestore.collection("GlobalPosts")
                                         .document(notificationData.postId!!)
                                         .get()
                                         .await()
-                                        .toObject(ReplyDTO::class.java)
+                                    snapshot.toObject(PostDTO::class.java)
                                 } else {
                                     null
                                 }
                             }
+
+
+//                            val linkUpRequestDeferred = async {
+//                                if (notificationData.postId != null && notificationData.content?.contentId != null) {
+//                                    firestore.collection("Users")
+//                                        .document(notificationData.actionBy)
+//                                        .collection("LinkUpRequests")
+//                                        .document(notificationData.postId!!)
+//                                        .get()
+//                                        .await()
+//                                        .toObject(ReplyDTO::class.java)
+//                                } else {
+//                                    null
+//                                }
+//                            }
+
+                            val post = likedPost.await()
+
+                            val content = if (notificationData.type == "LIKE")
+                                post?.postContent?.postData?.postText?:"Deleted by user"
+                            else if (notificationData.type == "LIKE_REPLY")
+                                "Liked your reply"
+                            else if (notificationData.type == "POST_REPLY")
+                                repliesDeferred.await()?.content ?: "Deleted by user"
+                            else if (notificationData.type == "LINK_REQUEST")
+                                "Sent you a link request"
+                            else ""
 
 
                             val likedBy = likedByDeferred.await()
 
-                            val replyData = repliesDeferred.await()
 
-
-                            val createdAt = getTimeAgo(notificationData.createdAt)
+                            val createdAt = notificationData.createdAt
 
 
                             NotificationDTO(
@@ -96,8 +120,8 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                                     _id = likedBy?._id ?: "",
                                     userImage = likedBy?.userImage ?: ""
                                 ),
-                                reply = Reply(
-                                    replyContent = replyData?.content
+                                content = Content(
+                                    content = content.toString()
                                 ),
                                 type = notificationData.type
                             )
@@ -153,7 +177,7 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                             val likedBy = sendByDeferred.await()
 
 
-                            val createdAt = getTimeAgo(notificationData.createdAt)
+                            val createdAt = notificationData.createdAt
 
 
                             NotificationDTO(

@@ -254,39 +254,42 @@ class UserProfileImpl(
 
             try {
 
+                MediaManager.get().upload(imageUri)
+                    .option("resource_type", "image")
+                    .option("folder", "user_images")
+                    .callback(object : UploadCallback {
+                        override fun onStart(requestId: String?) {
+                            // Optional: handle start
+                        }
 
+                        override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {
+                            val progress = ((bytes.toFloat() / totalBytes.toFloat()) * 100).toInt()
+                            // Optional: update UI with progress
+                        }
 
-                if (imageUri != null) {
-                    MediaManager.get().upload(imageUri)
-                        .callback(object : UploadCallback {
-                            override fun onStart(requestId: String?) {
+                        override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
+                            val imageUrl = resultData?.get("secure_url")?.toString()
 
+                            firestore.collection("Users").document(auth.currentUser!!.uid)
+                                .update("userImage", imageUrl)
+                                .addOnSuccessListener {
+                                    trySend(ResultState.Success(true))
+                                }
+                                .addOnFailureListener {
+                                    trySend(ResultState.Error(it.message.toString()))
+                                }
+                        }
 
-                            }
+                        override fun onError(requestId: String?, error: ErrorInfo?) {
+                            trySend(ResultState.Error(error?.description ?: "Image upload failed"))
+                            close()
+                        }
 
-                            override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {
-                                val progress = ((bytes.toFloat() / totalBytes.toFloat()) * 100).toInt()
-                            }
-
-                            override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
-                                val imageUrl = resultData?.get("secure_url")?.toString()
-
-                            }
-
-                            override fun onError(requestId: String?, error: ErrorInfo?) {
-                                trySend(
-                                    ResultState.Error(
-                                        error?.description ?: "Image upload failed"
-                                    )
-                                )
-                                close()
-                            }
-
-                            override fun onReschedule(requestId: String?, error: ErrorInfo?) {
-                                // Optional: handle retry if needed
-                            }
-                        }).dispatch()
-                }
+                        override fun onReschedule(requestId: String?, error: ErrorInfo?) {
+                            // Optional: handle retry if needed
+                        }
+                    })
+                    .dispatch()
 
             } catch (e: Exception) {
 

@@ -1,6 +1,10 @@
 package com.iota.campusX.Screens.Profile
 
+import android.content.Context
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,19 +25,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
@@ -43,6 +54,7 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,11 +64,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
@@ -66,12 +81,19 @@ import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.LinkUpRequestDTO
 import com.iota.campusX.Feature.UserProfile.data.UserBasicProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Screens.Home.BottomSheetSharedViewModel
+import com.iota.campusX.Screens.Home.HideBottomBar
 import com.iota.campusX.Screens.Home.PostCard
+import com.iota.campusX.Screens.Home.PostDotOptionBottomSheet
+import com.iota.campusX.Screens.Home.postsLazyColumn
+import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.timeMillsToString
+import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black800
@@ -81,6 +103,7 @@ import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White900
 import com.iota.campusX.ui.theme.typography
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,12 +112,35 @@ fun ProfileScreen(
     navHostController: NavHostController,
     postViewModel: PostViewModel,
     profileViewModel: UserProfileViewModel,
-    googleSignInViewModel: AuthViewModel
+    googleSignInViewModel: AuthViewModel,
+    navigationViewModel: NavigationViewModel
 ) {
 
-    val profileState = profileViewModel.userBaseProfile.collectAsState().value.baseProfileData
-    val currentUser = googleSignInViewModel.userId()
 
+    val currentUser = googleSignInViewModel.userId()
+    val context = LocalContext.current
+    val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
+    val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
+    val isLoading = remember { mutableStateOf(false) }
+    val isAlertDialogVisible = remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val snackBarHostState = remember { SnackbarHostState() }
+    val creatorId = remember { navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID") }
+
+    val userBaseProfile by profileViewModel.userBaseProfile.collectAsState()
+    val profileByIdState by profileViewModel.profileById.collectAsState()
+
+    LaunchedEffect(creatorId) {
+        if (currentUser != creatorId) {
+            profileViewModel.getUserById(creatorId.toString())
+        }
+    }
+
+    val profileState = if (currentUser == creatorId || creatorId == null) {
+        userBaseProfile.baseProfileData
+    } else {
+        profileByIdState.baseProfileData
+    }
 
     Scaffold(
         topBar = {
@@ -104,20 +150,27 @@ fun ProfileScreen(
                     containerColor = White900
                 ),
                 actions = {
-                    Row(horizontalArrangement = Arrangement.End) {
+                    if (currentUser == creatorId){
+                        Row(horizontalArrangement = Arrangement.End) {
 
-                        IconButton(onClick = {
-                            navHostController.navigate("SETTING")
-                        }) {
-                            Icon(
-                                painter = painterResource(R.drawable.setting),
-                                contentDescription = null
-                            )
+                            IconButton(onClick = {
+                                navHostController.navigate("SETTING")
+                            }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.setting),
+                                    contentDescription = null
+                                )
+                            }
                         }
-
                     }
+
                 }
             )
+        },
+        snackbarHost = {
+            SnackbarHost(snackBarHostState){
+                Snackbar(snackbarData = it)
+            }
         },
         containerColor = secondary
     ) { innerPadding ->
@@ -132,9 +185,28 @@ fun ProfileScreen(
                     _id = profileState?._id.toString()
                 ),
                 currentUser = currentUser,
-
-
-                )
+                onLinkUpRequestClick = {
+                    scope.launch {
+                        profileViewModel.sendLinkUpRequest(
+                            requestUserId = creatorId.toString(),
+                            currentState = profileState?.isRequestSent
+                        ).collect {
+                            when(it){
+                                is ResultState.Success -> {
+                                    profileViewModel.getUserById(creatorId.toString())
+                                    snackBarHostState.showSnackbar("Done")
+                                }
+                                is ResultState.Error -> {
+                                    snackBarHostState.showSnackbar("Something went wrong")
+                                }
+                                is ResultState.Loading -> {
+                                }
+                            }
+                        }
+                    }
+                },
+                isLinkUpRequestSent = profileState?.isRequestSent
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -151,18 +223,128 @@ fun ProfileScreen(
                         PostScreenComponent(
                             navHostController,
                             postViewModel,
-                            currentUser = currentUser.toString(),
-                            campusId = profileState?.campus?.campusCode ?: ""
+                            navigationViewModel,
+                            bottomSheetSharedViewModel = bottomSheetViewModel,
+                            currentUser = profileState?._id ?: "",
+                            campusId = profileState?.campus?.campusCode,
+                            context = context
                         )
                     }
-
                 }
             }
-
         }
 
-    }
+        PostDotOptionBottomSheet(
+            isBottomSheet = bottomSheetData.isBottomSheet,
+            onDismiss = { bottomSheetViewModel.hideBottomSheet(false) },
+            isCurrentUser = bottomSheetData.isCurrentUser,
+            onDeleteClick = {
+                isAlertDialogVisible.value = !isAlertDialogVisible.value
+            }
+        )
 
+        AnimatedVisibility(visible = isAlertDialogVisible.value) {
+
+            Box(contentAlignment = Alignment.Center){
+
+                BasicAlertDialog(
+                    onDismissRequest = {isAlertDialogVisible.value = false},
+                ) {
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Column {
+
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Text("Delete Post",fontWeight = FontWeight.Bold)
+                                Text("Are you sure you want to delete this post?", textAlign = TextAlign.Center)
+                            }
+
+                            Column {
+                                HorizontalDivider()
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth(),
+
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+
+                                    Box(Modifier
+                                        .weight(1f)
+                                        .clickable(
+                                            onClick = { isAlertDialogVisible.value = false },
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
+                                        Text("Cancel", modifier = Modifier.padding(16.dp))
+                                    }
+
+                                    VerticalDivider(
+                                        modifier = Modifier.height(48.dp)
+
+                                    )
+
+                                    Box(
+                                        Modifier
+                                            .weight(1f)
+                                            .clickable(
+                                                onClick = {
+
+                                                    scope.launch {
+                                                        postViewModel.deletePost(
+                                                            bottomSheetData.postId,
+                                                            bottomSheetData.campusId
+                                                        )
+                                                            .collect {
+                                                                when (it) {
+                                                                    is ResultState.Success -> {
+                                                                        delay(1000)
+                                                                        isLoading.value = false
+                                                                        isAlertDialogVisible.value =
+                                                                            false  // <-- Add this line
+                                                                        bottomSheetData.isBottomSheet = false
+                                                                        postViewModel.updateDeletePost(bottomSheetData.postId)
+                                                                    }
+
+                                                                    is ResultState.Error -> {
+                                                                        bottomSheetData.isBottomSheet = false
+                                                                        isLoading.value = false
+                                                                    }
+
+                                                                    is ResultState.Loading -> {
+                                                                        isLoading.value = true
+                                                                    }
+                                                                }
+                                                            }
+                                                    }
+
+                                                    context.vibrate()
+
+                                                },
+                                                indication = null,
+                                                interactionSource = remember { MutableInteractionSource() }
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ){
+                                        if (isLoading.value)
+                                            CircularProgressIndicator(color = primary, modifier = Modifier.size(24.dp))
+                                        else
+                                            Text("Delete", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        LoadingUI(profileByIdState.isLoading && currentUser != creatorId)
+    }
 }
 
 
@@ -198,7 +380,6 @@ fun ProfileHeader(
                 contentDescription = null,
                 contentScale = ContentScale.Crop
             )
-
         }
 
         Row(
@@ -213,16 +394,18 @@ fun ProfileHeader(
                 fontSize = 16.sp
             )
 
-            IconButton(
-                onClick = {
-                    navHostController.navigate("EDIT_PROFILE")
+            if (currentUser == user._id){
+                IconButton(
+                    onClick = {
+                        navHostController.navigate("EDIT_PROFILE")
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = primary
+                    )
                 }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = primary
-                )
             }
 
         }
@@ -432,6 +615,7 @@ fun Campus(campus: Campus?) {
             AsyncImage(
                 model = campus?.university?.logo ?: "",
                 contentDescription = null,
+                placeholder = painterResource( R.drawable.landscape_placeholder_svgrepo_com),
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(5.dp)),
@@ -464,20 +648,33 @@ fun Campus(campus: Campus?) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun PostScreenComponent(
     navHostController: NavHostController,
     postViewModel: PostViewModel,
+    navigationViewModel: NavigationViewModel,
+    bottomSheetSharedViewModel: BottomSheetSharedViewModel,
     currentUser: String,
-    campusId: String
+    campusId: String?,
+    context: Context
 ) {
 
     LaunchedEffect(Unit) {
         postViewModel.fetchPostById(currentUser, campusId)
     }
-    val postState = postViewModel.postsById.collectAsState().value
+
+    val postState = postViewModel.postState.collectAsState().value
+
+    val lazyColumnState = rememberLazyListState()
+
+    HideBottomBar(
+        navigationViewModel,
+        lazyColumnState
+    )
 
     when {
+
         postState.isLoading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
@@ -489,36 +686,20 @@ fun PostScreenComponent(
         postState.postData.isNotEmpty() -> {
 
             LazyColumn(
+                state = lazyColumnState,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(postState.postData) {
-                    PostCard(
-                        onPostClick = {
-                            navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                    "post",
-                                    it
-                                )
-                            }
-                        },
-                        onLikeClick = {
-                            postViewModel.toggleLike(
-                                userId = currentUser,
-                                postId = it.postId,
-                                isLiked = it.postActions.isLiked
-                            )
-                        },
-                        onReplyClick = {
-                            navHostController.navigate(Routes.Main.ReplyPost.routes)
-                        },
-                        post = it,
-                        navHostController = navHostController,
-                        onDotMenuClick = {
+                postsLazyColumn(
+                    postData = postState.postData,
+                    navHostController = navHostController,
+                    postViewModel = postViewModel,
+                    bottomSharedViewModel = bottomSheetSharedViewModel,
+                    context = context,
+                    onDotMenuClick = {
 
-                        }
-                    )
-                }
+                    }
+                )
             }
         }
 

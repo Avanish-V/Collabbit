@@ -450,6 +450,7 @@ fun SendMessageScreen(navHostController: NavHostController) {
                                 chatsViewModel.sendMessages(
                                     message = messageText,
                                     receiverId = userUUID.toString(),
+                                    roomId = roomId.toString()
                                 ).collect {
                                     when (it) {
                                         is ResultState.Loading -> {

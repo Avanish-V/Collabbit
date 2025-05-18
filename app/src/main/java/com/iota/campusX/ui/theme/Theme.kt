@@ -44,7 +44,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun CampusXTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -62,7 +62,7 @@ fun CampusXTheme(
 
     // Apply status bar color
     SideEffect {
-        window.statusBarColor = colorScheme.background.toArgb()
+        window.statusBarColor = colorScheme.surface.toArgb()
         WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
     }
 

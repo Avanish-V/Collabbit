@@ -66,7 +66,7 @@ fun SearchScreen(navHostController: NavHostController) {
                         onValueChange = { searchValue = it },
                         placeholder = {
                             Text(
-                                text = "Search",
+                                text = "Search - work on progress",
                                 color = Black900
                             )
                         },

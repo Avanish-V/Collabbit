@@ -19,8 +19,9 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     private val _userBaseProfile: MutableStateFlow<UserBaseProfileResultState> = MutableStateFlow(UserBaseProfileResultState())
     val userBaseProfile: StateFlow<UserBaseProfileResultState> = _userBaseProfile.asStateFlow()
 
-    private val _userById: MutableStateFlow<JoinedUserResultState> = MutableStateFlow(JoinedUserResultState())
-    val userById: StateFlow<JoinedUserResultState> = _userById.asStateFlow()
+    private val _profileById: MutableStateFlow<UserBaseProfileResultState> = MutableStateFlow(UserBaseProfileResultState())
+    val profileById: StateFlow<UserBaseProfileResultState> = _profileById.asStateFlow()
+
 
     private val _universityData: MutableStateFlow<UniversityDataResultState> = MutableStateFlow(UniversityDataResultState())
     val universityData: StateFlow<UniversityDataResultState> = _universityData.asStateFlow()
@@ -47,25 +48,6 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         }
     }
 
-//    init {
-//
-//        viewModelScope.launch {
-//            userProfileRepo.getBaseProfile().collect{
-//                when(it){
-//                    is ResultState.Loading->{
-//                        _userBaseProfile.value = UserBaseProfileResultState(isLoading = true)
-//                    }
-//                    is ResultState.Success->{
-//                        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = it.data)
-//                    }
-//                    is ResultState.Error->{
-//                        _userBaseProfile.value = UserBaseProfileResultState(error = it.message)
-//                    }
-//                }
-//            }
-//        }
-//    }
-
     fun deleteUserProfile() = userProfileRepo.deleteAccount()
 
     fun getUserById(user:String){
@@ -73,14 +55,14 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
             userProfileRepo.getUserProfileById(user).collect{
                 when(it){
                     is ResultState.Loading->{
-                        _userById.value = JoinedUserResultState(isLoading = true)
+                        _profileById.value = UserBaseProfileResultState(isLoading = true)
                     }
                     is ResultState.Success->{
 
-                        _userById.value = JoinedUserResultState(joinedUser = it.data)
+                        _profileById.value = UserBaseProfileResultState( baseProfileData= it.data)
                     }
                     is ResultState.Error->{
-                        _userById.value = JoinedUserResultState(error = it.message)
+                        _profileById.value = UserBaseProfileResultState(error = it.message)
                     }
                 }
             }
@@ -140,6 +122,9 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     fun updateCampus(campus: Campus){
         _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData?.copy(campus = campus))
     }
+    fun updateProfileImage(imageUrl: String){
+        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData?.copy(userImage = imageUrl))
+    }
 
 
 }
@@ -148,12 +133,6 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 data class UserBaseProfileResultState(
     val isLoading:Boolean = false,
     val baseProfileData: UserBasicProfileDTO? = null,
-    val error:String = ""
-)
-
-data class JoinedUserResultState(
-    val isLoading:Boolean = false,
-    val joinedUser: UserBasicProfileDTO? = null,
     val error:String = ""
 )
 

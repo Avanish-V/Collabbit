@@ -26,24 +26,23 @@ import kotlinx.coroutines.launch
 
 class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
 
-    private val _uploadingProgress: MutableStateFlow<UploadResponse> =
-        MutableStateFlow(UploadResponse())
+    private val _uploadingProgress: MutableStateFlow<UploadResponse> = MutableStateFlow(UploadResponse())
     val uploadingProgress: StateFlow<UploadResponse> = _uploadingProgress.asStateFlow()
 
 
     private val _postState: MutableStateFlow<PostResultState> = MutableStateFlow(PostResultState())
     val postState: StateFlow<PostResultState> = _postState.asStateFlow()
 
-    private val _postsById: MutableStateFlow<PostResultState> = MutableStateFlow(PostResultState())
-    val postsById: StateFlow<PostResultState> = _postsById.asStateFlow()
 
-    private val _repliesState: MutableStateFlow<DataResultState> =
-        MutableStateFlow(DataResultState())
+    private val _repliesState: MutableStateFlow<DataResultState> = MutableStateFlow(DataResultState())
     val repliesState: StateFlow<DataResultState> = _repliesState.asStateFlow()
 
+
+
     fun toggleLike(userId: String, postId: String, isLiked: Boolean) {
+
         viewModelScope.launch {
-            // Update local state
+
             val updatedPosts = _postState.value.postData.map { post ->
                 if (post.postId == postId) {
                     val updatedActions = post.postActions.copy(
@@ -82,21 +81,9 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
         // Update local state
     }
 
-    fun createReply(
-        replyId: String,
-        postId: String,
-        content: String,
-        repliedAt: Long,
-        createrId: String
-    ) = postRepository.createReply(
-        replyId = replyId,
-        postId = postId,
-        content = content,
-        repliedAt = repliedAt,
-        creatorId = createrId
-    )
+    fun createReply(replyId: String, postId: String, content: String, repliedAt: Long, createrId: String) = postRepository.createReply(replyId = replyId, postId = postId, content = content, repliedAt = repliedAt, creatorId = createrId)
 
-    fun createPost(createPostDTO: CreatePostDTO, postMode: Boolean, imageUri: Uri?) {
+    fun createPost(createPostDTO: CreatePostDTO, postMode: Boolean, imageUri: Uri? = null,user: User,onCompletion: (String) -> Unit) {
         viewModelScope.launch {
             postRepository.createPost(createPostDTO, postMode, imageUri).collect {
                 when (it) {
@@ -105,7 +92,49 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
                     }
 
                     is ResultState.Success -> {
+
                         _uploadingProgress.value = it.data
+
+                        if (it.data.status == "COMPLETED"){
+                            updatePost(
+                                PostDTO(
+                                    postId = createPostDTO.postId,
+                                    postedAt = getTimeMillis(),
+                                    creatorDetail = CreatorDetail(
+                                        isCurrentUser = true,
+                                        isVerified = false,
+                                        isPremium = false,
+                                        type = createPostDTO.type,
+                                        profile = User(
+                                            userName = user.userName,
+                                            _id = user._id,
+                                            userImage = user.userImage
+                                        )
+                                    ),
+                                    reference = Reference(
+                                        icon = createPostDTO.reference.icon,
+                                        title = createPostDTO.reference.title
+
+                                    ),
+                                    postMode = null,
+                                    postContent = PostContent(
+                                        postType = createPostDTO.postContent.postType,
+                                        postData = PostData(
+                                            postText = createPostDTO.postContent.postData.postText,
+                                            postImage = imageUri.toString()
+                                        )
+                                    ),
+                                    postActions = PostActions(
+                                        isLiked = false,
+                                    )
+                                )
+                            )
+                            onCompletion("COMPLETED")
+                        }
+
+
+
+
                     }
 
                     is ResultState.Error -> {
@@ -115,15 +144,6 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
             }
         }
     }
-
-    fun cancelUpload() {
-        MediaManager.get().cancelRequest(uploadingProgress.value.uploadId)
-        _uploadingProgress.value = UploadResponse(
-            status = "CANCELED",
-            uploadId = ""
-        )
-    }
-
 
     fun getReplies(postId: String) {
         viewModelScope.launch {
@@ -144,18 +164,6 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
                 }
             }
         }
-    }
-
-    fun updateReply(getRepliesDTO: GetRepliesDTO) {
-        val updatedReplies = _repliesState.value.data.toMutableList()
-        updatedReplies.add(getRepliesDTO)
-        _repliesState.value = _repliesState.value.copy(data = updatedReplies)
-    }
-
-    fun updatePost(postDTO: PostDTO) {
-        val updatedPosts = _postState.value.postData.toMutableList()
-        updatedPosts.add(postDTO)
-        _postState.value = _postState.value.copy(postData = updatedPosts)
     }
 
     fun fetchPosts(postMode: Boolean) {
@@ -181,21 +189,21 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
         }
     }
 
-    fun fetchPostById(userId: String, campusId: String) {
+    fun fetchPostById(userId: String, campusId: String?) {
 
         viewModelScope.launch {
             postRepository.getPostsById(userId, campusId = campusId).collect {
                 when (it) {
                     is ResultState.Loading -> {
-                        _postsById.value = PostResultState(isLoading = true)
+                        _postState.value = PostResultState(isLoading = true)
                     }
 
                     is ResultState.Success -> {
-                        _postsById.value = PostResultState(postData = it.data)
+                        _postState.value = PostResultState(postData = it.data)
                     }
 
                     is ResultState.Error -> {
-                        _postsById.value = PostResultState(error = it.message)
+                        _postState.value = PostResultState(error = it.message)
                     }
                 }
 
@@ -205,10 +213,40 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
 
     }
 
+    fun deletePost(postId: String,campusId: String?) = postRepository.deletePost(postId,campusId)
+
+
+
+
+    fun cancelUpload() {
+        MediaManager.get().cancelRequest(uploadingProgress.value.uploadId)
+        _uploadingProgress.value = UploadResponse(status = "CANCELED", uploadId = "")
+    }
+
+    fun updateReply(getRepliesDTO: GetRepliesDTO) {
+        val updatedReplies = _repliesState.value.data.toMutableList()
+        updatedReplies.add(getRepliesDTO)
+        _repliesState.value = _repliesState.value.copy(data = updatedReplies)
+    }
+
+    fun updatePost(postDTO: PostDTO) {
+        val updatedPosts = _postState.value.postData.toMutableList()
+        updatedPosts.add(postDTO)
+        _postState.value = _postState.value.copy(postData = updatedPosts)
+    }
+
+
     fun refreshPosts(postMode: Boolean) {
         _postState.value.postData = emptyList()
         fetchPosts(postMode)
     }
+
+    fun updateDeletePost(postId: String) {
+        val updatedPosts = _postState.value.postData.toMutableList()
+        updatedPosts.removeIf { it.postId == postId }
+        _postState.value = _postState.value.copy(postData = updatedPosts)
+    }
+
 
 }
 

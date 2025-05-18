@@ -11,7 +11,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
-import com.iota.campusX.Feature.Notification.domain.Reply
+import com.iota.campusX.Feature.Notification.domain.Content
 import com.iota.campusX.Feature.Post.domain.CreatePostDTO
 import com.iota.campusX.Feature.Post.domain.CreatorDetail
 import com.iota.campusX.Feature.Post.domain.GetRepliesDTO
@@ -24,7 +24,6 @@ import com.iota.campusX.Feature.Post.domain.ReplyDTO
 import com.iota.campusX.Feature.Post.domain.UploadResponse
 import com.iota.campusX.Feature.Post.domain.User
 import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.Utils.getTimeAgo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
@@ -64,7 +63,6 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                                     .await()
                                     .toObject(User::class.java)
                             } else {
-                                Log.e("FirestoreError", "Invalid creatorId: $creatorId for postId: ${post.postId}")
                                 null
                             }
                         }
@@ -163,7 +161,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
         }
     }
 
-    override fun getPostsById(userId: String, campusId: String): Flow<ResultState<List<PostDTO>>> =
+    override fun getPostsById(userId: String, campusId: String?): Flow<ResultState<List<PostDTO>>> =
         flow {
             emit(ResultState.Loading)
 
@@ -172,24 +170,19 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                     .whereEqualTo("creatorId", userId)
                     .get()
 
-                val campusPostsTask = campusId.let {
+                val campusPostsTask = if (!campusId.isNullOrBlank()) {
                     firestore.collection("CampusPosts")
-                        .document(it)
+                        .document(campusId)
                         .collection("Posts")
                         .whereEqualTo("creatorId", userId)
                         .get()
-                }
+                } else null
 
                 val (globalPosts, campusPosts) = coroutineScope {
-                    if (true) {
-                        val tasks = listOf(
-                            async { globalPostsTask.await() },
-                            async { campusPostsTask.await() })
-                        tasks[0].await() to tasks[1].await()
-                    } else {
-                        val global = async { globalPostsTask.await() }
-                        global.await() to null
-                    }
+                    val global = async { globalPostsTask.await() }
+                    val campus = campusPostsTask?.let { async { it.await() } }
+
+                    global.await() to campus?.await()
                 }
 
                 val allDocuments = buildList {
@@ -210,7 +203,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                                 }
 
                                 val likesDeferred = async {
-                                    firestore.collection("Posts")
+                                    firestore.collection("GlobalPosts")
                                         .document(post.postId)
                                         .collection("Likes")
                                         .document(post.postId)
@@ -220,7 +213,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                                 }
 
                                 val replyCountDeferred = async {
-                                    firestore.collection("Posts")
+                                    firestore.collection("GlobalPosts")
                                         .document(post.postId)
                                         .collection("Replies")
                                         .get()
@@ -234,7 +227,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                                     replyCountDeferred
                                 )
 
-                                val isLiked = (likes as List<*>).contains(post.creatorId)
+                                val isLiked = (likes as List<*>).contains(auth.currentUser?.uid)
                                 val reply_Count = replyCount as Int
 
                                 val userInfo = if (post.type == "USER") {
@@ -294,6 +287,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
 
     override fun toggleLike(userId: String, postId: String, isLiked: Boolean) {
 
+        Log.e("TOGGLE_LIKE", "toggleLike: $userId $postId $isLiked")
 
         val likeDocRef = firestore.collection("GlobalPosts")
             .document(postId)
@@ -304,10 +298,13 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
             "likes" to if (isLiked) FieldValue.arrayRemove(auth.currentUser?.uid) else FieldValue.arrayUnion(auth.currentUser?.uid)
         )
 
-        if (userId == auth.currentUser!!.uid) return
+
 
         likeDocRef.set(updateData, SetOptions.merge()) // This creates the doc if it doesn't exist
             .addOnSuccessListener {
+
+                if (userId == auth.currentUser!!.uid) return@addOnSuccessListener
+
                 if (!isLiked) {
                     val notification = mapOf(
                         "type" to "LIKE",
@@ -326,14 +323,14 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                 }
             }
             .addOnFailureListener { e ->
-                Log.e("TAG", "toggleLike: Failed: ${e.message}")
+
             }
     }
 
     override fun likeReply(userId: String, postId: String, replyId: String, isLiked: Boolean) {
 
 
-        val likeDocRef = firestore.collection("Posts")
+        val likeDocRef = firestore.collection("GlobalPosts")
             .document(postId)
             .collection("Replies")
             .document(replyId)
@@ -346,14 +343,17 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
 
         likeDocRef.set(updateData, SetOptions.merge()) // This creates the doc if it doesn't exist
             .addOnSuccessListener {
+
+                if (userId == auth.currentUser!!.uid) return@addOnSuccessListener
+
                 val notification = CreateNotificationDTO(
                     type = "LIKE_REPLY",
                     postId = postId,
                     createrId = userId,
                     actionBy = (auth.currentUser?.uid ?: ""),
                     createdAt = System.currentTimeMillis(),
-                    reply = Reply(
-                        replyId = replyId
+                    content = Content(
+                        contentId = replyId
                     )
                 )
                 firestore.collection("Users").document(userId)
@@ -376,7 +376,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
 
             try {
 
-                val repliesSnapshot = firestore.collection("Posts")
+                val repliesSnapshot = firestore.collection("GlobalPosts")
                     .document(postId)
                     .collection("Replies")
                     .get()
@@ -398,7 +398,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                             }
 
                             val likesDeferred = async {
-                                val snap = firestore.collection("Posts")
+                                val snap = firestore.collection("GlobalPosts")
                                     .document(reply.postId)
                                     .collection("Replies")
                                     .document(reply.replyId)
@@ -428,7 +428,8 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                                     likesCount = likes.size,
                                     replies = emptyList(),
                                     replyCount = 0
-                                )
+                                ),
+                                repliedAt = reply.repliedAt
                             )
 
 
@@ -462,7 +463,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
 
             try {
                 firestore
-                    .collection("Posts")
+                    .collection("GlobalPosts")
                     .document(postId)
                     .collection("Replies")
                     .document(replyId)
@@ -479,14 +480,17 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
 
                         trySend(ResultState.Success(true))
 
+                        if (creatorId == auth.currentUser?.uid) return@addOnSuccessListener
+                        Log.e("CREATOR_ID", "createReply: $creatorId")
+
                         val notification = CreateNotificationDTO(
                             type = "POST_REPLY",
                             postId = postId,
                             createrId = creatorId,
                             actionBy = (auth.currentUser?.uid ?: ""),
                             createdAt = System.currentTimeMillis(),
-                            reply = Reply(
-                                replyId = replyId
+                            content = Content(
+                                contentId = replyId
                             )
                         )
                         firestore.collection("Users").document(creatorId)
@@ -518,58 +522,53 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
     ): Flow<ResultState<UploadResponse>> = callbackFlow {
         trySend(ResultState.Loading)
 
-        try {
-            // Early exit if campusId is required but not provided
-            if (postMode && createPostDTO.campusId == null) {
-                trySend(ResultState.Error("Campus ID is required for campus posts"))
-                close()
-                return@callbackFlow
-            }
+        if (postMode && createPostDTO.campusId == null) {
+            trySend(ResultState.Error("Campus ID is required for campus posts"))
+            close()
+            return@callbackFlow
+        }
 
-            // Choose the correct Firestore document reference
-            val collectionRef = if (postMode) {
-                firestore.collection("CampusPosts")
-                    .document(createPostDTO.campusId!!)
-                    .collection("Posts")
-                    .document(createPostDTO.postId)
-            } else {
-                firestore.collection("GlobalPosts")
-                    .document(createPostDTO.postId)
-            }
+        val collectionRef = if (postMode) {
+            firestore.collection("CampusPosts")
+                .document(createPostDTO.campusId!!)
+                .collection("Posts")
+                .document(createPostDTO.postId)
+        } else {
+            firestore.collection("GlobalPosts")
+                .document(createPostDTO.postId)
+        }
 
-            // Function to build post data with optional image URL
-            fun buildPostData(imageUrl: String? = null): CreatePostDTO {
-                if (imageUrl == null) {
-                    return createPostDTO
-                }
-                return createPostDTO.copy(
+        fun buildPostData(imageUrl: String? = null): CreatePostDTO {
+            return if (imageUrl != null) {
+                createPostDTO.copy(
                     postContent = createPostDTO.postContent.copy(
                         postData = createPostDTO.postContent.postData.copy(
-                            postImage = imageUrl.toString()
+                            postImage = imageUrl
                         )
                     )
                 )
+            } else {
+                createPostDTO
             }
+        }
 
-            // Image Upload flow
+        val sendCompletedAndFinish: (String?) -> Unit = { uploadId ->
+            trySend(ResultState.Success(UploadResponse("COMPLETED", uploadId = uploadId ?: "")))
+            trySend(ResultState.Success(UploadResponse("FINISHED", uploadId = uploadId ?: "")))
+            close()
+        }
+
+        try {
             if (imageUri != null) {
                 MediaManager.get().upload(imageUri)
                     .callback(object : UploadCallback {
                         override fun onStart(requestId: String?) {
-                            trySend(
-                                ResultState.Success(
-                                    UploadResponse("STARTED", uploadId = requestId ?: "")
-                                )
-                            )
+                            trySend(ResultState.Success(UploadResponse("STARTED", uploadId = requestId ?: "")))
                         }
 
                         override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {
                             val progress = ((bytes.toFloat() / totalBytes.toFloat()) * 100).toInt()
-                            trySend(
-                                ResultState.Success(
-                                    UploadResponse("PROGRESS", progress = progress, uploadId = requestId ?: "")
-                                )
-                            )
+                            trySend(ResultState.Success(UploadResponse("PROGRESS", progress, uploadId = requestId ?: "")))
                         }
 
                         override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
@@ -578,8 +577,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
 
                             collectionRef.set(postData)
                                 .addOnSuccessListener {
-                                    trySend(ResultState.Success(UploadResponse("COMPLETED", uploadId = requestId ?: "")))
-                                    close()
+                                    sendCompletedAndFinish(requestId)
                                 }
                                 .addOnFailureListener { e ->
                                     trySend(ResultState.Error(e.localizedMessage ?: "Firestore upload failed"))
@@ -588,34 +586,24 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                         }
 
                         override fun onError(requestId: String?, error: ErrorInfo?) {
-                            trySend(
-                                ResultState.Error(
-                                    error?.description ?: "Image upload failed"
-                                )
-                            )
+                            trySend(ResultState.Error(error?.description ?: "Image upload failed"))
                             close()
                         }
 
                         override fun onReschedule(requestId: String?, error: ErrorInfo?) {
-                            // Optional: handle retry if needed
+                            // Optional: implement retry logic
                         }
                     }).dispatch()
             } else {
                 val postData = buildPostData()
-
                 collectionRef.set(postData)
                     .addOnSuccessListener {
-                        trySend(ResultState.Success(UploadResponse("COMPLETED")))
-                        close()
+                        sendCompletedAndFinish(null)
                     }
                     .addOnFailureListener { e ->
                         trySend(ResultState.Error(e.localizedMessage ?: "Firestore post failed"))
                         close()
                     }
-            }
-
-            awaitClose {
-                // Clean up if needed
             }
         } catch (e: FirebaseNetworkException) {
             trySend(ResultState.Error("Network error, please try again."))
@@ -624,16 +612,45 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
             trySend(ResultState.Error(e.localizedMessage ?: "Something went wrong!"))
             close()
         }
+
+        awaitClose { /* no-op cleanup */ }
     }
 
-    override fun deletePost(postId: String): Flow<ResultState<Boolean>> {
+
+    override fun deletePost(postId: String,campusId: String?): Flow<ResultState<Boolean>> {
         return callbackFlow {
+            if (postId.isBlank()) trySend(ResultState.Error("Invalid post ID"))
+            trySend(ResultState.Loading)
             try {
-                firestore.collection("GlobalPosts").document(postId).delete()
-                trySend(ResultState.Success(true))
+                if (campusId.isNullOrBlank()) {
+                    firestore.collection("CampusPosts").document(campusId.toString())
+                        .collection("Posts").document(postId).delete()
+                        .addOnSuccessListener {
+                            trySend(ResultState.Success(true))
+                            Log.e("DELETE_POST", "CampusPosts deletePost: SUCCESS")
+                            close()
+                        }.addOnFailureListener {
+                            trySend(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                            close()
+                        }
+                } else {
+                    firestore.collection("GlobalPosts").document(postId).delete()
+                        .addOnSuccessListener {
+                            trySend(ResultState.Success(true))
+                            Log.e("DELETE_POST", "GlobalPosts deletePost: SUCCESS")
+                            close()
+                        }.addOnFailureListener {
+                            trySend(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                            Log.e("DELETE_POST", "deletePost: FAILED")
+                            close()
+                        }
+
+                }
             } catch (e: Exception) {
                 trySend(ResultState.Error(e.localizedMessage ?: "Something went wrong!"))
             }
+
+            awaitClose()
         }
     }
 

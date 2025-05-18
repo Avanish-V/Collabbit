@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -56,6 +57,7 @@ fun StatusScreen(isActive:Boolean,text:String,image:Int?= null) {
                 }
 
                 Text(text = text, style = MaterialTheme.typography.titleMedium, color = Black500)
+
             }
 
         }
@@ -64,6 +66,7 @@ fun StatusScreen(isActive:Boolean,text:String,image:Int?= null) {
     }
 
 }
+
 
 @Composable
 fun ConnectingLoadingUI(isLoading:Boolean) {

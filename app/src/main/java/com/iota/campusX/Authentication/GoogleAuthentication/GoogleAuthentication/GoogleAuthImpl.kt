@@ -129,7 +129,7 @@ class GoogleAuthUiClient(
 
                                 UserBasicProfileDTO(
                                     _id = firebaseAuth.currentUser!!.uid,
-                                    userName = firebaseAuth.currentUser!!.displayName.toString(),
+                                    userName = firebaseAuth.currentUser!!.displayName?.replaceFirstChar { it.uppercase() } ?: "",
                                     userImage = firebaseAuth.currentUser!!.photoUrl.toString(),
                                     userEmail = firebaseAuth.currentUser!!.email.toString(),
                                     social = "",

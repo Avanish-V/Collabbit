@@ -17,5 +17,6 @@ data class GetRepliesDTO(
     val replyId: String = "",
     val user: User,
     val content: String = "",
-    val actions: PostActions
+    val actions: PostActions,
+    val repliedAt: Long = 0L
 )

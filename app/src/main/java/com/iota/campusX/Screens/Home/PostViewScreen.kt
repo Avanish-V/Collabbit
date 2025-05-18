@@ -57,11 +57,11 @@ fun PostViewScreen(navHostController: NavHostController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Black900
+                    containerColor = Color.Black
                 )
             )
         },
-        containerColor = Black900
+        containerColor = Color.Black
     ) { padding->
 
         Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center){
@@ -81,33 +81,53 @@ fun PostViewScreen(navHostController: NavHostController) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ZoomableImage(image: String) {
-    // Remember scale and transformation state
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
-    var rotation by remember { mutableStateOf(0f) }
 
-    val state = rememberTransformableState { zoomChange, offsetChange, rotationChange ->
-        scale *= zoomChange
-        offset += offsetChange
-        rotation += rotationChange
+    val minScale = 1f
+    val maxScale = 4f
+
+    val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+        val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
+
+        val limitedOffset = if (newScale > minScale) {
+            val newOffset = offset + offsetChange
+
+            // Set move threshold — how far you can drag
+            val moveLimit = 1000f * (newScale - 1f) // adjust multiplier as needed
+
+            Offset(
+                x = newOffset.x.coerceIn(-moveLimit, moveLimit),
+                y = newOffset.y.coerceIn(-moveLimit, moveLimit)
+            )
+        } else {
+            Offset.Zero
+        }
+
+        scale = newScale
+        offset = limitedOffset
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .transformable(state = state)
+            .transformable(state)
             .graphicsLayer(
                 scaleX = scale,
                 scaleY = scale,
                 translationX = offset.x,
-                translationY = offset.y,
-                rotationZ = rotation
+                translationY = offset.y
             )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
-                        scale = if (scale > 1f) 1f else 2f
+                        if (scale > minScale) {
+                            scale = minScale
+                            offset = Offset.Zero
+                        } else {
+                            scale = 2f
+                        }
                     }
                 )
             },
@@ -121,3 +141,6 @@ fun ZoomableImage(image: String) {
         )
     }
 }
+
+
+

@@ -7,10 +7,10 @@
       </SelectionState>
       <SelectionState runConfigName="CampusX.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-05-10T10:16:16.333518400Z">
+        <DropdownSelection timestamp="2025-05-18T11:14:19.981644Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=cd763363" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=ZD2228T8BT" />
             </handle>
           </Target>
         </DropdownSelection>

@@ -1,6 +1,8 @@
 package com.iota.campusX.Screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,11 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +49,8 @@ import com.iota.campusX.Screens.Home.CircleImage
 import com.iota.campusX.Screens.Home.HideBottomBar
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.StatusScreen
+import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black800
@@ -57,7 +58,6 @@ import com.iota.campusX.ui.theme.Black900
 import com.iota.campusX.ui.theme.background
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.primary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -104,7 +104,7 @@ fun NotificationScreen(
 
                     val postByOrder by remember {
                         derivedStateOf {
-                            state.data.sortedByDescending { it.createdAt }
+                            state.data.sortedByDescending { it.createdAt}
                         }
                     }
 
@@ -117,7 +117,10 @@ fun NotificationScreen(
                                 notificationDTO =  it,
                                 scope = scope,
                                 userProfileViewModel = userProfileViewModel,
-                                notificationViewModel = notificationViewModel
+                                notificationViewModel = notificationViewModel,
+                                onNotificationClick = {
+
+                                }
                             )
                         }
                     }
@@ -125,10 +128,22 @@ fun NotificationScreen(
 
                 }
 
-                state.error.isNotEmpty() -> {
-                    ErrorScreen(state.error)
-                }
             }
+
+            ErrorScreen(
+                isActive = state.error.isNotEmpty(),
+                text = state.error.toString(),
+                image = null,
+                onReTry = {
+                    notificationViewModel.fetchNotifications()
+                }
+            )
+
+            StatusScreen(
+                isActive = state.data.isEmpty() && !state.isLoading,
+                text = "No Notification!",
+                image = null
+            )
 
         }
 
@@ -141,7 +156,8 @@ fun NotificationItem(
     notificationDTO: NotificationDTO,
     userProfileViewModel: UserProfileViewModel,
     notificationViewModel: NotificationViewModel,
-    scope: CoroutineScope
+    scope: CoroutineScope,
+    onNotificationClick: () -> Unit
 ) {
 
     var isAccepted by remember { mutableStateOf(true) }
@@ -158,10 +174,6 @@ fun NotificationItem(
 
     val annotatedText = buildAnnotatedString {
 
-        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-            append(notificationDTO.actionBy.userName)
-        }
-
         withStyle(style = SpanStyle(color = White400)) {
             append(" ● ")
         }
@@ -173,15 +185,18 @@ fun NotificationItem(
             append(" ● ")
         }
 
-        withStyle(style = SpanStyle(color = Black900, fontWeight = FontWeight.Medium)) {
+        withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
             append(text)
         }
+
     }
 
     Column(modifier = Modifier
         .fillMaxWidth()
         .background(color = White900)
-        .padding(12.dp)) {
+        .padding(12.dp)
+        .clickable(onClick = {onNotificationClick.invoke()}, indication = null, interactionSource = remember { MutableInteractionSource() })
+    ) {
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -196,11 +211,29 @@ fun NotificationItem(
             )
 
             Column(modifier = Modifier.height(48.dp)) {
-                Text(
-                    text = annotatedText,
-                    fontSize = 14.sp,
-                    lineHeight = 0.1.sp
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row {
+                        Text(
+                            text = notificationDTO.actionBy.userName,
+                            fontSize = 14.sp,
+                            lineHeight = 0.1.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Row (modifier = Modifier.weight(1f)){
+                        Text(
+                            text = annotatedText,
+                            fontSize = 14.sp,
+                            lineHeight = 0.1.sp,
+                            maxLines = 1,
+                        )
+                    }
+                }
+
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -213,7 +246,7 @@ fun NotificationItem(
                         color = Black800
                     )
                     Text(
-                        text = "${notificationDTO.createdAt}",
+                        text = getTimeAgo(notificationDTO.createdAt),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Normal,
                         color = Black800
@@ -226,7 +259,7 @@ fun NotificationItem(
 
         Column(modifier = Modifier.padding(start = 58.dp)) {
 
-            if (notificationDTO.reply?.replyContent != null) {
+            if (!notificationDTO.content?.content.isNullOrEmpty()) {
                 Text(
                     modifier = Modifier
                         .background(
@@ -234,7 +267,7 @@ fun NotificationItem(
                             shape = RoundedCornerShape(5.dp)
                         )
                         .padding(horizontal = 12.dp),
-                    text = notificationDTO.reply!!.replyContent.toString(),
+                    text = notificationDTO.content!!.content.toString(),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal
                 )

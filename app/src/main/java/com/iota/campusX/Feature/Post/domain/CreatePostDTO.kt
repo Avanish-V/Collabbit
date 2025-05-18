@@ -14,3 +14,9 @@ data class CreatePostDTO(
     val postActions: PostActions = PostActions()
 )
 
+data class Campus(
+    val campusId: String = "",
+    val campusName: String = "",
+    val campusImage: String = ""
+)
+

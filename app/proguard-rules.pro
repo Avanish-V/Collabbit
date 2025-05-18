@@ -3,13 +3,15 @@
 # Notification-related DTOs
 -keep class com.iota.campusX.Feature.Notification.domain.NotificationDTO { *; }
 -keep class com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO { *; }
--keep class com.iota.campusX.Feature.Notification.domain.Reply { *; }
+-keep class com.iota.campusX.Feature.Post.domain.PostData { *; }
 
 # Referenced User model
 -keep class com.iota.campusX.Feature.Post.domain.User { *; }
 
 # Post-related DTOs (already mostly present)
 -keep class com.iota.campusX.Feature.Post.domain.** { *; }
+
+
 
 # Firebase SDK
 # Firebase Firestore rules

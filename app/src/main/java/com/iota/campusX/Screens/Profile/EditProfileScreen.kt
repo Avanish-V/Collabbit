@@ -141,41 +141,43 @@ fun EditProfileScreen(
                             containerColor = secondary
                         ),
                         actions = {
-                            if (pickedImage.value != null){
-                                if (isLoading){
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        color = primary,
-                                        strokeWidth = 2.dp
-                                    )
-                                }else{
-                                    IconButton(onClick = {
-                                        scope.launch {
-                                            userProfileViewModel.modifyProfileImage(pickedImage.value!!).collect{
-                                                when(it){
-                                                    is ResultState.Loading->{
-                                                        isLoading = true
-                                                    }
-                                                    is ResultState.Success-> {
-                                                        isLoading = false
-                                                        navController.popBackStack()
-                                                    }
-                                                    is ResultState.Error->{
-                                                        isLoading = false
+                            Row (modifier = Modifier.padding(end = 12.dp)){
+                                if (pickedImage.value != null){
+                                    if (isLoading){
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = primary,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }else{
+                                        IconButton(onClick = {
+                                            scope.launch {
+                                                userProfileViewModel.modifyProfileImage(pickedImage.value!!).collect{
+                                                    when(it){
+                                                        is ResultState.Loading->{
+                                                            isLoading = true
+                                                        }
+                                                        is ResultState.Success-> {
+                                                            isLoading = false
+                                                            userProfileViewModel.updateProfileImage(Uri.parse(pickedImage.value.toString()).toString())
+                                                            navController.popBackStack()
+                                                        }
+                                                        is ResultState.Error->{
+                                                            isLoading = false
+                                                        }
                                                     }
                                                 }
                                             }
+                                        }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null
+                                            )
                                         }
-                                    }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null
-                                        )
                                     }
+
                                 }
-
                             }
-
                         }
                     )
                 },
@@ -316,9 +318,7 @@ fun EditProfileScreen(
                         title = "Intrests",
                         onEditClick = { /*TODO*/ },
                         body = {
-                            InterestComponent(
-                                interestList = emptyList()
-                            )
+                            Text("Work on progress")
                         },
                         contentDescription = "INTERESTS"
                     )

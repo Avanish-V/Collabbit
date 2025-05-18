@@ -1,8 +1,12 @@
 package com.iota.campusX.Screens.Home
 
+import android.content.Context
 import android.os.Build
+import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -24,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,16 +38,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
@@ -51,6 +60,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -77,10 +87,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Post.domain.Reference
@@ -93,6 +105,7 @@ import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.ErrorScreen
@@ -108,6 +121,7 @@ import com.iota.campusX.ui.theme.background
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -124,7 +138,7 @@ fun MainScreen(
 
     val userProfile = profileViewModel.userBaseProfile.collectAsState().value
     val context = LocalContext.current
-    val tabs = listOf("Trending", "Latest")
+    val tabs = listOf("Latest", "Trending")
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
     var tabIndex by remember { mutableIntStateOf(0) }
 
@@ -168,6 +182,7 @@ fun MainScreen(
                     ) {
                         Switch(
                             checked = switchState.isActive,
+                            enabled = false,
                             onCheckedChange = { newValue ->
 
                                 homeViewModel.saveSwitchState(newValue)
@@ -278,6 +293,10 @@ fun MainScreen(
 
                     1 -> {
 
+                        Box(modifier = Modifier.fillMaxSize(),contentAlignment = Alignment.Center){
+                            Text("Not have implemented yet")
+                        }
+
                     }
 
                 }
@@ -285,6 +304,126 @@ fun MainScreen(
         }
     }
 }
+
+
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun LazyListScope.writePost(
+    navHostController: NavHostController,
+    context: Context,
+    profileImage: String
+) {
+    item {
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = White900
+                )
+                .padding(12.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = {
+                        navHostController.navigate(Routes.Main.CreatePost.routes)
+                        context.vibrate()
+                    }
+                ),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            AsyncImage(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape),
+                model = profileImage,
+                contentDescription = null,
+                contentScale = ContentScale.Crop
+            )
+
+            Column() {
+                Box(
+                    modifier = Modifier.height(40.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "What's on your mind?",
+                        color = Black500
+                    )
+                }
+
+                Row {
+                    Icon(
+                        painter = painterResource(R.drawable.write),
+                        contentDescription = null
+                    )
+                }
+            }
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun LazyListScope.postsLazyColumn(
+    postData: List<PostDTO>,
+    navHostController: NavHostController,
+    postViewModel: PostViewModel,
+    bottomSharedViewModel: BottomSheetSharedViewModel,
+    context: Context,
+    onDotMenuClick: () -> Unit
+) {
+
+    if (postData.isNotEmpty()) {
+
+        val sortedPost = postData.sortedByDescending { it.postedAt }
+
+        items(sortedPost, key = {it.postId}) {
+
+            Log.d("POST_IMAGE", "postsLazyColumn: ${it.postContent.postData.postImage} ${it.postContent.postData.postText}")
+
+            PostCard(
+                onPostClick = {
+                    navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
+                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID", it.postId)
+                    }
+                },
+                onLikeClick = {
+                    postViewModel.toggleLike(
+                        userId = it.creatorDetail.profile?._id ?: "",
+                        postId = it.postId,
+                        isLiked = it.postActions.isLiked
+                    )
+                    context.vibrate()
+                },
+                onReplyClick = {
+                    navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
+                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID", it.postId)
+                    }
+                },
+                post = it,
+                navHostController = navHostController,
+                onDotMenuClick = {
+                   bottomSharedViewModel.setBottomSheetState(state = true,isCurrentUser = it.creatorDetail.isCurrentUser, postId = it.postId, campusId = it.campusId.toString())
+                },
+                goToProfile = {
+
+                    if (it.postMode != "USER") return@PostCard
+
+                    navHostController.navigate(Routes.Main.Profile.routes)
+                        .apply {
+                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                "USER_ID",
+                                it.creatorDetail.profile?._id
+                            )
+                        }
+                }
+            )
+        }
+    }
+}
+
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -298,14 +437,16 @@ fun TrendingScreen(
     postMode: Boolean,
     scrollBehavior: TopAppBarScrollBehavior
 ) {
+    val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
+    val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
     val context = LocalContext.current
     val postResultState = postViewModel.postState.collectAsState().value
     val scope = rememberCoroutineScope()
     val pullToRefreshState = rememberPullToRefreshState()
     val lazyState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
     var isRefreshing by remember { mutableStateOf(false) }
-    val isBottomSheetVisible = remember { mutableStateOf(false) }
-    val isCurrentUser = remember { mutableStateOf(false) }
+    val isLoading = remember { mutableStateOf(false) }
+    val isAlertDialogVisible = remember { mutableStateOf(false) }
 
     if (isRefreshing) {
         LaunchedEffect(Unit) {
@@ -356,12 +497,13 @@ fun TrendingScreen(
             }
 
 
-            if (postResultState.error.isNotEmpty()) {
-
-                ErrorScreen(
-                    error = postResultState.error
-                )
-            }
+            ErrorScreen(
+                isActive = postResultState.error.isNotEmpty(),
+                text = postResultState.error.toString(),
+                onReTry = {
+                    postViewModel.refreshPosts(postMode)
+                }
+            )
 
 
             isRefreshing = false
@@ -374,116 +516,141 @@ fun TrendingScreen(
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
             ) {
 
+                writePost(navHostController = navHostController, context = context, profileImage = profileImage)
 
-                item {
+                postsLazyColumn(
+                    postData = postResultState.postData,
+                    navHostController = navHostController,
+                    postViewModel = postViewModel,
+                    bottomSharedViewModel = bottomSheetViewModel,
+                    context = context,
+                    onDotMenuClick = {
+                    },
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = White900
-                            )
-                            .padding(12.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() },
-                                onClick = {
-                                    navHostController.navigate(Routes.Main.CreatePost.routes)
-                                    context.vibrate()
-                                }
-                            ),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-
-                        AsyncImage(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape),
-                            model = profileImage,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop
-                        )
-
-                        Column() {
-                            Box(
-                                modifier = Modifier.height(40.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text(
-                                    text = "What's on your mind?",
-                                    color = Black500
-                                )
-                            }
-
-                            Row {
-                                Icon(
-                                    painter = painterResource(R.drawable.write),
-                                    contentDescription = null
-                                )
-                            }
-
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 12.dp),
-                                color = White400
-                            )
-                        }
-
-                    }
-
-                }
-
-                if (postResultState.postData.isNotEmpty()) {
-
-
-                    val sortedPost = postResultState.postData.sortedByDescending { it.postedAt }
-
-                    items(sortedPost, key = {it.postId}) {
-                        PostCard(
-                            onPostClick = {
-                                navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
-                                    navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID", it.postId)
-                                }
-                            },
-                            onLikeClick = {
-                                postViewModel.toggleLike(
-                                    userId = it.creatorDetail.profile?._id ?: "",
-                                    postId = it.postId,
-                                    isLiked = it.postActions.isLiked
-                                )
-                                context.vibrate()
-
-                            },
-                            onReplyClick = {
-                                navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
-                                    navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID", it.postId)
-                                }
-                            },
-                            post = it,
-                            navHostController = navHostController,
-                            onDotMenuClick = {
-                                isBottomSheetVisible.value = !isBottomSheetVisible.value
-                                isCurrentUser.value = it.creatorDetail.isCurrentUser
-                            }
-                        )
-                    }
-
-                }
-
-
+                )
             }
-
-
         }
 
-        if (isBottomSheetVisible.value) {
-            PostDotOptionBottomSheet(
-                isBottomSheet = isBottomSheetVisible.value,
-                onDismiss = { isBottomSheetVisible.value = false },
-                isCurrentUser = isCurrentUser.value
-            )
-        }
+        PostDotOptionBottomSheet(
+            isBottomSheet = bottomSheetData.isBottomSheet,
+            onDismiss = { bottomSheetViewModel.hideBottomSheet(false) },
+            isCurrentUser = bottomSheetData.isCurrentUser,
+            onDeleteClick = {
+                isAlertDialogVisible.value = !isAlertDialogVisible.value
+            }
+        )
 
+        AnimatedVisibility(visible = isAlertDialogVisible.value) {
+
+            Box(contentAlignment = Alignment.Center){
+
+                BasicAlertDialog(
+                    onDismissRequest = {isAlertDialogVisible.value = false},
+                ) {
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Column {
+
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Text("Delete Post",fontWeight = FontWeight.Bold)
+                                Text("Are you sure you want to delete this post?", textAlign = TextAlign.Center)
+                            }
+
+                            Column {
+                                HorizontalDivider()
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth(),
+
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+
+                                    Box(Modifier
+                                        .weight(1f)
+                                        .clickable(
+                                            onClick = { isAlertDialogVisible.value = false },
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
+                                        Text("Cancel", modifier = Modifier.padding(16.dp))
+                                    }
+
+                                    VerticalDivider(
+                                        modifier = Modifier.height(48.dp)
+
+                                    )
+
+                                    Box(
+                                        Modifier
+                                            .weight(1f)
+                                            .clickable(
+                                                onClick = {
+
+                                                    scope.launch {
+                                                        postViewModel.deletePost(
+                                                            bottomSheetData.postId,
+                                                            bottomSheetData.campusId
+                                                        )
+                                                            .collect {
+                                                                when (it) {
+                                                                    is ResultState.Success -> {
+                                                                        delay(1000)
+                                                                        isLoading.value = false
+                                                                        isAlertDialogVisible.value =
+                                                                            false
+                                                                        bottomSheetData.isBottomSheet =
+                                                                            false
+                                                                        postViewModel.updateDeletePost(
+                                                                            bottomSheetData.postId
+                                                                        )
+                                                                    }
+
+                                                                    is ResultState.Error -> {
+                                                                        bottomSheetData.isBottomSheet =
+                                                                            false
+                                                                        isLoading.value = false
+
+                                                                        Toast.makeText(
+                                                                            context,
+                                                                            it.message,
+                                                                            Toast.LENGTH_SHORT
+                                                                        ).show()
+
+
+                                                                    }
+
+                                                                    is ResultState.Loading -> {
+                                                                        isLoading.value = true
+                                                                    }
+                                                                }
+                                                            }
+                                                    }
+
+                                                    context.vibrate()
+
+                                                },
+                                                indication = null,
+                                                interactionSource = remember { MutableInteractionSource() }
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ){
+                                        if (isLoading.value)
+                                            CircularProgressIndicator(color = primary, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                                        else
+                                            Text("Delete", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -493,6 +660,7 @@ fun PostCard(
     onLikeClick: () -> Unit,
     onReplyClick: () -> Unit,
     onDotMenuClick: () -> Unit,
+    goToProfile: () -> Unit,
     post: PostDTO,
     navHostController: NavHostController
 ) {
@@ -517,6 +685,10 @@ fun PostCard(
             CircleImage(
                 image = post.creatorDetail.profile?.userImage ?: "",
                 modifier = Modifier
+                    .clickable(
+                        onClick = { goToProfile.invoke() },
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() })
                     .size(48.dp)
                     .clip(CircleShape)
             )
@@ -528,16 +700,7 @@ fun PostCard(
                     pod = post.reference,
                     postedAt = getTimeAgo(post.postedAt),
                     onNameClick = {
-
-                        if (post.postMode != "USER")return@PostHeader
-
-                        navHostController.navigate(Routes.Main.ProfileByID.routes).toString()
-                            .apply {
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                    "USER_ID",
-                                    post.creatorDetail.profile?._id
-                                )
-                            }
+                        goToProfile.invoke()
                     }
                 )
 
@@ -572,15 +735,6 @@ fun PostHeader(
 
     val text = buildAnnotatedString {
 
-        withStyle(
-            style = SpanStyle(
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp
-            )
-        ) {
-            append(user?.userName ?: "")
-        }
-
         withStyle(style = SpanStyle(color = White400)) {
             append(" ● ")
         }
@@ -604,19 +758,50 @@ fun PostHeader(
     ) {
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                modifier = Modifier
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            onNameClick.invoke()
-                        }
-                    ),
-                text = text,
-                fontSize = 14.sp,
-                lineHeight = 0.1.sp
-            )
+
+            Row {
+
+
+                Row (Modifier.weight(1f)){
+                    Text(
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {
+                                    onNameClick.invoke()
+                                }
+                            ),
+                        text = user?.userName ?: "",
+                        fontSize = 14.sp,
+                        lineHeight = 0.1.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                }
+
+                Row (Modifier.weight(1f)){
+
+                    Text(
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {
+                                    onNameClick.invoke()
+                                }
+                            ),
+                        text = text,
+                        fontSize = 14.sp,
+                        lineHeight = 0.1.sp,
+                        maxLines = 1,
+                    )
+                }
+
+
+            }
+
             Text(
                 text = "IET Vivekanand, Campus, Agra",
                 style = typography.labelRegular,
@@ -652,7 +837,7 @@ fun PostBody(
             overflow = TextOverflow.Ellipsis
         )
 
-        if (postContent.postData.postImage.isNotEmpty()) {
+        if (!postContent.postData.postImage.isNullOrBlank() && postContent.postData.postImage != "null") {
             AsyncImage(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -852,7 +1037,8 @@ fun HideBottomBar(
 fun PostDotOptionBottomSheet(
     isBottomSheet: Boolean,
     onDismiss: () -> Unit,
-    isCurrentUser: Boolean
+    isCurrentUser: Boolean,
+    onDeleteClick:()-> Unit
 ) {
 
 
@@ -869,29 +1055,76 @@ fun PostDotOptionBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 20.dp, horizontal = 16.dp)
+                    .padding(vertical = 20.dp, horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
                 if (isCurrentUser){
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .height(48.dp)
+                            .fillMaxWidth()
+                            .padding(start = 10.dp)
+                            .background(
+                                color = secondary,
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .clickable(
+                                onClick = {
+                                    onDeleteClick.invoke()
+                                },
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            )
+                    ) {
 
+                        Icon(
+                            modifier = Modifier.size(22.dp),
+                            painter = painterResource(R.drawable.trash),
+                            contentDescription = null,
+                            tint = primary
+                        )
+
+                        Text("Delete")
+
+                    }
                 }
+
+                HorizontalDivider(
+                    color = White400
+                )
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .height(48.dp)
                         .fillMaxWidth()
-                        .background(secondary, shape = RoundedCornerShape(10.dp))
+                        .padding(start = 10.dp)
+                        .background(
+                            color = secondary,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .clickable(
+                            onClick = {
+
+                            },
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        )
+
                 ) {
 
                     Icon(
                         modifier = Modifier.size(22.dp),
-                        imageVector = Icons.Default.Delete,
+                        painter = painterResource(R.drawable.warning_2),
                         contentDescription = null,
-                        tint = primary
+                        tint = Color.Red
                     )
 
-                    Text("Delete")
+                    Text("Report (Work in progress)", color = Color.Red)
 
                 }
 

@@ -28,7 +28,7 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
 
 
-    fun sendMessages(message: String,receiverId: String) = chatRepository.sendMessage(message,receiverId)
+    fun sendMessages(message: String,receiverId: String,roomId: String) = chatRepository.sendMessage(message,receiverId,roomId)
 
     fun receiveMessage(roomId: String){
         viewModelScope.launch {

@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface ChatRepository {
 
-    fun sendMessage(message: String, receiverId: String):Flow<ResultState<Boolean>>
+    fun sendMessage(message: String, receiverId: String,roomId: String):Flow<ResultState<Boolean>>
 
     fun updateIsUserActive(isActive:Boolean,roomId: String)
 

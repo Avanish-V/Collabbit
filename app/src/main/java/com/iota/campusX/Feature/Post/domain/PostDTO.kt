@@ -1,19 +1,35 @@
 package com.iota.campusX.Feature.Post.domain
 
 import android.os.Parcelable
+import androidx.annotation.Keep
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
 @Parcelize
+@Serializable
 data class PostDTO(
-    val postId: String,
-    val postedAt: Long,
+    val postId: String = "",
+    val postedAt: Long = 0L,
     val creatorDetail: CreatorDetail,
     val reference: Reference,
     val postMode: String?=null,
+    val campusId: String?=null,
     val postContent: PostContent,
     val postActions: PostActions
-):Parcelable
+):Parcelable{
+    @Keep
+    constructor() : this(
+        postId = "",
+        postedAt = 0L,
+        creatorDetail = CreatorDetail(),
+        reference = Reference(),
+        postMode = null,
+        campusId = null,
+        postContent = PostContent(),
+        postActions = PostActions()
+    )
+
+}
 
 
 @Serializable
@@ -31,7 +47,7 @@ data class CreatorDetail(
 @Serializable
 data class PostData(
     val postText: String = "",
-    val postImage: String = "",
+    val postImage: String ?= null,
 ): Parcelable
 
 

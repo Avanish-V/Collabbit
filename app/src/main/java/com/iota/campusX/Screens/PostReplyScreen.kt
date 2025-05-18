@@ -1,7 +1,9 @@
 package com.iota.campusX.Screens
 
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,18 +20,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -46,8 +53,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.domain.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.PostActions
@@ -57,8 +66,10 @@ import com.iota.campusX.Feature.Post.domain.User
 import com.iota.campusX.Feature.Post.presentation.PostViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
+import com.iota.campusX.Screens.Home.BottomSheetSharedViewModel
 import com.iota.campusX.Screens.Home.CircleImage
 import com.iota.campusX.Screens.Home.PostBody
+import com.iota.campusX.Screens.Home.PostDotOptionBottomSheet
 import com.iota.campusX.Screens.Home.PostHeader
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.getTimeAgo
@@ -68,6 +79,7 @@ import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.White900
 import io.ktor.util.date.getTimeMillis
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -77,7 +89,8 @@ import java.util.UUID
 fun PostReplyScreen(
     navHostController: NavHostController,
     profileViewModel: UserProfileViewModel,
-    postViewModel: PostViewModel
+    postViewModel: PostViewModel,
+
 ) {
 
     val userProfile = profileViewModel.userBaseProfile.collectAsState().value.baseProfileData
@@ -100,6 +113,9 @@ fun PostReplyScreen(
     val context = LocalContext.current
     var interactionSource = remember { MutableInteractionSource() }
 
+    val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
+    val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
+    val isAlertDialogVisible = remember { mutableStateOf(false) }
 
 
     when{
@@ -292,6 +308,14 @@ fun PostReplyScreen(
                                 },
                                 onReplyClick = {
                                     keyboard?.show()
+                                },
+                                onDotMenuClick = {
+                                    bottomSheetViewModel.setBottomSheetState(
+                                        state = true,
+                                        isCurrentUser = postData.creatorDetail.isCurrentUser,
+                                        postId = postData.postId,
+                                        campusId = postData.campusId.toString()
+                                    )
                                 }
                             )
                         }
@@ -323,7 +347,9 @@ fun PostReplyScreen(
 
                         repliesData.data.isNotEmpty() -> {
 
-                            items(repliesData.data.reversed()) {
+                            val orderedData = repliesData.data.sortedByDescending { it.repliedAt }
+
+                            items(orderedData) {
 
                                 Column(
                                     modifier = Modifier
@@ -348,7 +374,8 @@ fun PostReplyScreen(
                                             user = it.user,
                                             onNameClick = {
                                                 navHostController.navigate("PROFILE_By_Id")
-                                            }
+                                            },
+                                            postedAt = getTimeAgo(it.repliedAt)
                                         )
                                     }
 
@@ -424,10 +451,130 @@ fun PostReplyScreen(
 
                 }
 
+
+                PostDotOptionBottomSheet(
+                    isBottomSheet = bottomSheetData.isBottomSheet,
+                    onDismiss = { bottomSheetViewModel.hideBottomSheet(false) },
+                    isCurrentUser = bottomSheetData.isCurrentUser,
+                    onDeleteClick = {
+                        isAlertDialogVisible.value = !isAlertDialogVisible.value
+                    }
+                )
+
+                AnimatedVisibility(visible = isAlertDialogVisible.value) {
+
+                    Box(contentAlignment = Alignment.Center){
+
+                        BasicAlertDialog(
+                            onDismissRequest = {isAlertDialogVisible.value = false},
+                        ) {
+
+                            Surface(
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Column {
+
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        Text("Delete Post",fontWeight = FontWeight.Bold)
+                                        Text("Are you sure you want to delete this post?", textAlign = TextAlign.Center)
+                                    }
+
+                                    Column {
+                                        HorizontalDivider()
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth(),
+
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+
+                                            Box(Modifier
+                                                .weight(1f)
+                                                .clickable(
+                                                    onClick = { isAlertDialogVisible.value = false },
+                                                    indication = null,
+                                                    interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
+                                                Text("Cancel", modifier = Modifier.padding(16.dp))
+                                            }
+
+                                            VerticalDivider(
+                                                modifier = Modifier.height(48.dp)
+
+                                            )
+
+                                            Box(
+                                                Modifier
+                                                    .weight(1f)
+                                                    .clickable(
+                                                        onClick = {
+
+                                                            scope.launch {
+                                                                postViewModel.deletePost(
+                                                                    bottomSheetData.postId,
+                                                                    bottomSheetData.campusId
+                                                                )
+                                                                    .collect {
+                                                                        when (it) {
+                                                                            is ResultState.Success -> {
+                                                                                delay(1000)
+                                                                                isLoading = false
+                                                                                isAlertDialogVisible.value =
+                                                                                    false
+                                                                                bottomSheetData.isBottomSheet =
+                                                                                    false
+                                                                                postViewModel.updateDeletePost(
+                                                                                    bottomSheetData.postId
+                                                                                )
+                                                                                navHostController.popBackStack()
+                                                                            }
+
+                                                                            is ResultState.Error -> {
+                                                                                bottomSheetData.isBottomSheet =
+                                                                                    false
+                                                                                isLoading = false
+
+                                                                                Toast.makeText(
+                                                                                    context,
+                                                                                    it.message,
+                                                                                    Toast.LENGTH_SHORT
+                                                                                ).show()
+
+
+                                                                            }
+
+                                                                            is ResultState.Loading -> {
+                                                                                isLoading = true
+                                                                            }
+                                                                        }
+                                                                    }
+                                                            }
+
+                                                            context.vibrate()
+
+                                                        },
+                                                        indication = null,
+                                                        interactionSource = remember { MutableInteractionSource() }
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ){
+                                                if (isLoading)
+                                                    CircularProgressIndicator(color = primary, modifier = Modifier.size(24.dp))
+                                                else
+                                                    Text("Delete", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
-
         }
-
     }
 
 
