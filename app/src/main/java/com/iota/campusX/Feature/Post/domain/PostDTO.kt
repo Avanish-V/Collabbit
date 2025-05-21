@@ -65,7 +65,9 @@ data class User(
     val userName: String = "",
     val _id: String = "",
     val userImage: String = "",
+    val about: String = "",
     val designation: String?=null,
+    val isCurrentUser: Boolean?=false,
 ):Parcelable
 
 

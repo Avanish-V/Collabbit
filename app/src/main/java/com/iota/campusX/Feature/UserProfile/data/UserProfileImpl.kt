@@ -143,6 +143,25 @@ class UserProfileImpl(
 
             trySend(ResultState.Loading)
 
+            try {
+
+                firestore.collection("Users").document(auth.currentUser!!.uid).delete()
+                    .addOnSuccessListener {
+                        trySend(ResultState.Success(true))
+                        close()
+                    }
+                    .addOnFailureListener {
+                        trySend(ResultState.Error(it.message.toString()))
+                    }
+
+            }catch (e: Exception){
+
+                trySend(ResultState.Error(e.message.toString()))
+
+            }finally {
+                close()
+            }
+
             awaitClose()
 
 

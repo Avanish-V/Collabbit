@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -65,15 +67,20 @@ import com.iota.campusX.Feature.Post.domain.PostData
 import com.iota.campusX.Feature.Post.domain.User
 import com.iota.campusX.Feature.Post.presentation.PostViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.BottomSheetSharedViewModel
-import com.iota.campusX.Screens.Home.CircleImage
-import com.iota.campusX.Screens.Home.PostBody
-import com.iota.campusX.Screens.Home.PostDotOptionBottomSheet
-import com.iota.campusX.Screens.Home.PostHeader
 import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
+import com.iota.campusX.ui.UIComponents.AlertDialogWidget
+import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.PostActionsComponent
+import com.iota.campusX.ui.UIComponents.PostBody
+import com.iota.campusX.ui.UIComponents.PostCard
+import com.iota.campusX.ui.UIComponents.PostDotOptionBottomSheet
+import com.iota.campusX.ui.UIComponents.PostHeader
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
@@ -81,7 +88,6 @@ import com.iota.campusX.ui.theme.White900
 import io.ktor.util.date.getTimeMillis
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +96,6 @@ fun PostReplyScreen(
     navHostController: NavHostController,
     profileViewModel: UserProfileViewModel,
     postViewModel: PostViewModel,
-
 ) {
 
     val userProfile = profileViewModel.userBaseProfile.collectAsState().value.baseProfileData
@@ -105,7 +110,7 @@ fun PostReplyScreen(
     LaunchedEffect(Unit) {
         postId?.let { postViewModel.getReplies(postId = it) }
     }
-    val uid by remember { mutableStateOf(UUID.randomUUID().toString()) }
+
     val keyboard = LocalSoftwareKeyboardController.current
     var replyText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -150,11 +155,13 @@ fun PostReplyScreen(
                         )
 
                         TextField(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .imePadding(),
                             value = replyText,
                             onValueChange = { replyText = it },
                             placeholder = {
-                                Text("Write your reply...")
+                                Text("Write your comment...")
                             },
                             trailingIcon = {
                                 IconButton(
@@ -162,13 +169,15 @@ fun PostReplyScreen(
 
                                         if (replyText.isNotEmpty()) {
 
+                                            val docID = generateUID()
+
                                             keyboard?.hide()
 
                                             scope.launch {
 
                                                 postData.let { post ->
                                                     postViewModel.createReply(
-                                                        replyId = uid,
+                                                        replyId = docID,
                                                         postId = postData?.postId ?: "",
                                                         content = replyText,
                                                         repliedAt = getTimeMillis(),
@@ -179,7 +188,7 @@ fun PostReplyScreen(
                                                                 isLoading = false
                                                                 postViewModel.updateReply(
                                                                     GetRepliesDTO(
-                                                                        replyId = uid,
+                                                                        replyId = docID,
                                                                         postId = postData!!.postId,
                                                                         user = User(
                                                                             _id = userProfile?._id ?: "",
@@ -192,8 +201,8 @@ fun PostReplyScreen(
                                                                             likesCount = 0,
                                                                             replies = emptyList(),
                                                                             replyCount = 0
-
-                                                                        )
+                                                                        ),
+                                                                        repliedAt = getTimeMillis()
                                                                     )
                                                                 )
                                                                 replyText = ""
@@ -250,84 +259,55 @@ fun PostReplyScreen(
 
                     item {
 
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(color = White900)
-                                .padding(12.dp)
-                        ) {
+                       postData?.let {
+                           PostCard(
+                               onPostClick = {},
+                               onLikeClick = {
+                                   postViewModel.toggleLike(
+                                       userId = postData.creatorDetail.profile?._id ?: "",
+                                       postId = postData.postId,
+                                       isLiked = postData.postActions.isLiked
+                                   )
+                                   context.vibrate()
+                               },
+                               onReplyClick = {
+                                   keyboard?.show()
+                               },
+                               onDotMenuClick = {
+                                   bottomSheetViewModel.setBottomSheetState(
+                                       state = true,
+                                       isCurrentUser = postData.creatorDetail.isCurrentUser,
+                                       postId = postData.postId,
+                                       campusId = postData.campusId.toString()
+                                   )
+                               },
+                               goToProfile ={
+                                   if (postData.postMode != "USER") return@PostCard
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                CircleImage(
-                                    image = postData?.creatorDetail?.profile?.userImage ?: "",
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                )
-                                PostHeader(
-                                    user = postData!!.creatorDetail.profile,
-                                    pod = postData.reference,
-                                    postedAt = getTimeAgo(postData.postedAt),
-                                    onNameClick = {
-                                        navHostController.navigate("PROFILE_By_Id")
-                                    }
-                                )
-                            }
+                                   navHostController.navigate(Routes.Main.Profile.routes)
+                                       .apply {
+                                           navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                               "USER_ID",
+                                               postData.creatorDetail.profile?._id
+                                           )
+                                       }
 
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-
-                                PostBody(
-                                    postContent = PostContent(
-                                        postType = postData?.postContent?.postType ?: "",
-                                        postData = PostData(
-                                            postText = postData?.postContent?.postData?.postText ?: "",
-                                            postImage = postData?.postContent?.postData?.postImage?:""
-                                        )
-                                    ),
-                                    navHostController = navHostController
-                                )
-
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            com.iota.campusX.Screens.Home.PostActions(
-                                postAction = postData!!.postActions,
-                                user = postData.creatorDetail.profile,
-                                onLikeClick = {
-                                    postViewModel.toggleLike(
-                                        userId = postData.creatorDetail.profile?._id ?: "",
-                                        postId = postData.postId,
-                                        isLiked = postData.postActions.isLiked
-                                    )
-                                    context.vibrate()
-                                },
-                                onReplyClick = {
-                                    keyboard?.show()
-                                },
-                                onDotMenuClick = {
-                                    bottomSheetViewModel.setBottomSheetState(
-                                        state = true,
-                                        isCurrentUser = postData.creatorDetail.isCurrentUser,
-                                        postId = postData.postId,
-                                        campusId = postData.campusId.toString()
-                                    )
-                                }
-                            )
-                        }
+                               },
+                               post = it,
+                               navHostController = navHostController
+                           )
+                       }
                     }
 
                     item {
                         Box(modifier = Modifier
                             .fillMaxWidth()
+                            .background(color = secondary)
                             .padding(start = 16.dp)) {
                             Text(text = "Replies", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
+
 
                     when {
                         repliesData.isLoading -> {
@@ -350,87 +330,30 @@ fun PostReplyScreen(
                             val orderedData = repliesData.data.sortedByDescending { it.repliedAt }
 
                             items(orderedData) {
-
-                                Column(
-                                    modifier = Modifier
-                                        .background(color = White900)
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                ) {
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-
-                                        CircleImage(
-                                            image = it.user.userImage,
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .clip(CircleShape)
-                                        )
-
-                                        PostHeader(
-                                            user = it.user,
-                                            onNameClick = {
-                                                navHostController.navigate("PROFILE_By_Id")
-                                            },
-                                            postedAt = getTimeAgo(it.repliedAt)
-                                        )
-                                    }
-
-                                    PostBody(
-                                        postContent = PostContent(
-                                            postType = "Text",
-                                            postData = PostData(
-                                                postText = it.content
+                                ReplyWidget(
+                                    repliesDTO = it,
+                                    navHostController = navHostController,
+                                    onLikeClick = {
+                                        if (userProfile != null) {
+                                            postViewModel.likeReply(
+                                                creatorId = userProfile._id,
+                                                postId = it.postId,
+                                                replyId = it.replyId,
+                                                isLiked = it.actions.isLiked
                                             )
-                                        ),
-                                        navHostController = navHostController
-                                    )
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-
-                                            Text(text = it.actions.likesCount.toString(), color = Black500)
-
-                                            Icon(
-                                                modifier = Modifier
-                                                    .size(24.dp)
-                                                    .clickable(
-                                                        interactionSource = interactionSource,
-                                                        indication = null,
-                                                        onClick = {
-
-                                                            if (userProfile != null) {
-                                                                postViewModel.likeReply(
-                                                                    userId = userProfile._id,
-                                                                    postId = postData!!.postId,
-                                                                    replyId = it.replyId,
-                                                                    isLiked = it.actions.isLiked
-                                                                )
-                                                            }
-
-                                                            context.vibrate()
-
-                                                        }
-                                                    ),
-                                                painter = painterResource(if (it.actions.isLiked) R.drawable.heart_bold else R.drawable.heart_outline),
-                                                contentDescription = "Like",
-                                                tint = if (it.actions.isLiked) Color.Red else Black500
-                                            )
-
                                         }
-                                        
-                                    }
+                                    },
+                                    onDotsClick = {
+                                        bottomSheetViewModel.setBottomSheetState(
+                                            state = true,
+                                            isCurrentUser = it.user.isCurrentUser == true,
+                                            postId = it.postId,
+                                            replyId = it.replyId,
+                                            campusId = ""
+                                        )
 
-                                }
-
+                                    },
+                                )
                             }
                         }
 
@@ -458,125 +381,171 @@ fun PostReplyScreen(
                     isCurrentUser = bottomSheetData.isCurrentUser,
                     onDeleteClick = {
                         isAlertDialogVisible.value = !isAlertDialogVisible.value
+                    },
+                    onEditClick = {
+
                     }
                 )
 
-                AnimatedVisibility(visible = isAlertDialogVisible.value) {
+                AlertDialogWidget(
+                    isVisible = isAlertDialogVisible.value,
+                    onDismiss = { isAlertDialogVisible.value = it },
+                    title = "Delete Reply",
+                    description = "Are you sure you want to delete this reply?",
+                    positiveButtonText = "Delete",
+                    negativeButtonText = "Cancel",
+                    onPositiveClick = {
 
-                    Box(contentAlignment = Alignment.Center){
-
-                        BasicAlertDialog(
-                            onDismissRequest = {isAlertDialogVisible.value = false},
-                        ) {
-
-                            Surface(
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Column {
-
-                                    Column(
-                                        modifier = Modifier.padding(12.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    ) {
-                                        Text("Delete Post",fontWeight = FontWeight.Bold)
-                                        Text("Are you sure you want to delete this post?", textAlign = TextAlign.Center)
-                                    }
-
-                                    Column {
-                                        HorizontalDivider()
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth(),
-
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-
-                                            Box(Modifier
-                                                .weight(1f)
-                                                .clickable(
-                                                    onClick = { isAlertDialogVisible.value = false },
-                                                    indication = null,
-                                                    interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
-                                                Text("Cancel", modifier = Modifier.padding(16.dp))
-                                            }
-
-                                            VerticalDivider(
-                                                modifier = Modifier.height(48.dp)
-
+                        scope.launch {
+                            postViewModel.deleteReply(
+                                bottomSheetData.postId,
+                                replyId = bottomSheetData.replyId,
+                                bottomSheetData.campusId
+                            )
+                                .collect {
+                                    when (it) {
+                                        is ResultState.Success -> {
+                                            delay(1000)
+                                            isLoading = false
+                                            isAlertDialogVisible.value =
+                                                false
+                                            bottomSheetData.isBottomSheet =
+                                                false
+                                            postViewModel.updateDeleteReply(
+                                                postId = bottomSheetData.postId,
+                                                replyId = bottomSheetData.replyId
                                             )
+                                        }
 
-                                            Box(
-                                                Modifier
-                                                    .weight(1f)
-                                                    .clickable(
-                                                        onClick = {
+                                        is ResultState.Error -> {
+                                            bottomSheetData.isBottomSheet = false
+                                            isLoading = false
 
-                                                            scope.launch {
-                                                                postViewModel.deletePost(
-                                                                    bottomSheetData.postId,
-                                                                    bottomSheetData.campusId
-                                                                )
-                                                                    .collect {
-                                                                        when (it) {
-                                                                            is ResultState.Success -> {
-                                                                                delay(1000)
-                                                                                isLoading = false
-                                                                                isAlertDialogVisible.value =
-                                                                                    false
-                                                                                bottomSheetData.isBottomSheet =
-                                                                                    false
-                                                                                postViewModel.updateDeletePost(
-                                                                                    bottomSheetData.postId
-                                                                                )
-                                                                                navHostController.popBackStack()
-                                                                            }
+                                            Toast.makeText(
+                                                context,
+                                                it.message,
+                                                Toast.LENGTH_SHORT
+                                            ).show()
 
-                                                                            is ResultState.Error -> {
-                                                                                bottomSheetData.isBottomSheet =
-                                                                                    false
-                                                                                isLoading = false
+                                        }
 
-                                                                                Toast.makeText(
-                                                                                    context,
-                                                                                    it.message,
-                                                                                    Toast.LENGTH_SHORT
-                                                                                ).show()
-
-
-                                                                            }
-
-                                                                            is ResultState.Loading -> {
-                                                                                isLoading = true
-                                                                            }
-                                                                        }
-                                                                    }
-                                                            }
-
-                                                            context.vibrate()
-
-                                                        },
-                                                        indication = null,
-                                                        interactionSource = remember { MutableInteractionSource() }
-                                                    ),
-                                                contentAlignment = Alignment.Center
-                                            ){
-                                                if (isLoading)
-                                                    CircularProgressIndicator(color = primary, modifier = Modifier.size(24.dp))
-                                                else
-                                                    Text("Delete", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
-                                            }
+                                        is ResultState.Loading -> {
+                                            isLoading = true
                                         }
                                     }
                                 }
-                            }
                         }
-                    }
-                }
+
+                        context.vibrate()
+
+                    },
+                    showLoading = isLoading
+
+                )
             }
         }
     }
 
+}
 
+@Composable
+fun ReplyWidget(
+    repliesDTO: GetRepliesDTO,
+    navHostController: NavHostController,
+    onLikeClick:()-> Unit,
+    onDotsClick:()-> Unit
+) {
 
+    Column(
+        modifier = Modifier
+            .background(color = White900)
+            .fillMaxWidth()
+            .padding(12.dp),
+    ) {
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            CircleImage(
+                image = repliesDTO.user.userImage,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape),
+                onClick = {
+
+                }
+            )
+
+            PostHeader(
+                user = repliesDTO.user,
+                onNameClick = {
+                    navHostController.navigate(Routes.Main.Profile.routes)
+                        .apply {
+                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                "USER_ID",
+                                repliesDTO.user._id
+                            )
+                        }
+                },
+                postedAt = getTimeAgo(repliesDTO.repliedAt)
+            )
+        }
+
+        PostBody(
+            postContent = PostContent(
+                postType = "Text",
+                postData = PostData(
+                    postText = repliesDTO.content
+                )
+            ),
+            navHostController = navHostController
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+
+                Text(text = repliesDTO.actions.likesCount.toString(), color = Black500)
+
+                Icon(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
+                                onLikeClick.invoke()
+                            }
+                        ),
+                    painter = painterResource(if (repliesDTO.actions.isLiked) R.drawable.heart_bold else R.drawable.heart_outline),
+                    contentDescription = "Like",
+                    tint = if (repliesDTO.actions.isLiked) Color.Red else Black500
+                )
+
+            }
+
+            Icon(
+                modifier = Modifier
+                    .rotate(90f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {
+                            onDotsClick.invoke()
+                        }
+                    ),
+                painter = painterResource(R.drawable.dots_menu),
+                contentDescription = "Dots",
+                tint = Black500
+            )
+
+        }
+
+    }
 }

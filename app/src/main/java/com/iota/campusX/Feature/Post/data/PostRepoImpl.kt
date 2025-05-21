@@ -10,8 +10,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.messaging.FirebaseMessaging
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
-import com.iota.campusX.Feature.Notification.domain.Content
 import com.iota.campusX.Feature.Post.domain.CreatePostDTO
 import com.iota.campusX.Feature.Post.domain.CreatorDetail
 import com.iota.campusX.Feature.Post.domain.GetRepliesDTO
@@ -23,7 +23,10 @@ import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.domain.ReplyDTO
 import com.iota.campusX.Feature.Post.domain.UploadResponse
 import com.iota.campusX.Feature.Post.domain.User
+import com.iota.campusX.Feature.PushNotification.FcmNotificationSender
 import com.iota.campusX.Utils.ResultState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
@@ -31,11 +34,12 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.tasks.await
 
 
-class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: FirebaseFirestore) :PostRepository {
+class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, private val firestore: FirebaseFirestore) :PostRepository {
 
     override fun getPosts(postMode: Boolean): Flow<ResultState<List<PostDTO>>> = flow {
         emit(ResultState.Loading)
@@ -130,7 +134,8 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                                 profile = User(
                                     _id = post.creatorId,
                                     userName = postMode.first,
-                                    userImage = postMode.second
+                                    userImage = postMode.second,
+                                    about = user?.about ?: ""
                                 )
                             ),
                             reference = post.reference,
@@ -287,7 +292,6 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
 
     override fun toggleLike(userId: String, postId: String, isLiked: Boolean) {
 
-        Log.e("TOGGLE_LIKE", "toggleLike: $userId $postId $isLiked")
 
         val likeDocRef = firestore.collection("GlobalPosts")
             .document(postId)
@@ -305,19 +309,45 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
 
                 if (userId == auth.currentUser!!.uid) return@addOnSuccessListener
 
+
                 if (!isLiked) {
-                    val notification = mapOf(
-                        "type" to "LIKE",
-                        "postId" to postId,
-                        "createrId" to userId,
-                        "actionBy" to (auth.currentUser?.uid ?: ""),
-                        "createdAt" to System.currentTimeMillis()
+                    val notification = CreateNotificationDTO(
+                        notificationId = postId+userId,
+                        type = "LIKE",
+                        postId = postId,
+                        contentId = postId,
+                        creatorId = userId,
+                        actionBy = (auth.currentUser?.uid ?: ""),
+                        createdAt = System.currentTimeMillis(),
                     )
                     firestore.collection("Users").document(userId)
                         .collection("Notifications")
                         .document(postId + userId)
                         .set(notification)
                         .addOnSuccessListener {
+
+                            firestore.collection("Users").document(userId)
+                                .get()
+                                .addOnSuccessListener {
+                                    val fcmToken = it.get("token") as? String
+
+                                    if (fcmToken == null) return@addOnSuccessListener
+
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        val messageNotify = FcmNotificationSender(
+                                            userFcmToken = fcmToken,
+                                            title = "Liked",
+                                            body = "Someone liked your post"
+                                        )
+
+                                        messageNotify.sendNotification()
+                                    }
+
+                                }
+
+
+                        }
+                        .addOnFailureListener {
 
                         }
                 }
@@ -327,7 +357,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
             }
     }
 
-    override fun likeReply(userId: String, postId: String, replyId: String, isLiked: Boolean) {
+    override fun likeReply(creatorId: String, postId: String, replyId: String, isLiked: Boolean) {
 
 
         val likeDocRef = firestore.collection("GlobalPosts")
@@ -338,30 +368,54 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
             .document(replyId) // This could also be userId if you're storing one doc per user
 
         val updateData = mapOf(
-            "likes" to if (isLiked) FieldValue.arrayRemove(userId) else FieldValue.arrayUnion(userId)
+            "likes" to if (isLiked) FieldValue.arrayRemove(creatorId) else FieldValue.arrayUnion(creatorId)
         )
 
         likeDocRef.set(updateData, SetOptions.merge()) // This creates the doc if it doesn't exist
             .addOnSuccessListener {
 
-                if (userId == auth.currentUser!!.uid) return@addOnSuccessListener
+                if (creatorId == auth.currentUser!!.uid) return@addOnSuccessListener
 
-                val notification = CreateNotificationDTO(
-                    type = "LIKE_REPLY",
-                    postId = postId,
-                    createrId = userId,
-                    actionBy = (auth.currentUser?.uid ?: ""),
-                    createdAt = System.currentTimeMillis(),
-                    content = Content(
-                        contentId = replyId
+                if (!isLiked) {
+
+                    val notification = CreateNotificationDTO(
+                        type = "LIKE_REPLY",
+                        contentId = replyId,
+                        postId = postId,
+                        creatorId = creatorId,
+                        actionBy = (auth.currentUser?.uid ?: ""),
+                        createdAt = System.currentTimeMillis(),
+                        notificationId = replyId,
                     )
-                )
-                firestore.collection("Users").document(userId)
-                    .collection("Notifications")
-                    .add(notification)
-                    .addOnSuccessListener {
+                    firestore.collection("Users").document(creatorId)
+                        .collection("Notifications")
+                        .document(replyId+auth.currentUser!!.uid)
+                        .set(notification)
+                        .addOnSuccessListener {
 
-                    }
+                            firestore.collection("Users").document(creatorId)
+                                .get()
+                                .addOnSuccessListener {
+                                    val fcmToken = it.get("token") as? String
+
+                                    if (fcmToken == null) return@addOnSuccessListener
+
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        val messageNotify = FcmNotificationSender(
+                                            userFcmToken = fcmToken,
+                                            title = "Commented",
+                                            body = "Someone liked your reply"
+                                        )
+
+                                        messageNotify.sendNotification()
+                                    }
+
+                                }
+
+                        }
+
+                }
+
             }
             .addOnFailureListener { e ->
                 Log.e("TAG", "toggleLike: Failed: ${e.message}")
@@ -412,6 +466,7 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                             val user = userDeferred.await()
                             val likes = likesDeferred.await()
                             val isLiked = likes.contains(reply.userId)
+                            val isCurrentUser = reply.userId == auth.currentUser?.uid
 
                             GetRepliesDTO(
                                 postId = reply.postId,
@@ -420,7 +475,9 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                                     userName = user?.userName ?: "",
                                     _id = reply.userId,
                                     userImage = user?.userImage ?: "",
-                                    designation = user?.designation ?: ""
+                                    designation = user?.designation ?: "",
+                                    isCurrentUser = isCurrentUser
+
                                 ),
                                 content = reply.content,
                                 actions = PostActions(
@@ -481,23 +538,40 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                         trySend(ResultState.Success(true))
 
                         if (creatorId == auth.currentUser?.uid) return@addOnSuccessListener
-                        Log.e("CREATOR_ID", "createReply: $creatorId")
+
 
                         val notification = CreateNotificationDTO(
+                            notificationId = replyId,
                             type = "POST_REPLY",
+                            contentId = replyId,
                             postId = postId,
-                            createrId = creatorId,
+                            creatorId = creatorId,
                             actionBy = (auth.currentUser?.uid ?: ""),
                             createdAt = System.currentTimeMillis(),
-                            content = Content(
-                                contentId = replyId
-                            )
                         )
                         firestore.collection("Users").document(creatorId)
                             .collection("Notifications")
                             .add(notification)
                             .addOnSuccessListener {
 
+                                firestore.collection("Users").document(creatorId)
+                                    .get()
+                                    .addOnSuccessListener {
+                                        val fcmToken = it.get("token") as? String
+
+                                        if (fcmToken == null) return@addOnSuccessListener
+
+                                        CoroutineScope(Dispatchers.IO).launch {
+                                            val messageNotify = FcmNotificationSender(
+                                                userFcmToken = fcmToken,
+                                                title = "Commented",
+                                                body = "Someone commented your post"
+                                            )
+
+                                            messageNotify.sendNotification()
+                                        }
+
+                                    }
                             }
 
 
@@ -616,7 +690,6 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
         awaitClose { /* no-op cleanup */ }
     }
 
-
     override fun deletePost(postId: String,campusId: String?): Flow<ResultState<Boolean>> {
         return callbackFlow {
             if (postId.isBlank()) trySend(ResultState.Error("Invalid post ID"))
@@ -635,6 +708,51 @@ class PostRepoImpl(private val auth: FirebaseAuth, private val firestore: Fireba
                         }
                 } else {
                     firestore.collection("GlobalPosts").document(postId).delete()
+                        .addOnSuccessListener {
+                            trySend(ResultState.Success(true))
+                            Log.e("DELETE_POST", "GlobalPosts deletePost: SUCCESS")
+                            close()
+                        }.addOnFailureListener {
+                            trySend(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                            Log.e("DELETE_POST", "deletePost: FAILED")
+                            close()
+                        }
+
+                }
+            } catch (e: Exception) {
+                trySend(ResultState.Error(e.localizedMessage ?: "Something went wrong!"))
+            }
+
+            awaitClose()
+        }
+    }
+
+    override fun deleteReply(postId:String,replyId: String,campusId: String?): Flow<ResultState<Boolean>> {
+        return callbackFlow {
+
+            Log.e("DELETE_POST", "deleteReply: $postId")
+            Log.e("DELETE_POST", "deleteReply: $replyId")
+            Log.e("DELETE_POST", "deleteReply: $campusId")
+
+            if (replyId.isBlank()) trySend(ResultState.Error("Invalid post ID"))
+
+            trySend(ResultState.Loading)
+
+            try {
+                if (!campusId.isNullOrEmpty()) {
+                    firestore.collection("CampusPosts").document(campusId.toString())
+                        .collection("Posts").document(replyId).delete()
+                        .addOnSuccessListener {
+                            trySend(ResultState.Success(true))
+                            Log.e("DELETE_POST", "CampusPosts deletePost: SUCCESS")
+                            close()
+                        }.addOnFailureListener {
+                            trySend(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                            close()
+                        }
+                } else {
+                    firestore.collection("GlobalPosts").document(postId).
+                            collection("Replies").document(replyId).delete()
                         .addOnSuccessListener {
                             trySend(ResultState.Success(true))
                             Log.e("DELETE_POST", "GlobalPosts deletePost: SUCCESS")

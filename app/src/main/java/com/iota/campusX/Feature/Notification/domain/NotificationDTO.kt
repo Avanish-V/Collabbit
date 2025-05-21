@@ -14,15 +14,16 @@ data class NotificationDTO(
 
 data class CreateNotificationDTO(
     var notificationId: String = "",
-    var createrId: String? = null,
+    val postId: String = "",
+    var creatorId: String? = null,
     var createdAt: Long = 0L,
     var actionBy: String = "",
     var type: String = "",
-    var content: Content? = null,
-    var postId: String? = null,
+    var contentId: String  = "",
 )
 
 data class Content(
     var contentId: String? = null,
-    var content: String? = null,
+    var text: String? = null,
+    var image: String? = null,
 )

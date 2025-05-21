@@ -1,12 +1,18 @@
 package com.iota.campusX.Screens.Home
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -40,6 +46,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -79,12 +86,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -92,6 +103,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -101,14 +113,20 @@ import com.iota.campusX.Feature.Post.domain.PostContent
 import com.iota.campusX.Feature.Post.domain.PostDTO
 import com.iota.campusX.Feature.Post.domain.User
 import com.iota.campusX.Feature.Post.presentation.PostViewModel
+import com.iota.campusX.Feature.PushNotification.FcmNotificationSender
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
+import com.iota.campusX.Permissions.NotificationPermissionRequester
 import com.iota.campusX.R
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
+import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.UIComponents.ErrorScreen
+import com.iota.campusX.ui.UIComponents.PostCard
+import com.iota.campusX.ui.UIComponents.PostDotOptionBottomSheet
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
@@ -120,6 +138,7 @@ import com.iota.campusX.ui.theme.White900
 import com.iota.campusX.ui.theme.background
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
+import io.ktor.utils.io.concurrent.shared
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -135,15 +154,18 @@ fun MainScreen(
     homeViewModel: HomeViewModel
 ) {
 
+    NotificationPermissionRequester()
+    val snackBarState by remember { mutableStateOf(SnackbarHostState()) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    val userProfile = profileViewModel.userBaseProfile.collectAsState().value
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     val tabs = listOf("Latest", "Trending")
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
     var tabIndex by remember { mutableIntStateOf(0) }
 
-    val scope = rememberCoroutineScope()
-
+    val userProfile = profileViewModel.userBaseProfile.collectAsState().value
     val switchState = homeViewModel.switchState.collectAsState().value
 
     LaunchedEffect(UInt) {
@@ -154,12 +176,7 @@ fun MainScreen(
         if (switchState.isLoad == false) {
             postViewModel.fetchPosts(postMode = switchState.isActive)
         }
-
     }
-
-    val snackBarState by remember { mutableStateOf(SnackbarHostState()) }
-
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
         topBar = {
@@ -210,7 +227,8 @@ fun MainScreen(
                                 color = background,
                                 shape = CircleShape
 
-                            )
+                            ),
+                            enabled = false
                         ) {
                             Icon(
                                 painter = painterResource((R.drawable.messages_normal)),
@@ -235,14 +253,12 @@ fun MainScreen(
                 .fillMaxWidth()
                 .padding(innerPadding)
         ) {
+
+
             PrimaryTabRow(
                 selectedTabIndex = tabIndex,
                 containerColor = White900,
-                divider = {
-                    HorizontalDivider(
-                        color = White400
-                    )
-                },
+                divider = { HorizontalDivider(color = White400) },
                 indicator = {
                     TabRowDefaults.PrimaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(
@@ -255,7 +271,6 @@ fun MainScreen(
                     )
                 }
             ) {
-
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         text = {
@@ -293,19 +308,22 @@ fun MainScreen(
 
                     1 -> {
 
-                        Box(modifier = Modifier.fillMaxSize(),contentAlignment = Alignment.Center){
-                            Text("Not have implemented yet")
-                        }
+                        TrendingScreen(
+                            navHostController = navHostController,
+                            postViewModel = postViewModel,
+                            navigationViewModel = navigationViewModel,
+                            profileImage = userProfile.baseProfileData?.userImage ?: "",
+                            postMode = switchState.isActive,
+                            scrollBehavior = scrollBehavior
+
+                        )
 
                     }
-
                 }
             }
         }
     }
 }
-
-
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun LazyListScope.writePost(
@@ -381,8 +399,6 @@ fun LazyListScope.postsLazyColumn(
 
         items(sortedPost, key = {it.postId}) {
 
-            Log.d("POST_IMAGE", "postsLazyColumn: ${it.postContent.postData.postImage} ${it.postContent.postData.postText}")
-
             PostCard(
                 onPostClick = {
                     navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
@@ -425,7 +441,6 @@ fun LazyListScope.postsLazyColumn(
 }
 
 
-
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -437,6 +452,7 @@ fun TrendingScreen(
     postMode: Boolean,
     scrollBehavior: TopAppBarScrollBehavior
 ) {
+
     val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
     val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
     val context = LocalContext.current
@@ -518,6 +534,13 @@ fun TrendingScreen(
 
                 writePost(navHostController = navHostController, context = context, profileImage = profileImage)
 
+                item{
+                    HorizontalDivider(
+                        thickness = 12.dp,
+                        color = secondary
+                    )
+                }
+
                 postsLazyColumn(
                     postData = postResultState.postData,
                     navHostController = navHostController,
@@ -537,603 +560,68 @@ fun TrendingScreen(
             isCurrentUser = bottomSheetData.isCurrentUser,
             onDeleteClick = {
                 isAlertDialogVisible.value = !isAlertDialogVisible.value
+            },
+            onEditClick = {
+
             }
         )
 
-        AnimatedVisibility(visible = isAlertDialogVisible.value) {
+        AlertDialogWidget(
+            isVisible = isAlertDialogVisible.value,
+            onDismiss = { isAlertDialogVisible.value = it },
+            title = "Delete Post",
+            description = "Are you sure you want to delete this post?",
+            positiveButtonText = "Delete",
+            negativeButtonText = "Cancel",
+            onPositiveClick = {
 
-            Box(contentAlignment = Alignment.Center){
-
-                BasicAlertDialog(
-                    onDismissRequest = {isAlertDialogVisible.value = false},
-                ) {
-
-                    Surface(
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Column {
-
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Text("Delete Post",fontWeight = FontWeight.Bold)
-                                Text("Are you sure you want to delete this post?", textAlign = TextAlign.Center)
-                            }
-
-                            Column {
-                                HorizontalDivider()
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-
-                                    Box(Modifier
-                                        .weight(1f)
-                                        .clickable(
-                                            onClick = { isAlertDialogVisible.value = false },
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
-                                        Text("Cancel", modifier = Modifier.padding(16.dp))
-                                    }
-
-                                    VerticalDivider(
-                                        modifier = Modifier.height(48.dp)
-
+                scope.launch {
+                    postViewModel.deletePost(
+                        bottomSheetData.postId,
+                        bottomSheetData.campusId
+                    )
+                        .collect {
+                            when (it) {
+                                is ResultState.Success -> {
+                                    delay(1000)
+                                    isLoading.value = false
+                                    isAlertDialogVisible.value =
+                                        false
+                                    bottomSheetData.isBottomSheet =
+                                        false
+                                    postViewModel.updateDeletePost(
+                                        bottomSheetData.postId
                                     )
+                                }
 
-                                    Box(
-                                        Modifier
-                                            .weight(1f)
-                                            .clickable(
-                                                onClick = {
+                                is ResultState.Error -> {
+                                    bottomSheetData.isBottomSheet =
+                                        false
+                                    isLoading.value = false
 
-                                                    scope.launch {
-                                                        postViewModel.deletePost(
-                                                            bottomSheetData.postId,
-                                                            bottomSheetData.campusId
-                                                        )
-                                                            .collect {
-                                                                when (it) {
-                                                                    is ResultState.Success -> {
-                                                                        delay(1000)
-                                                                        isLoading.value = false
-                                                                        isAlertDialogVisible.value =
-                                                                            false
-                                                                        bottomSheetData.isBottomSheet =
-                                                                            false
-                                                                        postViewModel.updateDeletePost(
-                                                                            bottomSheetData.postId
-                                                                        )
-                                                                    }
-
-                                                                    is ResultState.Error -> {
-                                                                        bottomSheetData.isBottomSheet =
-                                                                            false
-                                                                        isLoading.value = false
-
-                                                                        Toast.makeText(
-                                                                            context,
-                                                                            it.message,
-                                                                            Toast.LENGTH_SHORT
-                                                                        ).show()
+                                    Toast.makeText(
+                                        context,
+                                        it.message,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
 
 
-                                                                    }
+                                }
 
-                                                                    is ResultState.Loading -> {
-                                                                        isLoading.value = true
-                                                                    }
-                                                                }
-                                                            }
-                                                    }
-
-                                                    context.vibrate()
-
-                                                },
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() }
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ){
-                                        if (isLoading.value)
-                                            CircularProgressIndicator(color = primary, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
-                                        else
-                                            Text("Delete", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
-                                    }
+                                is ResultState.Loading -> {
+                                    isLoading.value = true
                                 }
                             }
                         }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun PostCard(
-    onPostClick: () -> Unit,
-    onLikeClick: () -> Unit,
-    onReplyClick: () -> Unit,
-    onDotMenuClick: () -> Unit,
-    goToProfile: () -> Unit,
-    post: PostDTO,
-    navHostController: NavHostController
-) {
-
-    Column(
-        modifier = Modifier
-            .background(
-                color = White900
-            )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = { onPostClick.invoke() }
-            )
-            .fillMaxWidth()
-            .padding(12.dp)
-    ) {
-
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-
-            CircleImage(
-                image = post.creatorDetail.profile?.userImage ?: "",
-                modifier = Modifier
-                    .clickable(
-                        onClick = { goToProfile.invoke() },
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() })
-                    .size(48.dp)
-                    .clip(CircleShape)
-            )
-
-            Column {
-
-                PostHeader(
-                    user = post.creatorDetail.profile,
-                    pod = post.reference,
-                    postedAt = getTimeAgo(post.postedAt),
-                    onNameClick = {
-                        goToProfile.invoke()
-                    }
-                )
-
-                PostBody(
-                    postContent = post.postContent,
-                    navHostController = navHostController
-                )
-
-                PostActions(
-                    postAction = post.postActions,
-                    user = post.creatorDetail.profile,
-                    onLikeClick = { onLikeClick.invoke() },
-                    onReplyClick = { onReplyClick.invoke() },
-                    onDotMenuClick = { onDotMenuClick.invoke() }
-                )
-
-            }
-
-        }
-
-
-    }
-}
-
-@Composable
-fun PostHeader(
-    user: User?,
-    pod: Reference? = null,
-    postedAt: String? = null,
-    onNameClick: () -> Unit
-) {
-
-    val text = buildAnnotatedString {
-
-        withStyle(style = SpanStyle(color = White400)) {
-            append(" ● ")
-        }
-
-        withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
-            append("3rd")
-        }
-        withStyle(style = SpanStyle(color = White400)) {
-            append(" ● ")
-        }
-
-        withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
-            append(postedAt)
-        }
-    }
-
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-
-            Row {
-
-
-                Row (Modifier.weight(1f)){
-                    Text(
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {
-                                    onNameClick.invoke()
-                                }
-                            ),
-                        text = user?.userName ?: "",
-                        fontSize = 14.sp,
-                        lineHeight = 0.1.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
                 }
 
-                Row (Modifier.weight(1f)){
+                context.vibrate()
 
-                    Text(
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {
-                                    onNameClick.invoke()
-                                }
-                            ),
-                        text = text,
-                        fontSize = 14.sp,
-                        lineHeight = 0.1.sp,
-                        maxLines = 1,
-                    )
-                }
+            },
+            showLoading = isLoading.value
 
-
-            }
-
-            Text(
-                text = "IET Vivekanand, Campus, Agra",
-                style = typography.labelRegular,
-                color = Black800
-            )
-        }
-        if (pod != null) {
-            AsyncImage(
-                modifier = Modifier.size(32.dp),
-                model = pod.icon,
-                contentDescription = ""
-            )
-        }
-
-    }
-
-}
-
-@Composable
-fun PostBody(
-    postContent: PostContent,
-    navHostController: NavHostController
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.padding(vertical = 12.dp)
-    ) {
-        Text(
-            text = postContent.postData.postText,
-            maxLines = 4,
-            color = Black900,
-            style = typography.bodyRegular,
-            overflow = TextOverflow.Ellipsis
         )
-
-        if (!postContent.postData.postImage.isNullOrBlank() && postContent.postData.postImage != "null") {
-            AsyncImage(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        onClick = {
-                            navHostController.navigate(Routes.Main.PostViewScreen.routes).apply {
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                    "POST_IMAGE",
-                                    postContent.postData.postImage
-                                )
-                            }
-                        },
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    )
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(5.dp)),
-                model = postContent.postData.postImage,
-                placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-                contentDescription = "Post Image",
-                contentScale = ContentScale.Crop,
-            )
-        }
-
     }
 }
 
-@Composable
-fun PostActions(
-    postAction: PostActions,
-    user: User?,
-    onLikeClick: (() -> Unit)? = null,
-    onReplyClick: (() -> Unit)? = null,
-    onDotMenuClick: (() -> Unit)? = null,
-) {
 
-    var interactionSource = remember { MutableInteractionSource() }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Text(
-                    text = postAction.replyCount.toString(),
-                    color = Black500,
-                    style = typography.labelMedium
-                )
-                Icon(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            onClick = { onReplyClick?.invoke() }
-                        ),
-                    painter = painterResource(R.drawable.chatbubble_outline),
-                    contentDescription = "Reply",
-                    tint = Black500
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                AnimatedContent(
-                    targetState = postAction.likesCount,
-                    transitionSpec = {
-                        slideInVertically { height -> height } + fadeIn() togetherWith
-                                slideOutVertically { height -> -height } + fadeOut()
-                    },
-                    label = "LikeCountAnimation"
-                ) { likeCount ->
-                    Text(
-                        text = likeCount.toString(),
-                        color = Black500,
-                        style = typography.labelMedium
-                    )
-                }
-
-
-                Icon(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            onClick = { onLikeClick?.invoke() }
-                        ),
-                    painter = painterResource(if (postAction.isLiked) R.drawable.heart_sharp else R.drawable.heart_outline),
-                    contentDescription = "Like",
-                    tint = if (postAction.isLiked) Color.Red else Black500
-                )
-            }
-
-        }
-
-        Icon(
-            modifier = Modifier
-                .rotate(90f)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = { onDotMenuClick?.invoke() }
-                ),
-            painter = painterResource(R.drawable.dots_menu),
-            contentDescription = "Dots",
-            tint = Black500
-        )
-
-
-    }
-}
-
-@Composable
-fun ReplyRail(modifier: Modifier = Modifier) {
-
-//    Row {
-//        Box(){
-//            postAction.replies?.forEachIndexed { index, item->
-//                AsyncImage(
-//                    modifier = Modifier
-//                        .padding(start = (index * 20).dp)
-//                        .size(28.dp)
-//                        .clip(CircleShape)
-//                        .border(2.dp, White900, CircleShape),
-//                    model = item,
-//                    contentDescription = "Reply User",
-//                    contentScale = ContentScale.Crop
-//                )
-//            }
-//        }
-//    }
-}
-
-@Composable
-fun CircleImage(image: String, modifier: Modifier = Modifier) {
-    AsyncImage(
-        modifier = modifier,
-        model = image,
-        contentDescription = "Profile Picture",
-        contentScale = ContentScale.Crop,
-        placeholder = painterResource(R.drawable.anonymous)
-    )
-}
-
-
-@Composable
-fun HideBottomBar(
-    navigationViewModel: NavigationViewModel,
-    lazyState: LazyListState,
-) {
-
-    val isScrollingDown = remember {
-        derivedStateOf {
-            val firstVisibleItem = lazyState.firstVisibleItemIndex
-            val scrollOffset = lazyState.firstVisibleItemScrollOffset
-            firstVisibleItem to scrollOffset
-        }
-    }
-
-    var previousIndex by remember { mutableStateOf(0) }
-    var previousScrollOffset by remember { mutableStateOf(0) }
-    var bottomBarVisible by remember { mutableStateOf(true) }
-
-    LaunchedEffect(isScrollingDown.value) {
-        val (currentIndex, currentOffset) = isScrollingDown.value
-        bottomBarVisible = if (currentIndex > previousIndex ||
-            (currentIndex == previousIndex && currentOffset > previousScrollOffset)
-        ) {
-            false // scrolling down
-        } else {
-            true // scrolling up
-        }
-
-        previousIndex = currentIndex
-        previousScrollOffset = currentOffset
-    }
-
-    LaunchedEffect(bottomBarVisible) {
-        navigationViewModel.isBottomBarVisible(bottomBarVisible)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PostDotOptionBottomSheet(
-    isBottomSheet: Boolean,
-    onDismiss: () -> Unit,
-    isCurrentUser: Boolean,
-    onDeleteClick:()-> Unit
-) {
-
-
-    if (isBottomSheet) {
-
-        ModalBottomSheet(
-            onDismissRequest = { onDismiss.invoke() },
-            sheetState = rememberModalBottomSheetState(
-                skipPartiallyExpanded = true
-            ),
-            containerColor = Color.White,
-        ) {
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp, horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-
-                if (isCurrentUser){
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier
-                            .height(48.dp)
-                            .fillMaxWidth()
-                            .padding(start = 10.dp)
-                            .background(
-                                color = secondary,
-                                shape = RoundedCornerShape(6.dp)
-                            )
-                            .clickable(
-                                onClick = {
-                                    onDeleteClick.invoke()
-                                },
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            )
-                    ) {
-
-                        Icon(
-                            modifier = Modifier.size(22.dp),
-                            painter = painterResource(R.drawable.trash),
-                            contentDescription = null,
-                            tint = primary
-                        )
-
-                        Text("Delete")
-
-                    }
-                }
-
-                HorizontalDivider(
-                    color = White400
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier
-                        .height(48.dp)
-                        .fillMaxWidth()
-                        .padding(start = 10.dp)
-                        .background(
-                            color = secondary,
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .clickable(
-                            onClick = {
-
-                            },
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        )
-
-                ) {
-
-                    Icon(
-                        modifier = Modifier.size(22.dp),
-                        painter = painterResource(R.drawable.warning_2),
-                        contentDescription = null,
-                        tint = Color.Red
-                    )
-
-                    Text("Report (Work in progress)", color = Color.Red)
-
-                }
-
-            }
-
-
-        }
-
-    }
-
-
-}

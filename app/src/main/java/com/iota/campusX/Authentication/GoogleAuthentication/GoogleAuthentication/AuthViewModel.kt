@@ -27,6 +27,8 @@ class AuthViewModel(private val googleAuthRepo: GoogleAuthRepo):ViewModel() {
             signInResult.let {result->
                 _state.update {
                     it.copy(
+                        userId = result.userId,
+                        userToken = result.userToken,
                         isSignInSuccessful = result.status != null,
                         signInError = result.errorMessage
                     )
@@ -39,7 +41,7 @@ class AuthViewModel(private val googleAuthRepo: GoogleAuthRepo):ViewModel() {
 
     suspend fun startSignIn() = googleAuthRepo.signIn()
 
-    fun verifyUser(userId:String) = googleAuthRepo.verifyUser(userId)
+    fun verifyUser(userId:String,userToken: String) = googleAuthRepo.verifyUser(userId,userToken)
 
     fun userId(): String{
         return FirebaseAuth.getInstance().currentUser?.uid ?: ""

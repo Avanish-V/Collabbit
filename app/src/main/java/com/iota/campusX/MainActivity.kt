@@ -24,13 +24,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -43,19 +47,27 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Feature.Post.presentation.PostViewModel
+import com.iota.campusX.Feature.PushNotification.FcmNotificationSender
+import com.iota.campusX.Feature.PushNotification.TokenServices
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Koin.appModule
 import com.iota.campusX.Screens.Register.SignInScreen
@@ -80,6 +92,7 @@ import com.iota.campusX.ui.theme.CampusXTheme
 import com.iota.campusX.ui.theme.background
 import com.iota.campusX.ui.theme.typography
 import com.voxcii.voxcii.Screens.SearchFlow.SearchScreen
+import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.compose.koinInject
 import org.koin.core.context.GlobalContext.startKoin
@@ -94,6 +107,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         actionBar?.hide()
 
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+
         startKoin {
             androidContext(this@MainActivity)
             modules(appModule)
@@ -101,7 +116,21 @@ class MainActivity : ComponentActivity() {
 
         initCloudinary(this@MainActivity)
 
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                FirebaseAuth.getInstance().currentUser?.let {
+                    FirebaseFirestore.getInstance().collection("Users")
+                        .document(it.uid)
+                        .update("token",token)
+                }
+            }
+        }
+
         setContent {
+
+            val scope = rememberCoroutineScope()
+
 
             val navHostController = rememberNavController()
             val userProfileViewModel = koinInject<UserProfileViewModel>()
@@ -143,11 +172,13 @@ class MainActivity : ComponentActivity() {
 
                 ) {
 
+
+
                     Column {
 
                         AnimatedVisibility(visible = uploadProgress.status == "PROGRESS" || uploadProgress.status == "ERROR") {
 
-                            Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+                            Column(modifier = Modifier.padding(WindowInsets.statusBars.asPaddingValues())) {
 
                                 Text(text = if (uploadProgress.status == "COMPLETED") "Completed" else if (uploadProgress.status == "ERROR") "Upload Failed" else "Uploading...")
 
@@ -197,6 +228,8 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.BottomCenter
                         ) {
+
+
 
                             NavHost(
                                 modifier = Modifier.fillMaxSize(),
@@ -254,7 +287,8 @@ class MainActivity : ComponentActivity() {
                                     composable(route = Routes.Main.Notification.routes) {
                                         NotificationScreen(
                                             navigationViewModel = navigationViewModel,
-                                            userProfileViewModel = userProfileViewModel
+                                            userProfileViewModel = userProfileViewModel,
+                                            navHostController
                                         )
                                     }
 

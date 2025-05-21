@@ -115,7 +115,7 @@ fun ChatScreen(
                         navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID",it.receiverId)
                         navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_NAME",it.userName)
                         navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_IMAGE",it.userImage)
-                        navHostController.currentBackStackEntry?.savedStateHandle?.set("ROOM_ID",it.roomId)
+
                     }
                 }
             }

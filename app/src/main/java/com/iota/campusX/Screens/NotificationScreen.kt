@@ -1,5 +1,6 @@
 package com.iota.campusX.Screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -34,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -41,16 +43,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
-import com.iota.campusX.Screens.Home.CircleImage
-import com.iota.campusX.Screens.Home.HideBottomBar
+import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.getTimeAgo
+import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black800
@@ -66,7 +71,8 @@ import org.koin.compose.koinInject
 @Composable
 fun NotificationScreen(
     navigationViewModel: NavigationViewModel,
-    userProfileViewModel: UserProfileViewModel
+    userProfileViewModel: UserProfileViewModel,
+    navHostController: NavHostController
 ) {
 
     val notificationViewModel = koinInject<NotificationViewModel>()
@@ -96,8 +102,21 @@ fun NotificationScreen(
         Box(modifier = Modifier.padding(innerPadding)) {
 
             when {
+
                 state.isLoading -> {
-                    LoadingUI(state.isLoading)
+                    LoadingUI(true)
+                }
+
+                state.error.isNotEmpty()->{
+
+                    ErrorScreen(
+                        isActive = true,
+                        text = state.error.toString(),
+                        image = null,
+                        onReTry = {
+                            notificationViewModel.fetchNotifications()
+                        }
+                    )
                 }
 
                 state.data.isNotEmpty() -> {
@@ -119,7 +138,14 @@ fun NotificationScreen(
                                 userProfileViewModel = userProfileViewModel,
                                 notificationViewModel = notificationViewModel,
                                 onNotificationClick = {
-
+                                    navHostController.navigate(Routes.Main.ReplyPost.routes).apply{
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID",it.postId)
+                                    }
+                                },
+                                geToUserProfile = {
+                                    navHostController.navigate(Routes.Main.Profile.routes).apply{
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("USER_ID",it.actionBy._id)
+                                    }
                                 }
                             )
                         }
@@ -128,23 +154,15 @@ fun NotificationScreen(
 
                 }
 
-            }
-
-            ErrorScreen(
-                isActive = state.error.isNotEmpty(),
-                text = state.error.toString(),
-                image = null,
-                onReTry = {
-                    notificationViewModel.fetchNotifications()
+                state.data.isEmpty()->{
+                    StatusScreen(
+                        isActive = true,
+                        text = "No Notification!",
+                        image = null
+                    )
                 }
-            )
 
-            StatusScreen(
-                isActive = state.data.isEmpty() && !state.isLoading,
-                text = "No Notification!",
-                image = null
-            )
-
+            }
         }
 
     }
@@ -157,7 +175,8 @@ fun NotificationItem(
     userProfileViewModel: UserProfileViewModel,
     notificationViewModel: NotificationViewModel,
     scope: CoroutineScope,
-    onNotificationClick: () -> Unit
+    onNotificationClick: () -> Unit,
+    geToUserProfile:()-> Unit
 ) {
 
     var isAccepted by remember { mutableStateOf(true) }
@@ -179,13 +198,6 @@ fun NotificationItem(
         }
 
         withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
-            append("3rd")
-        }
-        withStyle(style = SpanStyle(color = White400)) {
-            append(" ● ")
-        }
-
-        withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
             append(text)
         }
 
@@ -199,67 +211,83 @@ fun NotificationItem(
     ) {
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            CircleImage(
-                image = notificationDTO.actionBy.userImage,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-            )
+            Row (
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ){
 
-            Column(modifier = Modifier.height(48.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row {
+                CircleImage(
+                    image = notificationDTO.actionBy.userImage,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape),
+                    onClick = {
+                        geToUserProfile.invoke()
+                    }
+
+                )
+
+                Column(modifier = Modifier.height(48.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row {
+                            Text(
+                                text = notificationDTO.actionBy.userName,
+                                fontSize = 14.sp,
+                                lineHeight = 0.1.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Row (){
+                            Text(
+                                text = annotatedText,
+                                fontSize = 14.sp,
+                                lineHeight = 0.1.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            text = notificationDTO.actionBy.userName,
+                            text = getTimeAgo(notificationDTO.createdAt),
                             fontSize = 14.sp,
-                            lineHeight = 0.1.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            fontWeight = FontWeight.Normal,
+                            color = Black300
                         )
                     }
-                    Row (modifier = Modifier.weight(1f)){
-                        Text(
-                            text = annotatedText,
-                            fontSize = 14.sp,
-                            lineHeight = 0.1.sp,
-                            maxLines = 1,
-                        )
-                    }
-                }
-
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "IET Vivekanand, Campus, Agra",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Black800
-                    )
-                    Text(
-                        text = getTimeAgo(notificationDTO.createdAt),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Black800
-                    )
                 }
             }
+
+            if (!notificationDTO.content?.image.isNullOrEmpty()) {
+                AsyncImage(
+                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
+                    model = notificationDTO.content?.image,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                )
+
+            }
+
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+
 
         Column(modifier = Modifier.padding(start = 58.dp)) {
 
-            if (!notificationDTO.content?.content.isNullOrEmpty()) {
+            if (!notificationDTO.content?.text.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     modifier = Modifier
                         .background(
@@ -267,12 +295,17 @@ fun NotificationItem(
                             shape = RoundedCornerShape(5.dp)
                         )
                         .padding(horizontal = 12.dp),
-                    text = notificationDTO.content!!.content.toString(),
+                    text = notificationDTO.content!!.text.toString(),
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal
+                    fontWeight = FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+
             if (notificationDTO.type == "LINK_REQUEST") {
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     horizontalArrangement = Arrangement.End,

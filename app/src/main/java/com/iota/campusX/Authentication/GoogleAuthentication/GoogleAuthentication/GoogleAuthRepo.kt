@@ -13,6 +13,6 @@ interface GoogleAuthRepo {
 
     fun getCurrentUser():Boolean
 
-    fun verifyUser(userId:String): Flow<ResultState<UserResponse>>
+    fun verifyUser(userId:String,userToken: String): Flow<ResultState<UserResponse>>
 
 }

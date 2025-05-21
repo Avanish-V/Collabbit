@@ -37,13 +37,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.Setting
 import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.Black900
@@ -134,10 +140,30 @@ fun SettingScreen(
                             .padding(vertical = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
+
                         TextButton(
                             onClick = {
                                 scope.launch {
-
+                                    userProfileViewModel.deleteUserProfile().collect {
+                                        when(it){
+                                            is ResultState.Loading -> {
+                                                isLoading = true
+                                            }
+                                            is ResultState.Success -> {
+                                                FirebaseAuth.getInstance().signOut()
+                                                    .apply {
+                                                        navController.navigate(Routes.Register.routes) {
+                                                            popUpTo(Routes.Register.routes) {
+                                                                inclusive = true
+                                                            }
+                                                        }
+                                                    }
+                                            }
+                                            is ResultState.Error -> {
+                                                isLoading = false
+                                            }
+                                        }
+                                    }
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -156,6 +182,8 @@ fun SettingScreen(
                         }
                     }
                 }
+
+                LoadingUI(isLoading)
             }
         }
 

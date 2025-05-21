@@ -66,6 +66,8 @@ class GoogleAuthUiClient(
 
             SignInResult(
                 status = user.run { true },
+                userId = user?.uid ?: "",
+                userToken = googleIdToken.toString(),
                 errorMessage = null
             )
 
@@ -106,12 +108,12 @@ class GoogleAuthUiClient(
     }
 
 
-    override fun verifyUser(userId: String): Flow<ResultState<UserResponse>> {
+    override fun verifyUser(userId: String,userToken: String): Flow<ResultState<UserResponse>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
 
-            firestore.collection("Users").document(firebaseAuth.currentUser!!.uid)
+            firestore.collection("Users").document(userId)
                 .get()
                 .addOnSuccessListener {
                     if (it.exists()){
@@ -124,11 +126,12 @@ class GoogleAuthUiClient(
                             )
                         )
                     }else{
-                        firestore.collection("Users").document(firebaseAuth.currentUser!!.uid)
+                        firestore.collection("Users").document(userId)
                             .set(
 
                                 UserBasicProfileDTO(
                                     _id = firebaseAuth.currentUser!!.uid,
+                                    token = userToken,
                                     userName = firebaseAuth.currentUser!!.displayName?.replaceFirstChar { it.uppercase() } ?: "",
                                     userImage = firebaseAuth.currentUser!!.photoUrl.toString(),
                                     userEmail = firebaseAuth.currentUser!!.email.toString(),
@@ -146,10 +149,11 @@ class GoogleAuthUiClient(
                                     ))
                                 )
                             }
+                            .addOnCanceledListener{
+                                FirebaseAuth.getInstance().signOut()
+                            }
                             .addOnFailureListener {
-                                trySend(ResultState.Error(
-                                    "false"
-                                ))
+                                FirebaseAuth.getInstance().signOut()
                             }
 
                     }

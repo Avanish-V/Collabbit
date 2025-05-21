@@ -102,7 +102,7 @@ fun SignInScreen(navHostController: NavHostController) {
 
     LaunchedEffect(key1 = state.value.isSignInSuccessful) {
         if (state.value.isSignInSuccessful){
-            googleAuthViewModel.verifyUser(FirebaseAuth.getInstance().currentUser!!.uid)
+            googleAuthViewModel.verifyUser(state.value.userId,state.value.userToken)
                 .collect{
                     when(it){
                         is ResultState.Loading->{

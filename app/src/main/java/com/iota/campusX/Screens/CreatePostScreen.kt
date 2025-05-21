@@ -1,18 +1,22 @@
 package com.iota.campusX.Screens
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -54,6 +58,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -98,6 +103,7 @@ fun CreatePostScreen(
 
     val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value.baseProfileData
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var text by remember { mutableStateOf("") }
     var selectedPod by remember { mutableStateOf<Reference?>(null) }
     var isExpanded by remember { mutableStateOf(false) }
@@ -141,6 +147,7 @@ fun CreatePostScreen(
         bottomBar = {
             Row(
                 modifier = Modifier
+                    .imePadding()
                     .background(White900)
                     .padding(16.dp)
             ) {
@@ -171,7 +178,7 @@ fun CreatePostScreen(
                     ),
                     onClick = {
 
-                        if (selectedPod == null) return@Button
+                        if (selectedPod == null) return@Button Toast.makeText(context, "Select Pod", Toast.LENGTH_SHORT).show()
 
                         if (selectedImages != null || text.isNotBlank()) {
 
@@ -247,184 +254,188 @@ fun CreatePostScreen(
         containerColor = secondary
     ) { innerPadding ->
 
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Column(
+            modifier = Modifier.padding(innerPadding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
 
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
+            UserPostMode(
+                userName = userProfile?.userName ?: "",
+                userImage = userProfile?.userImage ?: "",
+                selectedMode = {
+                    selectedMode = it.toString()
+                }
+            )
 
-                UserPostMode(
-                    userName = userProfile?.userName ?: "",
-                    userImage = userProfile?.userImage ?: "",
-                    selectedMode = {
-                        selectedMode = it.toString()
-                    }
-                )
+            AnimatedVisibility(visible = true) {
+                ExposedDropdownMenuBox(
+                    modifier = Modifier,
+                    expanded = false,
+                    onExpandedChange = {}
 
-                AnimatedVisibility(visible = true) {
-                    ExposedDropdownMenuBox(
-                        modifier = Modifier,
-                        expanded = false,
-                        onExpandedChange = {}
+                ) {
 
-                    ) {
-
-                        Row(
-                            modifier = Modifier
-                                .border(
-                                    width = 1.dp,
-                                    color = White400,
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            selectedPod?.let {
-                                AsyncImage(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(CircleShape),
-                                    model = it.icon,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                            Text(
-                                text = selectedPod?.title ?: "Select Pod",
-                                color = Black900
+                    Row(
+                        modifier = Modifier
+                            .border(
+                                width = 1.dp,
+                                color = White400,
+                                shape = RoundedCornerShape(10.dp)
                             )
-
-                            IconButton(
+                            .padding(10.dp)
+                            .clickable(
                                 onClick = {
-                                    if (selectedPod?.title.isNullOrEmpty()) {
-                                        isExpanded = !isExpanded
-                                    } else {
-                                        selectedPod = null
-                                    }
-                                }
-                            ) {
-                                if (selectedPod?.title.isNullOrEmpty()) {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(
-                                        expanded = isExpanded
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Close"
-                                    )
-                                }
+                                    isExpanded = true
+                                },
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource()}
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        selectedPod?.let {
+                            AsyncImage(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape),
+                                model = it.icon,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        Text(
+                            text = selectedPod?.title ?: "Select Pod",
+                            color = Black900
+                        )
 
+                        IconButton(
+                            onClick = {
+                                if (selectedPod?.title.isNullOrEmpty()) {
+                                    isExpanded = !isExpanded
+                                } else {
+                                    selectedPod = null
+                                }
+                            }
+                        ) {
+                            if (selectedPod?.title.isNullOrEmpty()) {
+                                ExposedDropdownMenuDefaults.TrailingIcon(
+                                    expanded = isExpanded
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close"
+                                )
                             }
 
                         }
 
-                        DropdownMenu(
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .background(color = background),
-                            shape = RoundedCornerShape(5.dp),
-                            shadowElevation = 0.dp,
-                            expanded = isExpanded,
-                            onDismissRequest = { isExpanded = false }
-                        ) {
-                            podListItems.forEach {
-                                DropdownMenuItem(
-                                    modifier = Modifier.padding(vertical = 5.dp),
-                                    text = { Text(text = it.title) },
-                                    leadingIcon = {
-                                        AsyncImage(
-                                            modifier = Modifier
-                                                .size(42.dp)
-                                                .clip(CircleShape),
-                                            model = it.icon,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    },
-                                    onClick = {
-                                        selectedPod = Reference(
-                                            title = it.title,
-                                            icon = it.icon
-                                        )
-                                        isExpanded = false
-                                    }
-                                )
-                            }
+                    }
+
+                    DropdownMenu(
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .background(color = background),
+                        shape = RoundedCornerShape(5.dp),
+                        shadowElevation = 0.dp,
+                        expanded = isExpanded,
+                        onDismissRequest = { isExpanded = false }
+                    ) {
+                        podListItems.forEach {
+                            DropdownMenuItem(
+                                modifier = Modifier.padding(vertical = 5.dp),
+                                text = { Text(text = it.title) },
+                                leadingIcon = {
+                                    AsyncImage(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(CircleShape),
+                                        model = it.icon,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop
+                                    )
+                                },
+                                onClick = {
+                                    selectedPod = Reference(
+                                        title = it.title,
+                                        icon = it.icon
+                                    )
+                                    isExpanded = false
+                                }
+                            )
                         }
                     }
                 }
+            }
 
-                BasicTextField(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            width = 1.dp,
-                            color = White400,
-                            shape = RoundedCornerShape(10.dp)
+            BasicTextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = White400,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    .padding(12.dp),
+                value = text,
+                onValueChange = { text = it },
+                textStyle = TextStyle(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Black900
+                ),
+                decorationBox = {
+                    if (text.isEmpty()) {
+                        Text(
+                            text = "What's on your mind?",
+                            color = Black300
                         )
-                        .padding(12.dp),
-                    value = text,
-                    onValueChange = { text = it },
-                    textStyle = TextStyle(
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Black900
-                    ),
-                    decorationBox = {
-                        if (text.isEmpty()) {
-                            Text(
-                                text = "What's on your mind?",
-                                color = Black300
-                            )
+                    }
+                    Column {
+                        it()
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Text(text = "${text.count()}/500", color = Black300)
                         }
-                        Column {
-                            it()
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                Text(text = "${text.count()}/500", color = Black300)
-                            }
-                            if (selectedImages != null) {
-                                AnimatedVisibility(visible = true) {
-                                    Box(contentAlignment = Alignment.TopEnd) {
-                                        AsyncImage(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(5.dp))
-                                                .fillMaxWidth()
-                                                .height(250.dp),
-                                            model = selectedImages,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop
+                        if (selectedImages != null) {
+                            AnimatedVisibility(visible = true) {
+                                Box(contentAlignment = Alignment.TopEnd) {
+                                    AsyncImage(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .fillMaxWidth()
+                                            .height(250.dp),
+                                        model = selectedImages,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop
+                                    )
+
+                                    IconButton(
+                                        modifier = Modifier,
+                                        onClick = { selectedImages = null },
+                                        colors = IconButtonDefaults.iconButtonColors(
+                                            containerColor = secondary
                                         )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Delete Image",
 
-                                        IconButton(
-                                            modifier = Modifier,
-                                            onClick = { selectedImages = null },
-                                            colors = IconButtonDefaults.iconButtonColors(
-                                                containerColor = secondary
                                             )
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Delete Image",
-
-                                                )
-                                        }
                                     }
                                 }
                             }
                         }
+                    }
 
-                    },
-                    cursorBrush = Brush.verticalGradient(listOf(primary, primary))
+                },
+                cursorBrush = Brush.verticalGradient(listOf(primary, primary))
 
-                )
+            )
 
 
-            }
         }
     }
 }

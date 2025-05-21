@@ -9,11 +9,12 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UserBasicProfileDTO(
     @SerialName("_id") val _id: String = "",
+    @SerialName("token") val token: String = "",
     @SerialName("userName") val userName: String = "",
     @SerialName("userImage") val userImage: String = "",
     @SerialName("userEmail") val userEmail: String = "",
-    @SerialName("userBio") val userBio: String ? = null,
-    @SerialName("userGender") val userGender: String ? = null,
+    @SerialName("userBio") val userBio: String ? = "",
+    @SerialName("userGender") val userGender: String ? = "",
     @SerialName("social") val social: String = "",
     @SerialName("metaData") val metaData: MetaData = MetaData(),
     @SerialName("campus") val campus: Campus? = null,
@@ -25,8 +26,8 @@ data class UserBasicProfileDTO(
 @Serializable
 data class MetaData @JvmOverloads constructor(
     @SerialName("isFirstUser") val isFirstUser: Boolean = false,
-    @SerialName("createdAt") val createdAt: String? = null,
-    @SerialName("updatedAt") val updatedAt: String? = null
+    @SerialName("createdAt") val createdAt: String? = "",
+    @SerialName("updatedAt") val updatedAt: String? = ""
 )
 
 @Serializable
@@ -36,8 +37,8 @@ data class Campus(
     val collegeName: String = "",
     val campusCode: String = "",
     val fieldOfStudy: String = "",
-    val courseStart: Long = 0L,
-    val courseEnd: Long = 0L
+    val courseStart: Long ?= null,
+    val courseEnd: Long ?= null
 )
 
 @Serializable

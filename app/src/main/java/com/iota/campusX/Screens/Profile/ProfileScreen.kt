@@ -81,19 +81,18 @@ import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.LinkUpRequestDTO
 import com.iota.campusX.Feature.UserProfile.data.UserBasicProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.BottomSheetSharedViewModel
-import com.iota.campusX.Screens.Home.HideBottomBar
-import com.iota.campusX.Screens.Home.PostCard
-import com.iota.campusX.Screens.Home.PostDotOptionBottomSheet
 import com.iota.campusX.Screens.Home.postsLazyColumn
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.timeMillsToString
 import com.iota.campusX.Utils.vibrate
+import com.iota.campusX.ui.UIComponents.PostDotOptionBottomSheet
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black800
@@ -106,6 +105,7 @@ import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -125,7 +125,8 @@ fun ProfileScreen(
     val isAlertDialogVisible = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackBarHostState = remember { SnackbarHostState() }
-    val creatorId = remember { navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID") }
+    val creatorId =
+        remember { navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID") }
 
     val userBaseProfile by profileViewModel.userBaseProfile.collectAsState()
     val profileByIdState by profileViewModel.profileById.collectAsState()
@@ -150,7 +151,7 @@ fun ProfileScreen(
                     containerColor = White900
                 ),
                 actions = {
-                    if (currentUser == creatorId){
+                    if (creatorId.isNullOrEmpty()) {
                         Row(horizontalArrangement = Arrangement.End) {
 
                             IconButton(onClick = {
@@ -168,7 +169,7 @@ fun ProfileScreen(
             )
         },
         snackbarHost = {
-            SnackbarHost(snackBarHostState){
+            SnackbarHost(snackBarHostState) {
                 Snackbar(snackbarData = it)
             }
         },
@@ -191,14 +192,16 @@ fun ProfileScreen(
                             requestUserId = creatorId.toString(),
                             currentState = profileState?.isRequestSent
                         ).collect {
-                            when(it){
+                            when (it) {
                                 is ResultState.Success -> {
                                     profileViewModel.getUserById(creatorId.toString())
                                     snackBarHostState.showSnackbar("Done")
                                 }
+
                                 is ResultState.Error -> {
                                     snackBarHostState.showSnackbar("Something went wrong")
                                 }
+
                                 is ResultState.Loading -> {
                                 }
                             }
@@ -240,15 +243,18 @@ fun ProfileScreen(
             isCurrentUser = bottomSheetData.isCurrentUser,
             onDeleteClick = {
                 isAlertDialogVisible.value = !isAlertDialogVisible.value
+            },
+            onEditClick = {
+
             }
         )
 
         AnimatedVisibility(visible = isAlertDialogVisible.value) {
 
-            Box(contentAlignment = Alignment.Center){
+            Box(contentAlignment = Alignment.Center) {
 
                 BasicAlertDialog(
-                    onDismissRequest = {isAlertDialogVisible.value = false},
+                    onDismissRequest = { isAlertDialogVisible.value = false },
                 ) {
 
                     Surface(
@@ -261,8 +267,11 @@ fun ProfileScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Text("Delete Post",fontWeight = FontWeight.Bold)
-                                Text("Are you sure you want to delete this post?", textAlign = TextAlign.Center)
+                                Text("Delete Post", fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Are you sure you want to delete this post?",
+                                    textAlign = TextAlign.Center
+                                )
                             }
 
                             Column {
@@ -274,12 +283,15 @@ fun ProfileScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
 
-                                    Box(Modifier
-                                        .weight(1f)
-                                        .clickable(
-                                            onClick = { isAlertDialogVisible.value = false },
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
+                                    Box(
+                                        Modifier
+                                            .weight(1f)
+                                            .clickable(
+                                                onClick = { isAlertDialogVisible.value = false },
+                                                indication = null,
+                                                interactionSource = remember { MutableInteractionSource() }),
+                                        contentAlignment = Alignment.Center
+                                    ) {
                                         Text("Cancel", modifier = Modifier.padding(16.dp))
                                     }
 
@@ -306,12 +318,16 @@ fun ProfileScreen(
                                                                         isLoading.value = false
                                                                         isAlertDialogVisible.value =
                                                                             false  // <-- Add this line
-                                                                        bottomSheetData.isBottomSheet = false
-                                                                        postViewModel.updateDeletePost(bottomSheetData.postId)
+                                                                        bottomSheetData.isBottomSheet =
+                                                                            false
+                                                                        postViewModel.updateDeletePost(
+                                                                            bottomSheetData.postId
+                                                                        )
                                                                     }
 
                                                                     is ResultState.Error -> {
-                                                                        bottomSheetData.isBottomSheet = false
+                                                                        bottomSheetData.isBottomSheet =
+                                                                            false
                                                                         isLoading.value = false
                                                                     }
 
@@ -329,11 +345,18 @@ fun ProfileScreen(
                                                 interactionSource = remember { MutableInteractionSource() }
                                             ),
                                         contentAlignment = Alignment.Center
-                                    ){
+                                    ) {
                                         if (isLoading.value)
-                                            CircularProgressIndicator(color = primary, modifier = Modifier.size(24.dp))
+                                            CircularProgressIndicator(
+                                                color = primary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
                                         else
-                                            Text("Delete", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
+                                            Text(
+                                                "Delete",
+                                                modifier = Modifier.padding(16.dp),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
                                     }
                                 }
                             }
@@ -389,12 +412,12 @@ fun ProfileHeader(
         ) {
 
             Text(
-                text = user.userName ?: "😁",
+                text = user.userName,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
 
-            if (currentUser == user._id){
+            if (currentUser == user._id) {
                 IconButton(
                     onClick = {
                         navHostController.navigate("EDIT_PROFILE")
@@ -596,8 +619,8 @@ fun UserAbout(userBasicProfileDTO: UserBasicProfileDTO?) {
             color = White400
         )
 
-        Campus(
-            userBasicProfileDTO?.campus
+        CampusWidget(
+            campus = userBasicProfileDTO?.campus
         )
 
 
@@ -607,41 +630,53 @@ fun UserAbout(userBasicProfileDTO: UserBasicProfileDTO?) {
 }
 
 @Composable
-fun Campus(campus: Campus?) {
+fun CampusWidget(campus: Campus?) {
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            AsyncImage(
-                model = campus?.university?.logo ?: "",
-                contentDescription = null,
-                placeholder = painterResource( R.drawable.landscape_placeholder_svgrepo_com),
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(5.dp)),
-            )
-            Column {
-                Text(
-                    text = campus?.university?.university ?: "",
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = campus?.collegeName ?: "",
-                    fontWeight = FontWeight.SemiBold,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1
-                )
-                Text(text = campus?.fieldOfStudy ?: "")
+        Text(text = "Campus", fontWeight = FontWeight.Bold)
 
-                Text(
-                    text = "${timeMillsToString(campus?.courseStart ?: 0L)} to ${
-                        timeMillsToString(
-                            campus?.courseEnd ?: 0L
+        if (campus == null){
+            Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                Text(text = "Update Campus", modifier = Modifier.align(Alignment.Center), color = Black400)
+            }
+        }else{
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AsyncImage(
+                    model = campus.university?.logo ?: "",
+                    contentDescription = null,
+                    placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(5.dp)),
+                )
+                Column {
+                    Text(
+                        text = campus.university?.university ?: "",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = campus.collegeName,
+                        fontWeight = FontWeight.SemiBold,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1
+                    )
+                    Text(text = campus.fieldOfStudy)
+
+
+                    if (campus.courseStart != null && campus.courseEnd != null) {
+                        Text(
+                            text = "${timeMillsToString(campus.courseStart)} to ${
+                                timeMillsToString(
+                                    campus.courseEnd
+                                )
+                            }"
                         )
-                    }"
-                )
+                    }
 
-                Text(text = campus?.campusCode ?: "")
+
+                    Text(text = campus.campusCode)
+                }
             }
         }
 

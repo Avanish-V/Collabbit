@@ -2,6 +2,8 @@ package com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthenticatio
 
 data class SignInResult(
     val status:Boolean?,
+    val userId: String = "",
+    val userToken: String = "",
     val errorMessage:String?
 )
 

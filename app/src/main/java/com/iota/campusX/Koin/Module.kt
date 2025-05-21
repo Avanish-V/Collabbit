@@ -1,11 +1,13 @@
 package com.iota.campusX.Koin
 
+import android.util.Log
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleAuthRepo
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleAuthUiClient
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Feature.Chats.data.ChatImpl
 import com.iota.campusX.Feature.Chats.domain.ChatRepository
@@ -16,6 +18,7 @@ import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.data.PostRepoImpl
 import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.presentation.PostViewModel
+import com.iota.campusX.Feature.PushNotification.PushNotificationService
 import com.iota.campusX.Feature.UserProfile.data.UserProfileImpl
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -34,6 +37,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
+import org.koin.core.parameter.parametersOf
 import org.koin.dsl.module
 
 val appModule = module {
@@ -78,11 +82,12 @@ val appModule = module {
     single<FirebaseAuth> { FirebaseAuth.getInstance() }
     single<FirebaseStorage> { FirebaseStorage.getInstance() }
 
+
     single<UserProfileRepo> { UserProfileImpl(get(),get(),get(),get()) }
     single<GoogleAuthRepo> { GoogleAuthUiClient(androidContext(), get(),get()) }
 
-    single<PostRepository> { PostRepoImpl(get(),get()) }
-    single <ChatRepository>{ ChatImpl(get(),get(),get()) }
+    single<PostRepository> { PostRepoImpl(getFCMToken(),get(),get()) }
+    single <ChatRepository>{ ChatImpl("",get(),get(),get()) }
     single <NotificationRepository>{ NotificationImpl(get(),get()) }
 
     viewModel { AuthViewModel(get()) }
@@ -99,4 +104,14 @@ fun getFirebaseToken(): String? {
     return runBlocking {
         FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.result?.token
     }
+}
+
+fun getFCMToken(): String {
+    var token: String = ""
+    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+        if (task.isSuccessful) {
+             token = task.result
+        }
+    }
+    return token
 }

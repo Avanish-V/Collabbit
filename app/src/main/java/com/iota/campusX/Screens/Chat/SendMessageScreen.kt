@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -69,8 +70,10 @@ import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.R
 import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black900
@@ -80,7 +83,9 @@ import com.iota.campusX.ui.theme.White900
 import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import org.koin.core.parameter.parametersOf
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -92,13 +97,16 @@ fun SendMessageScreen(navHostController: NavHostController) {
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
-
-    val chatsViewModel = koinInject<ChatsViewModel>()
     val scope = rememberCoroutineScope()
 
     val userUUID by remember {
         mutableStateOf(navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID"))
     }
+
+    val chatsViewModel: ChatsViewModel = koinViewModel {
+        parametersOf(FirebaseAuth.getInstance().currentUser?.uid ?: "")
+    }
+
     val userName by remember {
         mutableStateOf(navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_NAME"))
     }
@@ -106,9 +114,8 @@ fun SendMessageScreen(navHostController: NavHostController) {
         mutableStateOf(navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_IMAGE"))
     }
 
-    val roomId by remember {
-        mutableStateOf(navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("ROOM_ID"))
-    }
+    val textMessage by chatsViewModel.textMessage.collectAsStateWithLifecycle()
+
 
     val currentUser by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser?.uid.toString()) }
 
@@ -127,11 +134,11 @@ fun SendMessageScreen(navHostController: NavHostController) {
 
                 chatsViewModel.updateIsUserActive(
                     isActive = false,
-                    roomId = roomId.toString(),
+                    participantId = userUUID.toString()
                 )
                 chatsViewModel.updateIsUserTyping(
                     false,
-                    roomId.toString()
+                    participantId = userUUID.toString()
                 )
 
             }
@@ -149,31 +156,30 @@ fun SendMessageScreen(navHostController: NavHostController) {
         if (messageText.isNotEmpty()) {
             if (!isTyping) {
                 isTyping = true
-                chatsViewModel.updateIsUserTyping(true, roomId.toString())
+                chatsViewModel.updateIsUserTyping(true,participantId = userUUID.toString())
             }
             delay(2000L)  // Wait for 2 seconds of inactivity
             if (messageText == messageText) { // Still same text after delay?
                 isTyping = false
-                chatsViewModel.updateIsUserTyping(false, roomId.toString())
+                chatsViewModel.updateIsUserTyping(false,participantId = userUUID.toString())
             }
         } else {
             if (isTyping) {
                 isTyping = false
-                chatsViewModel.updateIsUserTyping(false, roomId.toString())
+                chatsViewModel.updateIsUserTyping(false,participantId = userUUID.toString())
             }
         }
     }
 
     LaunchedEffect(Unit) {
         chatsViewModel.markMessagesAsReed(
-            roomId = roomId.toString(),
             participantId = userUUID.toString()
         )
     }
 
     LaunchedEffect(Unit) {
         chatsViewModel.receiveMessage(
-            roomId = roomId.toString()
+            participantId = userUUID.toString()
         )
     }
 
@@ -181,20 +187,18 @@ fun SendMessageScreen(navHostController: NavHostController) {
     LaunchedEffect(Unit) {
         chatsViewModel.updateIsUserActive(
             isActive = true,
-            roomId = roomId.toString(),
+            participantId = userUUID.toString()
         )
     }
 
     LaunchedEffect(Unit) {
         chatsViewModel.getIsActive(
-            roomId = roomId.toString(),
             receiverId = userUUID.toString()
         )
     }
 
     LaunchedEffect(Unit) {
         chatsViewModel.getUserIsTyping(
-            roomId = roomId.toString(),
             participantId = userUUID.toString()
         )
     }
@@ -203,7 +207,7 @@ fun SendMessageScreen(navHostController: NavHostController) {
         onDispose {
             chatsViewModel.updateIsUserActive(
                 isActive = false,
-                roomId = roomId.toString()
+                participantId = userUUID.toString()
             )
         }
     }
@@ -220,6 +224,8 @@ fun SendMessageScreen(navHostController: NavHostController) {
             listState.animateScrollToItem(chats.size - 1)
         }
     }
+
+    var isTodayDividerShown = false
 
     Scaffold(
         topBar = {
@@ -302,141 +308,12 @@ fun SendMessageScreen(navHostController: NavHostController) {
 
                 )
         },
-        containerColor = White900
-    ) { padding ->
-
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .consumeWindowInsets(PaddingValues()) // Prevents screen shifting
-                .imePadding()
-        ) {
-
-            var isTodayDividerShown = false
-
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                state = listState,
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(chats) { chat ->
-
-                    // 🟰 Insert "Today" divider before first today's message
-                    if (isToday(chat.timestamp.toLong()) && !isTodayDividerShown) {
-                        isTodayDividerShown = true
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .background(color = White400, shape = RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "Today",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.Black
-                                )
-                            }
-                        }
-
-                    }
-
-                    // 🟰 Now your normal chat message item
-                    if (chat.senderId == currentUser) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 40.dp),
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier.background(
-                                    color = primary,
-                                    shape = RoundedCornerShape(
-                                        topStart = 12.dp,
-                                        topEnd = 0.dp,
-                                        bottomStart = 12.dp,
-                                        bottomEnd = 12.dp
-                                    )
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                    horizontalAlignment = Alignment.End
-                                ) {
-                                    Text(
-                                        text = chat.text,
-                                        fontWeight = FontWeight.Normal,
-                                        color = White900,
-                                        fontSize = 14.sp
-                                    )
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.End
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.baseline_done_all_24),
-                                            contentDescription = null,
-                                            tint = if (chat.read) White900 else Black300
-                                        )
-                                        Text(
-                                            text = convertTimestampToTime(chat.timestamp.toLong()),
-                                            fontSize = 12.sp,
-                                            color = White900
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(end = 40.dp),
-                            horizontalAlignment = Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier.background(
-                                    color = White400,
-                                    shape = RoundedCornerShape(
-                                        topStart = 12.dp,
-                                        topEnd = 12.dp,
-                                        bottomStart = 0.dp,
-                                        bottomEnd = 12.dp
-                                    )
-                                )
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 12.dp)) {
-                                    Text(
-                                        text = chat.text,
-                                        fontWeight = FontWeight.Normal
-                                    )
-                                    Text(
-                                        text = convertTimestampToTime(chat.timestamp.toLong()),
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-
-                }
-            }
-
+        bottomBar = {
             TextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = messageText,
+                modifier = Modifier.fillMaxWidth().imePadding(),
+                value = textMessage,
                 onValueChange = {
+                    chatsViewModel.textMessageInput(it)
                     messageText = it
                 },
                 placeholder = {
@@ -445,12 +322,27 @@ fun SendMessageScreen(navHostController: NavHostController) {
                 trailingIcon = {
                     IconButton(
                         onClick = {
+
+                            val messageID = generateUID()
+
                             scope.launch {
+
+//                                chatsViewModel.updateChatRoomData(
+//                                    ChatMessage(
+//                                        messageId = generateUID(),
+//                                        senderId = currentUser,
+//                                        text = textMessage,
+//                                        timestamp = System.currentTimeMillis(),
+//                                        read = false
+//                                    )
+//                                )
+
+
 
                                 chatsViewModel.sendMessages(
                                     message = messageText,
+                                    messageId = generateUID(),
                                     receiverId = userUUID.toString(),
-                                    roomId = roomId.toString()
                                 ).collect {
                                     when (it) {
                                         is ResultState.Loading -> {
@@ -487,6 +379,126 @@ fun SendMessageScreen(navHostController: NavHostController) {
                     unfocusedIndicatorColor = Color.Transparent
                 )
             )
+        },
+        containerColor = White900
+    ) { padding ->
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(chats) { chat ->
+
+                // 🟰 Insert "Today" divider before first today's message
+                if (isToday(chat.timestamp.toLong()) && !isTodayDividerShown) {
+                    isTodayDividerShown = true
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(color = White400, shape = RoundedCornerShape(12.dp))
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Today",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.Black
+                            )
+                        }
+                    }
+
+                }
+
+                // 🟰 Now your normal chat message item
+                if (chat.senderId == currentUser) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 40.dp),
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.background(
+                                color = primary,
+                                shape = RoundedCornerShape(
+                                    topStart = 12.dp,
+                                    topEnd = 0.dp,
+                                    bottomStart = 12.dp,
+                                    bottomEnd = 12.dp
+                                )
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                Text(
+                                    text = chat.text,
+                                    fontWeight = FontWeight.Normal,
+                                    color = White900,
+                                    fontSize = 14.sp
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.baseline_done_all_24),
+                                        contentDescription = null,
+                                        tint = if (chat.read) White900 else Black300
+                                    )
+                                    Text(
+                                        text = convertTimestampToTime(chat.timestamp.toLong()),
+                                        fontSize = 12.sp,
+                                        color = White900
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 40.dp),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.background(
+                                color = White400,
+                                shape = RoundedCornerShape(
+                                    topStart = 12.dp,
+                                    topEnd = 12.dp,
+                                    bottomStart = 0.dp,
+                                    bottomEnd = 12.dp
+                                )
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+                                Text(
+                                    text = chat.text,
+                                    fontWeight = FontWeight.Normal
+                                )
+                                Text(
+                                    text = convertTimestampToTime(chat.timestamp.toLong()),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+
+            }
         }
     }
 

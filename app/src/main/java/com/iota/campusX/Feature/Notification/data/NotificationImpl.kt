@@ -50,12 +50,12 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                                     .toObject(User::class.java)
                             }
 
-                            val repliesDeferred = async {
-                                if (notificationData.postId != null && notificationData.content?.contentId != null) {
+                            val getRepliesDeferred = async {
+                                if (notificationData.contentId.isNotBlank()) {
                                     firestore.collection("GlobalPosts")
-                                        .document(notificationData.postId!!)
+                                        .document(notificationData.postId)
                                         .collection("Replies")
-                                        .document(notificationData.content!!.contentId!!)
+                                        .document(notificationData.contentId)
                                         .get()
                                         .await()
                                         .toObject(ReplyDTO::class.java)
@@ -64,10 +64,24 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                                 }
                             }
 
-                            val likedPost = async {
-                                if (notificationData.postId != null) {
+                            val getLikedReplyDeferred = async {
+                                if (notificationData.contentId.isNotBlank()) {
+                                    firestore.collection("GlobalPosts")
+                                        .document(notificationData.postId)
+                                        .collection("Replies")
+                                        .document(notificationData.contentId)
+                                        .get()
+                                        .await()
+                                        .toObject(ReplyDTO::class.java)
+                                } else {
+                                    null
+                                }
+                            }
+
+                            val getLikedPostDeferred = async {
+                                if (notificationData.contentId.isNotBlank()) {
                                     val snapshot = firestore.collection("GlobalPosts")
-                                        .document(notificationData.postId!!)
+                                        .document(notificationData.postId)
                                         .get()
                                         .await()
                                     snapshot.toObject(PostDTO::class.java)
@@ -76,35 +90,33 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                                 }
                             }
 
-
-//                            val linkUpRequestDeferred = async {
-//                                if (notificationData.postId != null && notificationData.content?.contentId != null) {
-//                                    firestore.collection("Users")
-//                                        .document(notificationData.actionBy)
-//                                        .collection("LinkUpRequests")
-//                                        .document(notificationData.postId!!)
-//                                        .get()
-//                                        .await()
-//                                        .toObject(ReplyDTO::class.java)
-//                                } else {
-//                                    null
-//                                }
-//                            }
-
-                            val post = likedPost.await()
-
-                            val content = if (notificationData.type == "LIKE")
-                                post?.postContent?.postData?.postText?:"Deleted by user"
-                            else if (notificationData.type == "LIKE_REPLY")
-                                "Liked your reply"
-                            else if (notificationData.type == "POST_REPLY")
-                                repliesDeferred.await()?.content ?: "Deleted by user"
-                            else if (notificationData.type == "LINK_REQUEST")
-                                "Sent you a link request"
-                            else ""
-
-
+                            val getReplies = getRepliesDeferred.await()
+                            val getLikedReply = getLikedReplyDeferred.await()
                             val likedBy = likedByDeferred.await()
+                            val post = getLikedPostDeferred.await()
+
+                            val content: Content = when (notificationData.type) {
+                                "LIKE" -> Content(
+                                   text = post?.postContent?.postData?.postText ?: "Deleted by user",
+                                   image = post?.postContent?.postData?.postImage ?: ""
+                                )
+
+                                "POST_REPLY" -> Content(
+                                    text = getReplies?.content ?: "Deleted by user"
+                                )
+
+                                "LIKE_REPLY" -> Content(
+                                    text = getLikedReply?.content ?: "Deleted by user"
+                                )
+
+                                "LINK_REQUEST" -> Content(
+                                    text = "Sent you a link request"
+                                )
+
+                                else -> Content(
+                                    text = ""
+                                )
+                            }
 
 
                             val createdAt = notificationData.createdAt
@@ -112,7 +124,7 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
 
                             NotificationDTO(
                                 notificationId = notificationData.notificationId,
-                                createrId = notificationData.createrId,
+                                createrId = notificationData.creatorId,
                                 createdAt = createdAt,
                                 postId = notificationData.postId,
                                 actionBy= User(
@@ -120,9 +132,7 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                                     _id = likedBy?._id ?: "",
                                     userImage = likedBy?.userImage ?: ""
                                 ),
-                                content = Content(
-                                    content = content.toString()
-                                ),
+                                content = content,
                                 type = notificationData.type
                             )
 

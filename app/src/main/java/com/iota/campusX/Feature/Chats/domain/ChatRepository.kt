@@ -7,21 +7,23 @@ import kotlinx.coroutines.flow.Flow
 
 interface ChatRepository {
 
-    fun sendMessage(message: String, receiverId: String,roomId: String):Flow<ResultState<Boolean>>
+    fun sendMessage(message: String, messageId: String, receiverId: String):Flow<ResultState<Boolean>>
 
-    fun updateIsUserActive(isActive:Boolean,roomId: String)
+    fun updateIsUserActive(isActive:Boolean,participantId: String)
 
-    fun getIsUserActive(roomId: String,receiverId: String):Flow<Boolean>
+    fun getIsUserActive(receiverId: String):Flow<Boolean>
 
-    fun updateIsUserTyping(isActive:Boolean,roomId: String)
+    fun updateIsUserTyping(isActive:Boolean,participantId: String)
 
-    fun getIsUserTyping(roomId:String,participantId: String):Flow<Boolean>
+    fun getIsUserTyping(participantId: String):Flow<Boolean>
 
-    fun receiveMessage(roomId: String):Flow<ResultState<List<ChatMessage>>>
+    fun receiveMessage(participantId: String):Flow<ResultState<List<ChatMessage>>>
 
     fun getChats():Flow<ResultState<List<UserChatsDTO>>>
 
-    fun markMessagesAsReed(roomId: String,participantId: String)
+    fun markMessagesAsReed(participantId: String)
+
+    fun getRoomId(participantId: String):Flow<ResultState<String>>
 
 
 

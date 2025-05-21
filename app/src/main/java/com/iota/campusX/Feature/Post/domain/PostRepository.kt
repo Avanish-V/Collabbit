@@ -12,7 +12,7 @@ interface PostRepository {
 
     fun toggleLike(userId: String, postId: String,isLiked: Boolean)
 
-    fun likeReply(userId: String, postId: String,replyId:String,isLiked: Boolean)
+    fun likeReply(creatorId: String, postId: String, replyId:String, isLiked: Boolean)
 
     fun getReplies(postId: String): Flow<ResultState<List<GetRepliesDTO>>>
 
@@ -28,5 +28,7 @@ interface PostRepository {
     fun createPost(createPostDTO: CreatePostDTO,postMode: Boolean, imageUri: Uri?): Flow<ResultState<UploadResponse>>
 
     fun deletePost(postId: String,campusId: String?): Flow<ResultState<Boolean>>
+
+    fun deleteReply(postId: String,replyId:String,campusId: String?): Flow<ResultState<Boolean>>
 
 }

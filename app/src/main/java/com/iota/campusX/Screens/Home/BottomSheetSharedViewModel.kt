@@ -15,13 +15,15 @@ class BottomSheetSharedViewModel: ViewModel(){
         state: Boolean,
         isCurrentUser: Boolean = false,
         postId: String,
+        replyId: String ?= null,
         campusId: String
     ){
        _bottomSheetState.value = PassBottomSheetData(
            isBottomSheet = state,
            isCurrentUser = isCurrentUser,
            postId = postId,
-           campusId = campusId
+           campusId = campusId,
+           replyId = replyId ?: ""
        )
 
     }
@@ -37,6 +39,7 @@ class BottomSheetSharedViewModel: ViewModel(){
 data class PassBottomSheetData(
     var isBottomSheet: Boolean = false,
     val postId: String = "",
+    val replyId: String = "",
     val isCurrentUser: Boolean = false,
     val campusId: String? = null
 )

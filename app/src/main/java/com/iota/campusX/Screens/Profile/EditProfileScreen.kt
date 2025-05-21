@@ -3,6 +3,7 @@ package com.iota.campusX.Screens.Profile
 
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,11 +19,14 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
@@ -66,6 +71,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -106,7 +112,7 @@ fun EditProfileScreen(
 ) {
 
     val editProfileViewModel: EditProfileViewModel = viewModel()
-
+    val context = LocalContext.current
     val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value.baseProfileData
     var screenValue by rememberSaveable { mutableStateOf(ProfileEdit.PROFILE_SCREEN) }
     val scope = rememberCoroutineScope()
@@ -240,48 +246,48 @@ fun EditProfileScreen(
                             }
                         }
 
-                        IconButton(
-                            onClick = { /*TODO*/ },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = null,
-                                tint = primary
-                            )
-                        }
-
-                        Card(
-                            Modifier
-                                .size(100.dp)
-                                .border(
-                                    width = 2.dp,
-                                    color = secondary,
-                                    shape = CircleShape
-                                ),
-                            shape = CircleShape,
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color.Transparent
-                            )
-
-                        ) {
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(6.dp)
-                                    .clip(CircleShape),
-                                contentAlignment = Alignment.BottomEnd
-                            ) {
-                                Image(
-                                    modifier = Modifier.fillMaxSize(),
-                                    painter = painterResource(R.drawable.man),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop
-                                )
-
-                            }
-                        }
+//                        IconButton(
+//                            onClick = { /*TODO*/ },
+//                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent)
+//                        ) {
+//                            Icon(
+//                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+//                                contentDescription = null,
+//                                tint = primary
+//                            )
+//                        }
+//
+//                        Card(
+//                            Modifier
+//                                .size(100.dp)
+//                                .border(
+//                                    width = 2.dp,
+//                                    color = secondary,
+//                                    shape = CircleShape
+//                                ),
+//                            shape = CircleShape,
+//                            colors = CardDefaults.cardColors(
+//                                containerColor = Color.Transparent
+//                            )
+//
+//                        ) {
+//
+//                            Box(
+//                                modifier = Modifier
+//                                    .fillMaxSize()
+//                                    .padding(6.dp)
+//                                    .clip(CircleShape),
+//                                contentAlignment = Alignment.BottomEnd
+//                            ) {
+//                                Image(
+//                                    modifier = Modifier.fillMaxSize(),
+//                                    painter = painterResource(R.drawable.man),
+//                                    contentDescription = null,
+//                                    contentScale = ContentScale.Crop
+//                                )
+//
+//                            }
+//                        }
 
 
                     }
@@ -299,7 +305,7 @@ fun EditProfileScreen(
                     ProfileComponent(
                         title = "Bio",
                         onEditClick = { screenValue = ProfileEdit.EDIT_ABOUT_SCREEN },
-                        body = { Text("${userProfile?.userBio}") },
+                        body = { Text(text = if (userProfile?.userBio.isNullOrEmpty()) "Update Bio" else userProfile.userBio) },
                         contentDescription = "BIO"
 
                     )
@@ -309,7 +315,7 @@ fun EditProfileScreen(
                         onEditClick = {
                             screenValue = ProfileEdit.EDIT_GENDER
                         },
-                        body = { Text(userProfile?.userGender?: "Select Gender") },
+                        body = { Text(text = if (userProfile?.userGender.isNullOrEmpty()) "Select Gender" else userProfile.userGender) },
                         contentDescription = "GENDER"
 
                     )
@@ -329,12 +335,9 @@ fun EditProfileScreen(
                             screenValue = ProfileEdit.EDIT_CAMPUS
                         },
                         body = {
-
-                           Campus(
-                               userProfile?.campus
-                           )
-
-
+//                           Campus(
+//                               userProfile?.campus
+//                           )
                         },
                         contentDescription = "CAMPUS"
                     )
@@ -357,6 +360,9 @@ fun EditProfileScreen(
                 onCancelClick = { screenValue = ProfileEdit.PROFILE_SCREEN },
                 onSubmitClick = {
                     scope.launch {
+
+                        if (editProfileViewModel.name.value.isEmpty()) return@launch Toast.makeText(context, "Name cannot be empty", Toast.LENGTH_SHORT).show()
+
                         userProfileViewModel.modifyName(editProfileViewModel.name.value).collect {
                             when (it) {
                                 is ResultState.Loading -> {
@@ -399,6 +405,9 @@ fun EditProfileScreen(
             EditPage(
                 onCancelClick = { screenValue = ProfileEdit.PROFILE_SCREEN },
                 onSubmitClick = {
+
+                    if (editProfileViewModel.about.value.isEmpty()) return@EditPage Toast.makeText(context, "Bio cannot be empty", Toast.LENGTH_SHORT).show()
+
                     scope.launch {
                         userProfileViewModel.modifyAbout(about = editProfileViewModel.about.value).collect {
                             when (it) {
@@ -447,6 +456,8 @@ fun EditProfileScreen(
             EditPage(
                 onCancelClick = { screenValue = ProfileEdit.PROFILE_SCREEN },
                 onSubmitClick = {
+
+                    if (editProfileViewModel.gender.value.isEmpty()) return@EditPage Toast.makeText(context, "Gender cannot be empty", Toast.LENGTH_SHORT).show()
 
                     scope.launch {
                         userProfileViewModel.modifyGender(gender = selectedGender).collect{
@@ -584,7 +595,7 @@ fun EditProfileScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ){
-                            Text(text = timeMillsToString(editProfileViewModel.campus.value.courseStart))
+                            Text(text = timeMillsToString(editProfileViewModel.campus.value.courseStart?.toLong() ?: 0L))
                             IconButton(onClick = {
                                 calenderSwitch = 0
                                 isCalenderVisible = !isCalenderVisible
@@ -614,7 +625,8 @@ fun EditProfileScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ){
-                            Text(text = timeMillsToString(editProfileViewModel.campus.value.courseEnd))
+                            Text(text = timeMillsToString(
+                                editProfileViewModel.campus.value.courseEnd?.toLong() ?: 0L))
                             IconButton(onClick = {
                                 calenderSwitch = 1
                                 isCalenderVisible = !isCalenderVisible
@@ -758,12 +770,17 @@ fun ProfileComponent(
 
     Column(
         modifier = Modifier
+            .clickable(
+                onClick = {onEditClick.invoke()},
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .border(width = 2.dp, color = background, shape = RoundedCornerShape(12.dp))
             .padding(12.dp)
     ) {
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,verticalAlignment = Alignment.CenterVertically) {
 
             Text(text = title, fontWeight = FontWeight.Bold)
 
@@ -860,6 +877,7 @@ fun EditPage(
 
     Column(modifier = Modifier
         .fillMaxSize()
+        .padding(WindowInsets.statusBars.asPaddingValues())
         .verticalScroll(rememberScrollState())
         .background(color = White900)) {
 

@@ -17,20 +17,24 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 
 class ChatImpl(
+    private val participantId: String,
     private val database: FirebaseDatabase,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore
 ) : ChatRepository {
 
-    override fun sendMessage(message: String, receiverId: String,roomId: String): Flow<ResultState<Boolean>> {
+    override fun sendMessage(message: String, messageId: String, receiverId: String): Flow<ResultState<Boolean>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
 
             val senderId = auth.currentUser?.uid ?: return@callbackFlow
 
+            if(receiverId.isEmpty()) return@callbackFlow
+
+            val roomId = senderId+receiverId
             val timeStamp = System.currentTimeMillis().toString()
-            val key = database.getReference().push().key
+            val key = messageId
 
             firestore.collection("Chats")
                 .document(senderId)
@@ -106,6 +110,8 @@ class ChatImpl(
     }
 
     override fun getChats(): Flow<ResultState<List<UserChatsDTO>>> = callbackFlow {
+
+
         val currentUserId = auth.currentUser?.uid
 
         if (currentUserId == null) {
@@ -221,7 +227,9 @@ class ChatImpl(
         awaitClose()
     }
 
-    override fun updateIsUserActive(isActive: Boolean, roomId: String,) {
+    override fun updateIsUserActive(isActive: Boolean,participantId: String) {
+
+        val roomId = auth.currentUser!!.uid+participantId
 
         database.getReference("ChatRoom").child(roomId)
             .child(auth.currentUser!!.uid)
@@ -247,8 +255,11 @@ class ChatImpl(
 
     }
 
-    override fun getIsUserActive(roomId: String, receiverId: String): Flow<Boolean> {
+    override fun getIsUserActive( receiverId: String): Flow<Boolean> {
         return callbackFlow {
+
+            val roomId = auth.currentUser!!.uid+receiverId
+
             database.getReference("ChatRoom").child(roomId)
                 .child(receiverId)
                 .addValueEventListener(object : ValueEventListener {
@@ -269,7 +280,9 @@ class ChatImpl(
         }
     }
 
-    override fun updateIsUserTyping(isActive: Boolean, roomId: String) {
+    override fun updateIsUserTyping(isActive: Boolean,participantId: String) {
+
+        val roomId = auth.currentUser!!.uid+participantId
 
         database.getReference("ChatRoom").child(roomId)
             .child(auth.currentUser!!.uid)
@@ -295,8 +308,11 @@ class ChatImpl(
 
     }
 
-    override fun getIsUserTyping(roomId: String,participantId: String): Flow<Boolean>{
+    override fun getIsUserTyping(participantId: String): Flow<Boolean>{
         return callbackFlow {
+
+            val roomId = auth.currentUser!!.uid+participantId
+
             database.getReference("ChatRoom").child(roomId)
                 .child(participantId)
                 .addValueEventListener(object : ValueEventListener {
@@ -319,8 +335,10 @@ class ChatImpl(
         }
     }
 
-    override fun receiveMessage(roomId: String): Flow<ResultState<List<ChatMessage>>> = callbackFlow {
+    override fun receiveMessage(participantId: String): Flow<ResultState<List<ChatMessage>>> = callbackFlow {
         trySend(ResultState.Loading)
+
+        val roomId = auth.currentUser!!.uid+participantId
 
         val roomRef = database.getReference("ChatRoom").child(roomId)
 
@@ -372,7 +390,9 @@ class ChatImpl(
         }
     }
 
-    override fun markMessagesAsReed(roomId: String, participantId: String) {
+    override fun markMessagesAsReed(participantId: String) {
+
+        val roomId = auth.currentUser!!.uid+participantId
 
         val roomRef = database.getReference("ChatRoom").child(roomId)
 
@@ -396,6 +416,23 @@ class ChatImpl(
                 // Handle error if needed (e.g., log it)
             }
         })
+    }
+
+    override fun getRoomId(participantId: String): Flow<ResultState<String>> {
+        return callbackFlow {
+
+            trySend(ResultState.Loading)
+
+            try {
+
+                firestore.collection("Chats").document(participantId).collection("Messages")
+                    .document(auth.currentUser!!.uid)
+
+            }catch (e: Exception){
+
+            }
+
+        }
     }
 
 }

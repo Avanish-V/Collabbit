@@ -61,7 +61,7 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
         }
     }
 
-    fun likeReply(userId: String, postId: String, replyId: String, isLiked: Boolean) {
+    fun likeReply(creatorId: String, postId: String, replyId: String, isLiked: Boolean) {
         viewModelScope.launch {
             val updatedReplies = _repliesState.value.data.map { reply ->
                 if (reply.replyId == replyId) {
@@ -76,7 +76,7 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
             }
             _repliesState.value = _repliesState.value.copy(data = updatedReplies)
 
-            postRepository.likeReply(userId, postId, replyId, isLiked)
+            postRepository.likeReply(creatorId, postId, replyId, isLiked)
         }
         // Update local state
     }
@@ -96,6 +96,18 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
                         _uploadingProgress.value = it.data
 
                         if (it.data.status == "COMPLETED"){
+
+                            val postMode: Pair<String, String> =
+                                if (createPostDTO.type == "USER") Pair(
+                                    user.userName,
+                                    user.userImage
+                                )
+                                else Pair(
+                                    "Anonymous",
+                                    "https://res.cloudinary.com/dni4h8jjy/image/upload/v1746629954/wyuwxwa8qwx0hu0i6flk.png"
+                                )
+
+
                             updatePost(
                                 PostDTO(
                                     postId = createPostDTO.postId,
@@ -106,9 +118,9 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
                                         isPremium = false,
                                         type = createPostDTO.type,
                                         profile = User(
-                                            userName = user.userName,
+                                            userName = postMode.first,
                                             _id = user._id,
-                                            userImage = user.userImage
+                                            userImage = postMode.second
                                         )
                                     ),
                                     reference = Reference(
@@ -215,6 +227,8 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
 
     fun deletePost(postId: String,campusId: String?) = postRepository.deletePost(postId,campusId)
 
+    fun deleteReply(postId: String,replyId:String,campusId: String?) = postRepository.deleteReply(postId,replyId,campusId)
+
 
 
 
@@ -245,6 +259,12 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
         val updatedPosts = _postState.value.postData.toMutableList()
         updatedPosts.removeIf { it.postId == postId }
         _postState.value = _postState.value.copy(postData = updatedPosts)
+    }
+
+    fun updateDeleteReply(postId: String,replyId: String) {
+        val updatedReplies = _repliesState.value.data.toMutableList()
+        updatedReplies.removeIf { it.postId == postId && it.replyId == replyId }
+        _repliesState.value = _repliesState.value.copy(data = updatedReplies)
     }
 
 
