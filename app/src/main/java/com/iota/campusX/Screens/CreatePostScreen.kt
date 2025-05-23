@@ -119,6 +119,7 @@ fun CreatePostScreen(
     )
     val snackbarHostState = remember { SnackbarHostState() }
     val mode = homeViewModel.switchState.collectAsState().value.isActive
+    val uploadResponse = postViewModel.uploadingProgress.collectAsState().value
 
 
     Scaffold(
@@ -215,13 +216,19 @@ fun CreatePostScreen(
                                         snackbarHostState.showSnackbar("Post Created")
                                         navHostController.popBackStack()
                                     }
+                                },
+                                onError = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(it)
+                                    }
                                 }
                             )
 
                         }
 
 
-                    }
+                    },
+                    enabled = uploadResponse.status == "LOADING" || uploadResponse.status == "COMPLETED"
 
                 ) {
 

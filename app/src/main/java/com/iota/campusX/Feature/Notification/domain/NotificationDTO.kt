@@ -18,6 +18,7 @@ data class CreateNotificationDTO(
     var creatorId: String? = null,
     var createdAt: Long = 0L,
     var actionBy: String = "",
+    val isRead: Boolean = false,
     var type: String = "",
     var contentId: String  = "",
 )

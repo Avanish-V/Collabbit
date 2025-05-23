@@ -228,7 +228,7 @@ fun MainScreen(
                                 shape = CircleShape
 
                             ),
-                            enabled = false
+                            enabled = true
                         ) {
                             Icon(
                                 painter = painterResource((R.drawable.messages_normal)),
@@ -301,7 +301,8 @@ fun MainScreen(
                             navigationViewModel = navigationViewModel,
                             profileImage = userProfile.baseProfileData?.userImage ?: "",
                             postMode = switchState.isActive,
-                            scrollBehavior = scrollBehavior
+                            scrollBehavior = scrollBehavior,
+                            index = 0
 
                         )
                     }
@@ -314,7 +315,8 @@ fun MainScreen(
                             navigationViewModel = navigationViewModel,
                             profileImage = userProfile.baseProfileData?.userImage ?: "",
                             postMode = switchState.isActive,
-                            scrollBehavior = scrollBehavior
+                            scrollBehavior = scrollBehavior,
+                            index = 1
 
                         )
 
@@ -421,7 +423,14 @@ fun LazyListScope.postsLazyColumn(
                 post = it,
                 navHostController = navHostController,
                 onDotMenuClick = {
-                   bottomSharedViewModel.setBottomSheetState(state = true,isCurrentUser = it.creatorDetail.isCurrentUser, postId = it.postId, campusId = it.campusId.toString())
+                   bottomSharedViewModel.setBottomSheetState(
+                       postText = it.postContent.postData.postText,
+                       state = true,
+                       type = "POST",
+                       isCurrentUser = it.creatorDetail.isCurrentUser,
+                       postId = it.postId,
+                       campusId = it.campusId.toString()
+                   )
                 },
                 goToProfile = {
 
@@ -450,7 +459,8 @@ fun TrendingScreen(
     navigationViewModel: NavigationViewModel,
     profileImage: String,
     postMode: Boolean,
-    scrollBehavior: TopAppBarScrollBehavior
+    scrollBehavior: TopAppBarScrollBehavior,
+    index: Int // 0 = Trending (by likes), 1 = Latest (by time)
 ) {
 
     val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
@@ -484,7 +494,6 @@ fun TrendingScreen(
                 isRefreshing = true
                 lazyState.animateScrollToItem(0)
             }
-
         },
         state = pullToRefreshState,
         contentAlignment = Alignment.TopCenter,
@@ -499,30 +508,31 @@ fun TrendingScreen(
 
         Column {
 
-
             if (postResultState.isLoading) {
-
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = primary
-                    )
+                    CircularProgressIndicator(color = primary)
                 }
             }
 
-
             ErrorScreen(
                 isActive = postResultState.error.isNotEmpty(),
-                text = postResultState.error.toString(),
+                text = postResultState.error,
                 onReTry = {
                     postViewModel.refreshPosts(postMode)
                 }
             )
 
-
             isRefreshing = false
+
+            val sortedPosts = remember(postResultState.postData, index) {
+                when (index) {
+                    1 -> postResultState.postData.sortedByDescending { it.postedAt } // Latest
+                    else -> postResultState.postData.sortedByDescending { it.postActions.likesCount } // Trending
+                }
+            }
 
             LazyColumn(
                 state = lazyState,
@@ -531,10 +541,9 @@ fun TrendingScreen(
                     .fillMaxSize()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
             ) {
+                writePost(navHostController, context, profileImage)
 
-                writePost(navHostController = navHostController, context = context, profileImage = profileImage)
-
-                item{
+                item {
                     HorizontalDivider(
                         thickness = 12.dp,
                         color = secondary
@@ -542,27 +551,33 @@ fun TrendingScreen(
                 }
 
                 postsLazyColumn(
-                    postData = postResultState.postData,
+                    postData = sortedPosts,
                     navHostController = navHostController,
                     postViewModel = postViewModel,
                     bottomSharedViewModel = bottomSheetViewModel,
                     context = context,
-                    onDotMenuClick = {
-                    },
-
+                    onDotMenuClick = {}
                 )
             }
         }
 
         PostDotOptionBottomSheet(
             isBottomSheet = bottomSheetData.isBottomSheet,
-            onDismiss = { bottomSheetViewModel.hideBottomSheet(false) },
+            bottomSheetSharedViewModel = bottomSheetViewModel,
+            postViewModel = postViewModel,
+            onDismiss = {
+                bottomSheetViewModel.hideBottomSheet(false)
+                bottomSheetViewModel.setModificationRequest("")
+            },
             isCurrentUser = bottomSheetData.isCurrentUser,
             onDeleteClick = {
-                isAlertDialogVisible.value = !isAlertDialogVisible.value
+                isAlertDialogVisible.value = true
             },
             onEditClick = {
-
+                bottomSheetViewModel.setModificationRequest("EDIT_POST")
+            },
+            onHideBottomSheet = {
+                bottomSheetViewModel.hideBottomSheet(it)
             }
         )
 
@@ -574,52 +589,37 @@ fun TrendingScreen(
             positiveButtonText = "Delete",
             negativeButtonText = "Cancel",
             onPositiveClick = {
-
                 scope.launch {
                     postViewModel.deletePost(
                         bottomSheetData.postId,
                         bottomSheetData.campusId
-                    )
-                        .collect {
-                            when (it) {
-                                is ResultState.Success -> {
-                                    delay(1000)
-                                    isLoading.value = false
-                                    isAlertDialogVisible.value =
-                                        false
-                                    bottomSheetData.isBottomSheet =
-                                        false
-                                    postViewModel.updateDeletePost(
-                                        bottomSheetData.postId
-                                    )
+                    ).collect {
+                        when (it) {
+                            is ResultState.Success -> {
+                                delay(1000)
+                                isLoading.value = false
+                                isAlertDialogVisible.value = false
+                                scope.launch {
+                                    bottomSheetData.isBottomSheet = false
                                 }
+                                postViewModel.updateDeletePost(bottomSheetData.postId)
+                            }
 
-                                is ResultState.Error -> {
-                                    bottomSheetData.isBottomSheet =
-                                        false
-                                    isLoading.value = false
+                            is ResultState.Error -> {
+                                bottomSheetData.isBottomSheet = false
+                                isLoading.value = false
+                                Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show()
+                            }
 
-                                    Toast.makeText(
-                                        context,
-                                        it.message,
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-
-
-                                }
-
-                                is ResultState.Loading -> {
-                                    isLoading.value = true
-                                }
+                            is ResultState.Loading -> {
+                                isLoading.value = true
                             }
                         }
+                    }
                 }
-
                 context.vibrate()
-
             },
             showLoading = isLoading.value
-
         )
     }
 }

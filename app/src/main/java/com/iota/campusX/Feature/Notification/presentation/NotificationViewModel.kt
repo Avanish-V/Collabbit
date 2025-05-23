@@ -19,6 +19,8 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
     private val _notification: MutableStateFlow<NotificationResultState> = MutableStateFlow(NotificationResultState())
     val notification : StateFlow<NotificationResultState> = _notification.asStateFlow()
 
+    private val _notificationCount: MutableStateFlow<Int> = MutableStateFlow(0)
+    val notificationCount: StateFlow<Int> = _notificationCount.asStateFlow()
 
     fun fetchNotifications() {
         viewModelScope.launch {
@@ -51,6 +53,30 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
 
     fun deleteNotificationFromList(notificationDTO: NotificationDTO) {
         _notification.value = NotificationResultState(data = _notification.value.data - notificationDTO)
+    }
+
+    fun markNotificationAsRead() {
+        viewModelScope.launch {
+            notificationRepository.markNotificationAsRead()
+        }
+
+    }
+    fun getNotificationCount() {
+        viewModelScope.launch {
+            notificationRepository.getNotificationCount().collect {
+                when (it) {
+                    is ResultState.Loading -> {
+                        _notificationCount.value = 0
+                    }
+                    is ResultState.Success -> {
+                        _notificationCount.value = it.data
+                    }
+                    is ResultState.Error -> {
+                        _notificationCount.value = 0
+                    }
+                }
+            }
+        }
     }
 
 }

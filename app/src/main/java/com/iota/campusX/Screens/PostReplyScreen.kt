@@ -1,7 +1,9 @@
 package com.iota.campusX.Screens
 
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -50,6 +52,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -81,6 +86,7 @@ import com.iota.campusX.ui.UIComponents.PostBody
 import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.UIComponents.PostDotOptionBottomSheet
 import com.iota.campusX.ui.UIComponents.PostHeader
+import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
@@ -101,6 +107,7 @@ fun PostReplyScreen(
     val userProfile = profileViewModel.userBaseProfile.collectAsState().value.baseProfileData
     val repliesData = postViewModel.repliesState.collectAsState().value
 
+
     val postId by remember {
         mutableStateOf(navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("POST_ID"))
     }
@@ -112,16 +119,19 @@ fun PostReplyScreen(
     }
 
     val keyboard = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+
     var replyText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var interactionSource = remember { MutableInteractionSource() }
 
     val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
     val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
+    val modificationRequest = bottomSheetViewModel.modificationRequest.collectAsState().value
+    val alertDialog = bottomSheetViewModel.alertDialog.collectAsState().value
     val isAlertDialogVisible = remember { mutableStateOf(false) }
-
+    var isFocused by remember { mutableStateOf(false) }
 
     when{
         postState.isLoading->{
@@ -150,6 +160,12 @@ fun PostReplyScreen(
 
                     Column {
 
+                        if (modificationRequest == "EDIT"){
+                            Box(modifier = Modifier.fillMaxWidth().padding(12.dp),contentAlignment = Alignment.CenterStart){
+                                Text("Edit reply", color = primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Start)
+                            }
+                        }
+
                         HorizontalDivider(
                             color = Black500
                         )
@@ -157,7 +173,11 @@ fun PostReplyScreen(
                         TextField(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .imePadding(),
+                                .imePadding()
+                                .focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    isFocused = focusState.isFocused
+                                },
                             value = replyText,
                             onValueChange = { replyText = it },
                             placeholder = {
@@ -193,7 +213,8 @@ fun PostReplyScreen(
                                                                         user = User(
                                                                             _id = userProfile?._id ?: "",
                                                                             userName = userProfile?.userName ?: "",
-                                                                            userImage = userProfile?.userImage ?: ""
+                                                                            userImage = userProfile?.userImage ?: "",
+                                                                            isCurrentUser = true
                                                                         ),
                                                                         content = replyText,
                                                                         actions = PostActions(
@@ -220,6 +241,7 @@ fun PostReplyScreen(
                                                 }
                                             }
                                         }
+
                                     }
                                 ) {
                                     if (isLoading){
@@ -244,6 +266,7 @@ fun PostReplyScreen(
                                 unfocusedIndicatorColor = Color.Transparent,
                                 focusedTrailingIconColor = primary
                             )
+
                         )
 
                     }
@@ -275,10 +298,12 @@ fun PostReplyScreen(
                                },
                                onDotMenuClick = {
                                    bottomSheetViewModel.setBottomSheetState(
+                                       type = "POST",
                                        state = true,
                                        isCurrentUser = postData.creatorDetail.isCurrentUser,
                                        postId = postData.postId,
-                                       campusId = postData.campusId.toString()
+                                       campusId = postData.campusId.toString(),
+                                       postText = postData.postContent.postData.postText,
                                    )
                                },
                                goToProfile ={
@@ -346,12 +371,13 @@ fun PostReplyScreen(
                                     onDotsClick = {
                                         bottomSheetViewModel.setBottomSheetState(
                                             state = true,
+                                            type = "REPLY",
                                             isCurrentUser = it.user.isCurrentUser == true,
                                             postId = it.postId,
                                             replyId = it.replyId,
+                                            replyText = it.content,
                                             campusId = ""
                                         )
-
                                     },
                                 )
                             }
@@ -377,44 +403,55 @@ fun PostReplyScreen(
 
                 PostDotOptionBottomSheet(
                     isBottomSheet = bottomSheetData.isBottomSheet,
-                    onDismiss = { bottomSheetViewModel.hideBottomSheet(false) },
+                    postViewModel = postViewModel,
+                    bottomSheetSharedViewModel = bottomSheetViewModel,
+                    onDismiss = {
+                        bottomSheetViewModel.hideBottomSheet(false)
+                        bottomSheetViewModel.setModificationRequest("")
+                    },
                     isCurrentUser = bottomSheetData.isCurrentUser,
                     onDeleteClick = {
-                        isAlertDialogVisible.value = !isAlertDialogVisible.value
+                        bottomSheetViewModel.setModificationRequest("DELETE")
+                        isAlertDialogVisible.value = true
                     },
                     onEditClick = {
-
+                        replyText = bottomSheetData.replyText.toString()
+                        bottomSheetViewModel.setModificationRequest("EDIT_REPLY")
+                    },
+                    onHideBottomSheet = {
+                        bottomSheetViewModel.hideBottomSheet(false)
                     }
                 )
 
                 AlertDialogWidget(
                     isVisible = isAlertDialogVisible.value,
-                    onDismiss = { isAlertDialogVisible.value = it },
-                    title = "Delete Reply",
-                    description = "Are you sure you want to delete this reply?",
-                    positiveButtonText = "Delete",
+                    onDismiss = {
+                        isAlertDialogVisible.value = false
+                    },
+                    title = bottomSheetViewModel.AlertDialogText()?.titleText ?: "",
+                    description = bottomSheetViewModel.AlertDialogText()?.descriptionText ?: "",
+                    positiveButtonText = bottomSheetViewModel.AlertDialogText()?.positiveButtonText ?: "",
                     negativeButtonText = "Cancel",
                     onPositiveClick = {
 
-                        scope.launch {
-                            postViewModel.deleteReply(
-                                bottomSheetData.postId,
-                                replyId = bottomSheetData.replyId,
-                                bottomSheetData.campusId
-                            )
-                                .collect {
+                        if (bottomSheetViewModel.AlertDialogText()?.action == "DELETE_REPLY"){
+                            scope.launch {
+                                postViewModel.deleteReply(
+                                    bottomSheetData.postId,
+                                    replyId = bottomSheetData.replyId.toString(),
+                                    bottomSheetData.campusId
+                                ).collect {
                                     when (it) {
                                         is ResultState.Success -> {
                                             delay(1000)
                                             isLoading = false
-                                            isAlertDialogVisible.value =
-                                                false
-                                            bottomSheetData.isBottomSheet =
-                                                false
+                                            isAlertDialogVisible.value = false
+                                            bottomSheetData.isBottomSheet = false
                                             postViewModel.updateDeleteReply(
                                                 postId = bottomSheetData.postId,
-                                                replyId = bottomSheetData.replyId
+                                                replyId = bottomSheetData.replyId.toString()
                                             )
+                                            bottomSheetViewModel.setModificationRequest("REPLY")
                                         }
 
                                         is ResultState.Error -> {
@@ -434,9 +471,48 @@ fun PostReplyScreen(
                                         }
                                     }
                                 }
+                            }
+                            context.vibrate()
                         }
 
-                        context.vibrate()
+                        if (bottomSheetViewModel.AlertDialogText()?.action == "DELETE_POST"){
+                            scope.launch {
+                                postViewModel.deletePost(
+                                    postId = bottomSheetData.postId,
+                                    campusId = bottomSheetData.campusId
+                                ).collect {
+                                    when (it) {
+                                        is ResultState.Success -> {
+                                            delay(1000)
+                                            isLoading = false
+                                            isAlertDialogVisible.value = false
+                                            bottomSheetData.isBottomSheet = false
+                                            postViewModel.updateDeletePost(
+                                                postId = bottomSheetData.postId,
+                                            )
+                                            bottomSheetViewModel.setModificationRequest("REPLY")
+                                        }
+
+                                        is ResultState.Error -> {
+                                            bottomSheetData.isBottomSheet = false
+                                            isLoading = false
+
+                                            Toast.makeText(
+                                                context,
+                                                it.message,
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
+                                        }
+
+                                        is ResultState.Loading -> {
+                                            isLoading = true
+                                        }
+                                    }
+                                }
+                            }
+                            context.vibrate()
+                        }
 
                     },
                     showLoading = isLoading
@@ -530,20 +606,26 @@ fun ReplyWidget(
 
             }
 
-            Icon(
-                modifier = Modifier
-                    .rotate(90f)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            onDotsClick.invoke()
-                        }
-                    ),
-                painter = painterResource(R.drawable.dots_menu),
-                contentDescription = "Dots",
-                tint = Black500
-            )
+            Row (verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)){
+                if (repliesDTO.isEdited){
+                    Text("Edited", color = Black300, fontSize = 12.sp)
+                }
+                Icon(
+                    modifier = Modifier
+                        .rotate(90f)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
+                                onDotsClick.invoke()
+                            }
+                        ),
+                    painter = painterResource(R.drawable.dots_menu),
+                    contentDescription = "Dots",
+                    tint = Black500
+                )
+            }
+
 
         }
 

@@ -121,12 +121,12 @@ fun ProfileScreen(
     val context = LocalContext.current
     val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
     val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
+    val hasMessage = profileViewModel.hasMessage.collectAsState().value
     val isLoading = remember { mutableStateOf(false) }
     val isAlertDialogVisible = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackBarHostState = remember { SnackbarHostState() }
-    val creatorId =
-        remember { navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID") }
+    val creatorId = remember { navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID") }
 
     val userBaseProfile by profileViewModel.userBaseProfile.collectAsState()
     val profileByIdState by profileViewModel.profileById.collectAsState()
@@ -135,6 +135,10 @@ fun ProfileScreen(
         if (currentUser != creatorId) {
             profileViewModel.getUserById(creatorId.toString())
         }
+    }
+
+    LaunchedEffect(Unit) {
+        profileViewModel.hasMessage(creatorId.toString())
     }
 
     val profileState = if (currentUser == creatorId || creatorId == null) {
@@ -208,6 +212,28 @@ fun ProfileScreen(
                         }
                     }
                 },
+                onMessageClick = {
+
+                    navHostController.navigate(Routes.Main.SendMessage.routes).apply {
+                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                            "USER_ID",
+                            profileState?._id
+                        )
+                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                            "USER_NAME",
+                            profileState?.userName
+                        )
+                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                            "USER_IMAGE",
+                            profileState?.userImage
+                        )
+                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                            "ROOM_ID",
+                            hasMessage
+                        )
+                    }
+
+                },
                 isLinkUpRequestSent = profileState?.isRequestSent
             )
 
@@ -239,6 +265,8 @@ fun ProfileScreen(
 
         PostDotOptionBottomSheet(
             isBottomSheet = bottomSheetData.isBottomSheet,
+            bottomSheetSharedViewModel = bottomSheetViewModel,
+            postViewModel = postViewModel,
             onDismiss = { bottomSheetViewModel.hideBottomSheet(false) },
             isCurrentUser = bottomSheetData.isCurrentUser,
             onDeleteClick = {
@@ -246,6 +274,9 @@ fun ProfileScreen(
             },
             onEditClick = {
 
+            },
+            onHideBottomSheet = {
+                bottomSheetViewModel.hideBottomSheet(false)
             }
         )
 
@@ -377,6 +408,7 @@ fun ProfileHeader(
     user: User,
     currentUser: String,
     onLinkUpRequestClick: (() -> Unit)? = null,
+    onMessageClick: (() -> Unit)? = null,
     isLinkUpRequestSent: Boolean? = null
 ) {
 
@@ -486,20 +518,7 @@ fun ProfileHeader(
                 Column(
                     modifier = Modifier.clickable(
                         onClick = {
-                            navHostController.navigate(Routes.Main.SendMessage.routes).apply {
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                    "USER_ID",
-                                    user._id
-                                )
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                    "USER_NAME",
-                                    user.userName
-                                )
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                    "USER_IMAGE",
-                                    user.userImage
-                                )
-                            }
+                            onMessageClick?.invoke()
                         },
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }

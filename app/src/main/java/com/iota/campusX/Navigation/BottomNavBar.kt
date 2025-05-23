@@ -3,9 +3,11 @@ package com.iota.campusX.Navigation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,11 +28,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.iota.campusX.ui.theme.primary
 
 
 @Composable
@@ -47,20 +52,21 @@ fun BottomAppBar(navController: NavHostController) {
 
         ) {
 
+            Text("0", color = Color.Black, fontSize = 8.sp,textAlign = TextAlign.Center, modifier = Modifier.padding(1.dp).background(color = primary, shape = CircleShape))
+
             navBarItems.forEachIndexed { index, item ->
 
                 NavigationBarItem(
                     icon = {
 
-                        if (item.item == "Offers"){
+                        if (item.item == "Notification"){
                             BadgedBox(
                                 badge = {
-                                    Box(Modifier.offset(x = 2.dp, y = (-2).dp).size(16.dp).background(color = Color.Red, shape = CircleShape), contentAlignment = Alignment.Center){
-                                        Text("1", color = Color.White, style = MaterialTheme.typography.displaySmall)
-                                    }
+                                    Text("0", color = Color.Black, fontSize = 8.sp,textAlign = TextAlign.Center, modifier = Modifier.padding(1.dp).background(color = primary, shape = CircleShape))
                                 }
                             ) {
                                 Icon(
+
                                     painter = painterResource(id =  if (destination == item.route) item.iconBold else item.icon),
                                     contentDescription = null,
                                     modifier = Modifier.size(22.dp)

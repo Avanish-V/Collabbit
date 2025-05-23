@@ -31,4 +31,8 @@ interface PostRepository {
 
     fun deleteReply(postId: String,replyId:String,campusId: String?): Flow<ResultState<Boolean>>
 
+    fun editReply(postId: String,replyId:String,content:String,campusId: String?): Flow<ResultState<Boolean>>
+
+    fun editPost(postId: String,editedText:String,campusId: String?): Flow<ResultState<Boolean>>
+
 }

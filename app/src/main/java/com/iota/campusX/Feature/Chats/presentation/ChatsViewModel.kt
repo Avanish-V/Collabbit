@@ -35,11 +35,11 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
         _textMessage.value = inputText
     }
 
-    fun sendMessages(message: String,messageId:String,receiverId: String) = chatRepository.sendMessage(message,messageId,receiverId)
+    fun sendMessages(message: String,messageId:String,timestamp:Long,receiverId: String,roomId: String) = chatRepository.sendMessage(message,messageId,timestamp,receiverId,roomId)
 
-    fun receiveMessage(participantId: String){
+    fun receiveMessage(participantId: String,roomId: String){
         viewModelScope.launch {
-            chatRepository.receiveMessage(participantId = participantId).collect{
+            chatRepository.receiveMessage(participantId = participantId,roomId = roomId).collect{
                 when(it){
                     is ResultState.Loading->{}
                     is ResultState.Success->{
@@ -52,21 +52,21 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
         }
     }
 
-    fun updateIsUserActive(isActive:Boolean,participantId: String) = chatRepository.updateIsUserActive(isActive,participantId)
+    fun updateIsUserActive(isActive:Boolean,roomId: String) = chatRepository.updateIsUserActive(isActive,roomId)
 
-    fun getIsActive(receiverId: String){
+    fun getIsActive(receiverId: String,roomId: String){
         viewModelScope.launch {
-            chatRepository.getIsUserActive(receiverId).collect{
+            chatRepository.getIsUserActive(receiverId,roomId).collect{
                 _isActive.value = it
             }
         }
     }
 
-    fun updateIsUserTyping(isActive:Boolean,participantId: String) = chatRepository.updateIsUserTyping(isActive,participantId)
+    fun updateIsUserTyping(isActive:Boolean,roomId: String) = chatRepository.updateIsUserTyping(isActive,roomId)
 
-    fun getUserIsTyping(participantId: String){
+    fun getUserIsTyping(participantId: String,roomId: String){
         viewModelScope.launch {
-            chatRepository.getIsUserTyping(participantId).collect{
+            chatRepository.getIsUserTyping(participantId,roomId).collect{
                 _isUserTyping.value = it
             }
         }
@@ -100,7 +100,27 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
         }
     }
 
-    fun markMessagesAsReed(participantId: String) = chatRepository.markMessagesAsReed(participantId)
+    fun deleteChatRoomData(chatId: String,roomId: String){
+        viewModelScope.launch {
+            chatRepository.deleteChat(chatId,roomId).collect {
+                when(it){
+                    is ResultState.Loading->{}
+                    is ResultState.Success->{
+                        Log.d("ChatImpl", "deleteChatRoomData: ${it.data}")
+                    }
+                    is ResultState.Error->{
+                        Log.d("ChatImpl", "deleteChatRoomData: ${it.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun markMessagesAsReed(participantId: String, roomId: String){
+        chatRepository.markMessagesAsReed(participantId,roomId).collect {
+
+        }
+    }
 
 }
 

@@ -15,10 +15,12 @@ import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
-class NotificationImpl(private val firestore: FirebaseFirestore,private val auth: FirebaseAuth): NotificationRepository {
+class NotificationImpl(private val firestore: FirebaseFirestore, private val auth: FirebaseAuth) :
+    NotificationRepository {
 
     override fun fetchNotification(): Flow<ResultState<List<NotificationDTO>>> {
 
@@ -28,14 +30,15 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
 
             try {
 
-                val notificationSnapshot = firestore.collection("Users").document(auth.currentUser!!.uid)
-                    .collection("Notifications")
-                    .get()
-                    .await()
+                val notificationSnapshot =
+                    firestore.collection("Users").document(auth.currentUser!!.uid)
+                        .collection("Notifications")
+                        .get()
+                        .await()
 
                 val notificationList = coroutineScope {
 
-                    notificationSnapshot.map { data->
+                    notificationSnapshot.map { data ->
 
                         async {
 
@@ -97,8 +100,9 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
 
                             val content: Content = when (notificationData.type) {
                                 "LIKE" -> Content(
-                                   text = post?.postContent?.postData?.postText ?: "Deleted by user",
-                                   image = post?.postContent?.postData?.postImage ?: ""
+                                    text = post?.postContent?.postData?.postText
+                                        ?: "Deleted by user",
+                                    image = post?.postContent?.postData?.postImage ?: ""
                                 )
 
                                 "POST_REPLY" -> Content(
@@ -127,7 +131,7 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                                 createrId = notificationData.creatorId,
                                 createdAt = createdAt,
                                 postId = notificationData.postId,
-                                actionBy= User(
+                                actionBy = User(
                                     userName = likedBy?.userName ?: "",
                                     _id = likedBy?._id ?: "",
                                     userImage = likedBy?.userImage ?: ""
@@ -138,14 +142,14 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
 
                         }
 
-                    }.map {it.await()}
+                    }.map { it.await() }
 
                 }
 
                 emit(ResultState.Success(notificationList))
 
 
-            }catch (e: Exception){
+            } catch (e: Exception) {
                 emit(ResultState.Error(e.message.toString()))
                 Log.d("NotificationImpl", "fetchNotification: ${e.message}")
             }
@@ -161,15 +165,16 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
 
             try {
 
-                val notificationSnapshot = firestore.collection("Users").document(auth.currentUser!!.uid)
-                    .collection("LinkUpRequests")
-                    .whereEqualTo("status", false)
-                    .get()
-                    .await()
+                val notificationSnapshot =
+                    firestore.collection("Users").document(auth.currentUser!!.uid)
+                        .collection("LinkUpRequests")
+                        .whereEqualTo("status", false)
+                        .get()
+                        .await()
 
                 val notificationList = coroutineScope {
 
-                    notificationSnapshot.map { data->
+                    notificationSnapshot.map { data ->
 
                         async {
 
@@ -194,7 +199,7 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
                                 notificationId = notificationData.senderId,
                                 createrId = notificationData.senderId,
                                 createdAt = createdAt,
-                                actionBy= User(
+                                actionBy = User(
                                     userName = likedBy?.userName ?: "",
                                     _id = likedBy?._id ?: "",
                                     userImage = likedBy?.userImage ?: ""
@@ -204,16 +209,66 @@ class NotificationImpl(private val firestore: FirebaseFirestore,private val auth
 
                         }
 
-                    }.map {it.await()}
+                    }.map { it.await() }
 
                 }
 
                 emit(ResultState.Success(notificationList))
 
 
-            }catch (e: Exception){
+            } catch (e: Exception) {
                 emit(ResultState.Error(e.message.toString()))
             }
+
+        }
+    }
+
+    override fun markNotificationAsRead() {
+
+        val currentUser = auth.currentUser ?: return
+
+        val userNotificationsRef = firestore.collection("Users")
+            .document(currentUser.uid)
+            .collection("Notifications")
+
+        userNotificationsRef
+            .whereEqualTo("isRead", false)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (!querySnapshot.isEmpty) {
+                    val batch = firestore.batch()
+                    for (document in querySnapshot.documents) {
+                        batch.update(document.reference, "isRead", true)
+                    }
+                    batch.commit()
+                        .addOnSuccessListener {
+                            Log.d("Notification", "All unread notifications marked as read.")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("Notification", "Error committing batch update", e)
+                        }
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("Notification", "Error fetching notifications", e)
+            }
+    }
+
+    override fun getNotificationCount(): Flow<ResultState<Int>> {
+        return callbackFlow {
+            val currentUser = auth.currentUser ?: return@callbackFlow
+            val userNotificationsRef = firestore.collection("Users")
+                .document(currentUser.uid)
+                .collection("Notifications")
+            userNotificationsRef.whereEqualTo("isRead", false)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(ResultState.Error(error.message.toString()))
+                    } else {
+                        val unreadCount = snapshot?.size() ?: 0
+                        trySend(ResultState.Success(unreadCount))
+                    }
+                }
 
         }
     }

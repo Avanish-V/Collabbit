@@ -38,6 +38,9 @@ interface UserProfileRepo {
 
     fun rejectLinkUpRequest(requestUserId: String): Flow<ResultState<Boolean>>
 
+    fun fetchChatRoomId(userId: String): Flow<ResultState<String>>
+
+
 
 
 

@@ -26,6 +26,9 @@ import kotlinx.coroutines.launch
 
 class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
 
+    private val _isSubmitting = MutableStateFlow(false)
+    val isSubmitting: StateFlow<Boolean> = _isSubmitting
+
     private val _uploadingProgress: MutableStateFlow<UploadResponse> = MutableStateFlow(UploadResponse())
     val uploadingProgress: StateFlow<UploadResponse> = _uploadingProgress.asStateFlow()
 
@@ -83,14 +86,26 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
 
     fun createReply(replyId: String, postId: String, content: String, repliedAt: Long, createrId: String) = postRepository.createReply(replyId = replyId, postId = postId, content = content, repliedAt = repliedAt, creatorId = createrId)
 
-    fun createPost(createPostDTO: CreatePostDTO, postMode: Boolean, imageUri: Uri? = null,user: User,onCompletion: (String) -> Unit) {
+    fun createPost(
+        createPostDTO: CreatePostDTO,
+        postMode: Boolean,
+        imageUri: Uri? = null,
+        user: User,
+        onCompletion: (String) -> Unit,
+        onError: (String) -> Unit,
+    ) {
+
+        if (_isSubmitting.value) return // avoid duplicate calls
+
         viewModelScope.launch {
+
+            _isSubmitting.value = true
+
             postRepository.createPost(createPostDTO, postMode, imageUri).collect {
                 when (it) {
                     is ResultState.Loading -> {
-
+                        _uploadingProgress.value = UploadResponse(status = "LOADING")
                     }
-
                     is ResultState.Success -> {
 
                         _uploadingProgress.value = it.data
@@ -106,7 +121,6 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
                                     "Anonymous",
                                     "https://res.cloudinary.com/dni4h8jjy/image/upload/v1746629954/wyuwxwa8qwx0hu0i6flk.png"
                                 )
-
 
                             updatePost(
                                 PostDTO(
@@ -144,16 +158,13 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
                             onCompletion("COMPLETED")
                         }
 
-
-
-
                     }
-
                     is ResultState.Error -> {
-                        _uploadingProgress.value = UploadResponse(status = it.message)
+                       onError(it.message)
                     }
                 }
             }
+
         }
     }
 
@@ -229,6 +240,9 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
 
     fun deleteReply(postId: String,replyId:String,campusId: String?) = postRepository.deleteReply(postId,replyId,campusId)
 
+    fun editReply(postId: String,replyId:String,content: String,campusId: String?) = postRepository.editReply(postId,replyId,content,campusId)
+
+    fun editPost(postId: String,editedText: String,campusId: String?) = postRepository.editPost(postId,editedText,campusId)
 
 
 
@@ -249,7 +263,6 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
         _postState.value = _postState.value.copy(postData = updatedPosts)
     }
 
-
     fun refreshPosts(postMode: Boolean) {
         _postState.value.postData = emptyList()
         fetchPosts(postMode)
@@ -266,6 +279,36 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
         updatedReplies.removeIf { it.postId == postId && it.replyId == replyId }
         _repliesState.value = _repliesState.value.copy(data = updatedReplies)
     }
+
+    fun updateEditReply(postId: String, replyId: String, content: String) {
+        val updatedReplies = _repliesState.value.data.map { reply ->
+            if (reply.postId == postId && reply.replyId == replyId) {
+                reply.copy(content = content) // assuming `content` is a property of GetRepliesDTO
+            } else {
+                reply
+            }
+        }
+        _repliesState.value = _repliesState.value.copy(data = updatedReplies)
+    }
+
+    fun updateEditPost(postId: String, editedText: String) {
+        val updatedPosts = _postState.value.postData.map { post ->
+            if (post.postId == postId) {
+                post.copy(
+                    postContent = post.postContent.copy(
+                        postData = post.postContent.postData.copy(
+                            postText = editedText
+                        )
+                    )
+                )
+            } else {
+                post
+            }
+        }
+
+        _postState.value = _postState.value.copy(postData = updatedPosts)
+    }
+
 
 
 }

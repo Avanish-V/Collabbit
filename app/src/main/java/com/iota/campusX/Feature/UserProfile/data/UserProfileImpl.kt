@@ -372,10 +372,7 @@ class UserProfileImpl(
 
     }
 
-    override fun sendLinkUpRequest(
-        requestUserId: String,
-        currentState: Boolean?
-    ): Flow<ResultState<Boolean>> {
+    override fun sendLinkUpRequest(requestUserId: String, currentState: Boolean?): Flow<ResultState<Boolean>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
@@ -475,6 +472,38 @@ class UserProfileImpl(
             } catch (e: Exception) {
                 trySend(ResultState.Error(e.message.toString()))
             }
+            awaitClose()
+
+        }
+    }
+
+    override fun fetchChatRoomId(userId: String): Flow<ResultState<String>> {
+        return callbackFlow {
+
+            trySend(ResultState.Loading)
+
+            try {
+
+                firestore.collection("Chats").document(auth.currentUser!!.uid)
+                    .collection("Messages")
+                    .document(userId)
+                    .get()
+                    .addOnSuccessListener {
+                        val roomId = it.getString("roomId")
+                        if (roomId != null)
+                        trySend(ResultState.Success(roomId))
+                    }
+                    .addOnFailureListener {
+                        trySend(ResultState.Error(it.message.toString()))
+
+                    }
+
+            }catch (e: Exception){
+
+
+
+            }
+
             awaitClose()
 
         }

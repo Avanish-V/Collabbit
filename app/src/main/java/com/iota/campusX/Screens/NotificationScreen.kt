@@ -80,6 +80,9 @@ fun NotificationScreen(
     LaunchedEffect(Unit) {
         notificationViewModel.fetchNotifications()
     }
+    LaunchedEffect(Unit) {
+        notificationViewModel.markNotificationAsRead()
+    }
     val lazyState = rememberLazyListState()
 
     HideBottomBar(

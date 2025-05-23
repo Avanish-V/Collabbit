@@ -1,6 +1,7 @@
 package com.iota.campusX.Feature.UserProfile.presentation
 
 import android.net.Uri
+import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.UserProfile.data.Campus
@@ -15,6 +16,8 @@ import kotlinx.coroutines.launch
 
 class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewModel() {
 
+    private val _hasMessage: MutableStateFlow<String> = MutableStateFlow("")
+    val hasMessage: StateFlow<String> = _hasMessage.asStateFlow()
 
     private val _userBaseProfile: MutableStateFlow<UserBaseProfileResultState> = MutableStateFlow(UserBaseProfileResultState())
     val userBaseProfile: StateFlow<UserBaseProfileResultState> = _userBaseProfile.asStateFlow()
@@ -49,6 +52,23 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     }
 
     fun deleteUserProfile() = userProfileRepo.deleteAccount()
+
+    fun hasMessage(userId:String){
+        viewModelScope.launch {
+            userProfileRepo.fetchChatRoomId(userId).collect{
+                when(it){
+                    is ResultState.Loading->{
+                    }
+                    is ResultState.Success->{
+                        _hasMessage.value = it.data
+                    }
+                    is ResultState.Error->{
+
+                    }
+                }
+            }
+        }
+    }
 
     fun getUserById(user:String){
         viewModelScope.launch {

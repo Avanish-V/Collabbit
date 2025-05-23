@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,14 +25,18 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -69,11 +74,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -532,14 +542,15 @@ fun EditProfileScreen(
                     universityList = userProfileViewModel.universityData.collectAsState().value.universityList,
                     userProfileViewModel = userProfileViewModel,
                     modifier = Modifier,
-                    selectedUni = {
+                    onUniversitySelected = {
                         editProfileViewModel.editUniversity(
                             University(
                                 university = it?.first ?: "",
                                 logo = it?.second ?: ""
                             )
                         )
-                    }
+                    },
+
                 )
 
                 CustomTextField(
@@ -670,76 +681,112 @@ fun EditProfileScreen(
 
 @Composable
 fun UniversityDropdown(
-    universityList: List<UniversityDTO>, // Replace with your actual University model
+    universityList: List<UniversityDTO>,
     userProfileViewModel: UserProfileViewModel,
     modifier: Modifier = Modifier,
-    selectedUni:(Pair<String, String>?) -> Unit
+    onUniversitySelected: (Pair<String, String>?) -> Unit
 ) {
-    var selectedUni by remember { mutableStateOf<Pair<String, String>?>(null) }
-    var uniSearchText by rememberSaveable { mutableStateOf("") }
+    var selectedUniversity by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
+    var searchText by rememberSaveable { mutableStateOf("") }
     var isDropdownExpanded by remember { mutableStateOf(false) }
-    selectedUni(selectedUni)
 
-    LaunchedEffect(uniSearchText) {
-        delay(3000)
-        userProfileViewModel.fetchUniversityData(uniSearchText)
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
+
+    // Keep track of if the field is focused
+    var isFocused by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    // Debounce search
+    LaunchedEffect(searchText) {
+        delay(300)
+        if (searchText.isNotBlank()) {
+            userProfileViewModel.fetchUniversityData(searchText)
+        }
+    }
+
+    // Notify parent
+    LaunchedEffect(selectedUniversity) {
+        onUniversitySelected(selectedUniversity)
+    }
+
+    // Re-request focus when dropdown expands and was previously focused
+    LaunchedEffect(universityList) {
+        if (isFocused) {
+            coroutineScope.launch {
+                delay(50) // Let composition settle
+                focusRequester.requestFocus()
+            }
+        }
     }
 
     Box(modifier = modifier) {
         OutlinedTextField(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { isDropdownExpanded = universityList.isNotEmpty() },
-            value = uniSearchText,
+            value = searchText,
             onValueChange = {
-                uniSearchText = it
+                searchText = it
                 isDropdownExpanded = true
             },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .onFocusChanged {
+                    isFocused = it.isFocused
+                },
             placeholder = { Text("University") },
             trailingIcon = {
-                if (selectedUni != null) {
+                if (selectedUniversity != null) {
                     IconButton(
                         onClick = {
-                            selectedUni = null
-                            uniSearchText = ""
+                            selectedUniversity = null
+                            searchText = ""
+                            isDropdownExpanded = false
                             userProfileViewModel.clearUniversityData()
                         }
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Clear"
-                        )
+                        Icon(Icons.Default.Close, contentDescription = "Clear")
                     }
                 }
             },
             leadingIcon = {
-                AsyncImage(
-                    model = selectedUni?.second ?: "",
-                    contentDescription = null,
-                    placeholder = painterResource(R.drawable.image),
-                    modifier = Modifier.size(24.dp)
-                )
+                if (!selectedUniversity?.second.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = selectedUniversity?.second,
+                        contentDescription = null,
+                        placeholder = painterResource(id = R.drawable.image),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             },
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    focusManager.clearFocus()
+                }
+            ),
+            shape = RoundedCornerShape(8.dp)
         )
 
         DropdownMenu(
             expanded = isDropdownExpanded && universityList.isNotEmpty(),
-            onDismissRequest = {
-                isDropdownExpanded = false
-            },
+            onDismissRequest = { isDropdownExpanded = false },
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             universityList.forEach { university ->
                 DropdownMenuItem(
                     text = { Text(university.name) },
                     onClick = {
-                        selectedUni = university.name to university.logo
-                        uniSearchText = university.name
+                        selectedUniversity = university.name to university.logo
+                        searchText = university.name
                         isDropdownExpanded = false
                         userProfileViewModel.clearUniversityData()
+                        focusManager.clearFocus() // Only when selected
                     },
                     leadingIcon = {
                         AsyncImage(
@@ -750,9 +797,69 @@ fun UniversityDropdown(
                                 .size(36.dp)
                                 .clip(CircleShape)
                         )
-                    },
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    }
                 )
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun EditPage(
+    onCancelClick: (ProfileEdit) -> Unit,
+    onSubmitClick: () -> Unit,
+    isLoading: Boolean,
+    content: @Composable () -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier
+            .imePadding()
+            .fillMaxSize()
+            .padding(WindowInsets.statusBars.asPaddingValues())
+            .background(color = White900),
+        contentPadding = PaddingValues(bottom = 16.dp),
+    ) {
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .height(60.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { onCancelClick(ProfileEdit.PROFILE_SCREEN) }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null
+                    )
+                }
+
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = primary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    IconButton(onClick = onSubmitClick) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                content()
             }
         }
     }
@@ -838,8 +945,7 @@ fun GenderSelector(
 @Composable
 fun InterestComponent(
     interestList: List<String>
-)
-{
+) {
 
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -866,61 +972,4 @@ fun InterestComponent(
 
 val interestList = listOf("Coding", "Gaming", "Entrepreneur")
 
-@Composable
-fun EditPage(
-    onCancelClick: (ProfileEdit) -> Unit,
-    onSubmitClick: () -> Unit,
-    isLoading: Boolean ,
-    content: @Composable () -> Unit,
-
-) {
-
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(WindowInsets.statusBars.asPaddingValues())
-        .verticalScroll(rememberScrollState())
-        .background(color = White900)) {
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                .height(60.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { onCancelClick(ProfileEdit.PROFILE_SCREEN) }) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null
-                )
-            }
-                if (isLoading){
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = primary,
-                        strokeWidth = 2.dp
-                    )
-                }else{
-                    IconButton(onClick = { onSubmitClick.invoke() }) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null
-                        )
-                    }
-                }
-
-
-        }
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            content()
-        }
-
-
-    }
-
-}
 

@@ -8,6 +8,7 @@ data class ReplyDTO(
     val postId: String = "",
     val userId: String = "",
     val content: String = "",
+    val isEdited: Boolean = false,
     val repliedAt: Long = 0L
 )
 
@@ -15,6 +16,7 @@ data class ReplyDTO(
 data class GetRepliesDTO(
     val postId: String = "",
     val replyId: String = "",
+    val isEdited: Boolean = false,
     val user: User,
     val content: String = "",
     val actions: PostActions,

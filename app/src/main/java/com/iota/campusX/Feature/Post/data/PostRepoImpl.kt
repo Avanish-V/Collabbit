@@ -171,6 +171,8 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
             emit(ResultState.Loading)
 
             try {
+                val currentUserId = auth.currentUser?.uid
+
                 val globalPostsTask = firestore.collection("GlobalPosts")
                     .whereEqualTo("creatorId", userId)
                     .get()
@@ -195,10 +197,23 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                     campusPosts?.documents?.let { addAll(it) }
                 }.distinctBy { it.id }
 
+                // ⚠️ Filter based on userId vs current user
+                val filteredDocuments = allDocuments.filter { doc ->
+                    val type = doc.getString("type")
+                    if (userId == currentUserId) {
+                        // Owner is viewing: show all posts
+                        type == "USER" || type == "ANONYMOUS"
+                    } else {
+                        // Viewer is not the owner: show only USER posts
+                        type == "USER"
+                    }
+                }
+
                 val postList = coroutineScope {
-                    allDocuments.map { doc ->
+                    filteredDocuments.map { doc ->
                         async {
                             doc.toObject(CreatePostDTO::class.java)?.let { post ->
+
                                 val userDeferred = async {
                                     firestore.collection("Users")
                                         .document(post.creatorId)
@@ -244,7 +259,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                                     "Anonymous" to "https://cdn-icons-png.flaticon.com/128/11029/11029675.png"
                                 }
 
-                                val isCurrentUser = post.creatorId == auth.currentUser?.uid
+                                val isCurrentUser = post.creatorId == currentUserId
 
                                 PostDTO(
                                     postId = post.postId,
@@ -594,7 +609,8 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
         postMode: Boolean,
         imageUri: Uri?
     ): Flow<ResultState<UploadResponse>> = callbackFlow {
-        trySend(ResultState.Loading)
+
+        trySend(ResultState.Success(UploadResponse("LOADING")))
 
         if (postMode && createPostDTO.campusId == null) {
             trySend(ResultState.Error("Campus ID is required for campus posts"))
@@ -660,7 +676,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                         }
 
                         override fun onError(requestId: String?, error: ErrorInfo?) {
-                            trySend(ResultState.Error(error?.description ?: "Image upload failed"))
+                            trySend(ResultState.Error("Image upload failed"))
                             close()
                         }
 
@@ -730,10 +746,6 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
     override fun deleteReply(postId:String,replyId: String,campusId: String?): Flow<ResultState<Boolean>> {
         return callbackFlow {
 
-            Log.e("DELETE_POST", "deleteReply: $postId")
-            Log.e("DELETE_POST", "deleteReply: $replyId")
-            Log.e("DELETE_POST", "deleteReply: $campusId")
-
             if (replyId.isBlank()) trySend(ResultState.Error("Invalid post ID"))
 
             trySend(ResultState.Loading)
@@ -753,6 +765,93 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                 } else {
                     firestore.collection("GlobalPosts").document(postId).
                             collection("Replies").document(replyId).delete()
+                        .addOnSuccessListener {
+                            trySend(ResultState.Success(true))
+                            Log.e("DELETE_POST", "GlobalPosts deletePost: SUCCESS")
+                            close()
+                        }.addOnFailureListener {
+                            trySend(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                            Log.e("DELETE_POST", "deletePost: FAILED")
+                            close()
+                        }
+
+                }
+            } catch (e: Exception) {
+                trySend(ResultState.Error(e.localizedMessage ?: "Something went wrong!"))
+            }
+
+            awaitClose()
+        }
+    }
+
+    override fun editReply(postId:String,replyId: String,content: String,campusId: String?): Flow<ResultState<Boolean>> {
+        return callbackFlow {
+
+            if (replyId.isBlank()) trySend(ResultState.Error("Invalid post ID"))
+
+            trySend(ResultState.Loading)
+
+            Log.e("EDIT_REPLY", "editReply: $content", )
+            Log.e("EDIT_REPLY", "editReply: $postId", )
+            Log.e("EDIT_REPLY", "editReply: $replyId", )
+
+            val update = mapOf(
+                "content" to content,
+                "isEdited" to true
+            )
+
+            try {
+                if (!campusId.isNullOrEmpty()) {
+                    firestore.collection("CampusPosts").document(campusId.toString())
+                        .collection("Posts").document(replyId).delete()
+                        .addOnSuccessListener {
+                            trySend(ResultState.Success(true))
+                            Log.e("DELETE_POST", "CampusPosts deletePost: SUCCESS")
+                            close()
+                        }.addOnFailureListener {
+                            trySend(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                            close()
+                        }
+                } else {
+                    firestore.collection("GlobalPosts").document(postId).
+                    collection("Replies").document(replyId).update(update)
+                        .addOnSuccessListener {
+                            trySend(ResultState.Success(true))
+                            Log.e("DELETE_POST", "GlobalPosts deletePost: SUCCESS")
+                            close()
+                        }.addOnFailureListener {
+                            trySend(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                            Log.e("DELETE_POST", "deletePost: FAILED")
+                            close()
+                        }
+
+                }
+            } catch (e: Exception) {
+                trySend(ResultState.Error(e.localizedMessage ?: "Something went wrong!"))
+            }
+
+            awaitClose()
+        }
+    }
+
+    override fun editPost(postId: String,editedText:String,campusId: String?): Flow<ResultState<Boolean>> {
+        return callbackFlow {
+            if (postId.isBlank()) trySend(ResultState.Error("Invalid post ID"))
+            trySend(ResultState.Loading)
+            try {
+                if (campusId.isNullOrBlank()) {
+                    firestore.collection("CampusPosts").document(campusId.toString())
+                        .collection("Posts").document(postId).delete()
+                        .addOnSuccessListener {
+                            trySend(ResultState.Success(true))
+                            Log.e("DELETE_POST", "CampusPosts deletePost: SUCCESS")
+                            close()
+                        }.addOnFailureListener {
+                            trySend(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                            close()
+                        }
+                } else {
+                    firestore.collection("GlobalPosts").document(postId).update("postContent.postData.postText",editedText)
                         .addOnSuccessListener {
                             trySend(ResultState.Success(true))
                             Log.e("DELETE_POST", "GlobalPosts deletePost: SUCCESS")

@@ -23,7 +23,13 @@ class ChatImpl(
     private val firestore: FirebaseFirestore
 ) : ChatRepository {
 
-    override fun sendMessage(message: String, messageId: String, receiverId: String): Flow<ResultState<Boolean>> {
+    override fun sendMessage(
+        message: String,
+        messageId: String,
+        timestamp: Long,
+        receiverId: String,
+        roomId: String
+    ): Flow<ResultState<Boolean>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
@@ -32,8 +38,12 @@ class ChatImpl(
 
             if(receiverId.isEmpty()) return@callbackFlow
 
-            val roomId = senderId+receiverId
-            val timeStamp = System.currentTimeMillis().toString()
+            val roomId = if (roomId.isEmpty()){
+                senderId+receiverId
+            }else{
+                roomId
+            }
+
             val key = messageId
 
             firestore.collection("Chats")
@@ -74,7 +84,7 @@ class ChatImpl(
                                             messageId = key!!,
                                             senderId = senderId,
                                             text = message,
-                                            timestamp = timeStamp.toLong(),
+                                            timestamp = timestamp,
                                             read = false
                                         )
 
@@ -227,9 +237,44 @@ class ChatImpl(
         awaitClose()
     }
 
-    override fun updateIsUserActive(isActive: Boolean,participantId: String) {
+    override fun markMessagesAsReed(participantId: String, roomId: String): Flow<Unit> = callbackFlow {
+        val roomRef = FirebaseDatabase.getInstance()
+            .getReference("ChatRoom")
+            .child(roomId)
 
-        val roomId = auth.currentUser!!.uid+participantId
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists()) return
+
+                val messagesSnapshot = snapshot.child("messages")
+                for (messageSnap in messagesSnapshot.children) {
+                    val message = messageSnap.getValue(ChatMessage::class.java) ?: continue
+                    val senderId = message.senderId
+                    val isRead = message.read
+
+                    if (senderId == participantId && !isRead) {
+                        messageSnap.ref.child("read").setValue(true)
+                    }
+                }
+
+                // Emit a Unit just to keep the Flow alive
+                trySend(Unit).isSuccess
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                close(error.toException())
+            }
+        }
+
+        roomRef.addValueEventListener(listener)
+
+        awaitClose {
+            roomRef.removeEventListener(listener)
+            Log.d("ChatFlow", "Listener removed for roomId: $roomId")
+        }
+    }
+
+    override fun updateIsUserActive(isActive: Boolean,roomId: String) {
 
         database.getReference("ChatRoom").child(roomId)
             .child(auth.currentUser!!.uid)
@@ -255,10 +300,8 @@ class ChatImpl(
 
     }
 
-    override fun getIsUserActive( receiverId: String): Flow<Boolean> {
+    override fun getIsUserActive( receiverId: String,roomId: String): Flow<Boolean> {
         return callbackFlow {
-
-            val roomId = auth.currentUser!!.uid+receiverId
 
             database.getReference("ChatRoom").child(roomId)
                 .child(receiverId)
@@ -280,9 +323,8 @@ class ChatImpl(
         }
     }
 
-    override fun updateIsUserTyping(isActive: Boolean,participantId: String) {
+    override fun updateIsUserTyping(isActive: Boolean,roomId: String) {
 
-        val roomId = auth.currentUser!!.uid+participantId
 
         database.getReference("ChatRoom").child(roomId)
             .child(auth.currentUser!!.uid)
@@ -308,10 +350,8 @@ class ChatImpl(
 
     }
 
-    override fun getIsUserTyping(participantId: String): Flow<Boolean>{
+    override fun getIsUserTyping(participantId: String,roomId: String): Flow<Boolean>{
         return callbackFlow {
-
-            val roomId = auth.currentUser!!.uid+participantId
 
             database.getReference("ChatRoom").child(roomId)
                 .child(participantId)
@@ -335,10 +375,8 @@ class ChatImpl(
         }
     }
 
-    override fun receiveMessage(participantId: String): Flow<ResultState<List<ChatMessage>>> = callbackFlow {
+    override fun receiveMessage(participantId: String,roomId: String): Flow<ResultState<List<ChatMessage>>> = callbackFlow {
         trySend(ResultState.Loading)
-
-        val roomId = auth.currentUser!!.uid+participantId
 
         val roomRef = database.getReference("ChatRoom").child(roomId)
 
@@ -390,33 +428,8 @@ class ChatImpl(
         }
     }
 
-    override fun markMessagesAsReed(participantId: String) {
 
-        val roomId = auth.currentUser!!.uid+participantId
 
-        val roomRef = database.getReference("ChatRoom").child(roomId)
-
-        roomRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (!snapshot.exists()) return
-
-                val messagesSnapshot = snapshot.child("messages")
-                for (messageSnap in messagesSnapshot.children) {
-                    val message = messageSnap.getValue(ChatMessage::class.java) ?: continue
-                    val senderId = message.senderId
-                    val isRead = message.read
-
-                    if (senderId == participantId && !isRead) {
-                        messageSnap.ref.child("read").setValue(true)
-                    }
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                // Handle error if needed (e.g., log it)
-            }
-        })
-    }
 
     override fun getRoomId(participantId: String): Flow<ResultState<String>> {
         return callbackFlow {
@@ -433,6 +446,49 @@ class ChatImpl(
             }
 
         }
+    }
+
+    override fun deleteChat(chatId: String,roomId: String): Flow<ResultState<Boolean>> {
+
+        return callbackFlow {
+
+            trySend(ResultState.Loading)
+
+            Log.d("ChatImpl", "deleteChat: $chatId")
+            Log.d("ChatImpl", "deleteChat: $roomId")
+
+            try {
+
+
+                database.getReference("ChatRoom").child(roomId)
+                    .child("messages")
+                    .child(chatId)
+                    .removeValue()
+                    .addOnSuccessListener {
+                        trySend(ResultState.Success(true))
+                        close()
+                    }
+                    .addOnFailureListener {
+                        trySend(ResultState.Error(it.message ?: "Something went wrong"))
+                    }
+                    .addOnCanceledListener {
+                        trySend(ResultState.Error("Something went wrong"))
+
+                    }
+
+            }catch (e:Exception){
+
+                trySend(ResultState.Error(e.message ?: "Something went wrong"))
+
+            }finally {
+                close()
+            }
+
+            awaitClose()
+
+
+        }
+
     }
 
 }

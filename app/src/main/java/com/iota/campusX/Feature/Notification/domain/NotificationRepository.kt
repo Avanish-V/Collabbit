@@ -9,4 +9,8 @@ interface NotificationRepository {
 
     fun fetchLinkUpRequest(): Flow<ResultState<List<NotificationDTO>>>
 
+    fun markNotificationAsRead()
+
+    fun getNotificationCount(): Flow<ResultState<Int>>
+
 }
