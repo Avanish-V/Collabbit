@@ -1,19 +1,13 @@
 package com.iota.campusX
 
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,18 +21,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,12 +52,11 @@ import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
-import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
+import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.presentation.PostViewModel
-import com.iota.campusX.Feature.PushNotification.FcmNotificationSender
-import com.iota.campusX.Feature.PushNotification.TokenServices
+import com.iota.campusX.Feature.PushNotification.PushNotificationService
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Koin.appModule
 import com.iota.campusX.Screens.Register.SignInScreen
@@ -76,7 +65,8 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.Screens.Chat.ChatScreen
 import com.iota.campusX.Screens.Chat.SendMessageScreen
-import com.iota.campusX.Screens.CreatePostScreen
+import com.iota.campusX.Screens.ConnectionsScreen
+import com.iota.campusX.Screens.Post.CreatePostScreen
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Home.MainScreen
 import com.iota.campusX.Screens.Home.PostViewScreen
@@ -87,12 +77,9 @@ import com.iota.campusX.Screens.Profile.ProfileScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.initCloudinary
-import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.CampusXTheme
 import com.iota.campusX.ui.theme.background
-import com.iota.campusX.ui.theme.typography
 import com.voxcii.voxcii.Screens.SearchFlow.SearchScreen
-import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.compose.koinInject
 import org.koin.core.context.GlobalContext.startKoin
@@ -101,11 +88,12 @@ import kotlin.collections.contains
 
 class MainActivity : ComponentActivity() {
 
-
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         actionBar?.hide()
+
+        initCloudinary(this@MainActivity)
 
         WindowCompat.setDecorFitsSystemWindows(window, true)
 
@@ -113,8 +101,6 @@ class MainActivity : ComponentActivity() {
             androidContext(this@MainActivity)
             modules(appModule)
         }
-
-        initCloudinary(this@MainActivity)
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (task.isSuccessful) {
@@ -127,6 +113,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+
         setContent {
 
             val scope = rememberCoroutineScope()
@@ -138,6 +125,7 @@ class MainActivity : ComponentActivity() {
             val postViewModel = koinInject<PostViewModel>()
             val navigationViewModel = koinInject<NavigationViewModel>()
             val homeViewModel = koinInject<HomeViewModel>()
+            val notificationViewModel = koinInject<NotificationViewModel>()
 
 
             val navBackStackEntry by navHostController.currentBackStackEntryAsState()
@@ -261,20 +249,32 @@ class MainActivity : ComponentActivity() {
                                             postViewModel = postViewModel,
                                             navigationViewModel = navigationViewModel,
                                             profileViewModel = userProfileViewModel,
-                                            homeViewModel = homeViewModel
+                                            homeViewModel = homeViewModel,
+                                            notificationViewModel = notificationViewModel
+
                                         )
                                     }
 
                                     composable(route = Routes.Main.ProfileByID.routes) {
 
-//                                        ProfileByID(
-//                                            navHostController = navHostController,
-//                                            userProfileViewModel = userProfileViewModel,
-//                                            postViewModel = postViewModel,
-//                                            authViewModel = googleAuthViewModel
-//                                        )
-                                    }
+                                        val postViewModel = koinInject<PostViewModel>()
 
+                                        ProfileScreen(
+                                            navHostController,
+                                            postViewModel = postViewModel,
+                                            profileViewModel = userProfileViewModel,
+                                            googleSignInViewModel = googleAuthViewModel,
+                                            navigationViewModel = navigationViewModel
+                                        )
+
+                                    }
+                                    composable(route = Routes.Main.Connections.routes) {
+
+                                        ConnectionsScreen(
+                                            navHostController = navHostController
+                                        )
+
+                                    }
 
                                     composable(route = Routes.Main.Search.routes) {
                                         SearchScreen(
@@ -382,7 +382,11 @@ class MainActivity : ComponentActivity() {
                                         animationSpec = tween(600)
                                     )
                                 ) {
-                                    BottomAppBar(navController = navHostController)
+                                    BottomAppBar(
+
+                                        navController = navHostController,
+                                        notificationViewModel = notificationViewModel
+                                    )
                                 }
                             }
 
@@ -403,7 +407,12 @@ class MainActivity : ComponentActivity() {
         stopKoin()
     }
 
-
+    override fun onResume() {
+        super.onResume()
+        PushNotificationService().setIsAppRunning(
+            isRunning = true
+        )
+    }
 }
 
 fun NavGraphBuilder.navScreen(

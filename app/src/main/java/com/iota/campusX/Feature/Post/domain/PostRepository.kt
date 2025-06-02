@@ -1,6 +1,7 @@
 package com.iota.campusX.Feature.Post.domain
 
 import android.net.Uri
+import com.iota.campusX.Screens.Post.Poll
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.flow.Flow
 
@@ -16,14 +17,7 @@ interface PostRepository {
 
     fun getReplies(postId: String): Flow<ResultState<List<GetRepliesDTO>>>
 
-    fun createReply(
-        replyId : String,
-        postId : String,
-        content : String,
-        repliedAt : Long,
-        creatorId: String,
-
-        ): Flow<ResultState<Boolean>>
+    fun createReply(replyId : String, postId : String, content : String, repliedAt : Long, creatorId: String, userType: String): Flow<ResultState<Boolean>>
 
     fun createPost(createPostDTO: CreatePostDTO,postMode: Boolean, imageUri: Uri?): Flow<ResultState<UploadResponse>>
 
@@ -34,5 +28,7 @@ interface PostRepository {
     fun editReply(postId: String,replyId:String,content:String,campusId: String?): Flow<ResultState<Boolean>>
 
     fun editPost(postId: String,editedText:String,campusId: String?): Flow<ResultState<Boolean>>
+
+    suspend fun createPoll(post: CreatePostDTO,callback: (ResultState<Boolean>) -> Unit)
 
 }

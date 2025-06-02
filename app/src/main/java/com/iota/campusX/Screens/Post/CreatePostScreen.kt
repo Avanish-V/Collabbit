@@ -1,0 +1,738 @@
+package com.iota.campusX.Screens.Post
+
+import android.net.Uri
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
+import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
+import com.iota.campusX.Feature.Post.domain.CreatePostDTO
+import com.iota.campusX.Feature.Post.domain.Reference
+import com.iota.campusX.Feature.Post.domain.PostActions
+import com.iota.campusX.Feature.Post.domain.PostContent
+import com.iota.campusX.Feature.Post.domain.PostData
+import com.iota.campusX.Feature.Post.domain.User
+import com.iota.campusX.Feature.Post.presentation.PostViewModel
+import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.R
+import com.iota.campusX.Screens.Home.HomeViewModel
+import com.iota.campusX.Utils.CustomTextField
+import com.iota.campusX.ui.theme.Black300
+import com.iota.campusX.ui.theme.Black900
+import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.secondary
+import com.iota.campusX.ui.theme.background
+import com.iota.campusX.ui.theme.White400
+import com.iota.campusX.ui.theme.White900
+import io.ktor.util.date.getTimeMillis
+import com.iota.campusX.Utils.generateUID
+import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CreatePostScreen(
+    navHostController: NavHostController,
+    userProfileViewModel: UserProfileViewModel,
+    postViewModel: PostViewModel,
+    authViewModel: AuthViewModel,
+    homeViewModel: HomeViewModel,
+    postScreenViewModel: PostScreenViewModel = PostScreenViewModel()
+) {
+
+    val pollViewModel = koinViewModel<PollViewModel>()
+    val poll by pollViewModel.poll.collectAsState()
+    val postOption by postScreenViewModel.post.collectAsState()
+    val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value.baseProfileData
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var text by remember { mutableStateOf("") }
+    var selectedPod by remember { mutableStateOf<Reference?>(null) }
+    var isExpanded by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var selectedMode by remember { mutableStateOf("") }
+    var selectedImages by remember { mutableStateOf<Uri?>(null) }
+    val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri -> selectedImages = uri }
+    )
+    val snackbarHostState = remember { SnackbarHostState() }
+    val mode = homeViewModel.switchState.collectAsState().value.isActive
+
+    val navBackStackEntry = remember { navHostController.currentBackStackEntryFlow }.collectAsState(initial = null).value
+
+    LaunchedEffect(navBackStackEntry) {
+        text = ""
+        selectedPod = null
+        selectedImages = null
+    }
+
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Create Post", style = MaterialTheme.typography.titleMedium) },
+                navigationIcon = {
+                    IconButton(onClick = { navHostController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                actions = {
+
+                    Text(
+                        modifier = Modifier.padding(end = 16.dp),
+                        text = if (mode) "Campus Mode" else "Global Mode",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                }
+            )
+        },
+        bottomBar = {
+            Row(
+                modifier = Modifier.imePadding().background(White900).padding(16.dp)
+            ) {
+
+                Row(modifier = Modifier.weight(1f)) {
+                    IconButton(
+                        onClick = {
+                            postScreenViewModel.chooseOption(PostOptions.IMAGE_WITH_TEXT)
+                            singlePhotoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = background
+                        )
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.image),
+                            contentDescription = "Select image"
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            postScreenViewModel.chooseOption(PostOptions.POLL)
+                            pollViewModel.createPoll("")
+                        },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = background
+                        )
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.outline_poll_24),
+                            contentDescription = "Select image"
+                        )
+                    }
+                }
+
+                Button(
+                    modifier = Modifier.shadow(
+                        ambientColor = primary,
+                        spotColor = primary,
+                        elevation = 20.dp,
+                    ),
+                    onClick = {
+
+                        when(postOption){
+
+                            PostOptions.IMAGE_WITH_TEXT -> {
+
+                                if (selectedPod == null) {
+                                    Toast.makeText(context, "Select Pod", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+
+                                if (selectedImages == null && text.isEmpty()) {
+                                    Toast.makeText(context, "Add text or image", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+
+                                val postId = generateUID()
+
+                                postViewModel.createPost(
+                                    CreatePostDTO(
+                                        postId = postId,
+                                        type = selectedMode,
+                                        postedAt = getTimeMillis(),
+                                        creatorId = authViewModel.userId(),
+                                        reference = Reference(
+                                            title = selectedPod?.title ?: "",
+                                            icon = selectedPod?.icon ?: ""
+                                        ),
+                                        postContent = PostContent(
+                                            postType = "TEXT",
+                                            postData = PostData(
+                                                postText = text,
+                                            )
+                                        ),
+                                        campusId = if (mode) userProfile.campus?.campusCode else null,
+                                        postActions = PostActions(
+                                            isLiked = false,
+                                        )
+                                    ),
+                                    postMode = mode,
+                                    imageUri = selectedImages,
+                                    user = User(
+                                        userName = userProfile.userName,
+                                        id = userProfile.id,
+                                        userImage = userProfile.userImage
+                                    ),
+                                    onCompletion = {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Post Created")
+                                            postViewModel.clearResponse()
+                                            navHostController.popBackStack()
+                                        }
+                                    },
+                                    onError = {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(it)
+                                        }
+                                    }
+                                )
+                            }
+
+                            PostOptions.POLL -> {
+
+                               if (poll == null) return@Button
+
+                                postViewModel.createPoll(
+                                    CreatePostDTO(
+                                        postId = generateUID(),
+                                        type = selectedMode,
+                                        postedAt = getTimeMillis(),
+                                        creatorId = authViewModel.userId(),
+                                        reference = Reference(
+                                            title = "Poll",
+                                            icon = "https://cdn-icons-png.flaticon.com/128/741/741867.png"
+                                        ),
+                                        postContent = PostContent(
+                                            postType = "POLL",
+                                            postData = PostData(
+                                                poll = poll
+                                            )
+                                        ),
+                                        campusId = if (mode) userProfile.campus?.campusCode else null,
+                                        postActions = PostActions(
+                                            isLiked = false,
+                                            likesCount = 0,
+                                            replies = emptyList(),
+                                            replyCount =0,
+                                        )
+                                    )
+                                )
+                            }
+                        }
+
+                    },
+                    enabled = true
+
+                ) {
+
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = White900,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Text(text = "Post")
+                            Icon(
+                                painter = painterResource(R.drawable.send_2),
+                                contentDescription = "Select image"
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) {
+                Snackbar(snackbarData = it)
+            }
+        },
+        containerColor = secondary
+    ) { innerPadding ->
+
+        LazyColumn(modifier = Modifier.padding(innerPadding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+
+            item {
+                UserPostMode(
+                    userName = userProfile.userName,
+                    userImage = userProfile.userImage,
+                    selectedMode = {
+                        selectedMode = it.toString()
+                    }
+                )
+            }
+
+            item {
+
+                AnimatedVisibility(visible = true) {
+                    ExposedDropdownMenuBox(
+                        modifier = Modifier,
+                        expanded = false,
+                        onExpandedChange = {}
+
+                    ) {
+
+                        Row(
+                            modifier = Modifier
+                                .border(
+                                    width = 1.dp,
+                                    color = White400,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .padding(10.dp)
+                                .clickable(
+                                    onClick = {
+                                        isExpanded = true
+                                    },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            selectedPod?.let {
+                                AsyncImage(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape),
+                                    model = it.icon,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            Text(
+                                text = selectedPod?.title ?: "Select Pod",
+                                color = Black900
+                            )
+
+                            IconButton(
+                                onClick = {
+                                    if (selectedPod?.title.isNullOrEmpty()) {
+                                        isExpanded = !isExpanded
+                                    } else {
+                                        selectedPod = null
+                                    }
+                                }
+                            ) {
+                                if (selectedPod?.title.isNullOrEmpty()) {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(
+                                        expanded = isExpanded
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close"
+                                    )
+                                }
+
+                            }
+
+                        }
+
+                        DropdownMenu(
+                            modifier = Modifier
+                                .wrapContentWidth()
+                                .background(color = background),
+                            shape = RoundedCornerShape(5.dp),
+                            shadowElevation = 0.dp,
+                            expanded = isExpanded,
+                            onDismissRequest = { isExpanded = false }
+                        ) {
+                            podListItems.forEach {
+                                DropdownMenuItem(
+                                    modifier = Modifier.padding(vertical = 5.dp),
+                                    text = { Text(text = it.title) },
+                                    leadingIcon = {
+                                        AsyncImage(
+                                            modifier = Modifier
+                                                .size(42.dp)
+                                                .clip(CircleShape),
+                                            model = it.icon,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    },
+                                    onClick = {
+                                        selectedPod = Reference(
+                                            title = it.title,
+                                            icon = it.icon
+                                        )
+                                        isExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+            }
+
+            item {
+
+                when(postOption){
+
+                    PostOptions.IMAGE_WITH_TEXT -> {
+
+                        BasicTextField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    width = 1.dp,
+                                    color = White400,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .padding(12.dp),
+                            value = text,
+                            onValueChange = { text = it },
+                            textStyle = TextStyle(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Black900
+                            ),
+                            decorationBox = {
+                                if (text.isEmpty()) {
+                                    Text(
+                                        text = "What's on your mind?",
+                                        color = Black300
+                                    )
+                                }
+                                Column {
+                                    it()
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        Text(text = "${text.count()}/500", color = Black300)
+                                    }
+                                    if (selectedImages != null) {
+                                        AnimatedVisibility(visible = true) {
+                                            Box(contentAlignment = Alignment.TopEnd) {
+                                                AsyncImage(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(5.dp))
+                                                        .fillMaxWidth()
+                                                        .height(250.dp),
+                                                    model = selectedImages,
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop
+                                                )
+
+                                                IconButton(
+                                                    modifier = Modifier,
+                                                    onClick = { selectedImages = null },
+                                                    colors = IconButtonDefaults.iconButtonColors(
+                                                        containerColor = secondary
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Delete Image",
+
+                                                        )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                            },
+                            cursorBrush = Brush.verticalGradient(listOf(primary, primary))
+
+                        )
+                    }
+
+                    PostOptions.POLL -> {
+
+                        poll?.let { poll ->
+
+                            Column(horizontalAlignment = Alignment.End ){
+
+                                IconButton(onClick = {
+                                    postScreenViewModel.chooseOption(PostOptions.IMAGE_WITH_TEXT)
+                                }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.trash),
+                                        contentDescription = "Add Option",
+                                        tint = Color.Red
+                                    )
+                                }
+
+                                BasicTextField(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(
+                                            width = 1.dp,
+                                            color = White400,
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                        .padding(12.dp),
+                                    value = poll.question,
+                                    onValueChange = {
+                                        pollViewModel.updatePollQuestion(it)
+                                    },
+                                    textStyle = TextStyle(
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Black900
+                                    ),
+                                    decorationBox = {
+
+                                        if (poll.question.isEmpty()) {
+
+                                            Text(
+                                                text = "Write your question here.",
+                                                color = Black300
+                                            )
+
+                                        }
+                                        Column (verticalArrangement = Arrangement.spacedBy(12.dp)){
+
+                                            it()
+
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                contentAlignment = Alignment.CenterEnd
+                                            ) {
+                                                Text(text = "${poll.options?.count()}/150", color = Black300)
+                                            }
+
+                                            poll.options?.forEachIndexed {index,pollOption->
+                                                CustomTextField(
+                                                    value = pollOption.text,
+                                                    onValueChange = {
+                                                        pollViewModel.updatePollOptionText(pollOption.id,it.toString())
+                                                    },
+                                                    label = "",
+                                                    enabled = true,
+                                                    placeHolder = pollOption.label,
+                                                    trailingIcon ={
+                                                        IconButton(onClick = {
+                                                            pollViewModel.removePollOption(pollOption.id)
+                                                        }) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Clear,
+                                                                contentDescription = "Add Option",
+                                                                tint = primary
+                                                            )
+                                                        }
+                                                    },
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                                                    keyboardActions = KeyboardActions(onDone = {}),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            }
+
+                                            TextButton(onClick = {pollViewModel.addPollOption()}) {
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                                                    Text(text = "Add Option")
+
+                                                }
+                                            }
+
+                                        }
+
+                                    },
+                                    cursorBrush = Brush.verticalGradient(listOf(primary, primary))
+                                )
+                            }
+
+
+
+
+
+                        }
+
+                    }
+
+                }
+            }
+        }
+    }
+}
+
+
+val podListItems = listOf<Reference>(
+    Reference(
+        title = "Love",
+        icon = "https://cdn-icons-png.flaticon.com/128/3670/3670159.png"
+    ),
+    Reference(
+        title = "Meme",
+        icon = "https://cdn-icons-png.flaticon.com/128/742/742920.png"
+    ),
+    Reference(
+        title = "Search",
+        icon = "https://cdn-icons-png.flaticon.com/128/200/200941.png"
+    ), Reference(
+        title = "News",
+        icon = "https://cdn-icons-png.flaticon.com/128/741/741867.png"
+    ), Reference(
+        title = "Hiring",
+        icon = "https://cdn-icons-png.flaticon.com/128/14946/14946635.png"
+    )
+
+)
+
+enum class PostMode {
+
+    USER,
+    ANONYMOUS
+
+}
+
+@Composable
+fun UserPostMode(
+    userName: String,
+    userImage: String,
+    selectedMode: (PostMode) -> Unit
+) {
+
+    var mode by remember { mutableStateOf(PostMode.USER) }
+
+    when (mode) {
+        PostMode.USER -> {
+            selectedMode(mode)
+        }
+
+        PostMode.ANONYMOUS -> {
+            selectedMode(mode)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+
+        AsyncImage(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(CircleShape),
+            model = if (mode == PostMode.USER) userImage else R.drawable.incognoto,
+            contentDescription = null,
+            contentScale = ContentScale.Crop
+        )
+
+        Column {
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+
+                ) {
+
+                Text(
+                    text = if (mode == PostMode.USER) userName else "Anonymous",
+                    fontWeight = FontWeight.Bold,
+                    color = Black900,
+
+                    )
+
+                IconButton(
+                    onClick = {
+                        if (mode == PostMode.USER) {
+                            mode = PostMode.ANONYMOUS
+                        } else {
+                            mode = PostMode.USER
+                        }
+                    },
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.refresh_2),
+                        contentDescription = null,
+                        tint = primary
+                    )
+                }
+
+            }
+
+        }
+
+    }
+
+}
+

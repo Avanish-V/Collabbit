@@ -1,12 +1,13 @@
 package com.iota.campusX.Feature.UserProfile.presentation
 
 import android.net.Uri
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.UserProfile.data.Campus
+import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
-import com.iota.campusX.Feature.UserProfile.data.UserBasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,9 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewModel() {
-
-    private val _hasMessage: MutableStateFlow<String> = MutableStateFlow("")
-    val hasMessage: StateFlow<String> = _hasMessage.asStateFlow()
 
     private val _userBaseProfile: MutableStateFlow<UserBaseProfileResultState> = MutableStateFlow(UserBaseProfileResultState())
     val userBaseProfile: StateFlow<UserBaseProfileResultState> = _userBaseProfile.asStateFlow()
@@ -29,10 +27,16 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     private val _universityData: MutableStateFlow<UniversityDataResultState> = MutableStateFlow(UniversityDataResultState())
     val universityData: StateFlow<UniversityDataResultState> = _universityData.asStateFlow()
 
+    private val _connections:MutableStateFlow<ConnectionsResultState> = MutableStateFlow(ConnectionsResultState())
+    val connections:StateFlow<ConnectionsResultState> = _connections.asStateFlow()
+
+    private val _connectionCount:MutableStateFlow<Int> = MutableStateFlow(0)
+    val connectionCount:StateFlow<Int> = _connectionCount.asStateFlow()
+
 
     fun getUserProfile(){
 
-        if (userBaseProfile.value.baseProfileData != null) return
+        if (userBaseProfile.value.baseProfileData.id.isNotEmpty()) return
 
         viewModelScope.launch {
             userProfileRepo.getBaseProfile().collect{
@@ -52,23 +56,6 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     }
 
     fun deleteUserProfile() = userProfileRepo.deleteAccount()
-
-    fun hasMessage(userId:String){
-        viewModelScope.launch {
-            userProfileRepo.fetchChatRoomId(userId).collect{
-                when(it){
-                    is ResultState.Loading->{
-                    }
-                    is ResultState.Success->{
-                        _hasMessage.value = it.data
-                    }
-                    is ResultState.Error->{
-
-                    }
-                }
-            }
-        }
-    }
 
     fun getUserById(user:String){
         viewModelScope.launch {
@@ -93,11 +80,11 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
     fun modifyAbout(about:String) = userProfileRepo.updateAbout(about)
 
-    fun modifyGender(gender:String) = userProfileRepo.updateGender(gender)
+    fun modifyGender(gender: Gender) = userProfileRepo.updateGender(gender)
 
     fun modifySocialAccount(social:String) = userProfileRepo.updateSocialAccounts(social)
 
-    fun modifyInterests(interests:List<String>) = userProfileRepo.updateInterests(interests)
+    fun updateInterests(interests:List<String>) = userProfileRepo.updateInterests(interests)
 
     fun modifyCampus(campus: Campus) = userProfileRepo.updateCampus(campus)
 
@@ -127,23 +114,69 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
     fun rejectLinkUpRequest(requestUserId:String) = userProfileRepo.rejectLinkUpRequest(requestUserId)
 
+
+    fun getConnections(userId: String){
+        viewModelScope.launch {
+            userProfileRepo.getConnections(userId)
+                .collect{
+                    when(it){
+                        is ResultState.Loading->{
+                            _connections.value = ConnectionsResultState(isLoading = true)
+
+                        }
+                        is ResultState.Success->{
+                            _connections.value = ConnectionsResultState(connectionList = it.data)
+                        }
+                        is ResultState.Error->{
+                            _connections.value = ConnectionsResultState(error = it.message)
+                        }
+                    }
+                }
+        }
+    }
+
+    fun getConnectionCount(userId: String){
+        viewModelScope.launch {
+            userProfileRepo.getConnectionsCount(userId)
+                .collect{
+                    when(it){
+                        is ResultState.Loading->{}
+                        is ResultState.Success->{
+                            _connectionCount.value = it.data
+                        }
+                        is ResultState.Error->{}
+
+
+                    }
+                }
+        }
+    }
+
+
+
     fun updateName(name: String){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData?.copy(userName = name))
+        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(userName = name))
     }
     fun updateAbout(about: String){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData?.copy(userBio = about))
+        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(userBio = about))
     }
-    fun updateGender(gender: String){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData?.copy(userGender = gender))
+    fun updateGender(gender: Gender){
+        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(userGender = gender))
     }
     fun clearUniversityData(){
         _universityData.value = UniversityDataResultState()
     }
     fun updateCampus(campus: Campus){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData?.copy(campus = campus))
+        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(campus = campus))
     }
     fun updateProfileImage(imageUrl: String){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData?.copy(userImage = imageUrl))
+        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(userImage = imageUrl))
+    }
+    fun updateConnectionDeleted(connectionId:String){
+        _connections.value = ConnectionsResultState(connectionList = _connections.value.connectionList.filter { it.user.id != connectionId })
+    }
+    fun updateModifiedInterests(userInterests:List<String>){
+        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(interests = userInterests))
     }
 
 
@@ -152,12 +185,18 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
 data class UserBaseProfileResultState(
     val isLoading:Boolean = false,
-    val baseProfileData: UserBasicProfileDTO? = null,
+    val baseProfileData: BasicProfileDTO = BasicProfileDTO(),
     val error:String = ""
 )
 
 data class UniversityDataResultState(
     val isLoading:Boolean = false,
     val universityList: List<UniversityDTO> = emptyList(),
+    val error:String = ""
+)
+
+data class ConnectionsResultState(
+    val isLoading:Boolean = false,
+    val connectionList:List<ConnectionsDTO> = emptyList(),
     val error:String = ""
 )

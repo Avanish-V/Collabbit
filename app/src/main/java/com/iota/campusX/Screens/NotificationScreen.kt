@@ -1,6 +1,5 @@
 package com.iota.campusX.Screens
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -134,7 +133,11 @@ fun NotificationScreen(
                         state = lazyState,
                         verticalArrangement = Arrangement.spacedBy(1.dp)
                     ) {
+
                         items(postByOrder) {
+
+                            if (it.actionBy.userName.isEmpty() || it.actionBy.userImage.isEmpty()) return@items
+
                             NotificationItem(
                                 notificationDTO =  it,
                                 scope = scope,
@@ -146,8 +149,9 @@ fun NotificationScreen(
                                     }
                                 },
                                 geToUserProfile = {
+                                    if (it.userType != "USER") return@NotificationItem
                                     navHostController.navigate(Routes.Main.Profile.routes).apply{
-                                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("USER_ID",it.actionBy._id)
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("USER_ID",it.actionBy.id)
                                     }
                                 }
                             )
@@ -196,6 +200,9 @@ fun NotificationItem(
 
     val annotatedText = buildAnnotatedString {
 
+        withStyle(style = SpanStyle(color = Black800, fontWeight = FontWeight.Medium)) {
+            append(notificationDTO.actionBy.userName)
+        }
         withStyle(style = SpanStyle(color = White400)) {
             append(" ● ")
         }
@@ -203,15 +210,22 @@ fun NotificationItem(
         withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
             append(text)
         }
+        withStyle(style = SpanStyle(color = White400)) {
+            append(" ● ")
+        }
+
+        withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
+            append(getTimeAgo(notificationDTO.createdAt))
+        }
 
     }
+
 
     Column(modifier = Modifier
         .fillMaxWidth()
         .background(color = White900)
         .padding(12.dp)
-        .clickable(onClick = {onNotificationClick.invoke()}, indication = null, interactionSource = remember { MutableInteractionSource() })
-    ) {
+        .clickable(onClick = {onNotificationClick.invoke()}, indication = null, interactionSource = remember { MutableInteractionSource() })) {
 
         Row(
             Modifier.fillMaxWidth(),
@@ -235,53 +249,27 @@ fun NotificationItem(
 
                 )
 
-                Column(modifier = Modifier.height(48.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row {
-                            Text(
-                                text = notificationDTO.actionBy.userName,
-                                fontSize = 14.sp,
-                                lineHeight = 0.1.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Row (){
-                            Text(
-                                text = annotatedText,
-                                fontSize = 14.sp,
-                                lineHeight = 0.1.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
+                Column(modifier = Modifier.weight(1f).height(48.dp)) {
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = getTimeAgo(notificationDTO.createdAt),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Black300
-                        )
-                    }
+                    Text(
+                        text = annotatedText,
+                        fontSize = 14.sp,
+                        maxLines = 2,
+                    )
+                }
+
+                if (!notificationDTO.content?.image.isNullOrEmpty()) {
+                    AsyncImage(
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
+                        model = notificationDTO.content?.image,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                    )
+
                 }
             }
 
-            if (!notificationDTO.content?.image.isNullOrEmpty()) {
-                AsyncImage(
-                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
-                    model = notificationDTO.content?.image,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                )
 
-            }
 
         }
 
@@ -302,9 +290,11 @@ fun NotificationItem(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (notificationDTO.postId.isEmpty()) Black300 else Black800
                 )
             }
+
 
             if (notificationDTO.type == "LINK_REQUEST") {
 
@@ -318,7 +308,7 @@ fun NotificationItem(
                         onClick = {
                             scope.launch {
                                 userProfileViewModel.rejectLinkUpRequest(
-                                    notificationDTO.actionBy._id
+                                    notificationDTO.actionBy.id
                                 ).collect {
                                     when(it){
                                         is ResultState.Loading -> {
@@ -343,7 +333,7 @@ fun NotificationItem(
                         onClick = {
                             scope.launch {
                                 userProfileViewModel.acceptLinkUpRequest(
-                                    notificationDTO.actionBy._id
+                                    notificationDTO.actionBy.id
                                 ).collect {
                                     when(it){
                                         is ResultState.Loading -> {

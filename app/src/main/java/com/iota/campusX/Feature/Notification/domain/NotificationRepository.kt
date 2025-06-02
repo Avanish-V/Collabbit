@@ -13,4 +13,6 @@ interface NotificationRepository {
 
     fun getNotificationCount(): Flow<ResultState<Int>>
 
+     fun observeTotalUnreadCount(): Flow<Int>
+
 }

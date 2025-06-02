@@ -5,10 +5,29 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.iota.campusX.Feature.UserProfile.data.Campus
+import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.University
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 
 class EditProfileViewModel: ViewModel() {
+
+    private val _items = MutableStateFlow<List<String>>(emptyList())
+    val items: StateFlow<List<String>> = _items.asStateFlow()
+
+    fun addItem(item: String) {
+        _items.value = _items.value + item
+    }
+
+    fun removeItem(item: String) {
+        _items.value = _items.value - item
+    }
+
+    fun setAllItems(items: List<String>) {
+        _items.value = items
+    }
 
     private val _name: MutableState<String> = mutableStateOf("")
     val name: MutableState<String> = _name
@@ -16,17 +35,20 @@ class EditProfileViewModel: ViewModel() {
     private val _about: MutableState<String> = mutableStateOf("")
     val about: MutableState<String> = _about
 
-    private val _gender: MutableState<String> = mutableStateOf("")
-    val gender: MutableState<String> = _gender
+    private val _gender: MutableState<Gender> = mutableStateOf(Gender.UNSPECIFIED)
+    val gender: MutableState<Gender> = _gender
 
     private val _campus: MutableState<Campus> = mutableStateOf(Campus())
     val campus: MutableState<Campus> = _campus
 
+
     private val _interests: MutableState<List<String>> = mutableStateOf(emptyList())
-    val interests: MutableState<List<String>> = _interests
+    var interests: MutableState<List<String>> = _interests
 
 
-
+    fun editGender(newGender: Gender) {
+        _gender.value = newGender
+    }
 
     fun editAbout(newAbout: String) {
         _about.value = newAbout

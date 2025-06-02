@@ -15,6 +15,10 @@ import kotlinx.coroutines.launch
 class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
 
+    private val _hasMessage: MutableStateFlow<String> = MutableStateFlow("")
+    val hasMessage: StateFlow<String> = _hasMessage.asStateFlow()
+
+
     private val _textMessage:MutableStateFlow<String> = MutableStateFlow("")
     val textMessage:StateFlow<String> = _textMessage.asStateFlow()
 
@@ -35,7 +39,13 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
         _textMessage.value = inputText
     }
 
-    fun sendMessages(message: String,messageId:String,timestamp:Long,receiverId: String,roomId: String) = chatRepository.sendMessage(message,messageId,timestamp,receiverId,roomId)
+    fun sendMessages(
+        message: String,
+        messageId: String,
+        timestamp: Long,
+        receiverId: String,
+        roomId: String
+    ) = chatRepository.sendMessage(message,messageId,timestamp,receiverId,roomId)
 
     fun receiveMessage(participantId: String,roomId: String){
         viewModelScope.launch {
@@ -122,6 +132,23 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
         }
     }
 
+    fun fetchRoomID(userId:String){
+        viewModelScope.launch {
+            chatRepository.fetchChatRoomId(userId).collect{
+                when(it){
+                    is ResultState.Loading->{
+                    }
+                    is ResultState.Success->{
+                        _hasMessage.value = it.data
+                    }
+                    is ResultState.Error->{
+
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 data class UserChatsResultState(
@@ -129,4 +156,6 @@ data class UserChatsResultState(
     val userChats:List<UserChatsDTO> = emptyList(),
     val error:String = ""
 )
+
+
 

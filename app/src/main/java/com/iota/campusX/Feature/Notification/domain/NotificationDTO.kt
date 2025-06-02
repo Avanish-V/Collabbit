@@ -9,7 +9,8 @@ data class NotificationDTO(
     var actionBy: User = User(), // Ensure User also has a no-arg constructor
     var content: Content? = null,
     var type: String = "",
-    var postId: String? = null,
+    var userType: String = "",
+    var postId: String = "",
 )
 
 data class CreateNotificationDTO(
@@ -20,11 +21,12 @@ data class CreateNotificationDTO(
     var actionBy: String = "",
     val isRead: Boolean = false,
     var type: String = "",
+    var userType: String = "USER",
     var contentId: String  = "",
 )
 
 data class Content(
     var contentId: String? = null,
-    var text: String? = null,
+    var text: String = "",
     var image: String? = null,
 )

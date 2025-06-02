@@ -7,13 +7,18 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.iota.campusX.MainActivity
+import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Utils.vibrate
 
 class PushNotificationService : FirebaseMessagingService() {
+
+    var isAppRunning:Boolean = true
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -21,9 +26,14 @@ class PushNotificationService : FirebaseMessagingService() {
         // You can upload token to Firestore or your backend here
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        Log.d("FCM", "Message received: ${message.data}")
+
+        if (isAppRunning){
+            applicationContext.vibrate()
+            return
+        }
 
         val title = message.data["title"] ?: message.notification?.title
         val body = message.data["body"] ?: message.notification?.body
@@ -43,10 +53,9 @@ class PushNotificationService : FirebaseMessagingService() {
         }
 
         val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            putExtra("navigateTo", "details")
-            putExtra("itemId", "123")
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
+
 
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -65,5 +74,9 @@ class PushNotificationService : FirebaseMessagingService() {
             .build()
 
         notificationManager.notify(0, notification)
+    }
+
+    fun setIsAppRunning(isRunning: Boolean) {
+        isAppRunning = isRunning
     }
 }

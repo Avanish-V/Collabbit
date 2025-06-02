@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,10 +50,12 @@ import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.StatusScreen
+import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black900
 import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.typography
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,7 +146,7 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                 )
                 .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             AsyncImage(
                 modifier = Modifier
@@ -185,13 +188,26 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ){
-                    Text(
-                        modifier = Modifier.weight(1f),
-                        text = chatItem.lastMessage.lastMessage,
-                        color = Black400,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+
+                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+
+                        if (chatItem.lastMessage.lastMessageBy){
+                            Icon(
+                                modifier = Modifier.size(22.dp),
+                                painter = painterResource(R.drawable.baseline_done_all_24),
+                                contentDescription = null,
+                                tint = if (chatItem.lastMessage.isRead) primary else Black300
+                            )
+                        }
+
+                        Text(
+                            modifier = Modifier,
+                            text = chatItem.lastMessage.lastMessage,
+                            color = Black400,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     if (chatItem.lastMessage.unreadCount > 0){
                         Box(
                             modifier = Modifier.size(20.dp)

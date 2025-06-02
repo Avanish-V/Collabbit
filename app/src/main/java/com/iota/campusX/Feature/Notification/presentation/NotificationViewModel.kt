@@ -22,6 +22,9 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
     private val _notificationCount: MutableStateFlow<Int> = MutableStateFlow(0)
     val notificationCount: StateFlow<Int> = _notificationCount.asStateFlow()
 
+    private val _chatCount: MutableStateFlow<Int> = MutableStateFlow(0)
+    val chatCount: StateFlow<Int> = _chatCount.asStateFlow()
+
     fun fetchNotifications() {
         viewModelScope.launch {
             combine(
@@ -61,6 +64,7 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
         }
 
     }
+
     fun getNotificationCount() {
         viewModelScope.launch {
             notificationRepository.getNotificationCount().collect {
@@ -78,6 +82,15 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
             }
         }
     }
+
+    fun getChatCount() {
+        viewModelScope.launch {
+            notificationRepository.observeTotalUnreadCount().collect {
+                _chatCount.value = it
+            }
+        }
+    }
+
 
 }
 

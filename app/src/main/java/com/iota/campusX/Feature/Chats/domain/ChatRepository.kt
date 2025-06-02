@@ -34,8 +34,6 @@ interface ChatRepository {
 
     fun deleteChat(chatId:String,roomId: String):Flow<ResultState<Boolean>>
 
+    fun fetchChatRoomId(userId: String): Flow<ResultState<String>>
 
-
-
-    
 }

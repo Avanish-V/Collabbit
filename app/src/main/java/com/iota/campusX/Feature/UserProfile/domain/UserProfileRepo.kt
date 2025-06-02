@@ -2,17 +2,18 @@ package com.iota.campusX.Feature.UserProfile.domain
 
 import android.net.Uri
 import com.iota.campusX.Feature.UserProfile.data.Campus
-import com.iota.campusX.Feature.UserProfile.data.LinkUpRequestDTO
+import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.Feature.UserProfile.data.UserBasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.Gender
 import kotlinx.coroutines.flow.Flow
 
 interface UserProfileRepo {
 
-    suspend fun getBaseProfile():Flow<ResultState<UserBasicProfileDTO>>
+    suspend fun getBaseProfile():Flow<ResultState<BasicProfileDTO>>
 
-    suspend fun getUserProfileById(userId:String):Flow<ResultState<UserBasicProfileDTO>>
+    suspend fun getUserProfileById(userId:String):Flow<ResultState<BasicProfileDTO>>
 
     fun deleteAccount():Flow<ResultState<Boolean>>
 
@@ -22,7 +23,7 @@ interface UserProfileRepo {
 
     fun updateAbout(about:String):Flow<ResultState<Boolean>>
 
-    fun updateGender(gender:String):Flow<ResultState<Boolean>>
+    fun updateGender(gender: Gender):Flow<ResultState<Boolean>>
 
     fun updateInterests(interests:List<String>):Flow<ResultState<Boolean>>
 
@@ -38,10 +39,8 @@ interface UserProfileRepo {
 
     fun rejectLinkUpRequest(requestUserId: String): Flow<ResultState<Boolean>>
 
-    fun fetchChatRoomId(userId: String): Flow<ResultState<String>>
+    fun getConnectionsCount(userId: String):Flow<ResultState<Int>>
 
-
-
-
+    fun getConnections(userId: String):Flow<ResultState<List<ConnectionsDTO>>>
 
 }

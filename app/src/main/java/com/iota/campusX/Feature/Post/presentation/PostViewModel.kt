@@ -84,16 +84,9 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
         // Update local state
     }
 
-    fun createReply(replyId: String, postId: String, content: String, repliedAt: Long, createrId: String) = postRepository.createReply(replyId = replyId, postId = postId, content = content, repliedAt = repliedAt, creatorId = createrId)
+    fun createReply(replyId: String, postId: String, content: String, repliedAt: Long, creatorId: String,userType: String) = postRepository.createReply(replyId = replyId, postId = postId, content = content, repliedAt = repliedAt, creatorId = creatorId,userType = userType)
 
-    fun createPost(
-        createPostDTO: CreatePostDTO,
-        postMode: Boolean,
-        imageUri: Uri? = null,
-        user: User,
-        onCompletion: (String) -> Unit,
-        onError: (String) -> Unit,
-    ) {
+    fun createPost(createPostDTO: CreatePostDTO, postMode: Boolean, imageUri: Uri? = null, user: User, onCompletion: (String) -> Unit, onError: (String) -> Unit, ) {
 
         if (_isSubmitting.value) return // avoid duplicate calls
 
@@ -133,7 +126,7 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
                                         type = createPostDTO.type,
                                         profile = User(
                                             userName = postMode.first,
-                                            _id = user._id,
+                                            id = user.id,
                                             userImage = postMode.second
                                         )
                                     ),
@@ -166,6 +159,10 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
             }
 
         }
+    }
+
+    fun clearResponse(){
+        _uploadingProgress.value = UploadResponse()
     }
 
     fun getReplies(postId: String) {
@@ -244,7 +241,16 @@ class PostViewModel(private val postRepository: PostRepository) : ViewModel() {
 
     fun editPost(postId: String,editedText: String,campusId: String?) = postRepository.editPost(postId,editedText,campusId)
 
+    fun createPoll(createPostDTO: CreatePostDTO){
 
+        viewModelScope.launch {
+            postRepository.createPoll(createPostDTO){
+
+            }
+        }
+
+
+    }
 
     fun cancelUpload() {
         MediaManager.get().cancelRequest(uploadingProgress.value.uploadId)

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black800
+import com.iota.campusX.ui.theme.secondary
 
 @Composable
 fun CustomTextField(
@@ -31,6 +32,7 @@ fun CustomTextField(
     value: String,
     onValueChange: (Any) -> Unit,
     label:String,
+    enabled:Boolean? = null,
     placeHolder:String,
     trailingIcon: @Composable (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions =  KeyboardOptions.Default.copy(
@@ -48,13 +50,15 @@ fun CustomTextField(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleMedium,
-            color = Black800,
-            fontWeight = FontWeight.Medium,
-            fontSize = 16.sp
-        )
+        if (label.isNotEmpty()){
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = Black800,
+                fontWeight = FontWeight.Medium,
+                fontSize = 16.sp
+            )
+        }
         OutlinedTextField(
             modifier = modifier,
             value = value,
@@ -67,6 +71,7 @@ fun CustomTextField(
                     color = Black400
                 )
             },
+            enabled = enabled ?:true,
             trailingIcon = {
                 trailingIcon?.invoke()
             },
@@ -75,6 +80,83 @@ fun CustomTextField(
                 focusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = MaterialTheme.colorScheme.primary,
                 unfocusedIndicatorColor = Color.LightGray,
+                disabledContainerColor = secondary
+            ),
+            shape = RoundedCornerShape(8.dp),
+            textStyle = TextStyle(
+                color = Black800,
+                fontWeight = FontWeight.Bold
+            ),
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions
+        )
+    }
+
+
+
+
+}
+
+
+@Composable
+fun CustomTextFieldWithLeadingIcon(
+    modifier: Modifier,
+    value: String,
+    onValueChange: (Any) -> Unit,
+    label:String,
+    enabled:Boolean? = null,
+    placeHolder:String,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    keyboardOptions: KeyboardOptions =  KeyboardOptions.Default.copy(
+        imeAction = ImeAction.Done // Ensure "Done" action is set
+    ),
+    keyboardActions: KeyboardActions = KeyboardActions(
+        onDone = {
+            // Hide the keyboard after submission
+        }
+    )
+) {
+
+    Column(
+
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+
+        if (label.isNotEmpty()){
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = Black800,
+                fontWeight = FontWeight.Medium,
+                fontSize = 16.sp
+            )
+        }
+        OutlinedTextField(
+            modifier = modifier,
+            value = value,
+            onValueChange = {
+                onValueChange(it)
+            },
+            placeholder = {
+                Text(
+                    text = placeHolder,
+                    color = Black400
+                )
+            },
+            enabled = enabled ?:true,
+            leadingIcon = {
+                leadingIcon?.invoke()
+            },
+            trailingIcon = {
+                trailingIcon?.invoke()
+            },
+            colors = TextFieldDefaults.colors(
+                unfocusedContainerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = Color.LightGray,
+                disabledContainerColor = secondary
             ),
             shape = RoundedCornerShape(8.dp),
             textStyle = TextStyle(

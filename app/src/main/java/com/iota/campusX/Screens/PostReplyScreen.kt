@@ -1,11 +1,8 @@
 package com.iota.campusX.Screens
 
 import android.os.Build
-import android.util.Log
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -13,33 +10,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Post.domain.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.PostActions
 import com.iota.campusX.Feature.Post.domain.PostContent
@@ -76,18 +67,20 @@ import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.BottomSheetSharedViewModel
 import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.anonymousImage
 import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.UIComponents.PostActionsComponent
 import com.iota.campusX.ui.UIComponents.PostBody
 import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.UIComponents.PostDotOptionBottomSheet
 import com.iota.campusX.ui.UIComponents.PostHeader
 import com.iota.campusX.ui.theme.Black300
+import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
+import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.White900
@@ -132,7 +125,7 @@ fun PostReplyScreen(
     val alertDialog = bottomSheetViewModel.alertDialog.collectAsState().value
     val isAlertDialogVisible = remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
-
+    var userType by remember { mutableStateOf(PostType.USER) }
     when{
         postState.isLoading->{
 
@@ -161,7 +154,9 @@ fun PostReplyScreen(
                     Column {
 
                         if (modificationRequest == "EDIT"){
-                            Box(modifier = Modifier.fillMaxWidth().padding(12.dp),contentAlignment = Alignment.CenterStart){
+                            Box(modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),contentAlignment = Alignment.CenterStart){
                                 Text("Edit reply", color = primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Start)
                             }
                         }
@@ -181,13 +176,24 @@ fun PostReplyScreen(
                             value = replyText,
                             onValueChange = { replyText = it },
                             placeholder = {
-                                Text("Write your comment...")
+                                Text("Write your comment...", color = Black400)
                             },
                             trailingIcon = {
                                 IconButton(
                                     onClick = {
 
+                                        val type: Pair<String, String> =
+                                            if (userType == PostType.USER) Pair(
+                                                userProfile?.userName ?: "",
+                                                userProfile?.userImage ?: ""
+                                            )
+                                            else Pair(
+                                                "Anonymous",
+                                                anonymousImage
+                                            )
+
                                         if (replyText.isNotEmpty()) {
+
 
                                             val docID = generateUID()
 
@@ -201,7 +207,8 @@ fun PostReplyScreen(
                                                         postId = postData?.postId ?: "",
                                                         content = replyText,
                                                         repliedAt = getTimeMillis(),
-                                                        createrId = postData?.creatorDetail?.profile?._id ?: ""
+                                                        creatorId = postData?.creatorDetail?.profile?.id ?: "",
+                                                        userType = userType.name
                                                     ).collect {
                                                         when(it){
                                                             is ResultState.Success -> {
@@ -211,9 +218,9 @@ fun PostReplyScreen(
                                                                         replyId = docID,
                                                                         postId = postData!!.postId,
                                                                         user = User(
-                                                                            _id = userProfile?._id ?: "",
-                                                                            userName = userProfile?.userName ?: "",
-                                                                            userImage = userProfile?.userImage ?: "",
+                                                                            id = userProfile.id,
+                                                                            userName = type.first,
+                                                                            userImage = type.second,
                                                                             isCurrentUser = true
                                                                         ),
                                                                         content = replyText,
@@ -223,7 +230,8 @@ fun PostReplyScreen(
                                                                             replies = emptyList(),
                                                                             replyCount = 0
                                                                         ),
-                                                                        repliedAt = getTimeMillis()
+                                                                        repliedAt = getTimeMillis(),
+                                                                        userType = userType.name
                                                                     )
                                                                 )
                                                                 replyText = ""
@@ -259,6 +267,17 @@ fun PostReplyScreen(
                                     }
                                 }
                             },
+                            leadingIcon ={
+
+                                PostTypeSelector(
+                                    userImage = userProfile?.userImage ?: "",
+                                    postType = userType,
+                                    onPostTypeChange = {
+                                        userType = it
+                                    },
+                                )
+
+                            },
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = White900,
                                 unfocusedContainerColor = White900,
@@ -287,7 +306,7 @@ fun PostReplyScreen(
                                onPostClick = {},
                                onLikeClick = {
                                    postViewModel.toggleLike(
-                                       userId = postData.creatorDetail.profile?._id ?: "",
+                                       userId = postData.creatorDetail.profile?.id ?: "",
                                        postId = postData.postId,
                                        isLiked = postData.postActions.isLiked
                                    )
@@ -313,7 +332,7 @@ fun PostReplyScreen(
                                        .apply {
                                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
                                                "USER_ID",
-                                               postData.creatorDetail.profile?._id
+                                               postData.creatorDetail.profile?.id
                                            )
                                        }
 
@@ -359,9 +378,9 @@ fun PostReplyScreen(
                                     repliesDTO = it,
                                     navHostController = navHostController,
                                     onLikeClick = {
-                                        if (userProfile != null) {
+                                        if (true) {
                                             postViewModel.likeReply(
-                                                creatorId = userProfile._id,
+                                                creatorId = userProfile.id,
                                                 postId = it.postId,
                                                 replyId = it.replyId,
                                                 isLiked = it.actions.isLiked
@@ -416,7 +435,12 @@ fun PostReplyScreen(
                     },
                     onEditClick = {
                         replyText = bottomSheetData.replyText.toString()
-                        bottomSheetViewModel.setModificationRequest("EDIT_REPLY")
+                        if (bottomSheetData.type == "POST"){
+                            bottomSheetViewModel.setModificationRequest("EDIT_POST")
+                        }
+                        if (bottomSheetData.type == "REPLY"){
+                            bottomSheetViewModel.setModificationRequest("EDIT_REPLY")
+                        }
                     },
                     onHideBottomSheet = {
                         bottomSheetViewModel.hideBottomSheet(false)
@@ -524,6 +548,59 @@ fun PostReplyScreen(
 
 }
 
+
+enum class PostType {
+    USER,
+    ANONYMOUS
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun PostTypeSelector(
+    userImage: String,
+    postType: PostType,
+    onPostTypeChange: (PostType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+
+    val context = LocalContext.current
+
+    Box(
+        modifier = modifier.size(42.dp).clip(CircleShape).background(color = White900),
+        contentAlignment = Alignment.Center
+    ) {
+        // Show user image or anonymous icon based on postType
+        AsyncImage(
+            modifier = Modifier.fillMaxSize(),
+            model = if (postType == PostType.USER) userImage else anonymousImage,
+            contentDescription = null
+        )
+
+        // Overlay
+        Box(
+            modifier = Modifier.fillMaxSize().background(color = White400.copy(alpha = 0.5f))
+        )
+
+        IconButton(
+            onClick = {
+                val newType = if (postType == PostType.USER) PostType.ANONYMOUS else PostType.USER
+                onPostTypeChange(newType)
+                context.vibrate()
+
+            }
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.refresh_2),
+                contentDescription = "Toggle Post Type",
+                tint = primary
+            )
+        }
+    }
+}
+
+
+
+
 @Composable
 fun ReplyWidget(
     repliesDTO: GetRepliesDTO,
@@ -531,6 +608,8 @@ fun ReplyWidget(
     onLikeClick:()-> Unit,
     onDotsClick:()-> Unit
 ) {
+
+
 
     Column(
         modifier = Modifier
@@ -550,20 +629,30 @@ fun ReplyWidget(
                     .size(48.dp)
                     .clip(CircleShape),
                 onClick = {
-
+                    if (repliesDTO.userType == PostType.USER.name){
+                        navHostController.navigate(Routes.Main.ProfileByID.routes)
+                            .apply {
+                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                    "USER_ID",
+                                    repliesDTO.user.id
+                                )
+                            }
+                    }
                 }
             )
 
             PostHeader(
                 user = repliesDTO.user,
                 onNameClick = {
-                    navHostController.navigate(Routes.Main.Profile.routes)
-                        .apply {
-                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                "USER_ID",
-                                repliesDTO.user._id
-                            )
-                        }
+                    if (repliesDTO.userType == PostType.USER.name){
+                        navHostController.navigate(Routes.Main.ProfileByID.routes)
+                            .apply {
+                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                    "USER_ID",
+                                    repliesDTO.user.id
+                                )
+                            }
+                    }
                 },
                 postedAt = getTimeAgo(repliesDTO.repliedAt)
             )

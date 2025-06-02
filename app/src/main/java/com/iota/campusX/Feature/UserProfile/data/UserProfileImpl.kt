@@ -1,23 +1,21 @@
 package com.iota.campusX.Feature.UserProfile.data
 
+import SendPushNotification
 import android.net.Uri
 import android.util.Log
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
-import com.iota.campusX.Feature.Notification.domain.NotificationDTO
-import com.iota.campusX.Feature.Post.domain.UploadResponse
 import com.iota.campusX.Feature.Post.domain.User
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Utils.ResultState
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
-import io.ktor.client.request.header
 import io.ktor.client.request.headers
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -28,27 +26,32 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import java.io.IOException
 
 class UserProfileImpl(
+    private val sendPushNotification: SendPushNotification,
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,
     private val httpClient: HttpClient
 ) : UserProfileRepo {
 
-    override suspend fun getBaseProfile(): Flow<ResultState<UserBasicProfileDTO>> {
+    override suspend fun getBaseProfile(): Flow<ResultState<BasicProfileDTO>> {
         return callbackFlow {
+
+           // if (auth.currentUser?.uid.isNullOrEmpty()) return@callbackFlow
 
             trySend(ResultState.Loading)
 
             try {
 
-                firestore.collection("Users").document(auth.currentUser?.uid ?: "").get()
+                firestore.collection("Users").document(auth.currentUser!!.uid).get()
                     .addOnSuccessListener {
                         if (it.exists()) {
-                            val profileData = it.toObject(UserBasicProfileDTO::class.java)
+                            val profileData = it.toObject(BasicProfileDTO::class.java)
+                            Log.d("getBaseProfile", "ProfileData: $profileData")
                             if (profileData != null)
                                 trySend(ResultState.Success(profileData))
                         }
@@ -56,12 +59,14 @@ class UserProfileImpl(
                     }
                     .addOnFailureListener {
                         trySend(ResultState.Error(it.message.toString()))
+                        Log.d("getBaseProfile", "Error: ${it.message}")
                     }
 
             } catch (e: IOException) {
                 trySend(ResultState.Error("Network error: ${e.message}"))
             } catch (e: Exception) {
                 trySend(ResultState.Error("An error occurred: ${e.message}"))
+                Log.d("getBaseProfile", "Error: ${e.message}")
             } finally {
                 awaitClose { Log.d("getBaseProfile", "Flow closed") }
             }
@@ -69,72 +74,55 @@ class UserProfileImpl(
         }
     }
 
-    override suspend fun getUserProfileById(userId: String): Flow<ResultState<UserBasicProfileDTO>> {
-        return callbackFlow {
-            trySend(ResultState.Loading)
+    override suspend fun getUserProfileById(userId: String): Flow<ResultState<BasicProfileDTO>> = flow {
+        emit(ResultState.Loading)
 
-            try {
+        if (userId.isBlank()) {
+            emit(ResultState.Error("Invalid user ID"))
+            return@flow
+        }
 
-                val result = coroutineScope {
-
-                    async {
-
-                        val userDeferred = async {
-                            firestore.collection("Users")
-                                .document(userId)
-                                .get()
-                                .await()
-                                .toObject(UserBasicProfileDTO::class.java)
-                        }
-
-                        val connRequestDeferred = async {
-                            firestore.collection("Users")
-                                .document(userId)
-                                .collection("LinkUpRequests")
-                                .document(auth.currentUser!!.uid)
-                                .get()
-                                .await()
-
-                        }
-
-                        val userData = userDeferred.await()
-                        val connRequest = connRequestDeferred.await()
-
-                        val isConnected = if (connRequest.exists()) {
-                            connRequest.getBoolean("status") ?: false
-                        } else {
-                            null
-                        }
-
-                        UserBasicProfileDTO(
-
-                            _id = userData?._id ?: "",
-                            userName = userData?.userName ?: "",
-                            userImage = userData?.userImage ?: "",
-                            userEmail = userData?.userEmail ?: "",
-                            userBio = userData?.userBio ?: "",
-                            userGender = userData?.userGender ?: "",
-                            social = userData?.social ?: "",
-                            metaData = userData?.metaData ?: MetaData(),
-                            campus = userData?.campus,
-                            isRequestSent = isConnected
-                        )
-
-
-                    }
-
+        try {
+            val profile = coroutineScope {
+                val userDeferred = async {
+                    firestore.collection("Users")
+                        .document(userId)
+                        .get()
+                        .await()
+                        .toObject(BasicProfileDTO::class.java)
                 }
 
-                trySend(ResultState.Success(result.await()))
+                val connRequestDeferred = async {
+                    firestore.collection("Users")
+                        .document(userId)
+                        .collection("LinkUpRequests")
+                        .document(auth.currentUser!!.uid)
+                        .get()
+                        .await()
+                }
 
-            } catch (e: IOException) {
-                trySend(ResultState.Error("Network error: ${e.message}"))
-            } catch (e: Exception) {
-                trySend(ResultState.Error("An error occurred: ${e.message}"))
-            } finally {
-                awaitClose { Log.d("getBaseProfile", "Flow closed") }
+                val userData = userDeferred.await()
+                val connRequest = connRequestDeferred.await()
+
+                if (userData == null) {
+                    throw Exception("User not found")
+                }
+
+                val isConnected = if (connRequest.exists()) {
+                    connRequest.getBoolean("status") == true
+                } else {
+                    null
+                }
+
+                userData.copy(isRequestSent = isConnected)
             }
 
+            emit(ResultState.Success(profile))
+
+        } catch (e: IOException) {
+            emit(ResultState.Error("Network error: ${e.localizedMessage ?: "Check your internet connection."}"))
+        } catch (e: Exception) {
+            emit(ResultState.Error("Unexpected error: ${e.localizedMessage}"))
         }
     }
 
@@ -145,12 +133,12 @@ class UserProfileImpl(
 
             try {
 
-                firestore.collection("Users").document(auth.currentUser!!.uid).delete()
-                    .addOnSuccessListener {
+                FirebaseAuth.getInstance().currentUser?.delete()
+                    ?.addOnSuccessListener {
                         trySend(ResultState.Success(true))
                         close()
                     }
-                    .addOnFailureListener {
+                    ?.addOnFailureListener {
                         trySend(ResultState.Error(it.message.toString()))
                     }
 
@@ -228,7 +216,7 @@ class UserProfileImpl(
         }
     }
 
-    override fun updateGender(gender: String): Flow<ResultState<Boolean>> {
+    override fun updateGender(gender: Gender): Flow<ResultState<Boolean>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
@@ -258,6 +246,18 @@ class UserProfileImpl(
 
             trySend(ResultState.Loading)
 
+            try {
+                firestore.collection("Users").document(auth.currentUser!!.uid)
+                    .update("interests", interests)
+                    .addOnSuccessListener {
+                        trySend(ResultState.Success(true))
+                    }
+                    .addOnFailureListener {
+                        trySend(ResultState.Error(it.message.toString()))
+                    }
+            }catch (e: Exception){
+                trySend(ResultState.Error(e.message.toString()))
+            }
 
             awaitClose()
 
@@ -393,6 +393,10 @@ class UserProfileImpl(
                         )
                         .addOnSuccessListener {
                             trySend(ResultState.Success(true))
+                            sendPushNotification.messageNotification(
+                                notificationReceiverId = requestUserId,
+                                notificationType = "REQUEST"
+                            )
                         }
                         .addOnFailureListener {
                             trySend(ResultState.Error(it.message.toString()))
@@ -477,34 +481,98 @@ class UserProfileImpl(
         }
     }
 
-    override fun fetchChatRoomId(userId: String): Flow<ResultState<String>> {
+    override fun getConnectionsCount(userId: String): Flow<ResultState<Int>> {
+        return callbackFlow {
+
+            trySend(ResultState.Loading)
+
+            try {
+                firestore.collection("Users").document(userId)
+                    .collection("LinkUpRequests")
+                    .whereEqualTo("status",true)
+                    .count()
+                    .get(AggregateSource.SERVER)
+                    .addOnSuccessListener {
+                        trySend(ResultState.Success(it.count.toInt()))
+                    }.addOnFailureListener {
+                        trySend(ResultState.Error(it.message.toString()))
+                    }
+
+            }catch (e:Exception){
+                trySend(ResultState.Error(e.message.toString()))
+            }
+
+            awaitClose { close() }
+
+        }
+    }
+
+    override fun getConnections(userId: String): Flow<ResultState<List<ConnectionsDTO>>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
 
             try {
 
-                firestore.collection("Chats").document(auth.currentUser!!.uid)
-                    .collection("Messages")
-                    .document(userId)
-                    .get()
-                    .addOnSuccessListener {
-                        val roomId = it.getString("roomId")
-                        if (roomId != null)
-                        trySend(ResultState.Success(roomId))
-                    }
-                    .addOnFailureListener {
+                val isCurrentUser = userId == auth.currentUser?.uid
+
+                firestore.collection("Users").document(userId)
+                    .collection("LinkUpRequests")
+                    .whereEqualTo("status",true)
+                    .get() // ✅ Fetch all documents instead of just one
+                    .addOnSuccessListener { snapshot ->
+
+                        val connectionRequestList = mutableListOf<ConnectionsDTO>()
+
+                        for (document in snapshot.documents) { // ✅ Loop through all requests
+
+                            val request = document.toObject(LinkUpRequestDTO::class.java)
+
+                            request?.let { requestData ->
+                                firestore.collection("Users").document(requestData.senderId)
+                                    .get()
+                                    .addOnSuccessListener { userSnapshot ->
+                                        val userData = userSnapshot.toObject(BasicProfileDTO::class.java)
+
+                                        if (userData != null) {
+                                            connectionRequestList.add(
+                                                ConnectionsDTO(
+                                                    user = User(
+                                                        id = userData.id,
+                                                        userName = userData.userName,
+                                                        userImage = userData.userImage,
+                                                        isCurrentUser = isCurrentUser
+
+                                                    )
+                                                )
+                                            )
+                                        }
+
+                                        // ✅ Ensure results are sent only after processing all users
+                                        if (connectionRequestList.size == snapshot.documents.size) {
+                                            trySend(ResultState.Success(connectionRequestList))
+                                        }
+
+                                    }.addOnFailureListener {
+                                        trySend(ResultState.Error(it.message.toString()))
+                                    }
+                            }
+                        }
+
+                        if (snapshot.isEmpty) {
+                            trySend(ResultState.Success(emptyList())) // ✅ Return empty list if no requests found
+                        }
+
+                    }.addOnFailureListener {
                         trySend(ResultState.Error(it.message.toString()))
-
                     }
 
-            }catch (e: Exception){
 
-
-
+            }catch (e:Exception){
+                trySend(ResultState.Error(e.message.toString()))
             }
 
-            awaitClose()
+            awaitClose { close() }
 
         }
     }

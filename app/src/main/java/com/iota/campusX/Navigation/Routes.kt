@@ -19,6 +19,7 @@ sealed class Routes(val routes:String){
         data object Profile : Routes("PROFILE")
         data object ProfileByID : Routes("PROFILE_By_Id")
         data object EditProfile : Routes("EDIT_PROFILE")
+        data object Connections : Routes("CONNECTIONS")
         data object CreatePost : Routes("CREATE_POST")
         data object ReplyPost : Routes("REPLY_POST")
         data object Setting : Routes("SETTING")

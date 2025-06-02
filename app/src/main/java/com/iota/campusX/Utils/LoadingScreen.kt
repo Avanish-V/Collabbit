@@ -22,11 +22,11 @@ import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.White900
 
 @Composable
-fun LoadingUI(isLoading:Boolean) {
+fun LoadingUI(isLoading:Boolean,modifier: Modifier = Modifier) {
 
     if (isLoading){
 
-        Box(modifier = Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center){
+        Box(modifier = modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center){
             CircularProgressIndicator(
                 modifier = Modifier.size(32.dp),
                 color = primary

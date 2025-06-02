@@ -1,4 +1,3 @@
-
 package com.iota.campusX.Screens.Profile
 
 import android.net.Uri
@@ -7,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,27 +39,38 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -78,28 +90,35 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.UserProfile.data.Campus
+import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.University
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Utils.CalendarSelector
 import com.iota.campusX.Utils.CustomTextField
+import com.iota.campusX.Utils.CustomTextFieldWithLeadingIcon
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.timeMillsToString
+import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
@@ -114,7 +133,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.nio.file.WatchEvent
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditProfileScreen(
     navController: NavController,
@@ -124,12 +143,19 @@ fun EditProfileScreen(
     val editProfileViewModel: EditProfileViewModel = viewModel()
     val context = LocalContext.current
     val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value.baseProfileData
-    var screenValue by rememberSaveable { mutableStateOf(ProfileEdit.PROFILE_SCREEN) }
+    val profileEditValue =
+        navController.currentBackStackEntry?.savedStateHandle?.get<ProfileEdit>("PROFILE_EDIT")
+
     val scope = rememberCoroutineScope()
     var isLoading by rememberSaveable { mutableStateOf(false) }
+    val focusManager = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    var editComponent by remember { mutableStateOf("") }
 
     val pickedImage = remember { mutableStateOf<Uri?>(null) }
-    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    val pickMedia =
+        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) {
                 pickedImage.value = uri
             } else {
@@ -137,7 +163,13 @@ fun EditProfileScreen(
             }
         }
 
-    when (screenValue) {
+    LaunchedEffect(pickedImage.value) {
+        if (pickedImage.value != null) {
+            editComponent = "UPDATE_IMAGE"
+        }
+    }
+
+    when (profileEditValue) {
 
         ProfileEdit.PROFILE_SCREEN -> {
 
@@ -146,7 +178,10 @@ fun EditProfileScreen(
                     TopAppBar(
                         title = { Text("Edit Profile") },
                         navigationIcon = {
-                            IconButton(onClick = { navController.popBackStack() }) {
+                            IconButton(onClick = {
+                                keyboardController?.hide()
+                                navController.popBackStack()
+                            }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Back"
@@ -157,32 +192,111 @@ fun EditProfileScreen(
                             containerColor = secondary
                         ),
                         actions = {
-                            Row (modifier = Modifier.padding(end = 12.dp)){
-                                if (pickedImage.value != null){
-                                    if (isLoading){
+                            Row(modifier = Modifier.padding(end = 12.dp)) {
+
+                                if (editComponent.isNotEmpty()) {
+
+                                    if (isLoading) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp),
                                             color = primary,
                                             strokeWidth = 2.dp
                                         )
-                                    }else{
+                                    } else {
                                         IconButton(onClick = {
                                             scope.launch {
-                                                userProfileViewModel.modifyProfileImage(pickedImage.value!!).collect{
-                                                    when(it){
-                                                        is ResultState.Loading->{
-                                                            isLoading = true
-                                                        }
-                                                        is ResultState.Success-> {
-                                                            isLoading = false
-                                                            userProfileViewModel.updateProfileImage(Uri.parse(pickedImage.value.toString()).toString())
-                                                            navController.popBackStack()
-                                                        }
-                                                        is ResultState.Error->{
-                                                            isLoading = false
+
+                                                when (editComponent) {
+
+                                                    "EDIT_NAME" -> {
+
+                                                        if (userProfile?.userName == editProfileViewModel.name.value) return@launch
+
+                                                        userProfileViewModel.modifyName(
+                                                            editProfileViewModel.name.value
+                                                        )
+                                                            .collect {
+                                                                when (it) {
+                                                                    is ResultState.Success -> {
+                                                                        userProfileViewModel.updateName(
+                                                                            editProfileViewModel.name.value
+                                                                        )
+                                                                        isLoading = false
+                                                                        navController.popBackStack()
+                                                                    }
+
+                                                                    is ResultState.Error -> {
+                                                                        isLoading = false
+                                                                    }
+
+                                                                    is ResultState.Loading -> {
+                                                                        isLoading = true
+                                                                    }
+                                                                }
+
+                                                            }
+
+                                                    }
+
+                                                    "EDIT_GENDER" -> {
+
+                                                        userProfileViewModel.modifyGender(
+                                                            editProfileViewModel.gender.value
+                                                        )
+                                                            .collect {
+                                                                when (it) {
+                                                                    is ResultState.Success -> {
+                                                                        userProfileViewModel.updateGender(
+                                                                            editProfileViewModel.gender.value
+                                                                        )
+                                                                        isLoading = false
+                                                                        navController.popBackStack()
+                                                                    }
+
+                                                                    is ResultState.Error -> {
+                                                                        isLoading = false
+                                                                    }
+
+                                                                    is ResultState.Loading -> {
+                                                                        isLoading = true
+                                                                    }
+                                                                }
+                                                            }
+
+
+                                                    }
+
+                                                    "UPDATE_IMAGE" -> {
+
+                                                        if (pickedImage.value == null) return@launch
+
+                                                        userProfileViewModel.modifyProfileImage(
+                                                            pickedImage.value!!
+                                                        ).collect {
+                                                            when (it) {
+                                                                is ResultState.Loading -> {
+                                                                    isLoading = true
+                                                                }
+
+                                                                is ResultState.Success -> {
+                                                                    isLoading = false
+                                                                    userProfileViewModel.updateProfileImage(
+                                                                        Uri.parse(pickedImage.value.toString())
+                                                                            .toString()
+                                                                    )
+                                                                    navController.popBackStack()
+                                                                }
+
+                                                                is ResultState.Error -> {
+                                                                    isLoading = false
+                                                                }
+                                                            }
                                                         }
                                                     }
+
                                                 }
+
+
                                             }
                                         }) {
                                             Icon(
@@ -193,6 +307,7 @@ fun EditProfileScreen(
                                     }
 
                                 }
+
                             }
                         }
                     )
@@ -200,13 +315,18 @@ fun EditProfileScreen(
                 containerColor = secondary
             ) { innerPadding ->
 
+                LaunchedEffect(Unit) {
+                    editProfileViewModel.editName(userProfile?.userName ?: "")
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-
 
                     Row(
                         modifier = Modifier
@@ -245,7 +365,10 @@ fun EditProfileScreen(
                                     contentScale = ContentScale.Crop
                                 )
 
-                                IconButton(onClick = { pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }){
+                                IconButton(onClick = {
+                                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+
+                                }) {
                                     Icon(
                                         painter = painterResource(R.drawable.camera),
                                         contentDescription = null,
@@ -302,106 +425,93 @@ fun EditProfileScreen(
 
                     }
 
-                    ProfileComponent(
-                        title = "Name",
-                        onEditClick = { screenValue = ProfileEdit.EDIT_NAME_SCREEN },
-                        body = {
-                            Text(text = "${userProfile?.userName}")
-                        },
-                        contentDescription = "NAME"
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
-                    )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
 
-                    ProfileComponent(
-                        title = "Bio",
-                        onEditClick = { screenValue = ProfileEdit.EDIT_ABOUT_SCREEN },
-                        body = { Text(text = if (userProfile?.userBio.isNullOrEmpty()) "Update Bio" else userProfile.userBio) },
-                        contentDescription = "BIO"
+                            Text(text = "Name", fontWeight = FontWeight.Bold)
 
-                    )
+                            Image(
+                                modifier = Modifier.clickable(
+                                    onClick = {
+                                        editComponent = "EDIT_NAME"
+                                        scope.launch {
+                                            delay(1000)
+                                        }
+                                        focusManager.requestFocus()
+                                        keyboardController?.show()
+                                    },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ),
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Back",
+                                colorFilter = ColorFilter.tint(primary)
+                            )
 
-                    ProfileComponent(
-                        title = "Gender",
-                        onEditClick = {
-                            screenValue = ProfileEdit.EDIT_GENDER
-                        },
-                        body = { Text(text = if (userProfile?.userGender.isNullOrEmpty()) "Select Gender" else userProfile.userGender) },
-                        contentDescription = "GENDER"
+                        }
 
-                    )
+                        CustomTextField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusManager),
+                            value = editProfileViewModel.name.value,
+                            onValueChange = { editProfileViewModel.editName(it.toString()) },
+                            label = "",
+                            placeHolder = "Enter your name",
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                            enabled = editComponent == "EDIT_NAME"
+                        )
 
-                    ProfileComponent(
-                        title = "Intrests",
-                        onEditClick = { /*TODO*/ },
-                        body = {
-                            Text("Work on progress")
-                        },
-                        contentDescription = "INTERESTS"
-                    )
 
-                    ProfileComponent(
-                        title = "Campus Detail",
-                        onEditClick = {
-                            screenValue = ProfileEdit.EDIT_CAMPUS
-                        },
-                        body = {
-//                           Campus(
-//                               userProfile?.campus
-//                           )
-                        },
-                        contentDescription = "CAMPUS"
-                    )
+                    }
 
+                    LaunchedEffect(Unit) {
+                        editProfileViewModel.editGender(userProfile.userGender)
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Text(text = "Gender", fontWeight = FontWeight.Bold)
+
+                            Image(
+                                modifier = Modifier.clickable(
+                                    onClick = {
+                                        editComponent = "EDIT_GENDER"
+                                    },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ),
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Back",
+                                colorFilter = ColorFilter.tint(primary)
+                            )
+
+                        }
+
+                        GenderSelector(
+                            selectedGender = editProfileViewModel.gender.value,
+                            onSelect = {
+                                editProfileViewModel.editGender(it)
+                            },
+                            enabled = editComponent == "EDIT_GENDER"
+                        )
+
+                    }
 
                 }
 
 
-            }
-
-        }
-
-        ProfileEdit.EDIT_NAME_SCREEN -> {
-
-            LaunchedEffect(Unit) {
-                editProfileViewModel.editName(userProfile?.userName ?: "")
-            }
-
-            EditPage(
-                onCancelClick = { screenValue = ProfileEdit.PROFILE_SCREEN },
-                onSubmitClick = {
-                    scope.launch {
-
-                        if (editProfileViewModel.name.value.isEmpty()) return@launch Toast.makeText(context, "Name cannot be empty", Toast.LENGTH_SHORT).show()
-
-                        userProfileViewModel.modifyName(editProfileViewModel.name.value).collect {
-                            when (it) {
-                                is ResultState.Loading -> {
-                                    isLoading = true
-                                }
-                                is ResultState.Success -> {
-                                    userProfileViewModel.updateName(
-                                        name = editProfileViewModel.name.value
-                                    )
-                                    isLoading = false
-                                    screenValue = ProfileEdit.PROFILE_SCREEN
-                                }
-                                is ResultState.Error -> {
-                                    isLoading = false
-                                }
-                            }
-                        }
-                    }
-                },
-                isLoading = isLoading
-            ) {
-                CustomTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = editProfileViewModel.name.value,
-                    onValueChange = {editProfileViewModel.editName(it.toString()) },
-                    label = "Name",
-                    placeHolder = "Enter your name",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                )
             }
 
         }
@@ -413,31 +523,35 @@ fun EditProfileScreen(
             }
 
             EditPage(
-                onCancelClick = { screenValue = ProfileEdit.PROFILE_SCREEN },
+                onCancelClick = { navController.popBackStack() },
                 onSubmitClick = {
 
-                    if (editProfileViewModel.about.value.isEmpty()) return@EditPage Toast.makeText(context, "Bio cannot be empty", Toast.LENGTH_SHORT).show()
+                    if (editProfileViewModel.about.value.isEmpty()) return@EditPage Toast.makeText(
+                        context,
+                        "Bio cannot be empty",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
                     scope.launch {
-                        userProfileViewModel.modifyAbout(about = editProfileViewModel.about.value).collect {
-                            when (it) {
+                        userProfileViewModel.modifyAbout(about = editProfileViewModel.about.value)
+                            .collect {
+                                when (it) {
 
-                                is ResultState.Loading -> {
-                                    isLoading = true
-                                }
+                                    is ResultState.Loading -> {
+                                        isLoading = true
+                                    }
 
-                                is ResultState.Success -> {
-                                    isLoading = false
-                                    userProfileViewModel.updateAbout(editProfileViewModel.about.value)
-                                    screenValue = ProfileEdit.PROFILE_SCREEN
+                                    is ResultState.Success -> {
+                                        isLoading = false
+                                        userProfileViewModel.updateAbout(editProfileViewModel.about.value)
+                                        navController.popBackStack()
+                                    }
 
-                                }
-
-                                is ResultState.Error -> {
-                                    isLoading = false
+                                    is ResultState.Error -> {
+                                        isLoading = false
+                                    }
                                 }
                             }
-                        }
                     }
                 },
                 isLoading = isLoading
@@ -456,48 +570,107 @@ fun EditProfileScreen(
 
         ProfileEdit.EDIT_INTERESTS -> {
 
-
-        }
-
-        ProfileEdit.EDIT_GENDER -> {
-
-            var selectedGender by remember { mutableStateOf("") }
-
-            EditPage(
-                onCancelClick = { screenValue = ProfileEdit.PROFILE_SCREEN },
-                onSubmitClick = {
-
-                    if (editProfileViewModel.gender.value.isEmpty()) return@EditPage Toast.makeText(context, "Gender cannot be empty", Toast.LENGTH_SHORT).show()
-
-                    scope.launch {
-                        userProfileViewModel.modifyGender(gender = selectedGender).collect{
-                            when(it){
-                                is ResultState.Loading->{
-                                    isLoading = true
-                                }
-                                is ResultState.Success-> {
-                                    isLoading = false
-                                    userProfileViewModel.updateGender(selectedGender)
-                                    screenValue = ProfileEdit.PROFILE_SCREEN
-
-                                }
-                                is ResultState.Error->{
-                                    isLoading = false
-                                }
-                            }
-                        }
-                    }
-
-                },
-                isLoading = isLoading
-            ) {
-                GenderSelector(
-                    selectedGender = selectedGender,
-                    onSelect = { selectedGender = it }
-                )
-
+            val interestList by editProfileViewModel.items.collectAsState()
+            val interestText = rememberSaveable { mutableStateOf("") }
+            LaunchedEffect(Unit) {
+                editProfileViewModel.setAllItems(userProfile?.interests ?: emptyList())
             }
 
+            EditPage(
+                onCancelClick = {navController.popBackStack() },
+                onSubmitClick = {
+
+                    if (interestList.isEmpty()) return@EditPage
+
+                    scope.launch {
+
+                        userProfileViewModel.updateInterests(interestList)
+                            .collect {
+                                when (it) {
+                                    is ResultState.Loading -> {
+                                        isLoading = true
+                                    }
+
+                                    is ResultState.Success -> {
+                                        isLoading = false
+                                        userProfileViewModel.updateModifiedInterests(interestList)
+                                        navController.popBackStack()
+                                    }
+
+                                    is ResultState.Error -> {
+                                        isLoading = false
+                                    }
+                                }
+                            }
+                    }
+                },
+                isLoading = isLoading,
+                content = {
+
+                    CustomTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = interestText.value,
+                        onValueChange = { interestText.value = it.toString() },
+                        label = "Interest",
+                        placeHolder = "What about your interest?",
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+
+                                if (interestText.value.trim().isEmpty()) return@KeyboardActions
+                                editProfileViewModel.addItem(interestText.value)
+                                interestText.value = ""
+                            }
+                        )
+                    )
+
+
+
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        interestList.forEach {
+                            AssistChip(
+                                onClick = {
+
+                                },
+                                label = {
+                                    Text(
+                                        it,
+                                        modifier = Modifier.padding(10.dp),
+                                        color = Color.Black
+                                    )
+                                },
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = Color.LightGray
+                                ),
+                                trailingIcon = {
+                                    Icon(
+                                        modifier = Modifier.clickable(
+                                            onClick = {
+                                                editProfileViewModel.removeItem(it)
+                                            },
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ),
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null,
+                                        tint = Color.Black
+                                    )
+                                }
+                            )
+                        }
+
+                    }
+
+
+                }
+            )
         }
 
         ProfileEdit.EDIT_CAMPUS -> {
@@ -512,23 +685,25 @@ fun EditProfileScreen(
             }
 
             EditPage(
-                onCancelClick = { screenValue = ProfileEdit.PROFILE_SCREEN },
+                onCancelClick = { navController.popBackStack() },
                 onSubmitClick = {
                     scope.launch {
                         userProfileViewModel.modifyCampus(editProfileViewModel.campus.value)
                             .collect {
-                                when(it){
-                                    is ResultState.Loading->{
+                                when (it) {
+                                    is ResultState.Loading -> {
                                         isLoading = true
                                     }
-                                    is ResultState.Success->{
+
+                                    is ResultState.Success -> {
                                         userProfileViewModel.updateCampus(
                                             editProfileViewModel.campus.value
                                         )
-                                        isLoading = false
-                                        screenValue = ProfileEdit.PROFILE_SCREEN
+                                        navController.popBackStack()
+
                                     }
-                                    is ResultState.Error->{
+
+                                    is ResultState.Error -> {
                                         isLoading = false
                                     }
                                 }
@@ -550,13 +725,13 @@ fun EditProfileScreen(
                             )
                         )
                     },
-
+                    campus = editProfileViewModel.campus.value,
                 )
 
                 CustomTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = editProfileViewModel.campus.value.collegeName,
-                    onValueChange = {editProfileViewModel.editCollege(it.toString())},
+                    onValueChange = { editProfileViewModel.editCollege(it.toString()) },
                     label = "College",
                     placeHolder = "Enter your college",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
@@ -583,7 +758,7 @@ fun EditProfileScreen(
                 )
 
 
-                Column (verticalArrangement = Arrangement.spacedBy(12.dp)){
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
                     Text(
                         text = "Duration",
@@ -595,8 +770,10 @@ fun EditProfileScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
 
-                        Row (
-                            modifier = Modifier.weight(1f).height(48.dp)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
                                 .border(
                                     width = 1.dp,
                                     color = Black300,
@@ -605,8 +782,12 @@ fun EditProfileScreen(
                                 .padding(start = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
-                        ){
-                            Text(text = timeMillsToString(editProfileViewModel.campus.value.courseStart?.toLong() ?: 0L))
+                        ) {
+                            Text(
+                                text = timeMillsToString(
+                                    editProfileViewModel.campus.value.courseStart?.toLong() ?: 0L
+                                )
+                            )
                             IconButton(onClick = {
                                 calenderSwitch = 0
                                 isCalenderVisible = !isCalenderVisible
@@ -625,8 +806,10 @@ fun EditProfileScreen(
                             style = typography.labelRegular
                         )
 
-                        Row (
-                            modifier = Modifier.weight(1f).height(48.dp)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
                                 .border(
                                     width = 1.dp,
                                     color = Black300,
@@ -635,9 +818,12 @@ fun EditProfileScreen(
                                 .padding(start = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
-                        ){
-                            Text(text = timeMillsToString(
-                                editProfileViewModel.campus.value.courseEnd?.toLong() ?: 0L))
+                        ) {
+                            Text(
+                                text = timeMillsToString(
+                                    editProfileViewModel.campus.value.courseEnd?.toLong() ?: 0L
+                                )
+                            )
                             IconButton(onClick = {
                                 calenderSwitch = 1
                                 isCalenderVisible = !isCalenderVisible
@@ -657,10 +843,10 @@ fun EditProfileScreen(
                 CalendarSelector(
                     isVisible = isCalenderVisible,
                     onConfirm = {
-                        if (calenderSwitch == 0){
+                        if (calenderSwitch == 0) {
                             editProfileViewModel.editCourseStart(it)
                         }
-                        if (calenderSwitch == 1){
+                        if (calenderSwitch == 1) {
                             editProfileViewModel.editCourseEnd(it)
                         }
                     },
@@ -674,34 +860,36 @@ fun EditProfileScreen(
 
 
         }
+
+        null -> {
+
+        }
     }
 
 
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UniversityDropdown(
     universityList: List<UniversityDTO>,
     userProfileViewModel: UserProfileViewModel,
     modifier: Modifier = Modifier,
-    onUniversitySelected: (Pair<String, String>?) -> Unit
+    onUniversitySelected: (Pair<String, String>?) -> Unit,
+    campus: Campus
 ) {
     var selectedUniversity by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
     var searchText by rememberSaveable { mutableStateOf("") }
-    var isDropdownExpanded by remember { mutableStateOf(false) }
-
-    val focusManager = LocalFocusManager.current
-    val focusRequester = remember { FocusRequester() }
-
-    // Keep track of if the field is focused
+    val searchSate = userProfileViewModel.universityData.collectAsState()
     var isFocused by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
 
+
     // Debounce search
     LaunchedEffect(searchText) {
-        delay(300)
-        if (searchText.isNotBlank()) {
+        delay(1000)
+        if (searchText.isNotBlank() && searchText.length >= 3) {
             userProfileViewModel.fetchUniversityData(searchText)
         }
     }
@@ -711,99 +899,107 @@ fun UniversityDropdown(
         onUniversitySelected(selectedUniversity)
     }
 
+    LaunchedEffect(Unit) {
+        searchText = campus.university?.university ?: ""
+
+    }
     // Re-request focus when dropdown expands and was previously focused
     LaunchedEffect(universityList) {
         if (isFocused) {
             coroutineScope.launch {
                 delay(50) // Let composition settle
-                focusRequester.requestFocus()
             }
         }
     }
 
-    Box(modifier = modifier) {
-        OutlinedTextField(
+    var expanded by remember { mutableStateOf(false) }
+
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+
+        CustomTextFieldWithLeadingIcon(
+            modifier = Modifier.fillMaxWidth(),
             value = searchText,
             onValueChange = {
-                searchText = it
-                isDropdownExpanded = true
+                searchText = it.toString()
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester)
-                .onFocusChanged {
-                    isFocused = it.isFocused
-                },
-            placeholder = { Text("University") },
+            label = "Search",
+            enabled = true,
+            placeHolder = "Search",
+            leadingIcon = {
+                CircleImage(
+                    image = selectedUniversity?.second ?: (campus.university?.logo ?: ""),
+                    modifier = Modifier.size(34.dp)
+                ) { }
+            },
             trailingIcon = {
                 if (selectedUniversity != null) {
-                    IconButton(
-                        onClick = {
-                            selectedUniversity = null
-                            searchText = ""
-                            isDropdownExpanded = false
-                            userProfileViewModel.clearUniversityData()
-                        }
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear")
-                    }
-                }
-            },
-            leadingIcon = {
-                if (!selectedUniversity?.second.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = selectedUniversity?.second,
-                        contentDescription = null,
-                        placeholder = painterResource(id = R.drawable.image),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    focusManager.clearFocus()
-                }
-            ),
-            shape = RoundedCornerShape(8.dp)
-        )
-
-        DropdownMenu(
-            expanded = isDropdownExpanded && universityList.isNotEmpty(),
-            onDismissRequest = { isDropdownExpanded = false },
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface)
-        ) {
-            universityList.forEach { university ->
-                DropdownMenuItem(
-                    text = { Text(university.name) },
-                    onClick = {
-                        selectedUniversity = university.name to university.logo
-                        searchText = university.name
-                        isDropdownExpanded = false
+                    IconButton(onClick = {
                         userProfileViewModel.clearUniversityData()
-                        focusManager.clearFocus() // Only when selected
-                    },
-                    leadingIcon = {
-                        AsyncImage(
-                            model = university.logo,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
+                        selectedUniversity = null
+                        searchText = ""
+                    }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = null
                         )
                     }
-                )
+                }
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+            keyboardActions = KeyboardActions { }
+        )
+
+        ExposedDropdownMenu(
+            containerColor = Color.White,
+            expanded = searchSate.value.universityList.isNotEmpty() || searchSate.value.isLoading,
+            onDismissRequest = { expanded = false }
+        ) {
+
+            when {
+                searchSate.value.isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = primary,
+                        strokeWidth = 2.dp
+                    )
+                }
+
+                searchSate.value.universityList.isNotEmpty() -> {
+                    universityList.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            onClick = {
+                                selectedUniversity =
+                                    Pair(selectionOption.name, selectionOption.logo)
+                                searchText = selectedUniversity?.first ?: ""
+                                onUniversitySelected(selectedUniversity)
+                            },
+                            text = {
+                                Text(text = selectionOption.name)
+                            },
+                            leadingIcon = {
+                                AsyncImage(
+                                    model = selectionOption.logo,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                )
+                            }
+                        )
+                    }
+                }
             }
+
         }
     }
-}
 
+}
 
 
 @Composable
@@ -866,43 +1062,41 @@ fun EditPage(
 }
 
 
-
 @Composable
 fun ProfileComponent(
     title: String,
     onEditClick: () -> Unit,
     body: @Composable () -> Unit,
-    contentDescription: String, )
-{
+    contentDescription: String,
+    isCurrentUser: Boolean,
+    isContentExist: Boolean
 
-    Column(
-        modifier = Modifier
-            .clickable(
-                onClick = {onEditClick.invoke()},
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            )
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .border(width = 2.dp, color = background, shape = RoundedCornerShape(12.dp))
-            .padding(12.dp)
-    ) {
+) {
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,verticalAlignment = Alignment.CenterVertically) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
 
             Text(text = title, fontWeight = FontWeight.Bold)
 
-            IconButton(onClick = { onEditClick.invoke() }) {
-                Icon(
-                    painter = painterResource(R.drawable.edit),
+            if (isCurrentUser) {
+                Image(
+                    modifier = Modifier.clickable(
+                        onClick = { onEditClick.invoke() },
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ),
+                    imageVector = if (isContentExist) Icons.Default.Add else Icons.Default.Edit,
                     contentDescription = "Back",
-                    tint = primary
+                    colorFilter = ColorFilter.tint(primary)
                 )
             }
 
         }
-
-        body()
-
+        body.invoke()
     }
 
 
@@ -910,11 +1104,12 @@ fun ProfileComponent(
 
 @Composable
 fun GenderSelector(
-    selectedGender: String,
-    onSelect: (String) -> Unit
+    enabled: Boolean,
+    selectedGender: Gender,
+    onSelect: (Gender) -> Unit
 ) {
 
-    val genders = listOf("Male", "Female")
+    val genders = listOf(Gender.MALE, Gender.FEMALE)
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         genders.forEach {
@@ -927,6 +1122,7 @@ fun GenderSelector(
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 RadioButton(
+                    enabled = enabled,
                     selected = selectedGender == it,
                     onClick = { onSelect(it) },
                     colors = RadioButtonDefaults.colors(
@@ -934,7 +1130,7 @@ fun GenderSelector(
                         unselectedColor = Black900
                     )
                 )
-                Text(text = it)
+                Text(text = it.name)
             }
         }
     }

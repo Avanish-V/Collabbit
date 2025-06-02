@@ -17,6 +17,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,80 +36,104 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.ui.theme.primary
 
 
 @Composable
-fun BottomAppBar(navController: NavHostController) {
+fun BottomAppBar(
+    navController: NavHostController,
+    notificationViewModel: NotificationViewModel
+) {
+
+    val badgeCount = notificationViewModel.notificationCount.collectAsState().value
+
+
+    LaunchedEffect(Unit) {
+        notificationViewModel.getNotificationCount()
+    }
+
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val destination = navBackStackEntry?.destination?.route
 
-        NavigationBar(
+    NavigationBar(
 
-            containerColor = Color.White,
-            modifier = Modifier.shadow(elevation = 5.dp),
-            contentColor = Color.Transparent
+        containerColor = Color.White,
+        modifier = Modifier.shadow(elevation = 5.dp),
+        contentColor = Color.Transparent
 
-        ) {
+    ) {
 
-            Text("0", color = Color.Black, fontSize = 8.sp,textAlign = TextAlign.Center, modifier = Modifier.padding(1.dp).background(color = primary, shape = CircleShape))
 
-            navBarItems.forEachIndexed { index, item ->
+        navBarItems.forEachIndexed { index, item ->
 
-                NavigationBarItem(
-                    icon = {
+            NavigationBarItem(
+                icon = {
 
-                        if (item.item == "Notification"){
-                            BadgedBox(
-                                badge = {
-                                    Text("0", color = Color.Black, fontSize = 8.sp,textAlign = TextAlign.Center, modifier = Modifier.padding(1.dp).background(color = primary, shape = CircleShape))
+                    if (item.item == "Notification") {
+                        BadgedBox(
+                            badge = {
+                                if (badgeCount != 0) {
+                                    Text(
+                                        badgeCount.toString(),
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        lineHeight = 1.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .padding(1.dp)
+                                            .size(16.dp)
+                                            .background(color = Color.Red, shape = CircleShape
+                                            )
+                                    )
                                 }
-                            ) {
-                                Icon(
-
-                                    painter = painterResource(id =  if (destination == item.route) item.iconBold else item.icon),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(22.dp)
-                                )
                             }
-                        }else{
+                        ) {
                             Icon(
-                                painter = painterResource(id =  if (destination == item.route) item.iconBold else item.icon),
+
+                                painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
                                 contentDescription = null,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
+                    } else {
+                        Icon(
+                            painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
 
-                    },
-                    //label = { Text(item.item, fontWeight = if (destination == item.route) FontWeight.Bold else FontWeight.Normal) },
-                    selected = destination == item.route,
-                    onClick = {
+                },
+                //label = { Text(item.item, fontWeight = if (destination == item.route) FontWeight.Bold else FontWeight.Normal) },
+                selected = destination == item.route,
+                onClick = {
 
-                        if (destination != item.route) {
-                            navController.navigate(item.route) {
+                    if (destination != item.route) {
+                        navController.navigate(item.route) {
 
-                                popUpTo(navController.graph.findStartDestination().id) {
+                            popUpTo(navController.graph.findStartDestination().id) {
 
-                                    saveState = false
-                                }
-
-                                launchSingleTop = true
-                                restoreState = true
+                                saveState = false
                             }
+
+                            launchSingleTop = true
+                            restoreState = true
                         }
+                    }
 
 
-                    },
-                    alwaysShowLabel = false,
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color.Black,
-                        indicatorColor = Color.Transparent,
-                    )
-
+                },
+                alwaysShowLabel = false,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = Color.Black,
+                    indicatorColor = Color.Transparent,
                 )
-            }
+
+            )
         }
+    }
 
 }
 

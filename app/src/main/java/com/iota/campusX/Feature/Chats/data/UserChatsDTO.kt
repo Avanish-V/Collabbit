@@ -14,7 +14,9 @@ data class UserChatsDTO(
 data class LastMessage(
     val lastMessage:String = "",
     val timeStamp:Long = 0,
-    val unreadCount:Int = 0
+    val unreadCount:Int = 0,
+    val isRead :Boolean = false,
+    val lastMessageBy: Boolean = false
 )
 
 

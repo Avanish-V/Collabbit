@@ -21,4 +21,5 @@ val White900 = Color(0xCCFFFFFF)
 val White400 = Color(0xCCE2E8F0)
 val background = Color(0xCCF1F4F9)
 val secondary = Color(0xCCFAFBFF)
+val Green = Color(0xCC5AD439)
 val surface = Color.White

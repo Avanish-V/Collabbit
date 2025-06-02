@@ -1,6 +1,9 @@
 package com.iota.campusX.Koin
 
+import SendPushNotification
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleAuthRepo
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleAuthUiClient
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
@@ -24,6 +27,9 @@ import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Screens.Home.HomeViewModel
+import com.iota.campusX.Screens.Post.PollViewModel
+import com.iota.campusX.Utils.ServerTimeStampViewModel
+
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -40,6 +46,7 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.module
 
+@RequiresApi(Build.VERSION_CODES.O)
 val appModule = module {
 
     single {
@@ -83,12 +90,13 @@ val appModule = module {
     single<FirebaseStorage> { FirebaseStorage.getInstance() }
 
 
-    single<UserProfileRepo> { UserProfileImpl(get(),get(),get(),get()) }
+    single<UserProfileRepo> { UserProfileImpl(get(),get(),get(),get(),get()) }
     single<GoogleAuthRepo> { GoogleAuthUiClient(androidContext(), get(),get()) }
 
-    single<PostRepository> { PostRepoImpl(getFCMToken(),get(),get()) }
-    single <ChatRepository>{ ChatImpl("",get(),get(),get()) }
-    single <NotificationRepository>{ NotificationImpl(get(),get()) }
+    single { SendPushNotification(get(),get())}
+    single<PostRepository> { PostRepoImpl(get(),get(),get()) }
+    single <ChatRepository>{ ChatImpl(get(),get(),get(),get()) }
+    single <NotificationRepository>{ NotificationImpl(get(),get(),get()) }
 
     viewModel { AuthViewModel(get()) }
     viewModel { UserProfileViewModel(get()) }
@@ -97,6 +105,8 @@ val appModule = module {
     viewModel { NavigationViewModel() }
     viewModel { NotificationViewModel(get()) }
     viewModel { HomeViewModel(get()) }
+    viewModel { ServerTimeStampViewModel(get()) }
+    viewModel { PollViewModel() }
 
 }
 

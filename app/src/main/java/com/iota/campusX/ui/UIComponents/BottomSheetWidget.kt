@@ -25,7 +25,10 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -74,6 +77,14 @@ fun PostDotOptionBottomSheet(
     val modificationRequest = bottomSheetSharedViewModel.modificationRequest.collectAsState().value
     val bottomSheetData = bottomSheetSharedViewModel.bottomSheetState.collectAsState().value
 
+    val modifyType by remember {
+        derivedStateOf {
+            if (modificationRequest == "EDIT_POST") "Edit Post"
+            else if (modificationRequest == "EDIT_REPLY") "Edit Reply"
+            else ""
+        }
+    }
+
     if (isBottomSheet) {
 
         ModalBottomSheet(
@@ -85,7 +96,8 @@ fun PostDotOptionBottomSheet(
         ) {
 
 
-            if (!modificationRequest.isEmpty()){
+
+            if (modificationRequest == "EDIT_REPLY" || modificationRequest == "EDIT_POST"){
 
                 val focusRequester = remember { FocusRequester() }
                 var replyText  =  remember { mutableStateOf("") }
@@ -94,10 +106,21 @@ fun PostDotOptionBottomSheet(
                 val context = LocalContext.current
                 val keyboard = LocalSoftwareKeyboardController.current
 
+                LaunchedEffect(Unit) {
+                    if (modificationRequest == "EDIT_POST"){
+                        replyText.value = bottomSheetData.postText
+                    }
+                }
+                LaunchedEffect(Unit) {
+                    if (modificationRequest == "EDIT_REPLY"){
+                        replyText.value = bottomSheetData.replyText.toString()
+                    }
+                }
+
                 Column {
 
                     Box(modifier = Modifier.fillMaxWidth().padding(12.dp),contentAlignment = Alignment.CenterStart){
-                        Text("Edit reply", color = primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Start)
+                        Text(modifyType, color = primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Start)
                     }
 
                     HorizontalDivider(
@@ -123,7 +146,7 @@ fun PostDotOptionBottomSheet(
                                     when (modificationRequest) {
                                         "EDIT_POST" -> {
 
-                                            if (bottomSheetData.postText.isEmpty()) return@IconButton
+                                            if (replyText.value.isEmpty()) return@IconButton
 
                                             scope.launch {
                                                 postViewModel.editPost(
@@ -142,6 +165,7 @@ fun PostDotOptionBottomSheet(
                                                             keyboard?.hide()
                                                             onHideBottomSheet(false)
                                                             bottomSheetSharedViewModel.setModificationRequest("")
+                                                            replyText.value = ""
                                                         }
 
                                                         is ResultState.Error -> {
@@ -158,6 +182,7 @@ fun PostDotOptionBottomSheet(
                                             }
                                         }
                                         "EDIT_REPLY" -> {
+
                                             if (replyText.value.isNotEmpty()) {
 
                                                 scope.launch {
@@ -180,6 +205,7 @@ fun PostDotOptionBottomSheet(
                                                                 delay(1000)
                                                                 onHideBottomSheet(false)
                                                                 bottomSheetSharedViewModel.setModificationRequest("")
+                                                                replyText.value = ""
                                                             }
 
                                                             is ResultState.Error -> {
@@ -226,118 +252,130 @@ fun PostDotOptionBottomSheet(
 
                 }
 
-            }
-            else
+            } else{
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp, horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp, horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
 
-                if (isCurrentUser){
+                    if (isCurrentUser){
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.height(48.dp).fillMaxWidth().padding(start = 10.dp)
-                            .background(
-                                color = secondary,
-                                shape = RoundedCornerShape(6.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.height(48.dp).fillMaxWidth().padding(start = 10.dp)
+                                .background(
+                                    color = secondary,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .clickable(
+                                    onClick = {
+                                        onEditClick.invoke()
+                                    },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                )
+                        ) {
+
+                            Icon(
+                                modifier = Modifier.size(22.dp),
+                                painter = painterResource(R.drawable.edit),
+                                contentDescription = null,
                             )
-                            .clickable(
-                                onClick = {
-                                    onEditClick.invoke()
-                                },
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
+
+                            Text("Edit")
+
+                        }
+
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.height(48.dp).fillMaxWidth().padding(start = 10.dp)
+                                .background(
+                                    color = secondary,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .clickable(
+                                    onClick = {
+                                        onDeleteClick.invoke()
+                                    },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                )
+                        ) {
+
+                            Icon(
+                                modifier = Modifier.size(22.dp),
+                                painter = painterResource(R.drawable.trash),
+                                contentDescription = null,
+                                tint = Color.Red
                             )
-                    ) {
 
-                        Icon(
-                            modifier = Modifier.size(22.dp),
-                            painter = painterResource(R.drawable.edit),
-                            contentDescription = null,
-                        )
+                            Text("Delete")
 
-                        Text("Edit")
+                        }
+
 
                     }
 
+                    HorizontalDivider(
+                        color = White400
+                    )
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.height(48.dp).fillMaxWidth().padding(start = 10.dp)
+                        modifier = Modifier
+                            .height(48.dp)
+                            .fillMaxWidth()
+                            .padding(start = 10.dp)
                             .background(
                                 color = secondary,
                                 shape = RoundedCornerShape(6.dp)
                             )
                             .clickable(
                                 onClick = {
-                                    onDeleteClick.invoke()
+
                                 },
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             )
+
                     ) {
 
                         Icon(
                             modifier = Modifier.size(22.dp),
-                            painter = painterResource(R.drawable.trash),
+                            painter = painterResource(R.drawable.warning_2),
                             contentDescription = null,
                             tint = Color.Red
                         )
 
-                        Text("Delete")
+                        Text("Report (Work in progress)", color = Color.Red)
 
                     }
-
-
-                }
-
-                HorizontalDivider(
-                    color = White400
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier
-                        .height(48.dp)
-                        .fillMaxWidth()
-                        .padding(start = 10.dp)
-                        .background(
-                            color = secondary,
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .clickable(
-                            onClick = {
-
-                            },
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        )
-
-                ) {
-
-                    Icon(
-                        modifier = Modifier.size(22.dp),
-                        painter = painterResource(R.drawable.warning_2),
-                        contentDescription = null,
-                        tint = Color.Red
-                    )
-
-                    Text("Report (Work in progress)", color = Color.Red)
 
                 }
 
             }
-
-
         }
 
     }
 
+}
+
+enum class ReportReason(val displayName: String) {
+    SPAM("Spam"),
+    FALSE_INFO("False Information"),
+    HATE_SPEECH("Hate Speech or Symbols"),
+    HARASSMENT("Harassment or Bullying"),
+    SEXUAL_CONTENT("Sexual Content"),
+    VIOLENCE("Violence or Threats"),
+    SELF_HARM("Suicide or Self-Injury"),
+    IP_VIOLATION("Intellectual Property Violation"),
+    FRAUD("Scam or Fraud"),
+    OTHER("Other")
 }

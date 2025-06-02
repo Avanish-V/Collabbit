@@ -3,31 +3,19 @@ package com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthenticatio
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
-import android.util.Log
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.BeginSignInRequest.GoogleIdTokenRequestOptions
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInClient
-import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GetTokenResult
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.UserProfile.data.MetaData
-import com.iota.campusX.Feature.UserProfile.data.UserBasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Utils.ResultState
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.request.post
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.CancellationException
 
@@ -129,15 +117,15 @@ class GoogleAuthUiClient(
                         firestore.collection("Users").document(userId)
                             .set(
 
-                                UserBasicProfileDTO(
-                                    _id = firebaseAuth.currentUser!!.uid,
+                                BasicProfileDTO(
+                                    id = firebaseAuth.currentUser!!.uid,
                                     token = userToken,
-                                    userName = firebaseAuth.currentUser!!.displayName?.replaceFirstChar { it.uppercase() } ?: "",
+                                    userName = firebaseAuth.currentUser!!.displayName.toString().replaceFirstChar { it.uppercase() },
                                     userImage = firebaseAuth.currentUser!!.photoUrl.toString(),
                                     userEmail = firebaseAuth.currentUser!!.email.toString(),
-                                    social = "",
                                     metaData = MetaData(
-                                        isFirstUser = true
+                                        isFirstUser = true,
+                                        createdAt = System.currentTimeMillis(),
                                     ),
                                 )
 

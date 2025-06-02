@@ -151,13 +151,11 @@ fun SettingScreen(
                                             }
                                             is ResultState.Success -> {
                                                 FirebaseAuth.getInstance().signOut()
-                                                    .apply {
-                                                        navController.navigate(Routes.Register.routes) {
-                                                            popUpTo(Routes.Register.routes) {
-                                                                inclusive = true
-                                                            }
-                                                        }
+                                                navController.navigate(Routes.Register.routes) {
+                                                    popUpTo(Routes.Register.routes) {
+                                                        inclusive = true
                                                     }
+                                                }
                                             }
                                             is ResultState.Error -> {
                                                 isLoading = false

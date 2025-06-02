@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Post.data
 
+import SendPushNotification
 import android.net.Uri
 import android.util.Log
 import com.cloudinary.android.MediaManager
@@ -10,7 +11,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.messaging.FirebaseMessaging
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Post.domain.CreatePostDTO
 import com.iota.campusX.Feature.Post.domain.CreatorDetail
@@ -23,10 +23,9 @@ import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.domain.ReplyDTO
 import com.iota.campusX.Feature.Post.domain.UploadResponse
 import com.iota.campusX.Feature.Post.domain.User
-import com.iota.campusX.Feature.PushNotification.FcmNotificationSender
+import com.iota.campusX.Screens.Post.Poll
 import com.iota.campusX.Utils.ResultState
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.iota.campusX.Utils.anonymousImage
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
@@ -34,12 +33,15 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.tasks.await
 
 
-class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, private val firestore: FirebaseFirestore) :PostRepository {
+class PostRepoImpl(
+    private val sendPushNotification: SendPushNotification,
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
+) :PostRepository {
 
     override fun getPosts(postMode: Boolean): Flow<ResultState<List<PostDTO>>> = flow {
         emit(ResultState.Loading)
@@ -120,7 +122,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                             )
                             else Pair(
                                 "Anonymous",
-                                "https://res.cloudinary.com/dni4h8jjy/image/upload/v1746629954/wyuwxwa8qwx0hu0i6flk.png"
+                                anonymousImage
                             )
 
                         PostDTO(
@@ -132,7 +134,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                                 isPremium = false,
                                 type = post.type,
                                 profile = User(
-                                    _id = post.creatorId,
+                                    id = post.creatorId,
                                     userName = postMode.first,
                                     userImage = postMode.second,
                                     about = user?.about ?: ""
@@ -144,7 +146,8 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                                 postType = post.postContent.postType,
                                 postData = PostData(
                                     postText = post.postContent.postData.postText,
-                                    postImage = post.postContent.postData.postImage
+                                    postImage = post.postContent.postData.postImage,
+                                    poll = post.postContent.postData.poll
                                 )
                             ),
                             postActions = PostActions(
@@ -158,7 +161,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                 }.mapNotNull { it.await() }
             }
 
-            emit(ResultState.Success(postList.sortedByDescending { it.postedAt }))
+            emit(ResultState.Success(postList))
         } catch (e: FirebaseNetworkException) {
             emit(ResultState.Error("No internet connection"))
         } catch (e: Exception) {
@@ -256,7 +259,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                                         (user as? User)?.userImage ?: ""
                                     )
                                 } else {
-                                    "Anonymous" to "https://cdn-icons-png.flaticon.com/128/11029/11029675.png"
+                                    "Anonymous" to anonymousImage
                                 }
 
                                 val isCurrentUser = post.creatorId == currentUserId
@@ -271,7 +274,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                                         type = post.type,
                                         profile = User(
                                             userName = userInfo.first,
-                                            _id = post.creatorId,
+                                            id = post.creatorId,
                                             userImage = userInfo.second
                                         )
                                     ),
@@ -317,8 +320,6 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
             "likes" to if (isLiked) FieldValue.arrayRemove(auth.currentUser?.uid) else FieldValue.arrayUnion(auth.currentUser?.uid)
         )
 
-
-
         likeDocRef.set(updateData, SetOptions.merge()) // This creates the doc if it doesn't exist
             .addOnSuccessListener {
 
@@ -330,6 +331,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                         notificationId = postId+userId,
                         type = "LIKE",
                         postId = postId,
+                        isRead = false,
                         contentId = postId,
                         creatorId = userId,
                         actionBy = (auth.currentUser?.uid ?: ""),
@@ -340,27 +342,10 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                         .document(postId + userId)
                         .set(notification)
                         .addOnSuccessListener {
-
-                            firestore.collection("Users").document(userId)
-                                .get()
-                                .addOnSuccessListener {
-                                    val fcmToken = it.get("token") as? String
-
-                                    if (fcmToken == null) return@addOnSuccessListener
-
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        val messageNotify = FcmNotificationSender(
-                                            userFcmToken = fcmToken,
-                                            title = "Liked",
-                                            body = "Someone liked your post"
-                                        )
-
-                                        messageNotify.sendNotification()
-                                    }
-
-                                }
-
-
+                            sendPushNotification.messageNotification(
+                                notificationReceiverId = userId,
+                                notificationType = "LIKE_POST"
+                            )
                         }
                         .addOnFailureListener {
 
@@ -408,24 +393,10 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                         .set(notification)
                         .addOnSuccessListener {
 
-                            firestore.collection("Users").document(creatorId)
-                                .get()
-                                .addOnSuccessListener {
-                                    val fcmToken = it.get("token") as? String
-
-                                    if (fcmToken == null) return@addOnSuccessListener
-
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        val messageNotify = FcmNotificationSender(
-                                            userFcmToken = fcmToken,
-                                            title = "Commented",
-                                            body = "Someone liked your reply"
-                                        )
-
-                                        messageNotify.sendNotification()
-                                    }
-
-                                }
+                            sendPushNotification.messageNotification(
+                                notificationReceiverId = creatorId,
+                                notificationType = "LIKE_REPLY"
+                            )
 
                         }
 
@@ -478,18 +449,29 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                                 (snap.get("likes") as? List<String>) ?: emptyList()
                             }
 
+
                             val user = userDeferred.await()
                             val likes = likesDeferred.await()
                             val isLiked = likes.contains(reply.userId)
                             val isCurrentUser = reply.userId == auth.currentUser?.uid
 
+                            val userType: Pair<String, String> =
+                                if (reply.userType == "USER") Pair(
+                                    user?.userName ?: "",
+                                    user?.userImage ?: ""
+                                )
+                                else Pair(
+                                    "Anonymous",
+                                    anonymousImage
+                                )
+
                             GetRepliesDTO(
                                 postId = reply.postId,
                                 replyId = reply.replyId,
                                 user = User(
-                                    userName = user?.userName ?: "",
-                                    _id = reply.userId,
-                                    userImage = user?.userImage ?: "",
+                                    userName = userType.first,
+                                    id = reply.userId,
+                                    userImage = userType.second,
                                     designation = user?.designation ?: "",
                                     isCurrentUser = isCurrentUser
 
@@ -501,7 +483,8 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                                     replies = emptyList(),
                                     replyCount = 0
                                 ),
-                                repliedAt = reply.repliedAt
+                                repliedAt = reply.repliedAt,
+                                userType = userType.toString()
                             )
 
 
@@ -522,13 +505,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
         }
     }
 
-    override fun createReply(
-        replyId: String,
-        postId: String,
-        content: String,
-        repliedAt: Long,
-        creatorId: String
-    ): Flow<ResultState<Boolean>> {
+    override fun createReply(replyId: String, postId: String, content: String, repliedAt: Long, creatorId: String, userType: String): Flow<ResultState<Boolean>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
@@ -545,7 +522,8 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                             postId = postId,
                             userId = auth.currentUser?.uid ?: "",
                             content = content,
-                            repliedAt = repliedAt
+                            repliedAt = repliedAt,
+                            userType = userType
                         )
                     )
                     .addOnSuccessListener {
@@ -558,6 +536,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                         val notification = CreateNotificationDTO(
                             notificationId = replyId,
                             type = "POST_REPLY",
+                            userType = userType,
                             contentId = replyId,
                             postId = postId,
                             creatorId = creatorId,
@@ -569,24 +548,10 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
                             .add(notification)
                             .addOnSuccessListener {
 
-                                firestore.collection("Users").document(creatorId)
-                                    .get()
-                                    .addOnSuccessListener {
-                                        val fcmToken = it.get("token") as? String
-
-                                        if (fcmToken == null) return@addOnSuccessListener
-
-                                        CoroutineScope(Dispatchers.IO).launch {
-                                            val messageNotify = FcmNotificationSender(
-                                                userFcmToken = fcmToken,
-                                                title = "Commented",
-                                                body = "Someone commented your post"
-                                            )
-
-                                            messageNotify.sendNotification()
-                                        }
-
-                                    }
+                                sendPushNotification.messageNotification(
+                                    notificationReceiverId = creatorId,
+                                    notificationType = "COMMENTED"
+                                )
                             }
 
 
@@ -604,11 +569,7 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
         }
     }
 
-    override fun createPost(
-        createPostDTO: CreatePostDTO,
-        postMode: Boolean,
-        imageUri: Uri?
-    ): Flow<ResultState<UploadResponse>> = callbackFlow {
+    override fun createPost(createPostDTO: CreatePostDTO, postMode: Boolean, imageUri: Uri?): Flow<ResultState<UploadResponse>> = callbackFlow {
 
         trySend(ResultState.Success(UploadResponse("LOADING")))
 
@@ -870,6 +831,21 @@ class PostRepoImpl(private val fcmToken: String,private val auth: FirebaseAuth, 
             awaitClose()
         }
     }
+
+    override suspend fun createPoll(post: CreatePostDTO, callback: (ResultState<Boolean>) -> Unit) {
+        try {
+            firestore.collection("GlobalPosts").document(post.postId).set(post)
+                .addOnSuccessListener {
+                    callback(ResultState.Success(true))
+                }
+                .addOnFailureListener {
+                    callback(ResultState.Error(it.localizedMessage ?: "Something went wrong!"))
+                }
+        } catch (e: Exception) {
+            callback(ResultState.Error(e.localizedMessage ?: "Unexpected error"))
+        }
+    }
+
 
 
 }
