@@ -9,13 +9,14 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.Feature.Chats.data.ID
+import com.iota.campusX.Feature.Notification.domain.Content
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
-import com.iota.campusX.Feature.Notification.domain.Content
-import com.iota.campusX.Feature.Post.domain.PostDTO
-import com.iota.campusX.Feature.Post.domain.ReplyDTO
-import com.iota.campusX.Feature.Post.domain.User
+import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
+import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
+import com.iota.campusX.Feature.Post.domain.Models.ReplyDTO
+import com.iota.campusX.Feature.Post.domain.Models.User
 import com.iota.campusX.Feature.UserProfile.data.LinkUpRequestDTO
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.async
@@ -98,7 +99,7 @@ class NotificationImpl(
                                         .document(notificationData.postId)
                                         .get()
                                         .await()
-                                    snapshot.toObject(PostDTO::class.java)
+                                    snapshot.toObject(GetPostDTO::class.java)
                                 } else {
                                     null
                                 }
@@ -135,7 +136,7 @@ class NotificationImpl(
 
                             val userType: Pair<String, String> =
 
-                                if (notificationData.userType == "USER") Pair(
+                                if (notificationData.visibilityMode == PostVisibilityMode.USER) Pair(
                                     actionedBy?.userName ?: "",
                                     actionedBy?.userImage ?: ""
                                 )
@@ -160,7 +161,7 @@ class NotificationImpl(
                                 ),
                                 content = content,
                                 type = notificationData.type,
-                                userType = notificationData.userType
+                                visibilityMode = notificationData.visibilityMode
                             )
 
                         }

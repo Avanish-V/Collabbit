@@ -10,7 +10,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import com.iota.campusX.Feature.Post.domain.User
+import com.iota.campusX.Feature.Post.domain.Models.User
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Utils.ResultState
 import io.ktor.client.HttpClient

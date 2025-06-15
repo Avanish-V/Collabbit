@@ -1,7 +1,5 @@
-package com.iota.campusX.Screens.Home
+package com.iota.campusX.Screens.Home.BottomSheet
 
-import android.util.Log
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,37 +17,37 @@ class BottomSheetSharedViewModel: ViewModel(){
     val alertDialog: StateFlow<String> = _alertDialog.asStateFlow()
 
     fun setBottomSheetState(
-        state: Boolean,
-        type: String,
+        state: Boolean = false,
         isCurrentUser: Boolean = false,
-        postId: String,
-        postText: String? = "",
-        replyId: String ?= null,
-        replyText : String?= "",
-        campusId: String
+        campusId: String? = null,
+        content: Content,
+        contentType: ContentType,
+        sheetType: SheetType
     ){
        _bottomSheetState.value = PassBottomSheetData(
            isBottomSheet = state,
-           type = type,
            isCurrentUser = isCurrentUser,
-           postId = postId,
-           postText = postText.toString(),
            campusId = campusId,
-           replyId = replyId ?: "",
-           replyText = replyText
+           sheetType = sheetType,
+           content = content,
+           contentType = contentType
+
        )
 
     }
 
-    fun hideBottomSheet(hide: Boolean){
-        _bottomSheetState.value = PassBottomSheetData(
-            isBottomSheet = hide
+    fun updateBottomSheetState(sheetType: SheetType) {
+        _bottomSheetState.value = _bottomSheetState.value.copy(
+            sheetType = sheetType
         )
     }
 
-    fun setModificationRequest(request: String){
-        _modificationRequest.value = request
+    fun dismissBottomSheet() {
+        _bottomSheetState.value = _bottomSheetState.value.copy(
+            isBottomSheet = false
+        )
     }
+
 
     fun setAlertDialog(request: String){
         _alertDialog.value = request
@@ -58,7 +56,7 @@ class BottomSheetSharedViewModel: ViewModel(){
     fun AlertDialogText(): AlertDialogData? {
 
         return when {
-            modificationRequest.value == "DELETE" && bottomSheetState.value.type == "POST" -> {
+            bottomSheetState.value.contentType == ContentType.POST -> {
                 AlertDialogData(
                     action = "DELETE_POST",
                     titleText = "Delete Post",
@@ -67,21 +65,12 @@ class BottomSheetSharedViewModel: ViewModel(){
                 )
             }
 
-            modificationRequest.value == "DELETE" && bottomSheetState.value.type == "REPLY" -> {
+            bottomSheetState.value.contentType == ContentType.POST -> {
                 AlertDialogData(
                     action = "DELETE_REPLY",
                     titleText = "Delete Reply",
                     positiveButtonText = "Delete",
                     descriptionText = "Are you sure you want to delete this reply?",
-                )
-            }
-
-            modificationRequest.value == "EDIT" && bottomSheetState.value.type == "REPLY" -> {
-                AlertDialogData(
-                    action = "EDIT_REPLY",
-                    titleText = "Discard Changes",
-                    positiveButtonText = "Edit",
-                    descriptionText = "Are you sure you want to discard changes?",
                 )
             }
 
@@ -96,13 +85,11 @@ class BottomSheetSharedViewModel: ViewModel(){
 
 data class PassBottomSheetData(
     var isBottomSheet: Boolean = false,
-    val postId: String = "",
-    val type: String = "",
-    val postText: String = "",
-    val replyId: String ?= "",
-    val replyText: String ?= "",
+    val content: Content = Content(),
+    val contentType: ContentType = ContentType.NONE,
     val isCurrentUser: Boolean = false,
-    val campusId: String? = null
+    val campusId: String? = null,
+    val sheetType: SheetType = SheetType.MENU_LIST,
 )
 
 data class AlertDialogData(
@@ -117,3 +104,27 @@ data class Modification(
     val event: String = ""
 
 )
+
+enum class ContentType {
+    POST,
+    REPLY,
+    CONSENT,
+    NONE
+}
+
+enum class SheetType {
+    MENU_LIST,
+    CONSENT,
+    EDIT_POST,
+    EDIT_REPLY,
+    REPORT
+}
+
+
+data class Content(
+    val postId: String = "",
+    val text: String = "",
+    val replyId: String = ""
+)
+
+

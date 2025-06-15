@@ -1,15 +1,14 @@
-package com.iota.campusX.Feature.Post.domain
+package com.iota.campusX.Feature.Post.domain.Models
 
-import android.os.Parcelable
 import com.iota.campusX.Screens.Post.Poll
-import kotlinx.parcelize.Parcelize
+import com.iota.campusX.Screens.Post.PostOptions
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class CreatePostDTO(
     val postId: String = "",
-    val type: String = "",
-    val postedAt: Long = 0L,
+    val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
+    val createdAt: Long = 0L,
     val creatorId: String = "",
     val reference: Reference = Reference(),
     val campusId: String? = null,
@@ -36,7 +35,7 @@ data class PostData(
 
 @Serializable
 data class PostContent(
-    val postType: String = "",
+    val postType: PostOptions = PostOptions.TEXT,
     val postData: PostData = PostData()
 )
 
@@ -56,4 +55,8 @@ data class Reference(
     val icon: String= "",
     val title: String = ""
 )
+
+enum class PostVisibilityMode {
+    USER, ANONYMOUS
+}
 

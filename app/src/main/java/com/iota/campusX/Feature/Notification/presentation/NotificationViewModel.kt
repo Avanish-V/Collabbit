@@ -1,12 +1,9 @@
 package com.iota.campusX.Feature.Notification.presentation
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
-import com.iota.campusX.Feature.Post.domain.GetRepliesDTO
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

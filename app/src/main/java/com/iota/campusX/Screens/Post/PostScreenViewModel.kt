@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class PostScreenViewModel: ViewModel() {
 
-    private val _post = MutableStateFlow<PostOptions>(PostOptions.IMAGE_WITH_TEXT)
+    private val _post = MutableStateFlow<PostOptions>(PostOptions.TEXT)
     val post: StateFlow<PostOptions> = _post.asStateFlow()
 
 
@@ -17,4 +17,4 @@ class PostScreenViewModel: ViewModel() {
 
 }
 
-enum class PostOptions{ IMAGE_WITH_TEXT,POLL }
+enum class PostOptions { TEXT, IMAGE, VIDEO, FILE, POLL }

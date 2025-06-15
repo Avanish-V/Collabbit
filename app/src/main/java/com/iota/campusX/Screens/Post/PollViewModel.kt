@@ -17,7 +17,13 @@ class PollViewModel : ViewModel() {
         val newPoll = Poll(
             id = generateUID(),
             question = question,
-            options = listOf(PollOption(id = generateUID(), text = "", label = "Option 1"))  // start with no options
+            options = listOf(
+                PollOption(
+                    optionId = "option_1",
+                    text = "",
+                    label = "Option 1"
+                )
+            )  // start with no options
         )
         _poll.value = newPoll
     }
@@ -28,9 +34,35 @@ class PollViewModel : ViewModel() {
         poll.value?.options?.count()?.let { if (it > 4 ) return }
 
         when(poll.value?.options?.count()){
-            1 -> _poll.value = poll.value?.copy(options = poll.value?.options?.plus(PollOption(id = "option_2", text = "", label = "Option 2")))
-            2 -> _poll.value = poll.value?.copy(options = poll.value?.options?.plus(PollOption(id = "option_3", text = "", label = "Option 3")))
-            3 -> _poll.value = poll.value?.copy(options = poll.value?.options?.plus(PollOption(id = "option_4", text = "", label = "Option 4")))
+            1 -> _poll.value = poll.value?.copy(
+                options = poll.value?.options?.plus(
+                    PollOption(
+                        optionId = "option_2",
+                        text = "",
+                        label = "Option 2"
+                    )
+                )
+            )
+
+            2 -> _poll.value = poll.value?.copy(
+                options = poll.value?.options?.plus(
+                    PollOption(
+                        optionId = "option_3",
+                        text = "",
+                        label = "Option 3"
+                    )
+                )
+            )
+
+            3 -> _poll.value = poll.value?.copy(
+                options = poll.value?.options?.plus(
+                    PollOption(
+                        optionId = "option_4",
+                        text = "",
+                        label = "Option 4"
+                    )
+                )
+            )
         }
 
     }
@@ -38,7 +70,7 @@ class PollViewModel : ViewModel() {
     fun updatePollOptionText(optionId: String, newText: String) {
         val currentPoll = _poll.value ?: return
         val updatedOptions = currentPoll.options?.map {
-            if (it.id == optionId) it.copy(text = newText) else it
+            if (it.optionId == optionId) it.copy(text = newText) else it
         }
         _poll.value = currentPoll.copy(options = updatedOptions)
     }
@@ -51,7 +83,7 @@ class PollViewModel : ViewModel() {
     fun removePollOption(optionId: String) {
         if (poll.value?.options?.count() == 1) return
         val currentPoll = _poll.value ?: return
-        val updatedOptions = currentPoll.options?.filter { it.id != optionId }
+        val updatedOptions = currentPoll.options?.filter { it.optionId != optionId }
         _poll.value = currentPoll.copy(options = updatedOptions)
     }
 }

@@ -1,34 +1,68 @@
 package com.iota.campusX.Feature.Post.domain
 
 import android.net.Uri
-import com.iota.campusX.Screens.Post.Poll
-import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Feature.Post.domain.Models.CreatePostDTO
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
+import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
+import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
+import com.iota.campusX.Feature.Post.presentation.UploadState
 import kotlinx.coroutines.flow.Flow
 
 interface PostRepository {
 
-    fun getPosts(postMode: Boolean): Flow<ResultState<List<PostDTO>>>
+    suspend fun createPost(
+        dto: CreatePostDTO,
+        feedMode: FeedMode,
+        imageUri: Uri?
+    ): Flow<UploadState>
 
-    fun getPostsById(userId: String,campusId: String?): Flow<ResultState<List<PostDTO>>>
+    suspend fun deletePost(postId: String, campusId: String?): Result<Unit>
 
-    fun toggleLike(userId: String, postId: String,isLiked: Boolean)
+    suspend fun getPosts(): Result<List<GetPostDTO>>
 
-    fun likeReply(creatorId: String, postId: String, replyId:String, isLiked: Boolean)
 
-    fun getReplies(postId: String): Flow<ResultState<List<GetRepliesDTO>>>
+    suspend fun fetchCampusPosts(feedMode: FeedMode, campusId: String?): Result<List<GetPostDTO>>
 
-    fun createReply(replyId : String, postId : String, content : String, repliedAt : Long, creatorId: String, userType: String): Flow<ResultState<Boolean>>
 
-    fun createPost(createPostDTO: CreatePostDTO,postMode: Boolean, imageUri: Uri?): Flow<ResultState<UploadResponse>>
+    suspend fun editPost(postId: String, editedText: String, campusId: String?): Result<Unit>
 
-    fun deletePost(postId: String,campusId: String?): Flow<ResultState<Boolean>>
+    suspend fun getPostsById(userId: String, campusId: String?): Result<List<GetPostDTO>>
 
-    fun deleteReply(postId: String,replyId:String,campusId: String?): Flow<ResultState<Boolean>>
 
-    fun editReply(postId: String,replyId:String,content:String,campusId: String?): Flow<ResultState<Boolean>>
+    suspend fun createReply(
+        replyId: String,
+        postId: String,
+        content: String,
+        creatorId: String,
+        visibilityMode: PostVisibilityMode
+    ): Result<Unit>
 
-    fun editPost(postId: String,editedText:String,campusId: String?): Flow<ResultState<Boolean>>
+    suspend fun getReplies(postId: String): Result<List<GetRepliesDTO>>
 
-    suspend fun createPoll(post: CreatePostDTO,callback: (ResultState<Boolean>) -> Unit)
+
+    suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean): Result<Unit>
+
+    suspend fun likeReply(
+        creatorId: String,
+        postId: String,
+        replyId: String,
+        isLiked: Boolean
+    ): Result<Unit>
+
+
+    suspend fun deleteReply(postId: String, replyId: String, campusId: String?): Result<Unit>
+
+    suspend fun editReply(
+        postId: String,
+        replyId: String,
+        content: String,
+        campusId: String?
+    ): Result<Unit>
+
+
+    suspend fun createPoll(post: CreatePostDTO): Result<Unit>
+
+    suspend fun voteOnPoll(postId: String, optionId: String): Result<Unit>
 
 }

@@ -1,4 +1,4 @@
-package com.iota.campusX.Feature.Post.domain
+package com.iota.campusX.Feature.Post.domain.Models
 
 import kotlinx.serialization.Serializable
 
@@ -6,10 +6,11 @@ import kotlinx.serialization.Serializable
 data class ReplyDTO(
     val replyId: String = "",
     val postId: String = "",
-    val userId: String = "",
+    val repliedBy: String = "",
+    val creatorId: String = "",
     val content: String = "",
     val isEdited: Boolean = false,
-    val userType: String = "",
+    val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
     val repliedAt: Long = 0L
 )
 
@@ -20,7 +21,7 @@ data class GetRepliesDTO(
     val isEdited: Boolean = false,
     val user: User,
     val content: String = "",
-    val userType: String = "",
+    val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
     val actions: PostActions,
     val repliedAt: Long = 0L
 )

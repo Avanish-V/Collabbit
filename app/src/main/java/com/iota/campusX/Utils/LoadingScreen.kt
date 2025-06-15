@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,15 +17,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.primary
 
 @Composable
 fun LoadingUI(isLoading:Boolean,modifier: Modifier = Modifier) {
 
     if (isLoading){
 
-        Box(modifier = modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center){
+        Box(modifier = modifier
+            .fillMaxSize()
+            .background(Color.White), contentAlignment = Alignment.Center){
             CircularProgressIndicator(
                 modifier = Modifier.size(32.dp),
                 color = primary
@@ -38,12 +39,15 @@ fun LoadingUI(isLoading:Boolean,modifier: Modifier = Modifier) {
 
 }
 
+
 @Composable
 fun StatusScreen(isActive:Boolean,text:String,image:Int?= null) {
 
     if (isActive){
 
-        Box(modifier = Modifier.fillMaxSize().background(White900), contentAlignment = Alignment.Center){
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(White900), contentAlignment = Alignment.Center){
             Column (
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
@@ -73,7 +77,9 @@ fun ConnectingLoadingUI(isLoading:Boolean) {
 
     if (isLoading){
 
-        Box(modifier = Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center){
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White), contentAlignment = Alignment.Center){
 
             Column(
                 modifier = Modifier.size(120.dp),

@@ -46,6 +46,7 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
+import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
@@ -59,9 +60,9 @@ import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.Black900
-import com.iota.campusX.ui.theme.background
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.background
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -112,12 +113,12 @@ fun NotificationScreen(
                 state.error.isNotEmpty()->{
 
                     ErrorScreen(
-                        isActive = true,
                         text = state.error.toString(),
                         image = null,
                         onReTry = {
                             notificationViewModel.fetchNotifications()
-                        }
+                        },
+                        buttonText = "Try again"
                     )
                 }
 
@@ -149,7 +150,7 @@ fun NotificationScreen(
                                     }
                                 },
                                 geToUserProfile = {
-                                    if (it.userType != "USER") return@NotificationItem
+                                    if (it.visibilityMode != PostVisibilityMode.USER) return@NotificationItem
                                     navHostController.navigate(Routes.Main.Profile.routes).apply{
                                         navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("USER_ID",it.actionBy.id)
                                     }
@@ -225,7 +226,10 @@ fun NotificationItem(
         .fillMaxWidth()
         .background(color = White900)
         .padding(12.dp)
-        .clickable(onClick = {onNotificationClick.invoke()}, indication = null, interactionSource = remember { MutableInteractionSource() })) {
+        .clickable(
+            onClick = { onNotificationClick.invoke() },
+            indication = null,
+            interactionSource = remember { MutableInteractionSource() })) {
 
         Row(
             Modifier.fillMaxWidth(),
@@ -249,7 +253,9 @@ fun NotificationItem(
 
                 )
 
-                Column(modifier = Modifier.weight(1f).height(48.dp)) {
+                Column(modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)) {
 
                     Text(
                         text = annotatedText,
@@ -260,7 +266,9 @@ fun NotificationItem(
 
                 if (!notificationDTO.content?.image.isNullOrEmpty()) {
                     AsyncImage(
-                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(6.dp)),
                         model = notificationDTO.content?.image,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,

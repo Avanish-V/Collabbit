@@ -91,7 +91,9 @@ fun ConnectionsScreen(navHostController: NavHostController) {
         containerColor = secondary
     ) { padding ->
 
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Box(modifier = Modifier
+            .padding(padding)
+            .fillMaxSize()) {
 
             when{
                 connections.isLoading->{
@@ -101,14 +103,14 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                 connections.error.isNotEmpty()->{
 
                     ErrorScreen(
-                        isActive = true,
                         text = "Something went wrong!",
                         image = R.drawable.undraw_voice_assistant_k27k,
                         onReTry = {
                             scope.launch {
                                 user?.let { profileViewModel.getConnections(it) }
                             }
-                        }
+                        },
+                        buttonText = "Try again"
                     )
                 }
                 connections.connectionList.isEmpty()->{
@@ -174,7 +176,9 @@ fun ConnectionsItemView(
     ) {
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -188,9 +192,9 @@ fun ConnectionsItemView(
 
             Column(modifier = Modifier.weight(1f),) {
                 Text(text = connectionData.user.userName, style = typography.headingMedium)
-                if (connectionData.user.about.isNotEmpty()){
+                if (connectionData.user.userBio.isNotEmpty()) {
                     Text(
-                        text = connectionData.user.about,
+                        text = connectionData.user.userBio,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1
                     )

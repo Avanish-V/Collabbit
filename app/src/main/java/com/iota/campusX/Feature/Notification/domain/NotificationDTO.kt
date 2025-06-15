@@ -1,6 +1,7 @@
 package com.iota.campusX.Feature.Notification.domain
 
-import com.iota.campusX.Feature.Post.domain.User
+import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
+import com.iota.campusX.Feature.Post.domain.Models.User
 
 data class NotificationDTO(
     var notificationId: String? = null,
@@ -9,7 +10,7 @@ data class NotificationDTO(
     var actionBy: User = User(), // Ensure User also has a no-arg constructor
     var content: Content? = null,
     var type: String = "",
-    var userType: String = "",
+    var visibilityMode: PostVisibilityMode? = null,
     var postId: String = "",
 )
 
@@ -21,7 +22,7 @@ data class CreateNotificationDTO(
     var actionBy: String = "",
     val isRead: Boolean = false,
     var type: String = "",
-    var userType: String = "USER",
+    var visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
     var contentId: String  = "",
 )
 

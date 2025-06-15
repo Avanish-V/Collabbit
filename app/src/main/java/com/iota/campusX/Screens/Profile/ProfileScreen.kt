@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -90,35 +89,37 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
-import com.iota.campusX.Feature.Post.domain.User
-import com.iota.campusX.Feature.Post.presentation.PostViewModel
-import com.iota.campusX.Feature.UserProfile.data.Campus
+import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Home.BottomSheetSharedViewModel
+import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
+import com.iota.campusX.Screens.Home.BottomSheet.Content
+import com.iota.campusX.Screens.Home.BottomSheet.ContentType
+import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
+import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.Utils.StatusScreen
+import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.timeMillsToString
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.PostCard
-import com.iota.campusX.ui.UIComponents.PostDotOptionBottomSheet
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.Black900
-import com.iota.campusX.ui.theme.primary
-import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -126,7 +127,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileScreen(
     navHostController: NavHostController,
-    postViewModel: PostViewModel,
+    postViewModel: PostFeedViewModel,
     profileViewModel: UserProfileViewModel,
     googleSignInViewModel: AuthViewModel,
     navigationViewModel: NavigationViewModel
@@ -254,7 +255,8 @@ fun ProfileScreen(
     ) { innerPadding ->
 
         LazyColumn (
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(innerPadding)
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             state = postLazyColumnState
@@ -406,9 +408,9 @@ fun ProfileScreen(
 
         PostDotOptionBottomSheet(
             isBottomSheet = bottomSheetData.isBottomSheet,
-            bottomSheetSharedViewModel = bottomSheetViewModel,
-            postViewModel = postViewModel,
-            onDismiss = { bottomSheetViewModel.hideBottomSheet(false) },
+            bottomSheetViewModel = bottomSheetViewModel,
+            postFeedViewModel = postViewModel,
+            onDismiss = { },
             isCurrentUser = bottomSheetData.isCurrentUser,
             onDeleteClick = {
                 isAlertDialogVisible.value = !isAlertDialogVisible.value
@@ -417,7 +419,6 @@ fun ProfileScreen(
 
             },
             onHideBottomSheet = {
-                bottomSheetViewModel.hideBottomSheet(false)
             }
         )
 
@@ -478,37 +479,37 @@ fun ProfileScreen(
                                             .clickable(
                                                 onClick = {
 
-                                                    scope.launch {
-                                                        postViewModel.deletePost(
-                                                            bottomSheetData.postId,
-                                                            bottomSheetData.campusId
-                                                        )
-                                                            .collect {
-                                                                when (it) {
-                                                                    is ResultState.Success -> {
-                                                                        delay(1000)
-                                                                        isLoading.value = false
-                                                                        isAlertDialogVisible.value =
-                                                                            false  // <-- Add this line
-                                                                        bottomSheetData.isBottomSheet =
-                                                                            false
-                                                                        postViewModel.updateDeletePost(
-                                                                            bottomSheetData.postId
-                                                                        )
-                                                                    }
-
-                                                                    is ResultState.Error -> {
-                                                                        bottomSheetData.isBottomSheet =
-                                                                            false
-                                                                        isLoading.value = false
-                                                                    }
-
-                                                                    is ResultState.Loading -> {
-                                                                        isLoading.value = true
-                                                                    }
-                                                                }
-                                                            }
-                                                    }
+//                                                    scope.launch {
+//                                                        postViewModel.deletePost(
+//                                                            bottomSheetData.postId,
+//                                                            bottomSheetData.campusId
+//                                                        )
+//                                                            .collect {
+//                                                                when (it) {
+//                                                                    is ResultState.Success -> {
+//                                                                        delay(1000)
+//                                                                        isLoading.value = false
+//                                                                        isAlertDialogVisible.value =
+//                                                                            false  // <-- Add this line
+//                                                                        bottomSheetData.isBottomSheet =
+//                                                                            false
+//                                                                        postViewModel.updateDeletePost(
+//                                                                            bottomSheetData.postId
+//                                                                        )
+//                                                                    }
+//
+//                                                                    is ResultState.Error -> {
+//                                                                        bottomSheetData.isBottomSheet =
+//                                                                            false
+//                                                                        isLoading.value = false
+//                                                                    }
+//
+//                                                                    is ResultState.Loading -> {
+//                                                                        isLoading.value = true
+//                                                                    }
+//                                                                }
+//                                                            }
+//                                                    }
 
                                                     context.vibrate()
 
@@ -938,7 +939,7 @@ fun CampusWidget(campus: Campus?) {
 @Composable
 fun PostScreenComponent(
     navHostController: NavHostController,
-    postViewModel: PostViewModel,
+    postViewModel: PostFeedViewModel,
     navigationViewModel: NavigationViewModel,
     bottomSheetSharedViewModel: BottomSheetSharedViewModel,
     currentUser: String,
@@ -950,42 +951,21 @@ fun PostScreenComponent(
         postViewModel.fetchPostById(currentUser, campusId)
     }
 
-    val postState = postViewModel.postState.collectAsState().value
+    val postById = postViewModel.postById.collectAsState().value
 
     Box(Modifier.fillMaxSize()){
 
         Column (modifier = Modifier.fillMaxSize()){
 
-            when {
-
-                postState.isLoading -> {
-
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            color = primary
-                        )
-                    }
+            when (postById) {
+                is UiState.Loading -> {
+                    LoadingUI(true)
                 }
 
-                postState.postData.isEmpty()->{
+                is UiState.Success -> {
 
-                    StatusScreen(
-                        isActive = true,
-                        text = "No posts",
-                        image = null
-                    )
-                }
+                    val sortedPost = postById.data.sortedByDescending { it.createdAt }
 
-                postState.error.isNotEmpty() -> {
-                    ErrorScreen(
-                        isActive = true,
-                        text = "Something went wrong",
-                        image = R.drawable.landscape_placeholder_svgrepo_com,
-                    ) { }
-                }
-                else->{
-
-                    val sortedPost =postState.postData.sortedByDescending { it.postedAt }
                     sortedPost.forEach {
 
                         PostCard(
@@ -998,7 +978,8 @@ fun PostScreenComponent(
                                 postViewModel.toggleLike(
                                     userId = it.creatorDetail.profile?.id ?: "",
                                     postId = it.postId,
-                                    isLiked = it.postActions.isLiked
+                                    isLiked = it.postActions.isLiked,
+                                    isCampus = it.campusId.isNullOrEmpty()
                                 )
                                 context.vibrate()
                             },
@@ -1011,25 +992,19 @@ fun PostScreenComponent(
                             navHostController = navHostController,
                             onDotMenuClick = {
                                 bottomSheetSharedViewModel.setBottomSheetState(
-                                    postText = it.postContent.postData.postText,
                                     state = true,
-                                    type = "POST",
                                     isCurrentUser = it.creatorDetail.isCurrentUser,
-                                    postId = it.postId,
-                                    campusId = it.campusId.toString()
+                                    campusId = it.campusId,
+                                    content = Content(
+                                        postId = it.postId,
+                                        text = it.postContent.postData.postText
+                                    ),
+                                    contentType = ContentType.POST,
+                                    sheetType = SheetType.MENU_LIST,
                                 )
                             },
-                            goToProfile = {
+                            onPollSelect = {
 
-                                if (it.postMode != "USER") return@PostCard
-
-                                navHostController.navigate(Routes.Main.ProfileByID.routes)
-                                    .apply {
-                                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                            "USER_ID",
-                                            it.creatorDetail.profile?.id
-                                        )
-                                    }
                             }
                         )
 
@@ -1037,10 +1012,21 @@ fun PostScreenComponent(
 
                 }
 
+                is UiState.Error -> {
+                    ErrorScreen(
+                        text = "Something went wrong",
+                        image = R.drawable.landscape_placeholder_svgrepo_com,
+                        buttonText = "Try again",
+                        onReTry = {
+                            postViewModel.fetchPostById(currentUser, campusId)
+                        }
+                    )
+                }
+
+                is UiState.Idle -> {}
             }
 
         }
     }
-
 }
 

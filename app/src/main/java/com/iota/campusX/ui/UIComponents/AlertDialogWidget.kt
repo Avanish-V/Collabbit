@@ -1,6 +1,5 @@
 package com.iota.campusX.ui.UIComponents
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,11 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.theme.primary
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +49,6 @@ fun AlertDialogWidget(
             BasicAlertDialog(
                 onDismissRequest = {onDismiss(false)},
             ) {
-
                 Surface(
                     shape = RoundedCornerShape(6.dp)
                 ) {
@@ -81,7 +75,7 @@ fun AlertDialogWidget(
                                 Box(Modifier
                                     .weight(1f)
                                     .clickable(
-                                        onClick = { onDismiss(false)},
+                                        onClick = { onDismiss(false) },
                                         indication = null,
                                         interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
                                     Text(negativeButtonText, modifier = Modifier.padding(16.dp))

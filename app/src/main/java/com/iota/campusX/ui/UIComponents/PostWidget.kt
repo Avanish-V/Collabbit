@@ -29,15 +29,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,7 +48,9 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -67,14 +67,16 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
-import com.iota.campusX.Feature.Post.domain.PostActions
-import com.iota.campusX.Feature.Post.domain.PostContent
-import com.iota.campusX.Feature.Post.domain.PostDTO
-import com.iota.campusX.Feature.Post.domain.Reference
-import com.iota.campusX.Feature.Post.domain.User
+import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
+import com.iota.campusX.Feature.Post.domain.Models.PostActions
+import com.iota.campusX.Feature.Post.domain.Models.PostContent
+import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
+import com.iota.campusX.Feature.Post.domain.Models.Reference
+import com.iota.campusX.Feature.Post.domain.Models.User
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Post.PollOption
+import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.theme.Black300
@@ -93,79 +95,96 @@ fun PostCard(
     onLikeClick: () -> Unit,
     onReplyClick: () -> Unit,
     onDotMenuClick: () -> Unit,
-    goToProfile: () -> Unit,
-    post: PostDTO,
+    onPollSelect: (String) -> Unit,
+    post: GetPostDTO,
     navHostController: NavHostController
 ) {
+    var rightColumnHeight by remember { mutableIntStateOf(0) }
+    LocalDensity.current
 
     Column(
         modifier = Modifier
-            .background(
-
-                color = White900
-            )
+            .padding(horizontal = 8.dp, vertical = 12.dp)
+            .background(White900)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = { onPostClick.invoke() }
+                onClick = onPostClick
             )
             .fillMaxWidth()
-            .padding(12.dp)
+
     ) {
-        Row {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Left column with explicit height synced to rightColumnHeight
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                //modifier = Modifier.height(with(density) { rightColumnHeight.toDp() })
+            ) {
 
-            Column {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircleImage(
-                        image = post.creatorDetail.profile?.userImage ?: "",
-                        modifier = Modifier.size(48.dp),
-                        onClick = {
-                            goToProfile.invoke()
-                        }
-                    )
-                }
+                CircleImage(
+                    image = post.creatorDetail.profile?.userImage.orEmpty(),
+                    modifier = Modifier.size(42.dp),
+                    onClick = {
 
-//                TODO:: For Column
+                        if (post.visibilityMode != PostVisibilityMode.USER) return@CircleImage
+
+                        navHostController.navigate(Routes.Main.ProfileByID.routes)
+                            .apply {
+                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                    "USER_ID",
+                                    post.creatorDetail.profile?.id
+                                )
+                            }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+//                VerticalDivider(
+//                    modifier = Modifier.fillMaxHeight()
+//                )
+
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            Column {
-
+            // Right column - capture height on layout
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .onGloballyPositioned { coordinates ->
+                        rightColumnHeight = coordinates.size.height
+                    }
+            ) {
                 PostHeader(
-                    about = post.creatorDetail.profile?.about ?: "",
+                    about = post.creatorDetail.profile?.userBio.orEmpty(),
                     user = post.creatorDetail.profile,
                     pod = post.reference,
-                    postedAt = getTimeAgo(post.postedAt),
-                    onNameClick = {
-                        goToProfile.invoke()
-
-                    }
+                    postedAt = getTimeAgo(post.createdAt),
                 )
 
                 PostBody(
                     postContent = post.postContent,
-                    navHostController = navHostController
+                    navHostController = navHostController,
+                    onPollSelect = onPollSelect
                 )
 
                 PostActionsComponent(
                     postAction = post.postActions,
                     user = post.creatorDetail.profile,
-                    onLikeClick = { onLikeClick.invoke() },
-                    onReplyClick = { onReplyClick.invoke() },
-                    onDotMenuClick = { onDotMenuClick.invoke() }
+                    onLikeClick = onLikeClick,
+                    onReplyClick = onReplyClick,
+                    onDotMenuClick = onDotMenuClick
                 )
 
             }
-
-
         }
+
     }
 }
+
 
 @Composable
 fun PostHeader(
@@ -173,7 +192,6 @@ fun PostHeader(
     user: User?,
     pod: Reference? = null,
     postedAt: String? = null,
-    onNameClick: () -> Unit
 ) {
 
     val text = buildAnnotatedString {
@@ -182,8 +200,15 @@ fun PostHeader(
             append(" ● ")
         }
 
-        withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
-            append("Alumni")
+        withStyle(style = SpanStyle(color = Black500, fontWeight = FontWeight.SemiBold)) {
+            append("3yr")
+        }
+        withStyle(style = SpanStyle(color = White400)) {
+            append(" ● ")
+        }
+
+        withStyle(style = SpanStyle(color = Black500, fontWeight = FontWeight.SemiBold)) {
+            append(postedAt.toString())
         }
 
     }
@@ -206,13 +231,15 @@ fun PostHeader(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = {
-                                    onNameClick.invoke()
+
                                 }
                             ),
                         text = user?.userName ?: "",
                         fontSize = 14.sp,
-                        lineHeight = 0.1.sp,
+                        lineHeight = 14.sp,
                         maxLines = 1,
+                        softWrap = false,
+                        style = typography.headingMedium,
                         overflow = TextOverflow.Ellipsis
                     )
 
@@ -226,7 +253,7 @@ fun PostHeader(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = {
-                                    onNameClick.invoke()
+
                                 }
                             ),
                         text = text,
@@ -238,6 +265,8 @@ fun PostHeader(
 
 
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row (verticalAlignment = Alignment.CenterVertically){
 
@@ -252,14 +281,14 @@ fun PostHeader(
                     )
                 }
 
-                Text(
-                    modifier = Modifier,
-                    text = postedAt.toString(),
-                    fontSize = 14.sp,
-                    lineHeight = 0.1.sp,
-                    maxLines = 1,
-                    color = Black300
-                )
+//                Text(
+//                    modifier = Modifier,
+//                    text = postedAt.toString(),
+//                    fontSize = 14.sp,
+//                    lineHeight = 0.1.sp,
+//                    maxLines = 1,
+//                    color = Black300
+//                )
 
 
 
@@ -487,54 +516,34 @@ suspend fun getImageSize(context: Context, imageUrl: String): Pair<Int, Int>? {
 
 
 @Composable
-fun Modifier.imageRatio(imageUrl: String): Modifier {
-    val context = LocalContext.current
-    var imageSize by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-
-    val imageSizeCache = remember { mutableStateMapOf<String, Pair<Int, Int>>() }
-
-    LaunchedEffect(Unit) {
-        if (imageSize != null) return@LaunchedEffect
-        if (imageSizeCache.contains(imageUrl)) {
-            imageSize = imageSizeCache[imageUrl]
-        } else {
-            getImageSize(context, imageUrl)?.let {
-                imageSizeCache[imageUrl] = it
-                imageSize = it
-            }
-        }
-    }
-
-
-    imageSize?.let { (width, height) ->
-        return when {
-            width > height -> this.then(Modifier.fillMaxWidth().height(180.dp))
-            else -> this.then(Modifier.fillMaxWidth().height(350.dp))
-        }
-    }
-
-    return this.then(Modifier.fillMaxWidth().height(200.dp)) // fallback
-}
-
-@Composable
 fun PostBody(
     postContent: PostContent,
-    navHostController: NavHostController
+    navHostController: NavHostController,
+    onPollSelect: (String) -> Unit
 ) {
 
     Column(modifier = Modifier.padding(vertical = 12.dp)) {
 
         when(postContent.postType){
-            "TEXT"->{
 
-                if (postContent.postData.postText.isNotEmpty()){
+            PostOptions.TEXT -> {
+
+                if (postContent.postData.postText.isNotEmpty()) {
                     ExpandableText(
                         text = postContent.postData.postText,
                         minimizedMaxLines = 4
                     )
                 }
 
-                if (postContent.postData.postText.isNotEmpty()&&!postContent.postData.postImage.isNullOrBlank() && postContent.postData.postImage != "null"){
+            }
+
+            PostOptions.IMAGE -> {
+
+                if (postContent.postData.postText.isNotEmpty()){
+                    ExpandableText(
+                        text = postContent.postData.postText,
+                        minimizedMaxLines = 4
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
@@ -548,22 +557,25 @@ fun PostBody(
                 }
 
             }
-            "POLL"->{
 
+            PostOptions.POLL -> {
                 PollOptionsUI(
                     question = postContent.postData.poll?.question ?: "",
                     options = postContent.postData.poll?.options,
                     showResults = true,
-                    totalVotes = postContent.postData.poll?.options?.sumOf { it.votes } ?: 0,
-                    onOptionSelected = {}
-                )
+                    totalVotes = postContent.postData.poll?.options?.sumOf { it.votes.count() }
+                        ?: 0,
+                    onOptionSelected = {
+                        onPollSelect(it)
+                    },
+                    hasVoted = postContent.postData.poll?.hasVoted == true
 
+                )
             }
 
+            PostOptions.VIDEO -> {}
+            PostOptions.FILE -> {}
         }
-
-
-
     }
 }
 
@@ -574,67 +586,69 @@ fun PollOptionsUI(
     selectedOptionId: String? = null,
     onOptionSelected: (String) -> Unit,
     showResults: Boolean = false,
-    totalVotes: Int
+    totalVotes: Int,
+    hasVoted: Boolean = false
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
         Text(
             text = question,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
+            style = typography.bodyMedium
         )
 
         options?.forEach { option ->
-            val isSelected = selectedOptionId == option.id
-            val percentage = if (totalVotes > 0) (option.votes * 100 / totalVotes) else 0
+            val isSelected = selectedOptionId == option.optionId
+            val percentage = if (totalVotes > 0) (option.votes.count() * 100 / totalVotes) else 0
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "$percentage%",
-                    modifier = Modifier.width(40.dp)
-                )
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
-                        .drawBehind {
-                            if (showResults) {
-                                val fillWidth = size.width * (percentage / 100f)
-                                drawRoundRect(
-                                    color = if (isSelected) secondary else Color.Red,
-                                    size = androidx.compose.ui.geometry.Size(width = fillWidth, height = size.height),
-                                    cornerRadius = CornerRadius(12f, 12f)
-                                )
-                            }
-                        }
                         .border(
                             width = 1.dp,
                             color = Black300,
                             shape = RoundedCornerShape(6.dp)
                         )
                         .clip(RoundedCornerShape(6.dp))
-                        .clickable(enabled = !showResults) {
-                            onOptionSelected(option.id)
+                        .drawBehind {
+                            if (showResults) {
+                                val fillWidth = size.width * (percentage / 100f)
+                                drawRoundRect(
+                                    color = if (isSelected) Color.Black else White400,
+                                    size = androidx.compose.ui.geometry.Size(
+                                        width = fillWidth,
+                                        height = size.height
+                                    ),
+                                    cornerRadius = CornerRadius(12f, 12f)
+                                )
+                            }
+                        }
+
+                        .clickable {
+                            if (hasVoted) return@clickable
+                            onOptionSelected(option.optionId)
                         }
                         .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
+                        modifier = Modifier.weight(1f),
                         text = option.text,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
                     )
 
-                    Text(
-                        text = option.votes.toString(),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(text = "$percentage%")
                 }
             }
         }
@@ -643,7 +657,7 @@ fun PollOptionsUI(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "Total Votes: $totalVotes • Poll ended")
+            Text(text = "Total Votes $totalVotes • Poll ended", color = Black300)
         }
     }
 }

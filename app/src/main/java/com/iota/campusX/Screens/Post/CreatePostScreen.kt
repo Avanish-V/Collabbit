@@ -1,24 +1,30 @@
 package com.iota.campusX.Screens.Post
 
 import android.net.Uri
+import android.os.Build
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -61,73 +67,96 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
-import com.iota.campusX.Feature.Post.domain.CreatePostDTO
-import com.iota.campusX.Feature.Post.domain.Reference
-import com.iota.campusX.Feature.Post.domain.PostActions
-import com.iota.campusX.Feature.Post.domain.PostContent
-import com.iota.campusX.Feature.Post.domain.PostData
-import com.iota.campusX.Feature.Post.domain.User
-import com.iota.campusX.Feature.Post.presentation.PostViewModel
+import com.iota.campusX.Feature.Post.domain.Models.CreatePostDTO
+import com.iota.campusX.Feature.Post.domain.Models.CreatorDetail
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
+import com.iota.campusX.Feature.Post.domain.Models.PostActions
+import com.iota.campusX.Feature.Post.domain.Models.PostContent
+import com.iota.campusX.Feature.Post.domain.Models.PostData
+import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
+import com.iota.campusX.Feature.Post.domain.Models.Reference
+import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
+import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
+import com.iota.campusX.Feature.Post.presentation.UploadState
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Utils.CustomTextField
+import com.iota.campusX.Utils.UiState
+import com.iota.campusX.Utils.generateUID
+import com.iota.campusX.Utils.vibrate
+import com.iota.campusX.ui.UIComponents.IconButtonWidget
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black900
-import com.iota.campusX.ui.theme.primary
-import com.iota.campusX.ui.theme.secondary
-import com.iota.campusX.ui.theme.background
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.background
+import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.secondary
 import io.ktor.util.date.getTimeMillis
-import com.iota.campusX.Utils.generateUID
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePostScreen(
     navHostController: NavHostController,
     userProfileViewModel: UserProfileViewModel,
-    postViewModel: PostViewModel,
+    postCreationViewModel: PostCreationViewModel,
+    feedViewModel: PostFeedViewModel,
     authViewModel: AuthViewModel,
     homeViewModel: HomeViewModel,
-    postScreenViewModel: PostScreenViewModel = PostScreenViewModel()
 ) {
-
+    val postScreenViewModel = koinInject<PostScreenViewModel>()
     val pollViewModel = koinViewModel<PollViewModel>()
     val poll by pollViewModel.poll.collectAsState()
-    val postOption by postScreenViewModel.post.collectAsState()
+    val pollState = postCreationViewModel.createPollUiState
+    val postOption = postScreenViewModel.post.collectAsState().value
+    val uploadProgress by postCreationViewModel.uploadingProgress.collectAsState()
     val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value.baseProfileData
+
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var text by remember { mutableStateOf("") }
     var selectedPod by remember { mutableStateOf<Reference?>(null) }
     var isExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
-    var selectedMode by remember { mutableStateOf("") }
+    var visibility by remember { mutableStateOf(PostVisibilityMode.USER) }
     var selectedImages by remember { mutableStateOf<Uri?>(null) }
     val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri -> selectedImages = uri }
     )
     val snackbarHostState = remember { SnackbarHostState() }
-    val mode = homeViewModel.switchState.collectAsState().value.isActive
+    val feedMode = homeViewModel.switchState.collectAsState().value
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     val navBackStackEntry = remember { navHostController.currentBackStackEntryFlow }.collectAsState(initial = null).value
 
@@ -135,6 +164,95 @@ fun CreatePostScreen(
         text = ""
         selectedPod = null
         selectedImages = null
+    }
+
+    LaunchedEffect(postOption) {
+        if (selectedImages != null) null
+        if (text.isNotEmpty()) ""
+    }
+
+    LaunchedEffect(pollState) {
+
+        when (pollState) {
+            is UiState.Loading -> {
+                isLoading = true
+            }
+
+            is UiState.Success -> {
+                isLoading = false
+                feedViewModel.updatePostLocally(
+                    getPostDTO = GetPostDTO(
+                        postId = generateUID(),
+                        visibilityMode = visibility,
+                        createdAt = getTimeMillis(),
+                        reference = Reference(
+                            title = selectedPod?.title ?: "",
+                            icon = selectedPod?.icon ?: ""
+                        ),
+                        creatorDetail = CreatorDetail(
+                            profile = User(
+                                userName = userProfile.userName,
+                                id = userProfile.id,
+                                userImage = userProfile.userImage,
+                                userBio = userProfile.userBio,
+                            )
+                        ),
+                        postContent = PostContent(
+                            postType = postScreenViewModel.post.value,
+                            postData = PostData(
+                                postText = text,
+                                postImage = selectedImages.toString(),
+                                poll = poll
+                            )
+                        ),
+                        campusId = userProfile.campus?.campusCode,
+                        postActions = PostActions(
+                            isLiked = false,
+                            likesCount = 0,
+                            replies = emptyList(),
+                            replyCount = 0,
+                        ),
+                    ),
+                    feedMode = FeedMode.GLOBAL
+                )
+                navHostController.popBackStack()
+            }
+
+            is UiState.Error -> {
+                isLoading = false
+                scope.launch {
+                    snackbarHostState.showSnackbar(pollState.message)
+                }
+            }
+
+            else -> {}
+        }
+    }
+
+    LaunchedEffect(uploadProgress) {
+        when (uploadProgress) {
+            is UploadState.Loading -> {
+                isLoading = true
+            }
+
+            is UploadState.Progress -> {
+                isLoading = true
+            }
+
+            is UploadState.Success -> {
+                isLoading = false
+            }
+
+            is UploadState.Error -> {
+                isLoading = false
+                // Optionally show error to user
+            }
+
+            is UploadState.Idle,
+            is UploadState.Started -> {
+                // Handle if needed
+            }
+        }
     }
 
 
@@ -154,7 +272,7 @@ fun CreatePostScreen(
 
                     Text(
                         modifier = Modifier.padding(end = 16.dp),
-                        text = if (mode) "Campus Mode" else "Global Mode",
+                        text = if (feedMode.savedIndex == 0) "Campus Mode" else "Global Mode",
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -163,41 +281,41 @@ fun CreatePostScreen(
         },
         bottomBar = {
             Row(
-                modifier = Modifier.imePadding().background(White900).padding(16.dp)
+                modifier = Modifier
+                    .imePadding()
+                    .background(White900)
+                    .padding(16.dp)
             ) {
 
-                Row(modifier = Modifier.weight(1f)) {
-                    IconButton(
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+
+                    IconButtonWidget(
                         onClick = {
-                            postScreenViewModel.chooseOption(PostOptions.IMAGE_WITH_TEXT)
+                            postScreenViewModel.chooseOption(PostOptions.IMAGE)
                             singlePhotoPickerLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = background
-                        )
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.image),
-                            contentDescription = "Select image"
-                        )
-                    }
-                    IconButton(
+                        icon = R.drawable.image,
+                        description = "Select image",
+                        enabled = postOption == PostOptions.TEXT || postOption == PostOptions.IMAGE
+                    )
+
+                    IconButtonWidget(
+                        modifier = Modifier.rotate(360f),
                         onClick = {
                             postScreenViewModel.chooseOption(PostOptions.POLL)
                             pollViewModel.createPoll("")
-                        },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = background
-                        )
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.outline_poll_24),
-                            contentDescription = "Select image"
-                        )
-                    }
+                        }, icon = R.drawable.graph,
+                        description = "Select image",
+                        enabled = true
+                    )
+
                 }
+                Log.d("Posts", "CreatePostScreen: $postOption")
 
                 Button(
                     modifier = Modifier.shadow(
@@ -207,93 +325,95 @@ fun CreatePostScreen(
                     ),
                     onClick = {
 
-                        when(postOption){
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
 
-                            PostOptions.IMAGE_WITH_TEXT -> {
-
-                                if (selectedPod == null) {
-                                    Toast.makeText(context, "Select Pod", Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
-
-                                if (selectedImages == null && text.isEmpty()) {
-                                    Toast.makeText(context, "Add text or image", Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
-
-                                val postId = generateUID()
-
-                                postViewModel.createPost(
-                                    CreatePostDTO(
-                                        postId = postId,
-                                        type = selectedMode,
-                                        postedAt = getTimeMillis(),
-                                        creatorId = authViewModel.userId(),
-                                        reference = Reference(
-                                            title = selectedPod?.title ?: "",
-                                            icon = selectedPod?.icon ?: ""
-                                        ),
-                                        postContent = PostContent(
-                                            postType = "TEXT",
-                                            postData = PostData(
-                                                postText = text,
-                                            )
-                                        ),
-                                        campusId = if (mode) userProfile.campus?.campusCode else null,
-                                        postActions = PostActions(
-                                            isLiked = false,
-                                        )
-                                    ),
-                                    postMode = mode,
-                                    imageUri = selectedImages,
-                                    user = User(
-                                        userName = userProfile.userName,
-                                        id = userProfile.id,
-                                        userImage = userProfile.userImage
-                                    ),
-                                    onCompletion = {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("Post Created")
-                                            postViewModel.clearResponse()
-                                            navHostController.popBackStack()
-                                        }
-                                    },
-                                    onError = {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(it)
-                                        }
-                                    }
-                                )
-                            }
+                        when (postOption) {
 
                             PostOptions.POLL -> {
 
-                               if (poll == null) return@Button
+                                if (poll == null) return@Button
 
-                                postViewModel.createPoll(
+                                if (poll?.question.isNullOrEmpty()) {
+                                    return@Button
+                                }
+
+                                poll?.options?.map {
+                                    if (it.text.isEmpty()) {
+                                        return@Button
+                                    }
+                                }
+
+
+                                postCreationViewModel.createPoll(
                                     CreatePostDTO(
                                         postId = generateUID(),
-                                        type = selectedMode,
-                                        postedAt = getTimeMillis(),
+                                        visibilityMode = PostVisibilityMode.USER,
+                                        createdAt = getTimeMillis(),
                                         creatorId = authViewModel.userId(),
                                         reference = Reference(
                                             title = "Poll",
                                             icon = "https://cdn-icons-png.flaticon.com/128/741/741867.png"
                                         ),
                                         postContent = PostContent(
-                                            postType = "POLL",
+                                            postType = postScreenViewModel.post.value,
                                             postData = PostData(
                                                 poll = poll
                                             )
                                         ),
-                                        campusId = if (mode) userProfile.campus?.campusCode else null,
+                                        campusId = null,
                                         postActions = PostActions(
                                             isLiked = false,
                                             likesCount = 0,
                                             replies = emptyList(),
-                                            replyCount =0,
+                                            replyCount = 0,
                                         )
                                     )
+                                )
+                            }
+
+                            else -> {
+
+                                if (selectedPod == null) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Select Pod")
+                                    }
+                                    return@Button
+                                }
+
+                                if (selectedImages == null && text.isEmpty()) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Write something or select image")
+                                    }
+                                    return@Button
+                                }
+
+                                val postId = generateUID()
+
+                                postCreationViewModel.createPost(
+                                    dto = CreatePostDTO(
+                                        postId = postId,
+                                        visibilityMode = visibility,
+                                        createdAt = getTimeMillis(),
+                                        creatorId = userProfile.id,
+                                        reference = selectedPod!!,
+                                        postContent = PostContent(
+                                            postType = postScreenViewModel.post.value,
+                                            postData = PostData(
+                                                postText = text,
+                                            )
+                                        ),
+                                        campusId = if (feedMode.savedIndex == 1) userProfile.campus?.campusCode else null,
+                                    ),
+                                    feedMode = FeedMode.GLOBAL,
+                                    imageUri = selectedImages,
+                                    user = User(
+                                        userName = userProfile.userName,
+                                        id = userProfile.id,
+                                        userImage = userProfile.userImage,
+                                        userBio = userProfile.userBio,
+                                    ),
+                                    navHostController
                                 )
                             }
                         }
@@ -332,16 +452,21 @@ fun CreatePostScreen(
         containerColor = secondary
     ) { innerPadding ->
 
-        LazyColumn(modifier = Modifier.padding(innerPadding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        LazyColumn(
+            modifier = Modifier.padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
 
             item {
-                UserPostMode(
-                    userName = userProfile.userName,
-                    userImage = userProfile.userImage,
-                    selectedMode = {
-                        selectedMode = it.toString()
-                    }
-                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    VanishModeButton(
+                        selectedMode = {
+                            visibility = it
+                        },
+                        userImage = userProfile.userImage
+                    )
+                }
             }
 
             item {
@@ -451,86 +576,16 @@ fun CreatePostScreen(
 
             item {
 
-                when(postOption){
-
-                    PostOptions.IMAGE_WITH_TEXT -> {
-
-                        BasicTextField(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(
-                                    width = 1.dp,
-                                    color = White400,
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                .padding(12.dp),
-                            value = text,
-                            onValueChange = { text = it },
-                            textStyle = TextStyle(
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Black900
-                            ),
-                            decorationBox = {
-                                if (text.isEmpty()) {
-                                    Text(
-                                        text = "What's on your mind?",
-                                        color = Black300
-                                    )
-                                }
-                                Column {
-                                    it()
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentAlignment = Alignment.CenterEnd
-                                    ) {
-                                        Text(text = "${text.count()}/500", color = Black300)
-                                    }
-                                    if (selectedImages != null) {
-                                        AnimatedVisibility(visible = true) {
-                                            Box(contentAlignment = Alignment.TopEnd) {
-                                                AsyncImage(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(5.dp))
-                                                        .fillMaxWidth()
-                                                        .height(250.dp),
-                                                    model = selectedImages,
-                                                    contentDescription = null,
-                                                    contentScale = ContentScale.Crop
-                                                )
-
-                                                IconButton(
-                                                    modifier = Modifier,
-                                                    onClick = { selectedImages = null },
-                                                    colors = IconButtonDefaults.iconButtonColors(
-                                                        containerColor = secondary
-                                                    )
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Close,
-                                                        contentDescription = "Delete Image",
-
-                                                        )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                            },
-                            cursorBrush = Brush.verticalGradient(listOf(primary, primary))
-
-                        )
-                    }
+                when (postOption) {
 
                     PostOptions.POLL -> {
 
                         poll?.let { poll ->
 
-                            Column(horizontalAlignment = Alignment.End ){
+                            Column(horizontalAlignment = Alignment.End) {
 
                                 IconButton(onClick = {
-                                    postScreenViewModel.chooseOption(PostOptions.IMAGE_WITH_TEXT)
+                                    postScreenViewModel.chooseOption(PostOptions.TEXT)
                                 }) {
                                     Icon(
                                         painter = painterResource(R.drawable.trash),
@@ -567,7 +622,7 @@ fun CreatePostScreen(
                                             )
 
                                         }
-                                        Column (verticalArrangement = Arrangement.spacedBy(12.dp)){
+                                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
                                             it()
 
@@ -575,21 +630,29 @@ fun CreatePostScreen(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 contentAlignment = Alignment.CenterEnd
                                             ) {
-                                                Text(text = "${poll.options?.count()}/150", color = Black300)
+                                                Text(
+                                                    text = "${poll.options?.count()}/150",
+                                                    color = Black300
+                                                )
                                             }
 
-                                            poll.options?.forEachIndexed {index,pollOption->
+                                            poll.options?.forEachIndexed { index, pollOption ->
                                                 CustomTextField(
                                                     value = pollOption.text,
                                                     onValueChange = {
-                                                        pollViewModel.updatePollOptionText(pollOption.id,it.toString())
+                                                        pollViewModel.updatePollOptionText(
+                                                            pollOption.optionId,
+                                                            it.toString()
+                                                        )
                                                     },
                                                     label = "",
                                                     enabled = true,
                                                     placeHolder = pollOption.label,
-                                                    trailingIcon ={
+                                                    trailingIcon = {
                                                         IconButton(onClick = {
-                                                            pollViewModel.removePollOption(pollOption.id)
+                                                            pollViewModel.removePollOption(
+                                                                pollOption.optionId
+                                                            )
                                                         }) {
                                                             Icon(
                                                                 imageVector = Icons.Default.Clear,
@@ -604,29 +667,110 @@ fun CreatePostScreen(
                                                 )
                                             }
 
-                                            TextButton(onClick = {pollViewModel.addPollOption()}) {
-                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                                                    Text(text = "Add Option")
+                                            if (poll.options?.count() != 4) {
+                                                TextButton(onClick = { pollViewModel.addPollOption() }) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(
+                                                            5.dp
+                                                        )
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Add,
+                                                            contentDescription = null
+                                                        )
+                                                        Text(text = "Add Option")
 
+                                                    }
                                                 }
                                             }
-
                                         }
 
                                     },
                                     cursorBrush = Brush.verticalGradient(listOf(primary, primary))
                                 )
                             }
-
-
-
-
-
                         }
-
                     }
 
+                    else -> {
+                        BasicTextField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    width = 1.dp,
+                                    color = White400,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .padding(12.dp),
+                            value = text,
+                            onValueChange = { text = it },
+                            textStyle = TextStyle(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Black900
+                            ),
+                            decorationBox = {
+                                if (text.isEmpty()) {
+                                    Text(
+                                        text = "What's on your mind?",
+                                        color = Black300
+                                    )
+                                }
+                                Column {
+
+                                    it()
+
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        Text(text = "${text.count()}/500", color = Black300)
+                                    }
+
+                                    if (postOption == PostOptions.IMAGE) {
+                                        if (selectedImages != null) {
+                                            AnimatedVisibility(visible = true) {
+                                                Box(contentAlignment = Alignment.TopEnd) {
+                                                    AsyncImage(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(5.dp))
+                                                            .fillMaxWidth()
+                                                            .height(250.dp),
+                                                        model = selectedImages,
+                                                        contentDescription = null,
+                                                        contentScale = ContentScale.Crop
+                                                    )
+
+                                                    IconButton(
+                                                        modifier = Modifier.size(24.dp),
+                                                        onClick = {
+                                                            selectedImages = null
+                                                            postScreenViewModel.chooseOption(
+                                                                PostOptions.TEXT
+                                                            )
+                                                        },
+                                                        colors = IconButtonDefaults.iconButtonColors(
+                                                            containerColor = secondary
+                                                        )
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Delete Image",
+
+                                                            )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                            },
+                            cursorBrush = Brush.verticalGradient(listOf(primary, primary))
+
+                        )
+                    }
                 }
             }
         }
@@ -656,83 +800,84 @@ val podListItems = listOf<Reference>(
 
 )
 
-enum class PostMode {
+enum class PostVisibilityMode { USER, ANONYMOUS }
 
-    USER,
-    ANONYMOUS
-
-}
-
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun UserPostMode(
-    userName: String,
-    userImage: String,
-    selectedMode: (PostMode) -> Unit
+fun VanishModeButton(
+    modifier: Modifier = Modifier,
+    selectedMode: (PostVisibilityMode) -> Unit,
+    userImage: String
 ) {
 
-    var mode by remember { mutableStateOf(PostMode.USER) }
+    var mode by remember { mutableStateOf(PostVisibilityMode.USER) }
 
-    when (mode) {
-        PostMode.USER -> {
-            selectedMode(mode)
-        }
-
-        PostMode.ANONYMOUS -> {
-            selectedMode(mode)
-        }
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-
-        AsyncImage(
-            modifier = Modifier
-                .size(60.dp)
-                .clip(CircleShape),
-            model = if (mode == PostMode.USER) userImage else R.drawable.incognoto,
-            contentDescription = null,
-            contentScale = ContentScale.Crop
-        )
-
-        Column {
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-
-                ) {
-
-                Text(
-                    text = if (mode == PostMode.USER) userName else "Anonymous",
-                    fontWeight = FontWeight.Bold,
-                    color = Black900,
-
-                    )
-
-                IconButton(
-                    onClick = {
-                        if (mode == PostMode.USER) {
-                            mode = PostMode.ANONYMOUS
-                        } else {
-                            mode = PostMode.USER
-                        }
-                    },
-                    colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.refresh_2),
-                        contentDescription = null,
-                        tint = primary
-                    )
-                }
-
+    LaunchedEffect(mode) {
+        when (mode) {
+            PostVisibilityMode.USER -> {
+                selectedMode(mode)
             }
 
+            PostVisibilityMode.ANONYMOUS -> {
+                selectedMode(mode)
+            }
         }
-
     }
 
-}
+    val context = LocalContext.current
+    val offsetX = remember { Animatable(0f) }
+    val threshold = 200f // Distance to trigger vanish mode horizontally
+    val coroutineScope = rememberCoroutineScope()
 
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+
+        Text(
+            text = "Swipe right to change visibility",
+            color = Black300,
+            modifier = Modifier
+                .padding(start = 85.dp)
+                .alpha(100 / offsetX.value)
+        )
+
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .size(62.dp)
+                .clip(CircleShape)
+                .background(Color.Gray)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { _, dragAmount ->
+                            if (dragAmount > 0) { // Only allow dragging to the right
+                                coroutineScope.launch {
+                                    val newOffset = offsetX.value + dragAmount
+                                    offsetX.snapTo(newOffset)
+                                }
+                            }
+                        },
+                        onDragEnd = {
+                            coroutineScope.launch {
+                                if (offsetX.value > threshold) {
+                                    if (mode == PostVisibilityMode.USER) {
+                                        mode = PostVisibilityMode.ANONYMOUS
+                                    } else {
+                                        mode = PostVisibilityMode.USER
+                                    }
+                                    context.vibrate()
+                                }
+                                offsetX.animateTo(0f, animationSpec = spring())
+                            }
+                        }
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                modifier = Modifier.fillMaxSize(),
+                model = if (mode == PostVisibilityMode.USER) userImage else R.drawable.incognoto,
+                contentDescription = null,
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}

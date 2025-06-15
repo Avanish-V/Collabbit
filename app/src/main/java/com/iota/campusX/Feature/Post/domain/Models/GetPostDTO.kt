@@ -1,17 +1,15 @@
-package com.iota.campusX.Feature.Post.domain
+package com.iota.campusX.Feature.Post.domain.Models
 
-import android.os.Parcelable
 import androidx.annotation.Keep
-import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class PostDTO(
+data class GetPostDTO(
     val postId: String = "",
-    val postedAt: Long = 0L,
+    val createdAt: Long = 0L,
     val creatorDetail: CreatorDetail,
     val reference: Reference,
-    val postMode: String?=null,
+    val visibilityMode: PostVisibilityMode,
     val campusId: String?=null,
     val postContent: PostContent,
     val postActions: PostActions
@@ -19,10 +17,10 @@ data class PostDTO(
     @Keep
     constructor() : this(
         postId = "",
-        postedAt = 0L,
+        createdAt = 0L,
         creatorDetail = CreatorDetail(),
         reference = Reference(),
-        postMode = null,
+        visibilityMode = PostVisibilityMode.USER,
         campusId = null,
         postContent = PostContent(),
         postActions = PostActions()
@@ -36,7 +34,6 @@ data class CreatorDetail(
     val isCurrentUser: Boolean = false,
     val isVerified: Boolean = false,
     val isPremium: Boolean = false,
-    val type : String = "",
     val profile: User? = null
 )
 
@@ -46,7 +43,7 @@ data class User(
     val userName: String = "",
     val id: String = "",
     val userImage: String = "",
-    val about: String = "",
+    val userBio: String = "",
     val designation: String?=null,
     val isCurrentUser: Boolean?=false,
 )
