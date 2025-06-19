@@ -12,6 +12,7 @@ data class CreatePostDTO(
     val creatorId: String = "",
     val reference: Reference = Reference(),
     val campusId: String? = null,
+    val feedMode: FeedMode = FeedMode.GLOBAL,
     val postContent: PostContent = PostContent(),
     val postActions: PostActions = PostActions()
 )

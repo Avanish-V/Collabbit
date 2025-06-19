@@ -7,40 +7,41 @@ import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Gender
+import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.Flow
 
 interface UserProfileRepo {
 
-    suspend fun getBaseProfile():Flow<ResultState<BasicProfileDTO>>
+    suspend fun getBaseProfile(): Result<BasicProfileDTO>
 
-    suspend fun getUserProfileById(userId:String):Flow<ResultState<BasicProfileDTO>>
+    suspend fun getUserProfileById(userId:String): Result<BasicProfileDTO>
 
-    fun deleteAccount():Flow<ResultState<Boolean>>
+    suspend fun deleteAccount(): Result<Boolean>
 
-    fun updateUserName(userName:String):Flow<ResultState<Boolean>>
+    suspend fun updateUserName(userName:String): Result<Boolean>
 
-    fun updateSocialAccounts(accounts:String):Flow<ResultState<Boolean>>
+    suspend fun updateSocialAccounts(accounts:String): Result<Boolean>
 
-    fun updateAbout(about:String):Flow<ResultState<Boolean>>
+    suspend fun updateAbout(about:String): Result<Boolean>
 
-    fun updateGender(gender: Gender):Flow<ResultState<Boolean>>
+    suspend fun updateGender(gender: Gender): Result<Boolean>
 
-    fun updateInterests(interests:List<String>):Flow<ResultState<Boolean>>
+    suspend fun updateInterests(interests:List<String>): Result<Boolean>
 
-    fun updateProfileImage(imageUri:Uri):Flow<ResultState<Boolean>>
+    suspend fun updateProfileImage(imageUri:Uri): Result<Boolean>
 
-    fun updateUniversity(title: String): Flow<ResultState<List<UniversityDTO>>>
+    suspend fun updateCampus(campus: Campus): Result<Boolean>
 
-    fun updateCampus(campus: Campus): Flow<ResultState<Boolean>>
+    suspend fun sendLinkUpRequest(requestUserId: String,currentState: Boolean? = null): Result<Boolean>
 
-    fun sendLinkUpRequest(requestUserId: String,currentState: Boolean? = null): Flow<ResultState<Boolean>>
+    suspend fun acceptLinkUpRequest(requestUserId: String): Result<Boolean>
 
-    fun acceptLinkUpRequest(requestUserId: String): Flow<ResultState<Boolean>>
+    suspend fun rejectLinkUpRequest(requestUserId: String): Result<Boolean>
 
-    fun rejectLinkUpRequest(requestUserId: String): Flow<ResultState<Boolean>>
+    suspend fun getConnectionsCount(userId: String): Result<Int>
 
-    fun getConnectionsCount(userId: String):Flow<ResultState<Int>>
+    suspend fun getConnections(userId: String): Result<List<ConnectionsDTO>>
 
-    fun getConnections(userId: String):Flow<ResultState<List<ConnectionsDTO>>>
+    fun updateUniversity(title: String): Flow<UiState<List<UniversityDTO>>>
 
 }

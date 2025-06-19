@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -73,8 +74,13 @@ import com.iota.campusX.Feature.Post.domain.Models.PostContent
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.Reference
 import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
+import com.iota.campusX.Screens.Home.BottomSheet.Content
+import com.iota.campusX.Screens.Home.BottomSheet.ContentType
+import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Screens.Post.PollOption
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
@@ -91,15 +97,45 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun PostCard(
-    onPostClick: () -> Unit,
-    onLikeClick: () -> Unit,
-    onReplyClick: () -> Unit,
-    onDotMenuClick: () -> Unit,
-    onPollSelect: (String) -> Unit,
+    feedViewModel: PostFeedViewModel,
+    bottomSheetSharedViewModel: BottomSheetSharedViewModel,
     post: GetPostDTO,
+    onPostClick: () -> Unit,
+    onLikeClick: () -> Unit = {
+        feedViewModel.toggleLike(
+            userId = post.creatorDetail.profile?.id ?: "",
+            postId = post.postId,
+            isLiked = post.postActions.isLiked,
+            campusId = post.campusId,
+            feedMode = post.feedMode)
+        },
+    onReplyClick: () -> Unit,
+    onDotMenuClick: () -> Unit = {
+        bottomSheetSharedViewModel.setBottomSheetState(
+            state = true,
+            isCurrentUser = post.creatorDetail.isCurrentUser,
+            campusId = post.campusId,
+            content = Content(
+                postId = post.postId,
+                text = post.postContent.postData.postText
+            ),
+            feedMode = post.feedMode,
+            contentType = ContentType.POST,
+            sheetType = SheetType.MENU_LIST,
+        )
+    },
+    onPollSelect: (String) -> Unit = {
+        feedViewModel.voteOnPoll(
+            postId = post.postId,
+            optionId = it,
+            userId = "dfd"
+        )
+    },
     navHostController: NavHostController
 ) {
+
     var rightColumnHeight by remember { mutableIntStateOf(0) }
+
     LocalDensity.current
 
     Column(
@@ -621,7 +657,7 @@ fun PollOptionsUI(
                                 val fillWidth = size.width * (percentage / 100f)
                                 drawRoundRect(
                                     color = if (isSelected) Color.Black else White400,
-                                    size = androidx.compose.ui.geometry.Size(
+                                    size = Size(
                                         width = fillWidth,
                                         height = size.height
                                     ),

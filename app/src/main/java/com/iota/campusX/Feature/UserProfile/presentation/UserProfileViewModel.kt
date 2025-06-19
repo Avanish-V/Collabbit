@@ -10,175 +10,256 @@ import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.UiState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onStart
 
+
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewModel() {
 
-    private val _userBaseProfile: MutableStateFlow<UserBaseProfileResultState> = MutableStateFlow(UserBaseProfileResultState())
-    val userBaseProfile: StateFlow<UserBaseProfileResultState> = _userBaseProfile.asStateFlow()
+    private val searchQuery = MutableStateFlow("")
 
-    private val _profileById: MutableStateFlow<UserBaseProfileResultState> = MutableStateFlow(UserBaseProfileResultState())
-    val profileById: StateFlow<UserBaseProfileResultState> = _profileById.asStateFlow()
+    private val _userBaseProfile = MutableStateFlow<UiState<BasicProfileDTO>>(UiState.Idle)
+    val userBaseProfile: StateFlow<UiState<BasicProfileDTO>> = _userBaseProfile.asStateFlow()
 
+    private val _profileById = MutableStateFlow<UiState<BasicProfileDTO>>(UiState.Idle)
+    val profileById: StateFlow<UiState<BasicProfileDTO>> = _profileById.asStateFlow()
 
-    private val _universityData: MutableStateFlow<UniversityDataResultState> = MutableStateFlow(UniversityDataResultState())
-    val universityData: StateFlow<UniversityDataResultState> = _universityData.asStateFlow()
-
-    private val _connections:MutableStateFlow<ConnectionsResultState> = MutableStateFlow(ConnectionsResultState())
-    val connections:StateFlow<ConnectionsResultState> = _connections.asStateFlow()
-
-    private val _connectionCount:MutableStateFlow<Int> = MutableStateFlow(0)
-    val connectionCount:StateFlow<Int> = _connectionCount.asStateFlow()
+    private val _universityData = MutableStateFlow<UiState<List<UniversityDTO>>>(UiState.Idle)
+    val universityData: StateFlow<UiState<List<UniversityDTO>>> = _universityData.asStateFlow()
 
 
-    fun getUserProfile(){
+    private val _connections = MutableStateFlow<UiState<List<ConnectionsDTO>>>(UiState.Idle)
+    val connections: StateFlow<UiState<List<ConnectionsDTO>>> = _connections.asStateFlow()
 
-        if (userBaseProfile.value.baseProfileData.id.isNotEmpty()) return
+    private val _connectionCount = MutableStateFlow<UiState<Int>>(UiState.Idle)
+    val connectionCount: StateFlow<UiState<Int>> = _connectionCount.asStateFlow()
+
+    private val _modifyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val modifyState: StateFlow<UiState<Unit>> = _modifyState.asStateFlow()
+
+
+    fun getUserProfile() {
+
+        if (userBaseProfile.value is UiState.Success && (userBaseProfile.value as UiState.Success).data.id.isNotEmpty()) return
 
         viewModelScope.launch {
-            userProfileRepo.getBaseProfile().collect{
-                when(it){
-                    is ResultState.Loading->{
-                        _userBaseProfile.value = UserBaseProfileResultState(isLoading = true)
-                    }
-                    is ResultState.Success->{
-                        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = it.data)
-                    }
-                    is ResultState.Error->{
-                        _userBaseProfile.value = UserBaseProfileResultState(error = it.message)
-                    }
-                }
-            }
+
+            _userBaseProfile.value = UiState.Loading
+
+            val result = userProfileRepo.getBaseProfile()
+
+            _userBaseProfile.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+            )
+
+        }
+
+    }
+
+    fun getUserById(userId: String) {
+        viewModelScope.launch {
+
+            _profileById.value = UiState.Loading
+
+            val result = userProfileRepo.getUserProfileById(userId)
+
+            _profileById.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+            )
+
         }
     }
 
-    fun deleteUserProfile() = userProfileRepo.deleteAccount()
-
-    fun getUserById(user:String){
+    fun getConnections(userId: String) {
         viewModelScope.launch {
-            userProfileRepo.getUserProfileById(user).collect{
-                when(it){
-                    is ResultState.Loading->{
-                        _profileById.value = UserBaseProfileResultState(isLoading = true)
-                    }
-                    is ResultState.Success->{
-
-                        _profileById.value = UserBaseProfileResultState( baseProfileData= it.data)
-                    }
-                    is ResultState.Error->{
-                        _profileById.value = UserBaseProfileResultState(error = it.message)
-                    }
-                }
-            }
+            _connections.value = UiState.Loading
+            val result = userProfileRepo.getConnections(userId)
+            _connections.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+            )
         }
     }
 
-    fun modifyName(userName:String) = userProfileRepo.updateUserName(userName)
-
-    fun modifyAbout(about:String) = userProfileRepo.updateAbout(about)
-
-    fun modifyGender(gender: Gender) = userProfileRepo.updateGender(gender)
-
-    fun modifySocialAccount(social:String) = userProfileRepo.updateSocialAccounts(social)
-
-    fun updateInterests(interests:List<String>) = userProfileRepo.updateInterests(interests)
-
-    fun modifyCampus(campus: Campus) = userProfileRepo.updateCampus(campus)
-
-    fun modifyProfileImage(imageUri: Uri) = userProfileRepo.updateProfileImage(imageUri)
-
-    fun fetchUniversityData(title:String){
+    fun getConnectionCount(userId: String) {
         viewModelScope.launch {
-            userProfileRepo.updateUniversity(title).collect{
-                when(it){
-                    is ResultState.Loading->{
-                        _universityData.value = UniversityDataResultState(isLoading = true)
-                    }
-                    is ResultState.Success->{
-                        _universityData.value = UniversityDataResultState(universityList = it.data)
-                    }
-                    is ResultState.Error->{
-                        _universityData.value = UniversityDataResultState(error = it.message)
-                    }
-                }
-            }
+
+            _connectionCount.value = UiState.Loading
+
+            val result = userProfileRepo.getConnectionsCount(userId)
+
+            _connectionCount.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+            )
         }
     }
 
-    fun sendLinkUpRequest(requestUserId:String,currentState: Boolean? = null) = userProfileRepo.sendLinkUpRequest(requestUserId,currentState)
+    // One-liner modify/update functions (no UI state needed)
+    fun modifyName(userName: String) = viewModelScope.launch {
+        _modifyState.value = UiState.Loading
+        _modifyState.value = userProfileRepo.updateUserName(userName).fold(
+            onSuccess = {
+                UiState.Success(Unit).also {
+                    updateNameLocally(userName)
+                }
+            },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+        resetModifyState()
 
-    fun acceptLinkUpRequest(requestUserId:String) = userProfileRepo.acceptLinkUpRequest(requestUserId)
+    }
 
-    fun rejectLinkUpRequest(requestUserId:String) = userProfileRepo.rejectLinkUpRequest(requestUserId)
+    fun modifyAbout(about: String) = viewModelScope.launch {
+        _modifyState.value = UiState.Loading
+        _modifyState.value = userProfileRepo.updateAbout(about).fold(
+            onSuccess = { UiState.Success(Unit).also { updateAboutLocally(about) } },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+        resetModifyState()
+    }
 
+    fun modifyGender(gender: Gender) = viewModelScope.launch {
+        _modifyState.value = UiState.Loading
 
-    fun getConnections(userId: String){
+        _modifyState.value = userProfileRepo.updateGender(gender).fold(
+            onSuccess = { UiState.Success(Unit).also { updateGenderLocally(gender) } },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+    }
+
+    fun modifySocialAccount(social: String) = viewModelScope.launch {
+        _modifyState.value = UiState.Loading
+        _modifyState.value = userProfileRepo.updateSocialAccounts(social).fold(
+            onSuccess = { UiState.Success(Unit) },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+    }
+
+    fun updateInterests(interests: List<String>) = viewModelScope.launch {
+
+        _modifyState.value = UiState.Loading
+
+        _modifyState.value = userProfileRepo.updateInterests(interests).fold(
+            onSuccess = { UiState.Success(Unit).also({ updateInterestLocally(interests) }) },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+        resetModifyState()
+
+    }
+
+    fun modifyCampus(campus: Campus) = viewModelScope.launch {
+
+        _modifyState.value = UiState.Loading
+
+        _modifyState.value = userProfileRepo.updateCampus(campus).fold(
+            onSuccess = { UiState.Success(Unit).also{ updateCampusLocally(campus) } },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+
+        resetModifyState()
+
+    }
+
+    fun modifyProfileImage(imageUri: Uri) = viewModelScope.launch {
+        _modifyState.value = UiState.Loading
+        _modifyState.value = userProfileRepo.updateProfileImage(imageUri).fold(
+            onSuccess = { UiState.Success(Unit) },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+
+    }
+
+    fun sendLinkUpRequest(requestUserId: String, currentState: Boolean? = null) = viewModelScope.launch {
+        _modifyState.value = UiState.Loading
+        _modifyState.value = userProfileRepo.sendLinkUpRequest(requestUserId, currentState).fold(
+            onSuccess = { UiState.Success(Unit) },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+    }
+
+    fun acceptLinkUpRequest(requestUserId: String) = viewModelScope.launch {
+        _modifyState.value = UiState.Loading
+        _modifyState.value = userProfileRepo.acceptLinkUpRequest(requestUserId).fold(
+            onSuccess = { UiState.Success(Unit) },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+    }
+
+    fun rejectLinkUpRequest(requestUserId: String) = viewModelScope.launch {
+        _modifyState.value = UiState.Loading
+        _modifyState.value = userProfileRepo.rejectLinkUpRequest(requestUserId).fold(
+            onSuccess = { UiState.Success(Unit) },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+    }
+
+    suspend fun deleteUserProfile() = userProfileRepo.deleteAccount()
+
+    suspend fun resetModifyState(){
+        delay(500)
+        _modifyState.value = UiState.Idle
+    }
+
+    fun onUniversityQueryChanged(query: String) {
+        searchQuery.value = query
+    }
+
+    init {
         viewModelScope.launch {
-            userProfileRepo.getConnections(userId)
-                .collect{
-                    when(it){
-                        is ResultState.Loading->{
-                            _connections.value = ConnectionsResultState(isLoading = true)
+            searchQuery
+                .debounce(500) // 500ms debounce delay
+                .filter { it.isNotBlank() }
+                .distinctUntilChanged()
+                .flatMapLatest { query ->
+                    userProfileRepo.updateUniversity(query)
+                }
+                .onStart { _universityData.value = UiState.Loading }
+                .catch { e ->
+                    _universityData.value = UiState.Error("Unexpected error: ${e.localizedMessage ?: "Unknown"}")
+                }
+                .collect { result ->
 
-                        }
-                        is ResultState.Success->{
-                            _connections.value = ConnectionsResultState(connectionList = it.data)
-                        }
-                        is ResultState.Error->{
-                            _connections.value = ConnectionsResultState(error = it.message)
-                        }
-                    }
+                    _universityData.value = result
                 }
         }
     }
 
-    fun getConnectionCount(userId: String){
-        viewModelScope.launch {
-            userProfileRepo.getConnectionsCount(userId)
-                .collect{
-                    when(it){
-                        is ResultState.Loading->{}
-                        is ResultState.Success->{
-                            _connectionCount.value = it.data
-                        }
-                        is ResultState.Error->{}
 
-
-                    }
-                }
-        }
+    fun updateNameLocally(name:String) {
+        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(userName = name))
     }
 
-
-
-    fun updateName(name: String){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(userName = name))
-    }
-    fun updateAbout(about: String){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(userBio = about))
-    }
-    fun updateGender(gender: Gender){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(userGender = gender))
-    }
-    fun clearUniversityData(){
-        _universityData.value = UniversityDataResultState()
-    }
-    fun updateCampus(campus: Campus){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(campus = campus))
-    }
-    fun updateProfileImage(imageUrl: String){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(userImage = imageUrl))
-    }
-    fun updateConnectionDeleted(connectionId:String){
-        _connections.value = ConnectionsResultState(connectionList = _connections.value.connectionList.filter { it.user.id != connectionId })
-    }
-    fun updateModifiedInterests(userInterests:List<String>){
-        _userBaseProfile.value = UserBaseProfileResultState(baseProfileData = _userBaseProfile.value.baseProfileData.copy(interests = userInterests))
+    fun updateAboutLocally(about:String) {
+        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(userBio = about))
     }
 
+    fun updateGenderLocally(gender:Gender) {
+        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(userGender = gender))
+    }
+
+    fun updateInterestLocally(interests: List<String>){
+        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(interests = interests))
+    }
+
+    fun updateCampusLocally(campus: Campus){
+        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(campus = campus))
+    }
 
 }
 

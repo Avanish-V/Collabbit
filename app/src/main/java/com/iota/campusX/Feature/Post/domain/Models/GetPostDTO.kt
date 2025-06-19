@@ -8,6 +8,7 @@ data class GetPostDTO(
     val postId: String = "",
     val createdAt: Long = 0L,
     val creatorDetail: CreatorDetail,
+    val feedMode: FeedMode = FeedMode.GLOBAL,
     val reference: Reference,
     val visibilityMode: PostVisibilityMode,
     val campusId: String?=null,
@@ -45,7 +46,6 @@ data class User(
     val userImage: String = "",
     val userBio: String = "",
     val designation: String?=null,
-    val isCurrentUser: Boolean?=false,
 )
 
 

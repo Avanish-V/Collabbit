@@ -7,10 +7,10 @@
       </SelectionState>
       <SelectionState runConfigName="CampusX.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-06-15T05:49:27.819064800Z">
+        <DropdownSelection timestamp="2025-06-18T19:18:21.442383600Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=ZD2228T8BT" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\ashut\.android\avd\Medium_Phone.avd" />
             </handle>
           </Target>
         </DropdownSelection>

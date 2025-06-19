@@ -11,6 +11,7 @@ data class ReplyDTO(
     val content: String = "",
     val isEdited: Boolean = false,
     val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
+    val mode: FeedMode = FeedMode.GLOBAL,
     val repliedAt: Long = 0L
 )
 
@@ -19,9 +20,10 @@ data class GetRepliesDTO(
     val postId: String = "",
     val replyId: String = "",
     val isEdited: Boolean = false,
-    val user: User,
+    val creatorDetail: CreatorDetail,
     val content: String = "",
     val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
+    val mode: FeedMode = FeedMode.GLOBAL,
     val actions: PostActions,
     val repliedAt: Long = 0L
 )

@@ -1,6 +1,7 @@
 package com.iota.campusX.Feature.UserProfile.data
 
 import androidx.annotation.Keep
+import com.iota.campusX.ui.UIComponents.CourseDuration
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -12,7 +13,7 @@ import kotlinx.serialization.Serializable
 data class BasicProfileDTO(
     @SerialName("id") val id: String = "",
     @SerialName("token") val token: String = "",
-    @SerialName("userName") val userName: String = "",
+    @SerialName("userName") var userName: String = "",
     @SerialName("userImage") val userImage: String = "",
     @SerialName("userEmail") val userEmail: String = "",
     @SerialName("userBio") val userBio: String = "",
@@ -42,10 +43,10 @@ data class MetaData(
 data class Campus(
     @SerialName("university") val university: University? = null,
     @SerialName("collegeName") val collegeName: String = "",
-    @SerialName("campusCode") val campusCode: String = "",
+    @SerialName("campusCode") val campusCode: String? = null,
     @SerialName("fieldOfStudy") val fieldOfStudy: String = "",
-    @SerialName("courseStart") val courseStart: Long? = null,
-    @SerialName("courseEnd") val courseEnd: Long? = null
+    @SerialName("courseStart") val courseStart: CourseDuration? = null,
+    @SerialName("courseEnd") val courseEnd: CourseDuration? = null
 )
 
 /**

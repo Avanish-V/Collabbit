@@ -13,11 +13,10 @@ interface PostRepository {
 
     suspend fun createPost(
         dto: CreatePostDTO,
-        feedMode: FeedMode,
         imageUri: Uri?
     ): Flow<UploadState>
 
-    suspend fun deletePost(postId: String, campusId: String?): Result<Unit>
+    suspend fun deletePost(postId: String, campusId: String?,feedMode: FeedMode): Result<Unit>
 
     suspend fun getPosts(): Result<List<GetPostDTO>>
 
@@ -25,7 +24,7 @@ interface PostRepository {
     suspend fun fetchCampusPosts(feedMode: FeedMode, campusId: String?): Result<List<GetPostDTO>>
 
 
-    suspend fun editPost(postId: String, editedText: String, campusId: String?): Result<Unit>
+    suspend fun editPost(postId: String, editedText: String, campusId: String?,feedMode: FeedMode): Result<Unit>
 
     suspend fun getPostsById(userId: String, campusId: String?): Result<List<GetPostDTO>>
 
@@ -35,13 +34,14 @@ interface PostRepository {
         postId: String,
         content: String,
         creatorId: String,
-        visibilityMode: PostVisibilityMode
+        visibilityMode: PostVisibilityMode,
+        mode: FeedMode
     ): Result<Unit>
 
     suspend fun getReplies(postId: String): Result<List<GetRepliesDTO>>
 
 
-    suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean): Result<Unit>
+    suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean,campusId: String?, feedMode: FeedMode): Result<Unit>
 
     suspend fun likeReply(
         creatorId: String,

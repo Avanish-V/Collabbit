@@ -10,9 +10,8 @@ import kotlinx.coroutines.flow.Flow
 class CreatePostUseCase(private val repository: PostRepository) {
     suspend operator fun invoke(
         dto: CreatePostDTO,
-        feedMode: FeedMode,
         imageUri: Uri?
     ): Flow<UploadState> {
-        return repository.createPost(dto, feedMode, imageUri)
+        return repository.createPost(dto, imageUri)
     }
 }

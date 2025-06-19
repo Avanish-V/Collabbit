@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.University
+import com.iota.campusX.ui.UIComponents.CourseDuration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,10 +75,10 @@ class EditProfileViewModel: ViewModel() {
         _campus.value = _campus.value.copy(fieldOfStudy = fieldOfStudy)
     }
 
-    fun editCourseStart(courseStart: Long){
+    fun editCourseStart(courseStart: CourseDuration){
         _campus.value = _campus.value.copy(courseStart = courseStart)
     }
-    fun editCourseEnd(courseEnd: Long){
+    fun editCourseEnd(courseEnd: CourseDuration){
         _campus.value = _campus.value.copy(courseEnd = courseEnd)
     }
 

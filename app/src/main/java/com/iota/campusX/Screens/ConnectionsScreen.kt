@@ -35,12 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
+import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.StatusScreen
+import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.White400
@@ -91,17 +93,47 @@ fun ConnectionsScreen(navHostController: NavHostController) {
         containerColor = secondary
     ) { padding ->
 
-        Box(modifier = Modifier
-            .padding(padding)
-            .fillMaxSize()) {
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
 
-            when{
-                connections.isLoading->{
+            when(connections){
 
-                    LoadingUI(isLoading = connections.isLoading)
+                is UiState.Loading -> {
+                    LoadingUI(isLoading = true)
                 }
-                connections.error.isNotEmpty()->{
+                is UiState.Success<*> ->{
 
+                    val connectionList = (connections as UiState.Success<List<ConnectionsDTO>>).data
+
+                    if (connectionList.isEmpty()){
+
+                        StatusScreen(
+                            isActive = true,
+                            text = "No Connections",
+                            image = null
+                        )
+                        return@Scaffold
+                    }
+
+                    LazyColumn() {
+                        items(connectionList) { connections ->
+                            ConnectionsItemView(
+                                onItemClick = {
+                                    navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID",connections.user.id)
+                                    }
+                                },
+                                connectionData = connections,
+                                onRejectClick = {
+                                    scope.launch {
+                                        profileViewModel.rejectLinkUpRequest(connections.user.id)
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                }
+                is UiState.Error -> {
                     ErrorScreen(
                         text = "Something went wrong!",
                         image = R.drawable.undraw_voice_assistant_k27k,
@@ -113,46 +145,8 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                         buttonText = "Try again"
                     )
                 }
-                connections.connectionList.isEmpty()->{
-                    StatusScreen(
-                        isActive = true,
-                        text = "No Connections!",
-                    )
-                }
-                else->{
+                else -> {}
 
-                    LazyColumn() {
-                        items(connections.connectionList) { connections ->
-                            ConnectionsItemView(
-                                onItemClick = {
-                                    navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
-                                        navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID",connections.user.id)
-                                    }
-                                },
-                                connectionData = connections,
-                                onRejectClick = {
-                                    scope.launch {
-                                        profileViewModel.rejectLinkUpRequest(connections.user.id)
-                                            .collect {
-                                                when(it){
-                                                    is ResultState.Loading -> {
-
-                                                    }
-                                                    is ResultState.Success->{
-                                                        profileViewModel.updateConnectionDeleted(connections.user.id)
-                                                    }
-                                                    is ResultState.Error -> {
-
-                                                    }
-
-                                                }
-                                            }
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
             }
         }
     }
@@ -202,18 +196,16 @@ fun ConnectionsItemView(
 
             }
 
-            if (connectionData.user.isCurrentUser == true) {
-                TextButton (
-                    onClick = { onRejectClick.invoke() },
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = White400
-                    ),
-                    shape = RoundedCornerShape(6.dp)
+            TextButton (
+                onClick = { onRejectClick.invoke() },
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = White400
+                ),
+                shape = RoundedCornerShape(6.dp)
 
-                ) {
-                    Text("Remove")
-                }
+            ) {
+                Text("Remove")
             }
         }
     }

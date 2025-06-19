@@ -1,6 +1,7 @@
 package com.iota.campusX.Screens.Home.BottomSheet
 
 import androidx.lifecycle.ViewModel
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,10 +17,15 @@ class BottomSheetSharedViewModel: ViewModel(){
     private val _alertDialog : MutableStateFlow<String> = MutableStateFlow("")
     val alertDialog: StateFlow<String> = _alertDialog.asStateFlow()
 
+    private val _isLoading : MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+
     fun setBottomSheetState(
         state: Boolean = false,
         isCurrentUser: Boolean = false,
         campusId: String? = null,
+        feedMode: FeedMode = FeedMode.GLOBAL,
         content: Content,
         contentType: ContentType,
         sheetType: SheetType
@@ -30,7 +36,8 @@ class BottomSheetSharedViewModel: ViewModel(){
            campusId = campusId,
            sheetType = sheetType,
            content = content,
-           contentType = contentType
+           contentType = contentType,
+           feedMode = feedMode
 
        )
 
@@ -46,6 +53,10 @@ class BottomSheetSharedViewModel: ViewModel(){
         _bottomSheetState.value = _bottomSheetState.value.copy(
             isBottomSheet = false
         )
+    }
+
+    fun isLoading(isLoading: Boolean){
+        _isLoading.value = isLoading
     }
 
 
@@ -88,6 +99,7 @@ data class PassBottomSheetData(
     val content: Content = Content(),
     val contentType: ContentType = ContentType.NONE,
     val isCurrentUser: Boolean = false,
+    val feedMode: FeedMode = FeedMode.GLOBAL,
     val campusId: String? = null,
     val sheetType: SheetType = SheetType.MENU_LIST,
 )

@@ -1,5 +1,6 @@
 package com.iota.campusX.Screens.Home.BottomSheet
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +55,7 @@ import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White900
 import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
+import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -131,7 +133,9 @@ fun PostDotOptionBottomSheet(
                 bottomSheetViewModel.dismissBottomSheet()
             }
 
-            is UiState.Error,
+            is UiState.Error->{
+                Log.d("ERROR", "PostDotOptionBottomSheet: ${editReplyState.value}")
+            }
             UiState.Idle -> {
                 isLoading = false
             }
@@ -215,7 +219,8 @@ fun PostDotOptionBottomSheet(
                             scope.launch {
                                 postFeedViewModel.editPost(
                                     postId = bottomSheetData.content.postId,
-                                    isCampus = bottomSheetData.campusId.isNullOrEmpty(),
+                                    feedMode = bottomSheetData.feedMode,
+                                    campusId = bottomSheetData.campusId,
                                     newText = replyText
                                 )
                             }
@@ -236,7 +241,7 @@ fun PostDotOptionBottomSheet(
                                     replyViewModel.editReply(
                                         postId = bottomSheetData.content.postId,
                                         replyId = bottomSheetData.content.replyId,
-                                        campusId = bottomSheetData.campusId.toString(),
+                                        campusId = bottomSheetData.campusId,
                                         content = replyText
                                     )
                                 }
@@ -263,13 +268,25 @@ fun PostDotOptionBottomSheet(
 @Composable
 fun ReportContent(modifier: Modifier = Modifier) {
 
-    Column(modifier = Modifier.padding(12.dp)) {
+    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-        LazyColumn {
+        LazyColumn (verticalArrangement = Arrangement.spacedBy(12.dp)){
+            item {
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Report", style = typography.headingMedium)
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)){
+                        Text("CampusX protects your identity",style = typography.headingMedium)
+                        Text("When reporting a post, your identity remains confidential. Your concerns are addressed without revealing your name or information to ensure anonymity" +
+                                "and maintain privacy throughout the process.")
+
+                    }
+                }
+            }
             items(reportReasons) {
                 ReportSingleItem(it)
             }
         }
+
 
         Button(
             modifier = Modifier
@@ -291,16 +308,13 @@ fun ReportContent(modifier: Modifier = Modifier) {
 @Composable
 fun ReportSingleItem(reportReason: ReportReason) {
 
+
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         RadioButton(
             selected = false,
             onClick = {}
         )
-        Column {
-            Text(reportReason.description.toString())
-            HorizontalDivider()
-        }
-
+        Text(reportReason.description.toString())
     }
 
 }

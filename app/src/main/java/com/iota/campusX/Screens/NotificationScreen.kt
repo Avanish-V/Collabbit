@@ -317,19 +317,7 @@ fun NotificationItem(
                             scope.launch {
                                 userProfileViewModel.rejectLinkUpRequest(
                                     notificationDTO.actionBy.id
-                                ).collect {
-                                    when(it){
-                                        is ResultState.Loading -> {
-
-                                        }
-                                        is ResultState.Success -> {
-                                            isAccepted = false
-                                        }
-                                        is ResultState.Error -> {
-
-                                        }
-                                    }
-                                }
+                                )
                             }
                             notificationViewModel.deleteNotificationFromList(notificationDTO)
                         },
@@ -342,31 +330,15 @@ fun NotificationItem(
                             scope.launch {
                                 userProfileViewModel.acceptLinkUpRequest(
                                     notificationDTO.actionBy.id
-                                ).collect {
-                                    when(it){
-                                        is ResultState.Loading -> {
-
-                                        }
-                                        is ResultState.Success -> {
-                                            isAccepted = false
-                                        }
-                                        is ResultState.Error -> {
-
-                                        }
-                                    }
-                                }
+                                )
                             }
-
                         },
                     ) {
                         Text("Accept")
                     }
                 }
-
             }
-
         }
     }
-
 
 }

@@ -1,9 +1,12 @@
 package com.iota.campusX.Koin
 
+import ConsentAgreeViewModel
 import SendPushNotification
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
@@ -38,6 +41,7 @@ import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Screens.Home.HomeViewModel
+import com.iota.campusX.Screens.Home.dataStore
 import com.iota.campusX.Screens.Post.PollViewModel
 import com.iota.campusX.Screens.Post.PostScreenViewModel
 import com.iota.campusX.Utils.ServerTimeStampViewModel
@@ -118,6 +122,10 @@ val appModule = module {
     single<ChatRepository> { ChatImpl(get(), get(), get(), get()) }
     single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
 
+    single<DataStore<Preferences>> {
+        androidContext().dataStore
+    }
+
     // -------------------------------
     // Push Notification
     // -------------------------------
@@ -179,6 +187,7 @@ val appModule = module {
     viewModel { ServerTimeStampViewModel(get()) }
     viewModel { PollViewModel() }
     viewModel { PostScreenViewModel() }
+    viewModel { ConsentAgreeViewModel(get()) }
 }
 
 

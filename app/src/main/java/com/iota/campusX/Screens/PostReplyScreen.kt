@@ -1,7 +1,6 @@
 package com.iota.campusX.Screens
 
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -46,11 +45,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -68,10 +69,9 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
-import com.iota.campusX.Feature.Post.domain.Models.PostActions
 import com.iota.campusX.Feature.Post.domain.Models.PostContent
 import com.iota.campusX.Feature.Post.domain.Models.PostData
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
@@ -86,10 +86,10 @@ import com.iota.campusX.Screens.Home.BottomSheet.Content
 import com.iota.campusX.Screens.Home.BottomSheet.ContentType
 import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
 import com.iota.campusX.Screens.Home.BottomSheet.SheetType
+import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
-import com.iota.campusX.Utils.anonymousImage
 import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
@@ -104,6 +104,8 @@ import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.White900
 import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -115,22 +117,25 @@ fun PostReplyScreen(
     navHostController: NavHostController,
     profileViewModel: UserProfileViewModel,
     postViewModel: PostFeedViewModel,
+    homeViewModel: HomeViewModel,
+    replyViewModel: ReplyViewModel
 ) {
 
-    val replyViewModel = koinInject<ReplyViewModel>()
 
-
-    val userProfile = profileViewModel.userBaseProfile.collectAsState().value.baseProfileData
+    val userProfileState = profileViewModel.userBaseProfile.collectAsState().value
     val repliesState = replyViewModel.repliesState.collectAsState().value
 
     val editPostState = postViewModel.editPostState
     val deleteReplyState = replyViewModel.deleteReplyState.collectAsState()
-    postViewModel.deletePostState
     val createReplyState = replyViewModel.createReplyState.collectAsState()
+    val deletePostState = postViewModel.deletePostState.collectAsState()
 
-    val postState = postViewModel.globalPosts.collectAsState().value
+    val globalPostState = postViewModel.globalPosts.collectAsState().value
+    val campusPostState = postViewModel.campusPosts.collectAsState().value
 
+    val mode = homeViewModel.mode.collectAsState().value
 
+    val userProfile = (userProfileState as UiState.Success).data
 
     val keyboard = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
@@ -153,13 +158,18 @@ fun PostReplyScreen(
 
     var postData by remember { mutableStateOf<GetPostDTO?>(null) }
 
-    LaunchedEffect(postState) {
-        if (postState is UiState.Success) {
-            postData = postState.data.find { it.postId == postId }
-        }
-    }
+    LaunchedEffect(mode as UiState.Success) {
 
-    if (postData == null) return
+        val post = if (mode.data == FeedMode.GLOBAL) globalPostState as UiState.Success else campusPostState as UiState.Success
+
+        snapshotFlow { post.data.find { it.postId == postId } }
+            .filterNotNull()
+            .first()
+            .let { it ->
+                postData = it
+            }
+
+    }
 
     LaunchedEffect(Unit) {
         postId?.let { replyViewModel.getReplies(postId = it) }
@@ -172,29 +182,8 @@ fun PostReplyScreen(
             }
 
             is UiState.Success -> {
-                // Create new reply before clearing text
-                GetRepliesDTO(
-                    postId = postId ?: "",
-                    content = replyText, // Use current replyText before clearing
-                    visibilityMode = visibilityMode,
-                    user = User(
-                        id = userProfile.id,
-                        userImage = userProfile.userImage,
-                        userName = userProfile.userName,
-                        isCurrentUser = true
-                    ),
-                    actions = PostActions(),
-                    repliedAt = System.currentTimeMillis()
-                )
-
-                // Clear reply input field
                 replyText = ""
                 isLoading = false
-
-                // Update reply list
-
-
-                // Show success snackbar
                 snackBarHostState.showSnackbar("Success")
             }
 
@@ -209,18 +198,17 @@ fun PostReplyScreen(
     LaunchedEffect(deleteReplyState.value) {
         when (deleteReplyState.value) {
             is UiState.Loading -> {
-                isLoading = true
+               bottomSheetViewModel.isLoading(true)
             }
 
             is UiState.Success -> {
-                isLoading = false
+                bottomSheetViewModel.isLoading(false)
                 isAlertDialogVisible.value = false
                 replyViewModel.removeReplyOnDelete(replyId = bottomSheetData.content.replyId)
-                bottomSheetViewModel.dismissBottomSheet()
             }
 
             is UiState.Error -> {
-                isLoading = false
+                bottomSheetViewModel.isLoading(false)
                 snackBarHostState.showSnackbar("Something went wrong!")
             }
 
@@ -250,6 +238,25 @@ fun PostReplyScreen(
         }
     }
 
+    LaunchedEffect(deletePostState.value) {
+        when (deletePostState.value) {
+
+            is UiState.Loading -> {
+                bottomSheetViewModel.isLoading(true)
+            }
+            is UiState.Success -> {
+                bottomSheetViewModel.isLoading(false)
+                isAlertDialogVisible.value = false
+                navHostController.popBackStack()
+            }
+            is UiState.Error -> {
+                bottomSheetViewModel.isLoading(false)
+                snackBarHostState.showSnackbar("Something went wrong!")
+            }
+            else -> {}
+        }
+
+    }
 
 
 
@@ -273,74 +280,45 @@ fun PostReplyScreen(
                         Text("Edit reply", color = primary, fontWeight = FontWeight.Bold)
                     }
                 }
-                HorizontalDivider(color = Black500)
+                HorizontalDivider(color = Black300)
 
-                TextField(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .imePadding()
-                        .focusRequester(focusRequester)
-                        .onFocusChanged { isFocused = it.isFocused },
-                    value = replyText,
-                    onValueChange = { replyText = it },
-                    placeholder = { Text("Write your comment...", color = Black400) },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = {
-                                if (replyText.isNotEmpty()) {
-                                    val docID = generateUID()
-                                    keyboard?.hide()
-                                    scope.launch {
-                                        postData?.let {
-                                            replyViewModel.createReply(
-                                                replyId = docID,
-                                                postId = it.postId,
-                                                content = replyText,
-                                                creatorId = it.creatorDetail.profile?.id ?: "",
-                                                visibilityMode = PostVisibilityMode.USER,
-                                                user = User(
-                                                    id = userProfile.id,
-                                                    userImage = userProfile.userImage,
-                                                    userName = userProfile.userName,
-                                                    isCurrentUser = true
-                                                )
-                                            )
-                                        }
-                                    }
+                BottomTextInput(
+                    focusRequester = focusRequester,
+                    onFocusChange = {
+                        isFocused = it.isFocused
+                    },
+                    text = replyText,
+                    onTextChange = {
+                        replyText = it
+                    },
+                    onSubmitClick = {
+                        if (replyText.isNotEmpty()) {
+                            val docID = generateUID()
+                            keyboard?.hide()
+                            scope.launch {
+                                postData?.let {
+                                    replyViewModel.createReply(
+                                        replyId = docID,
+                                        postId = it.postId,
+                                        content = replyText,
+                                        creatorId = it.creatorDetail.profile?.id ?: "",
+                                        visibilityMode = visibilityMode,
+                                        user = User(
+                                            id = userProfile.id,
+                                            userImage = userProfile.userImage,
+                                            userName = userProfile.userName,
+                                        ),
+                                        mode = it.feedMode
+                                    )
                                 }
-                            }
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    trackColor = secondary,
-                                    color = primary
-                                )
-                            } else {
-                                Icon(
-                                    painterResource(R.drawable.send_2),
-                                    contentDescription = "Send",
-                                    tint = primary
-                                )
                             }
                         }
                     },
-                    leadingIcon = {
-                        AsyncImage(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape),
-                            model = if (visibilityMode == PostVisibilityMode.USER) userProfile.userImage else anonymousImage,
-                            contentDescription = null
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = White900,
-                        unfocusedContainerColor = White900,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTrailingIconColor = primary
-                    )
+                    isLoading = isLoading,
+                    userImage = userProfile.userImage,
+                    onVisibilityChange = {
+                        visibilityMode = it
+                    }
                 )
             }
         },
@@ -355,32 +333,12 @@ fun PostReplyScreen(
             postData?.let { post ->
                 item {
                     PostCard(
+                        feedViewModel = postViewModel,
+                        bottomSheetSharedViewModel = bottomSheetViewModel,
                         post = post,
                         navHostController = navHostController,
                         onPostClick = {},
-                        onLikeClick = {
-                            postViewModel.toggleLike(
-                                userId = post.creatorDetail.profile?.id.orEmpty(),
-                                postId = post.postId,
-                                isLiked = post.postActions.isLiked,
-                                isCampus = post.campusId != null
-                            )
-                            context.vibrate()
-                        },
                         onReplyClick = { keyboard?.show() },
-                        onDotMenuClick = {
-                            bottomSheetViewModel.setBottomSheetState(
-                                state = true,
-                                isCurrentUser = post.creatorDetail.isCurrentUser,
-                                campusId = post.campusId,
-                                content = Content(
-                                    postId = post.postId,
-                                    text = post.postContent.postData.postText
-                                ),
-                                contentType = ContentType.POST,
-                                sheetType = SheetType.MENU_LIST,
-                            )
-                        },
                         onPollSelect = {}
                     )
                 }
@@ -420,7 +378,7 @@ fun PostReplyScreen(
                         LaunchedEffect(repliesState.message) {
                             scope.launch {
                                 snackBarHostState.showSnackbar(
-                                    repliesState.message ?: "An error occurred"
+                                    repliesState.message
                                 )
                             }
                         }
@@ -461,8 +419,8 @@ fun PostReplyScreen(
                                 },
                                 onDotsClick = {
                                     bottomSheetViewModel.setBottomSheetState(
-                                        true,
-                                        reply.user.isCurrentUser == true,
+                                        state = true,
+                                        isCurrentUser = reply.creatorDetail.isCurrentUser,
                                         content = Content(
                                             postId = reply.postId,
                                             text = reply.content,
@@ -486,8 +444,6 @@ fun PostReplyScreen(
         }
 
 
-        Log.d("BOTTOMSHEET", "PostReplyScreen: ${bottomSheetData.isBottomSheet}")
-
         PostDotOptionBottomSheet(
             isBottomSheet = bottomSheetData.isBottomSheet,
             bottomSheetViewModel = bottomSheetViewModel,
@@ -496,7 +452,10 @@ fun PostReplyScreen(
                 bottomSheetViewModel.dismissBottomSheet()
             },
             isCurrentUser = bottomSheetData.isCurrentUser,
-            onDeleteClick = { isAlertDialogVisible.value = true },
+            onDeleteClick = {
+                bottomSheetViewModel.dismissBottomSheet()
+                isAlertDialogVisible.value = true
+            },
             onEditClick = {},
             onHideBottomSheet = {}
         )
@@ -513,7 +472,8 @@ fun PostReplyScreen(
                 if (bottomSheetData.contentType == ContentType.POST) {
                     postViewModel.deletePost(
                         postId = bottomSheetData.content.postId,
-                        isCampus = bottomSheetData.campusId.isNullOrEmpty()
+                        isCampus = bottomSheetData.campusId,
+                        feedMode = bottomSheetData.feedMode
                     )
                 }
 
@@ -527,7 +487,7 @@ fun PostReplyScreen(
                 context.vibrate()
 
             },
-            showLoading = isLoading
+            showLoading = bottomSheetViewModel.isLoading.collectAsState().value
         )
 
 //        DragTopButton {
@@ -638,7 +598,7 @@ fun ReplyWidget(
         ) {
 
             CircleImage(
-                image = repliesDTO.user.userImage,
+                image = repliesDTO.creatorDetail.profile?.userImage ?: "",
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape),
@@ -648,7 +608,7 @@ fun ReplyWidget(
                             .apply {
                                 navHostController.currentBackStackEntry?.savedStateHandle?.set(
                                     "USER_ID",
-                                    repliesDTO.user.id
+                                    repliesDTO.creatorDetail.profile?.id
                                 )
                             }
                     }
@@ -656,7 +616,7 @@ fun ReplyWidget(
             )
 
             PostHeader(
-                user = repliesDTO.user,
+                user = repliesDTO.creatorDetail.profile,
                 postedAt = getTimeAgo(repliesDTO.repliedAt)
             )
         }
@@ -702,9 +662,11 @@ fun ReplyWidget(
             }
 
             Row (verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)){
+
                 if (repliesDTO.isEdited){
                     Text("Edited", color = Black300, fontSize = 12.sp)
                 }
+
                 Icon(
                     modifier = Modifier
                         .rotate(90f)
@@ -723,7 +685,80 @@ fun ReplyWidget(
 
 
         }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun BottomTextInput(
+    focusRequester: FocusRequester,
+    onFocusChange:(FocusState)->Unit,
+    onTextChange:(String)-> Unit,
+    onVisibilityChange:(PostVisibilityMode)-> Unit,
+    text: String,
+    onSubmitClick:()-> Unit,
+    isLoading: Boolean,
+    userImage: String
+) {
+
+    val keyboard = LocalSoftwareKeyboardController.current
+    var visibilityMode by remember { mutableStateOf(PostVisibilityMode.USER) }
+
+
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
+
+        TextField(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 42.dp)
+                .imePadding()
+                .focusRequester(focusRequester)
+                .onFocusChanged { onFocusChange.invoke(it) },
+            value = text,
+            onValueChange = {
+                onTextChange.invoke(it)
+            },
+            placeholder = { Text("Type a comment...", color = Black400) },
+            trailingIcon = {
+                IconButton(
+                    onClick = {
+                        onSubmitClick.invoke()
+                    }
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            trackColor = secondary,
+                            color = primary
+                        )
+                    } else {
+                        Icon(
+                            painterResource(R.drawable.send_2),
+                            contentDescription = "Send",
+                            tint = primary
+                        )
+                    }
+                }
+            },
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = White900,
+                unfocusedContainerColor = White900,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                focusedTrailingIconColor = primary
+            )
+        )
+
+//        VisibilityModeChanger(
+//            modifier = Modifier.size(42.dp),
+//            selectedMode ={onVisibilityChange(it)},
+//            userImage = userImage,
+//            isConsentAgreed = visibilityMode
+//        )
+
 
     }
+
+
 }
 

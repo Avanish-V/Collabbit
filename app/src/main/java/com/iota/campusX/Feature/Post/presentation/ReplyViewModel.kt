@@ -2,6 +2,9 @@ package com.iota.campusX.Feature.Post.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.iota.campusX.Feature.Post.data.visibilityMode
+import com.iota.campusX.Feature.Post.domain.Models.CreatorDetail
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostActions
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
@@ -12,6 +15,7 @@ import com.iota.campusX.Feature.Post.domain.UseCases.GetRepliesUseCase
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ReplyViewModel(
@@ -21,7 +25,7 @@ class ReplyViewModel(
 ) : ViewModel() {
 
     private val _repliesState = MutableStateFlow<UiState<List<GetRepliesDTO>>>(UiState.Idle)
-    val repliesState: StateFlow<UiState<List<GetRepliesDTO>>> get() = _repliesState
+    val repliesState: StateFlow<UiState<List<GetRepliesDTO>>> = _repliesState.asStateFlow()
 
     private val _createReplyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val createReplyState: StateFlow<UiState<Unit>> get() = _createReplyState
@@ -52,19 +56,36 @@ class ReplyViewModel(
         content: String,
         creatorId: String,
         visibilityMode: PostVisibilityMode,
+        mode: FeedMode,
         user: User
     ) {
         viewModelScope.launch {
             _createReplyState.value = UiState.Loading
-            val result = createReplyUseCase(replyId, postId, content, creatorId, visibilityMode)
+            val result = createReplyUseCase(replyId, postId, content, creatorId, visibilityMode,mode)
             _createReplyState.value = result.fold(
                 onSuccess = {
+
+                    val visibility = visibilityMode(
+                        visibilityMode,
+                        user
+                    )
+
                     addNewReplyOnCreate(
                         GetRepliesDTO(
                             postId = postId,
                             content = content,
+                            replyId = replyId,
                             visibilityMode = visibilityMode,
-                            user = user,
+                            creatorDetail = CreatorDetail(
+                                profile = User(
+                                    userName = visibility.first,
+                                    id = user.id,
+                                    userImage = visibility.second,
+                                    userBio = user.userBio,
+                                    designation = ""
+                                ),
+                                isCurrentUser = true
+                            ),
                             actions = PostActions(),
                             repliedAt = System.currentTimeMillis()
                         )
@@ -102,12 +123,21 @@ class ReplyViewModel(
             val result = postRepository.editReply(postId, replyId, content, campusId)
             _editReplyState.value = result.fold(
                 onSuccess = {
-                    updateReplyLocallyOnEdit(replyId, content)
-                    UiState.Success(Unit)
+                    UiState.Success(Unit).also {
+                        updateReplyLocallyOnEdit(replyId, content)
+                    }
                 },
                 onFailure = { UiState.Error(it.message ?: "Edit failed") }
             )
         }
+    }
+
+    fun updateReplyLocallyOnEdit(replyId: String, editedContent: String) {
+        val current = _repliesState.value as? UiState.Success ?: return
+        val updatedReplies = current.data.map { reply ->
+            if (reply.replyId == replyId) reply.copy(content = editedContent) else reply
+        }
+        _repliesState.value = UiState.Success(updatedReplies)
     }
 
     fun addNewReplyOnCreate(newReply: GetRepliesDTO) {
@@ -117,19 +147,6 @@ class ReplyViewModel(
             else -> UiState.Success(listOf(newReply))
         }
     }
-
-    fun updateReplyLocallyOnEdit(replyId: String, editedContent: String) {
-        val current = _repliesState.value
-        if (current is UiState.Success) {
-            val updatedReplies = current.data.map { reply ->
-                if (reply.replyId == replyId) {
-                    reply.copy(content = editedContent)
-                } else reply
-            }
-            _repliesState.value = UiState.Success(updatedReplies)
-        }
-    }
-
 
     fun removeReplyOnDelete(replyId: String) {
         val current = _repliesState.value

@@ -1,5 +1,7 @@
 package com.iota.campusX.Screens.Post
 
+import ConsentAgreeViewModel
+import ConsentBottomSheet
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -54,6 +56,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -67,7 +71,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
@@ -110,6 +113,7 @@ import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.IconButtonWidget
 import com.iota.campusX.ui.theme.Black300
+import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black900
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White900
@@ -122,6 +126,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePostScreen(
@@ -134,11 +139,15 @@ fun CreatePostScreen(
 ) {
     val postScreenViewModel = koinInject<PostScreenViewModel>()
     val pollViewModel = koinViewModel<PollViewModel>()
+    val consentAgreeViewModel = koinInject<ConsentAgreeViewModel>()
     val poll by pollViewModel.poll.collectAsState()
     val pollState = postCreationViewModel.createPollUiState
     val postOption = postScreenViewModel.post.collectAsState().value
     val uploadProgress by postCreationViewModel.uploadingProgress.collectAsState()
-    val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value.baseProfileData
+    val isConsentAgree by consentAgreeViewModel.isAgree.collectAsState()
+    val userProfileState = userProfileViewModel.userBaseProfile.collectAsState().value
+
+    val userProfile = userProfileState as UiState.Success
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -146,6 +155,7 @@ fun CreatePostScreen(
     var selectedPod by remember { mutableStateOf<Reference?>(null) }
     var isExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var isBottomSheetVisible by remember { mutableStateOf(false) }
     var visibility by remember { mutableStateOf(PostVisibilityMode.USER) }
     var selectedImages by remember { mutableStateOf<Uri?>(null) }
     val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
@@ -153,7 +163,7 @@ fun CreatePostScreen(
         onResult = { uri -> selectedImages = uri }
     )
     val snackbarHostState = remember { SnackbarHostState() }
-    val feedMode = homeViewModel.switchState.collectAsState().value
+    val feedMode = homeViewModel.mode.collectAsState().value
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -180,6 +190,7 @@ fun CreatePostScreen(
 
             is UiState.Success -> {
                 isLoading = false
+                val feedMode = feedMode as UiState.Success<FeedMode>
                 feedViewModel.updatePostLocally(
                     getPostDTO = GetPostDTO(
                         postId = generateUID(),
@@ -191,10 +202,10 @@ fun CreatePostScreen(
                         ),
                         creatorDetail = CreatorDetail(
                             profile = User(
-                                userName = userProfile.userName,
-                                id = userProfile.id,
-                                userImage = userProfile.userImage,
-                                userBio = userProfile.userBio,
+                                userName = userProfile.data.userName,
+                                id = userProfile.data.id,
+                                userImage = userProfile.data.userImage,
+                                userBio = userProfile.data.userBio,
                             )
                         ),
                         postContent = PostContent(
@@ -205,15 +216,15 @@ fun CreatePostScreen(
                                 poll = poll
                             )
                         ),
-                        campusId = userProfile.campus?.campusCode,
+                        campusId = userProfile.data.campus?.campusCode,
                         postActions = PostActions(
                             isLiked = false,
                             likesCount = 0,
                             replies = emptyList(),
                             replyCount = 0,
                         ),
+                        feedMode = feedMode.data
                     ),
-                    feedMode = FeedMode.GLOBAL
                 )
                 navHostController.popBackStack()
             }
@@ -246,6 +257,9 @@ fun CreatePostScreen(
             is UploadState.Error -> {
                 isLoading = false
                 // Optionally show error to user
+                scope.launch {
+                    snackbarHostState.showSnackbar((uploadProgress as UploadState.Error).message)
+                }
             }
 
             is UploadState.Idle,
@@ -254,6 +268,26 @@ fun CreatePostScreen(
             }
         }
     }
+
+    LaunchedEffect(isConsentAgree) {
+        when (isConsentAgree) {
+            is UiState.Loading -> {
+
+            }
+            is UiState.Success -> {
+                isBottomSheetVisible = false
+            }
+            else -> {
+
+            }
+
+        }
+    }
+
+    LaunchedEffect(visibility) {
+        Log.d("VisibilityChange", "Visibility changed to $visibility")
+    }
+
 
 
     Scaffold(
@@ -270,12 +304,52 @@ fun CreatePostScreen(
                 },
                 actions = {
 
-                    Text(
-                        modifier = Modifier.padding(end = 16.dp),
-                        text = if (feedMode.savedIndex == 0) "Campus Mode" else "Global Mode",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    Row(
+                        modifier = Modifier.padding(end = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
 
+                        when (feedMode) {
+
+                            is UiState.Success -> {
+                                Icon(
+                                    modifier = Modifier.size(20.dp),
+                                    painter = painterResource(R.drawable.globe),
+                                    contentDescription = null
+                                )
+                                Switch(
+                                    checked = feedMode.data == FeedMode.CAMPUS,
+                                    onCheckedChange = { isChecked ->
+                                        val newMode = if (isChecked) FeedMode.CAMPUS else FeedMode.GLOBAL
+                                        homeViewModel.saveSwitchState(newMode)
+                                        context.vibrate()
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        uncheckedThumbColor = Black500,
+                                        uncheckedIconColor = White400,
+                                        uncheckedTrackColor = White900,
+                                        uncheckedBorderColor = Black500
+                                    )
+                                )
+                                Icon(
+                                    modifier = Modifier.size(20.dp),
+                                    painter = painterResource(R.drawable.school),
+                                    contentDescription = null
+                                )
+                            }
+
+                            else -> {
+                                // Optionally show a disabled switch or a placeholder
+                                Switch(
+                                    checked = false,
+                                    onCheckedChange = {},
+                                    enabled = false
+                                )
+                            }
+                        }
+
+                    }
                 }
             )
         },
@@ -315,7 +389,8 @@ fun CreatePostScreen(
                     )
 
                 }
-                Log.d("Posts", "CreatePostScreen: $postOption")
+
+
 
                 Button(
                     modifier = Modifier.shadow(
@@ -373,7 +448,8 @@ fun CreatePostScreen(
                             }
 
                             else -> {
-
+                                val feedMode = feedMode as UiState.Success<FeedMode>
+                                Log.d("Posts", "CreatePostScreen: ${feedMode.data}")
                                 if (selectedPod == null) {
                                     scope.launch {
                                         snackbarHostState.showSnackbar("Select Pod")
@@ -395,7 +471,7 @@ fun CreatePostScreen(
                                         postId = postId,
                                         visibilityMode = visibility,
                                         createdAt = getTimeMillis(),
-                                        creatorId = userProfile.id,
+                                        creatorId = userProfile.data.id,
                                         reference = selectedPod!!,
                                         postContent = PostContent(
                                             postType = postScreenViewModel.post.value,
@@ -403,17 +479,18 @@ fun CreatePostScreen(
                                                 postText = text,
                                             )
                                         ),
-                                        campusId = if (feedMode.savedIndex == 1) userProfile.campus?.campusCode else null,
+                                        campusId =  userProfile.data.campus?.campusCode,
+                                        feedMode = feedMode.data
                                     ),
-                                    feedMode = FeedMode.GLOBAL,
                                     imageUri = selectedImages,
                                     user = User(
-                                        userName = userProfile.userName,
-                                        id = userProfile.id,
-                                        userImage = userProfile.userImage,
-                                        userBio = userProfile.userBio,
+                                        userName = userProfile.data.userName,
+                                        id = userProfile.data.id,
+                                        userImage = userProfile.data.userImage,
+                                        userBio = userProfile.data.userBio,
                                     ),
-                                    navHostController
+                                    navHostController =  navHostController,
+                                    postFeedViewModel = feedViewModel
                                 )
                             }
                         }
@@ -449,7 +526,7 @@ fun CreatePostScreen(
                 Snackbar(snackbarData = it)
             }
         },
-        containerColor = secondary
+        containerColor = White900
     ) { innerPadding ->
 
         LazyColumn(
@@ -459,119 +536,7 @@ fun CreatePostScreen(
         ) {
 
             item {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    VanishModeButton(
-                        selectedMode = {
-                            visibility = it
-                        },
-                        userImage = userProfile.userImage
-                    )
-                }
-            }
-
-            item {
-
-                AnimatedVisibility(visible = true) {
-                    ExposedDropdownMenuBox(
-                        modifier = Modifier,
-                        expanded = false,
-                        onExpandedChange = {}
-
-                    ) {
-
-                        Row(
-                            modifier = Modifier
-                                .border(
-                                    width = 1.dp,
-                                    color = White400,
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                .padding(10.dp)
-                                .clickable(
-                                    onClick = {
-                                        isExpanded = true
-                                    },
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            selectedPod?.let {
-                                AsyncImage(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(CircleShape),
-                                    model = it.icon,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                            Text(
-                                text = selectedPod?.title ?: "Select Pod",
-                                color = Black900
-                            )
-
-                            IconButton(
-                                onClick = {
-                                    if (selectedPod?.title.isNullOrEmpty()) {
-                                        isExpanded = !isExpanded
-                                    } else {
-                                        selectedPod = null
-                                    }
-                                }
-                            ) {
-                                if (selectedPod?.title.isNullOrEmpty()) {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(
-                                        expanded = isExpanded
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Close"
-                                    )
-                                }
-
-                            }
-
-                        }
-
-                        DropdownMenu(
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .background(color = background),
-                            shape = RoundedCornerShape(5.dp),
-                            shadowElevation = 0.dp,
-                            expanded = isExpanded,
-                            onDismissRequest = { isExpanded = false }
-                        ) {
-                            podListItems.forEach {
-                                DropdownMenuItem(
-                                    modifier = Modifier.padding(vertical = 5.dp),
-                                    text = { Text(text = it.title) },
-                                    leadingIcon = {
-                                        AsyncImage(
-                                            modifier = Modifier
-                                                .size(42.dp)
-                                                .clip(CircleShape),
-                                            model = it.icon,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    },
-                                    onClick = {
-                                        selectedPod = Reference(
-                                            title = it.title,
-                                            icon = it.icon
-                                        )
-                                        isExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
+                Text(text = "This post will be visible to all campuses.", color = Black300)
             }
 
             item {
@@ -694,7 +659,8 @@ fun CreatePostScreen(
                     }
 
                     else -> {
-                        BasicTextField(
+
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .border(
@@ -703,77 +669,240 @@ fun CreatePostScreen(
                                     shape = RoundedCornerShape(10.dp)
                                 )
                                 .padding(12.dp),
-                            value = text,
-                            onValueChange = { text = it },
-                            textStyle = TextStyle(
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Black900
-                            ),
-                            decorationBox = {
-                                if (text.isEmpty()) {
-                                    Text(
-                                        text = "What's on your mind?",
-                                        color = Black300
-                                    )
-                                }
-                                Column {
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
 
-                                    it()
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
 
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentAlignment = Alignment.CenterEnd
+                                VisibilityModeChanger(
+                                    modifier = Modifier.size(38.dp),
+                                    selectedVisibility = visibility,
+                                    onVisibilityModeChange = {
+                                        Log.d("Visibility", "CreatePostScreen: $it")
+                                        when(isConsentAgree){
+                                            is UiState.Success -> {
+                                                if (it == PostVisibilityMode.ANONYMOUS){
+                                                    if ((isConsentAgree as UiState.Success<Boolean>).data){
+                                                        visibility = it
+                                                    }else{
+                                                        isBottomSheetVisible = true
+                                                        visibility = PostVisibilityMode.USER
+                                                    }
+                                                }else{
+                                                    visibility = it
+                                                }
+                                            }
+                                            else -> {}
+                                        }
+
+                                    },
+                                    userImage = userProfile.data.userImage,
+
+                                )
+
+                                AnimatedVisibility(visible = true) {
+                                    ExposedDropdownMenuBox(
+                                        modifier = Modifier,
+                                        expanded = false,
+                                        onExpandedChange = {}
+
                                     ) {
-                                        Text(text = "${text.count()}/500", color = Black300)
-                                    }
 
-                                    if (postOption == PostOptions.IMAGE) {
-                                        if (selectedImages != null) {
-                                            AnimatedVisibility(visible = true) {
-                                                Box(contentAlignment = Alignment.TopEnd) {
-                                                    AsyncImage(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(5.dp))
-                                                            .fillMaxWidth()
-                                                            .height(250.dp),
-                                                        model = selectedImages,
-                                                        contentDescription = null,
-                                                        contentScale = ContentScale.Crop
-                                                    )
+                                        Row(
+                                            modifier = Modifier
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = White400,
+                                                    shape = RoundedCornerShape(10.dp)
+                                                )
+                                                .padding(4.dp)
+                                                .clickable(
+                                                    onClick = {
+                                                        isExpanded = true
+                                                    },
+                                                    indication = null,
+                                                    interactionSource = remember { MutableInteractionSource() }
+                                                ),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            selectedPod?.let {
 
-                                                    IconButton(
-                                                        modifier = Modifier.size(24.dp),
-                                                        onClick = {
-                                                            selectedImages = null
-                                                            postScreenViewModel.chooseOption(
-                                                                PostOptions.TEXT
-                                                            )
-                                                        },
-                                                        colors = IconButtonDefaults.iconButtonColors(
-                                                            containerColor = secondary
-                                                        )
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Close,
-                                                            contentDescription = "Delete Image",
+                                                AsyncImage(
+                                                    modifier = Modifier
+                                                        .size(42.dp)
+                                                        .clip(CircleShape),
+                                                    model = it.icon,
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop
+                                                )
 
-                                                            )
+                                            }
+
+                                            Text(
+                                                text = selectedPod?.title ?: "Select Pod",
+                                                color = Black900
+                                            )
+
+                                            IconButton(
+                                                onClick = {
+                                                    if (selectedPod?.title.isNullOrEmpty()) {
+                                                        isExpanded = !isExpanded
+                                                    } else {
+                                                        selectedPod = null
                                                     }
                                                 }
+                                            ) {
+                                                if (selectedPod?.title.isNullOrEmpty()) {
+                                                    ExposedDropdownMenuDefaults.TrailingIcon(
+                                                        expanded = isExpanded
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Close"
+                                                    )
+                                                }
+
+                                            }
+
+                                        }
+
+                                        DropdownMenu(
+                                            modifier = Modifier
+                                                .wrapContentWidth()
+                                                .background(color = background),
+                                            shape = RoundedCornerShape(5.dp),
+                                            shadowElevation = 0.dp,
+                                            expanded = isExpanded,
+                                            onDismissRequest = { isExpanded = false }
+                                        ) {
+                                            podListItems.forEach {
+                                                DropdownMenuItem(
+                                                    modifier = Modifier.padding(vertical = 5.dp),
+                                                    text = { Text(text = it.title) },
+                                                    leadingIcon = {
+                                                        AsyncImage(
+                                                            modifier = Modifier
+                                                                .size(42.dp)
+                                                                .clip(CircleShape),
+                                                            model = it.icon,
+                                                            contentDescription = null,
+                                                            contentScale = ContentScale.Crop
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        selectedPod = Reference(
+                                                            title = it.title,
+                                                            icon = it.icon
+                                                        )
+                                                        isExpanded = false
+                                                    }
+                                                )
                                             }
                                         }
                                     }
                                 }
 
-                            },
-                            cursorBrush = Brush.verticalGradient(listOf(primary, primary))
 
-                        )
+                            }
+
+                            BasicTextField(
+                                modifier = Modifier
+                                    .fillMaxWidth(),
+                                value = text,
+                                onValueChange = { text = it },
+                                textStyle = TextStyle(
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Black900
+                                ),
+                                decorationBox = {
+                                    if (text.isEmpty()) {
+                                        Text(
+                                            text = "What's on your mind?",
+                                            color = Black300
+                                        )
+                                    }
+                                    Column {
+
+                                        it()
+
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentAlignment = Alignment.CenterEnd
+                                        ) {
+                                            Text(text = "${text.count()}/500", color = Black300)
+                                        }
+
+                                        if (postOption == PostOptions.IMAGE) {
+                                            if (selectedImages != null) {
+                                                AnimatedVisibility(visible = true) {
+                                                    Box(contentAlignment = Alignment.TopEnd) {
+                                                        AsyncImage(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(5.dp))
+                                                                .fillMaxWidth()
+                                                                .height(250.dp),
+                                                            model = selectedImages,
+                                                            contentDescription = null,
+                                                            contentScale = ContentScale.Crop
+                                                        )
+
+                                                        IconButton(
+                                                            modifier = Modifier
+                                                                .size(24.dp)
+                                                                .padding(12.dp),
+                                                            onClick = {
+                                                                selectedImages = null
+                                                                postScreenViewModel.chooseOption(
+                                                                    PostOptions.TEXT
+                                                                )
+                                                            },
+                                                            colors = IconButtonDefaults.iconButtonColors(
+                                                                containerColor = secondary
+                                                            )
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Close,
+                                                                contentDescription = "Delete Image",
+
+                                                                )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                },
+                                cursorBrush = Brush.verticalGradient(listOf(primary, primary))
+                            )
+                        }
+
                     }
                 }
             }
         }
+
+        ConsentBottomSheet(
+            isVisible = isBottomSheetVisible,
+            onDismiss = {
+                isBottomSheetVisible = false
+                visibility = PostVisibilityMode.USER
+            },
+            onAgree = {
+                consentAgreeViewModel.saveSwitchState(
+                    true
+                )
+            }
+        )
+
+
     }
 }
 
@@ -804,23 +933,21 @@ enum class PostVisibilityMode { USER, ANONYMOUS }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun VanishModeButton(
+fun VisibilityModeChanger(
     modifier: Modifier = Modifier,
-    selectedMode: (PostVisibilityMode) -> Unit,
+    selectedVisibility:PostVisibilityMode,
+    onVisibilityModeChange: (PostVisibilityMode) -> Unit,
     userImage: String
 ) {
 
-    var mode by remember { mutableStateOf(PostVisibilityMode.USER) }
+    var visibility by remember { mutableStateOf(PostVisibilityMode.USER) }
 
-    LaunchedEffect(mode) {
-        when (mode) {
-            PostVisibilityMode.USER -> {
-                selectedMode(mode)
-            }
-
-            PostVisibilityMode.ANONYMOUS -> {
-                selectedMode(mode)
-            }
+    LaunchedEffect(visibility) {
+        if (visibility == PostVisibilityMode.ANONYMOUS){
+           visibility = PostVisibilityMode.USER
+        }
+        if (visibility == PostVisibilityMode.USER){
+            visibility = PostVisibilityMode.ANONYMOUS
         }
     }
 
@@ -829,20 +956,11 @@ fun VanishModeButton(
     val threshold = 200f // Distance to trigger vanish mode horizontally
     val coroutineScope = rememberCoroutineScope()
 
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
-
-        Text(
-            text = "Swipe right to change visibility",
-            color = Black300,
-            modifier = Modifier
-                .padding(start = 85.dp)
-                .alpha(100 / offsetX.value)
-        )
+    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
 
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                .size(62.dp)
                 .clip(CircleShape)
                 .background(Color.Gray)
                 .pointerInput(Unit) {
@@ -858,11 +976,15 @@ fun VanishModeButton(
                         onDragEnd = {
                             coroutineScope.launch {
                                 if (offsetX.value > threshold) {
-                                    if (mode == PostVisibilityMode.USER) {
-                                        mode = PostVisibilityMode.ANONYMOUS
-                                    } else {
-                                        mode = PostVisibilityMode.USER
+
+                                    if (visibility == PostVisibilityMode.USER){
+                                        visibility = PostVisibilityMode.ANONYMOUS
                                     }
+
+                                    if (visibility == PostVisibilityMode.ANONYMOUS){
+                                        visibility = PostVisibilityMode.USER
+                                    }
+
                                     context.vibrate()
                                 }
                                 offsetX.animateTo(0f, animationSpec = spring())
@@ -874,9 +996,9 @@ fun VanishModeButton(
         ) {
             AsyncImage(
                 modifier = Modifier.fillMaxSize(),
-                model = if (mode == PostVisibilityMode.USER) userImage else R.drawable.incognoto,
+                model = if (visibility == PostVisibilityMode.USER) userImage else R.drawable.incognoto,
                 contentDescription = null,
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         }
     }

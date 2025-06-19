@@ -5,9 +5,14 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Screens.PostType
+import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,44 +26,43 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "FE
 
 class HomeViewModel(private val context: Context) : ViewModel() {
 
-    private val _switchState = MutableStateFlow(SwitchState())
-    val switchState: StateFlow<SwitchState> = _switchState.asStateFlow()
+    private val _mode = MutableStateFlow<UiState<FeedMode>>(UiState.Idle)
+    val mode: StateFlow<UiState<FeedMode>> = _mode.asStateFlow()
 
     companion object {
-        private val SWITCH_PREF_KEY = intPreferencesKey("switch_state")
-    }
-
-    fun saveSwitchState(index: Int) {
-        viewModelScope.launch {
-            context.dataStore.edit { settings ->
-                settings[SWITCH_PREF_KEY] = index
-            }
-        }
+        private val SWITCH_PREF_KEY = stringPreferencesKey("switch_state")
     }
 
     init {
-        viewModelScope.launch {
-            _switchState.value = SwitchState(isLoad = true)
+        loadSwitchState()
+    }
 
+    private fun loadSwitchState() {
+        viewModelScope.launch {
+            _mode.value = UiState.Loading
             val result = runCatching {
                 context.dataStore.data
-                    .catch { ex ->
-                        throw ex
+                    .map { preferences ->
+                        val name = preferences[SWITCH_PREF_KEY] ?: FeedMode.GLOBAL.name
+                        FeedMode.valueOf(name)
                     }
-                    .map { it[SWITCH_PREF_KEY] ?: 0 }
                     .first()
             }
 
-            _switchState.value = result.fold(
-                onSuccess = { SwitchState(isLoad = false, savedIndex = it) },
-                onFailure = { SwitchState(isLoad = false, error = it.message ?: "Unknown error") }
+            _mode.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message ?: "Failed to load mode") }
             )
+        }
+    }
+
+    fun saveSwitchState(mode: FeedMode) {
+        viewModelScope.launch {
+            context.dataStore.edit { settings ->
+                settings[SWITCH_PREF_KEY] = mode.name
+            }
+            _mode.value = UiState.Success(mode) // Optionally update immediately
         }
     }
 }
 
-data class SwitchState(
-    val isLoad: Boolean = false,
-    val savedIndex: Int = 0,
-    val error: String = ""
-)

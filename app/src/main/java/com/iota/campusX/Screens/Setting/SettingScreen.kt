@@ -144,24 +144,7 @@ fun SettingScreen(
                         TextButton(
                             onClick = {
                                 scope.launch {
-                                    userProfileViewModel.deleteUserProfile().collect {
-                                        when(it){
-                                            is ResultState.Loading -> {
-                                                isLoading = true
-                                            }
-                                            is ResultState.Success -> {
-                                                FirebaseAuth.getInstance().signOut()
-                                                navController.navigate(Routes.Register.routes) {
-                                                    popUpTo(Routes.Register.routes) {
-                                                        inclusive = true
-                                                    }
-                                                }
-                                            }
-                                            is ResultState.Error -> {
-                                                isLoading = false
-                                            }
-                                        }
-                                    }
+                                    userProfileViewModel.deleteUserProfile()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(

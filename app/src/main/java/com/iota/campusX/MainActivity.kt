@@ -2,6 +2,7 @@ package com.iota.campusX
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
@@ -59,6 +60,7 @@ import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
+import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
 import com.iota.campusX.Feature.Post.presentation.UploadState
 import com.iota.campusX.Feature.PushNotification.PushNotificationService
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -80,6 +82,7 @@ import com.iota.campusX.Screens.Profile.ProfileScreen
 import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Screens.VoxciScreen
+import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.initCloudinary
 import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.CampusXTheme
@@ -134,6 +137,7 @@ class MainActivity : ComponentActivity() {
             val navigationViewModel = koinInject<NavigationViewModel>()
             val homeViewModel = koinInject<HomeViewModel>()
             val notificationViewModel = koinInject<NotificationViewModel>()
+            val replyViewModel = koinInject<ReplyViewModel>()
 
 
             val navBackStackEntry by navHostController.currentBackStackEntryAsState()
@@ -141,9 +145,14 @@ class MainActivity : ComponentActivity() {
             val isBottomBarVisible = navigationViewModel.isBottomBarVisible.collectAsState()
 
             val uploadProgress = postCreationViewModel.uploadingProgress.collectAsState().value
+            val mode = homeViewModel.mode.collectAsState().value
 
-            installSplashScreen().setKeepOnScreenCondition {
-                homeViewModel.switchState.value.isLoad
+            Log.d("MODE", mode.toString())
+
+            when(mode){
+                is UiState.Loading -> installSplashScreen().setKeepOnScreenCondition { false }
+                is UiState.Success<*> -> false
+                else -> false
             }
 
             val showBottomBar by remember {
@@ -322,8 +331,9 @@ class MainActivity : ComponentActivity() {
                                             navHostController,
                                             userProfileViewModel,
                                             postFeedViewModel,
-
-                                            )
+                                            homeViewModel,
+                                            replyViewModel
+                                        )
                                     }
 
                                     navScreen(

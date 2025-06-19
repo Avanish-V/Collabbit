@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -84,6 +86,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -122,6 +125,7 @@ import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.launch
 
+// ProfileScreen.kt
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -132,78 +136,54 @@ fun ProfileScreen(
     googleSignInViewModel: AuthViewModel,
     navigationViewModel: NavigationViewModel
 ) {
-
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val tabs = listOf("About", "Posts")
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
-
-
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
     val currentUser = googleSignInViewModel.userId()
     val context = LocalContext.current
-    val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
-    val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
-
-    val isLoading = remember { mutableStateOf(false) }
-    val isAlertDialogVisible = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackBarHostState = remember { SnackbarHostState() }
+    val postLazyColumnState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+
+    val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
+    val bottomSheetData by bottomSheetViewModel.bottomSheetState.collectAsState()
+
     val navBackStackEntry by navHostController.currentBackStackEntryAsState()
     val creatorId = navBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
 
-
     val userBaseProfile by profileViewModel.userBaseProfile.collectAsState()
     val profileByIdState by profileViewModel.profileById.collectAsState()
-    val connectionsCount by profileViewModel.connectionCount.collectAsState()
+    val connectionsCountState by profileViewModel.connectionCount.collectAsState()
+    val connectionsCount = (connectionsCountState as? UiState.Success)?.data ?: 0
 
-    val postLazyColumnState = rememberSaveable(saver = LazyListState.Saver) {
-        LazyListState()
+    val profileState = if (currentUser == creatorId || creatorId == null) {
+        (userBaseProfile as? UiState.Success)?.data
+    } else {
+        (profileByIdState as? UiState.Success)?.data
     }
 
+    val profileType = if (currentUser == creatorId || creatorId == null) ProfileType.CURRENT_USER else ProfileType.CREATOR
+
+    val isLoading = remember { mutableStateOf(false) }
+    val isAlertDialogVisible = remember { mutableStateOf(false) }
+
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val density = LocalDensity.current
+    var headerHeightDp by remember { mutableStateOf(0.dp) }
+    var tabRowHeightDp by remember { mutableStateOf(0.dp) }
+
+    val horizontalPagerHeight by remember {
+        derivedStateOf { screenHeight - (headerHeightDp + tabRowHeightDp + 12.dp + 52.dp) }
+    }
 
     LaunchedEffect(creatorId) {
-        if (creatorId != null && creatorId.isNotEmpty()) {
-            profileViewModel.getUserById(creatorId)
-        }
+        if (!creatorId.isNullOrEmpty()) profileViewModel.getUserById(creatorId)
     }
 
     LaunchedEffect(Unit) {
         profileViewModel.getConnectionCount(userId = creatorId ?: currentUser)
     }
 
-
-    val profileState = if (currentUser == creatorId || creatorId == null) {
-        userBaseProfile.baseProfileData
-    } else {
-        profileByIdState.baseProfileData
-    }
-
-
-    val profileType = if (currentUser == creatorId || creatorId == null){
-        ProfileType.CURRENT_USER
-    }else{
-        ProfileType.CREATOR
-    }
-
-
-    HideBottomBar(
-        navigationViewModel,
-        postLazyColumnState
-    )
-
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val density = LocalDensity.current
-
-// States to hold heights
-    var headerHeightDp by remember { mutableStateOf(0.dp) }
-    var tabRowHeightDp by remember { mutableStateOf(0.dp) }
-
-
-    val horizontalPagerHeight by remember {
-        derivedStateOf {
-            screenHeight-(headerHeightDp+tabRowHeightDp+12.dp+52.dp)
-        }
-    }
-
+    HideBottomBar(navigationViewModel, postLazyColumnState)
 
     Scaffold(
         topBar = {
@@ -215,132 +195,109 @@ fun ProfileScreen(
                 ),
                 actions = {
                     if (creatorId.isNullOrEmpty()) {
-                        Row(horizontalArrangement = Arrangement.End) {
-
-                            IconButton(onClick = {
-                                navHostController.navigate("SETTING")
-                            }) {
-                                Icon(
-                                    painter = painterResource(R.drawable.setting),
-                                    contentDescription = null
-                                )
-                            }
+                        IconButton(onClick = { navHostController.navigate("SETTING") }) {
+                            Icon(painterResource(R.drawable.setting), contentDescription = null)
                         }
                     }
-
                 },
                 navigationIcon = {
                     if (profileType == ProfileType.CREATOR) {
-                        Row(horizontalArrangement = Arrangement.End) {
-                            IconButton(onClick = {
-                               navHostController.popBackStack()
-                            }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = null
-                                )
-                            }
+                        IconButton(onClick = { navHostController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                         }
                     }
                 },
                 scrollBehavior = scrollBehavior
             )
         },
-        snackbarHost = {
-            SnackbarHost(snackBarHostState) {
-                Snackbar(snackbarData = it)
-            }
-        },
+        snackbarHost = { SnackbarHost(snackBarHostState) },
         containerColor = secondary
     ) { innerPadding ->
 
-        LazyColumn (
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             state = postLazyColumnState
-        ){
+        ) {
+
 
             item {
 
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+
+                ) {
+                    // Circular Image half inside, half outside the Box
+                    Image(
+                        painter = painterResource(id = R.drawable.man), // replace with your image
+                        contentDescription = "Profile Picture",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, Color.White, CircleShape)
+                            .align(Alignment.TopCenter)
+                            .offset(y = (-50).dp) // Move half image height up
+                            .zIndex(1f)
+                    )
+                }
+
+
+
+
+
+            }
+
+
+
+
+            item {
                 ProfileHeader(
                     modifier = Modifier.fillMaxSize(),
-                    headerHeight = {
-                        headerHeightDp = it
-                    },
+                    headerHeight = { headerHeightDp = it },
                     navHostController = navHostController,
                     user = User(
-                        userName = profileState.userName.toString(),
-                        userImage = profileState.userImage.toString(),
-                        id = profileState.id.toString()
+                        userName = profileState?.userName.orEmpty(),
+                        userImage = profileState?.userImage.orEmpty(),
+                        id = profileState?.id.orEmpty()
                     ),
                     profileType = profileType,
                     onLinkUpRequestClick = {
                         scope.launch {
                             profileViewModel.sendLinkUpRequest(
-                                requestUserId = creatorId.toString(),
-                                currentState = profileState.isRequestSent
-                            ).collect {
-                                when (it) {
-                                    is ResultState.Success -> {
-                                        profileViewModel.getUserById(creatorId.toString())
-                                        snackBarHostState.showSnackbar("Done")
-                                    }
-
-                                    is ResultState.Error -> {
-                                        snackBarHostState.showSnackbar("Something went wrong")
-                                    }
-
-                                    is ResultState.Loading -> {
-                                    }
-                                }
-                            }
+                                requestUserId = creatorId.orEmpty(),
+                                currentState = profileState?.isRequestSent
+                            )
                         }
                     },
                     onMessageClick = {
-
                         navHostController.navigate(Routes.Main.SendMessage.routes).apply {
-                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                "USER_ID",
-                                profileState.id
-                            )
-                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                "USER_NAME",
-                                profileState.userName
-                            )
-                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                "USER_IMAGE",
-                                profileState.userImage
-                            )
+                            navHostController.currentBackStackEntry?.savedStateHandle?.apply {
+                                set("USER_ID", profileState?.id)
+                                set("USER_NAME", profileState?.userName)
+                                set("USER_IMAGE", profileState?.userImage)
+                            }
                         }
-
                     },
-                    isLinkUpRequestSent = profileState.isRequestSent,
+                    isLinkUpRequestSent = profileState?.isRequestSent,
                     connectionsCount = connectionsCount
                 )
-
             }
 
-            item {
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
 
             stickyHeader {
-
                 PrimaryTabRow(
-                    modifier = Modifier
-                        .onGloballyPositioned {
-                        val heightPx = it.size.height
-                        tabRowHeightDp = with(density) { heightPx.toDp() }
+                    modifier = Modifier.onGloballyPositioned {
+                        tabRowHeightDp = with(density) { it.size.height.toDp() }
                     },
                     selectedTabIndex = pagerState.currentPage,
                     containerColor = Color.White,
-                    divider = {
-                        HorizontalDivider(
-                            color = White400
-                        )
-                    },
+                    divider = { HorizontalDivider(color = White400) },
                     indicator = {
                         TabRowDefaults.PrimaryIndicator(
                             modifier = Modifier.tabIndicatorOffset(
@@ -353,14 +310,10 @@ fun ProfileScreen(
                         )
                     }
                 ) {
-                    tabs.forEachIndexed { index, title ->
+                    listOf("About", "Posts").forEachIndexed { index, title ->
                         Tab(
                             text = {
-                                Text(
-                                    text = title,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             },
                             selected = pagerState.currentPage == index,
                             onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
@@ -369,38 +322,32 @@ fun ProfileScreen(
                         )
                     }
                 }
-
             }
 
             item {
-
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(horizontalPagerHeight) // ✅ using BoxWithConstraints scope value
-                ) {
-                    when (it) {
-                        0 -> {
+                        .height(horizontalPagerHeight)
+                ) { page ->
+                    when (page) {
+                        0 -> profileState?.let {
                             UserAbout(
-                                userBasicProfileDTO = profileState,
+                                userBasicProfileDTO = it,
                                 navHostController = navHostController,
-                                isCurrentUser = if (creatorId == null) true else creatorId == currentUser
+                                isCurrentUser = creatorId == null || creatorId == currentUser
                             )
                         }
-
-                        1 -> {
-
-                            PostScreenComponent(
-                                navHostController = navHostController,
-                                postViewModel = postViewModel,
-                                navigationViewModel = navigationViewModel,
-                                bottomSheetSharedViewModel = bottomSheetViewModel,
-                                currentUser = creatorId ?: currentUser,
-                                campusId = profileState?.campus?.campusCode,
-                                context = context
-                            )
-                        }
+                        1 -> PostScreenComponent(
+                            navHostController = navHostController,
+                            postViewModel = postViewModel,
+                            navigationViewModel = navigationViewModel,
+                            bottomSheetSharedViewModel = bottomSheetViewModel,
+                            currentUser = creatorId ?: currentUser,
+                            campusId = profileState?.campus?.campusCode,
+                            context = context
+                        )
                     }
                 }
             }
@@ -410,139 +357,62 @@ fun ProfileScreen(
             isBottomSheet = bottomSheetData.isBottomSheet,
             bottomSheetViewModel = bottomSheetViewModel,
             postFeedViewModel = postViewModel,
-            onDismiss = { },
+            onDismiss = {},
             isCurrentUser = bottomSheetData.isCurrentUser,
-            onDeleteClick = {
-                isAlertDialogVisible.value = !isAlertDialogVisible.value
-            },
-            onEditClick = {
-
-            },
-            onHideBottomSheet = {
-            }
+            onDeleteClick = { isAlertDialogVisible.value = true },
+            onEditClick = {},
+            onHideBottomSheet = {}
         )
 
-        AnimatedVisibility(visible = isAlertDialogVisible.value) {
-
-            Box(contentAlignment = Alignment.Center) {
-
-                BasicAlertDialog(
-                    onDismissRequest = { isAlertDialogVisible.value = false },
-                ) {
-
-                    Surface(
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Column {
-
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
+        if (isAlertDialogVisible.value) {
+            BasicAlertDialog(
+                onDismissRequest = { isAlertDialogVisible.value = false },
+            ) {
+                Surface(shape = RoundedCornerShape(6.dp)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Delete Post", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+                        Text("Are you sure you want to delete this post?", textAlign = TextAlign.Center, modifier = Modifier.padding(12.dp))
+                        HorizontalDivider()
+                        Row(Modifier.fillMaxWidth()) {
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .clickable(
+                                        onClick = { isAlertDialogVisible.value = false },
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() })
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text("Delete Post", fontWeight = FontWeight.Bold)
-                                Text(
-                                    "Are you sure you want to delete this post?",
-                                    textAlign = TextAlign.Center
-                                )
+                                Text("Cancel")
                             }
-
-                            Column {
-                                HorizontalDivider()
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-
-                                    Box(
-                                        Modifier
-                                            .weight(1f)
-                                            .clickable(
-                                                onClick = { isAlertDialogVisible.value = false },
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() }),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("Cancel", modifier = Modifier.padding(16.dp))
-                                    }
-
-                                    VerticalDivider(
-                                        modifier = Modifier.height(48.dp)
-
-                                    )
-
-                                    Box(
-                                        Modifier
-                                            .weight(1f)
-                                            .clickable(
-                                                onClick = {
-
-//                                                    scope.launch {
-//                                                        postViewModel.deletePost(
-//                                                            bottomSheetData.postId,
-//                                                            bottomSheetData.campusId
-//                                                        )
-//                                                            .collect {
-//                                                                when (it) {
-//                                                                    is ResultState.Success -> {
-//                                                                        delay(1000)
-//                                                                        isLoading.value = false
-//                                                                        isAlertDialogVisible.value =
-//                                                                            false  // <-- Add this line
-//                                                                        bottomSheetData.isBottomSheet =
-//                                                                            false
-//                                                                        postViewModel.updateDeletePost(
-//                                                                            bottomSheetData.postId
-//                                                                        )
-//                                                                    }
-//
-//                                                                    is ResultState.Error -> {
-//                                                                        bottomSheetData.isBottomSheet =
-//                                                                            false
-//                                                                        isLoading.value = false
-//                                                                    }
-//
-//                                                                    is ResultState.Loading -> {
-//                                                                        isLoading.value = true
-//                                                                    }
-//                                                                }
-//                                                            }
-//                                                    }
-
-                                                    context.vibrate()
-
-                                                },
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() }
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (isLoading.value)
-                                            CircularProgressIndicator(
-                                                color = primary,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        else
-                                            Text(
-                                                "Delete",
-                                                modifier = Modifier.padding(16.dp),
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                    }
-                                }
+                            VerticalDivider(modifier = Modifier.height(48.dp))
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .clickable(
+                                        onClick = {
+                                            context.vibrate()
+                                            // Delete post logic here
+                                        },
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() })
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isLoading.value)
+                                    CircularProgressIndicator(color = primary, modifier = Modifier.size(24.dp))
+                                else
+                                    Text("Delete", color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
                 }
             }
         }
-
-        LoadingUI(profileByIdState.isLoading)
-
     }
 }
+
 
 
 @Composable
@@ -918,16 +788,12 @@ fun CampusWidget(campus: Campus?) {
 
                     if (campus.courseStart != null && campus.courseEnd != null) {
                         Text(
-                            text = "${timeMillsToString(campus.courseStart)} to ${
-                                timeMillsToString(
-                                    campus.courseEnd
-                                )
-                            }"
+                            text = "${campus.courseStart.month + campus.courseStart.year} - ${campus.courseEnd.month + campus.courseEnd.year}"
+
                         )
                     }
 
-
-                    Text(text = campus.campusCode)
+                    campus.campusCode?.let { Text(text = it) }
                 }
             }
         }
@@ -969,19 +835,12 @@ fun PostScreenComponent(
                     sortedPost.forEach {
 
                         PostCard(
+                            feedViewModel = postViewModel,
+                            bottomSheetSharedViewModel = bottomSheetSharedViewModel,
                             onPostClick = {
                                 navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
                                     navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID", it.postId)
                                 }
-                            },
-                            onLikeClick = {
-                                postViewModel.toggleLike(
-                                    userId = it.creatorDetail.profile?.id ?: "",
-                                    postId = it.postId,
-                                    isLiked = it.postActions.isLiked,
-                                    isCampus = it.campusId.isNullOrEmpty()
-                                )
-                                context.vibrate()
                             },
                             onReplyClick = {
                                 navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
@@ -990,19 +849,6 @@ fun PostScreenComponent(
                             },
                             post = it,
                             navHostController = navHostController,
-                            onDotMenuClick = {
-                                bottomSheetSharedViewModel.setBottomSheetState(
-                                    state = true,
-                                    isCurrentUser = it.creatorDetail.isCurrentUser,
-                                    campusId = it.campusId,
-                                    content = Content(
-                                        postId = it.postId,
-                                        text = it.postContent.postData.postText
-                                    ),
-                                    contentType = ContentType.POST,
-                                    sheetType = SheetType.MENU_LIST,
-                                )
-                            },
                             onPollSelect = {
 
                             }
