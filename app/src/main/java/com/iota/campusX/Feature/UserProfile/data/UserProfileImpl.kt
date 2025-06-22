@@ -7,6 +7,7 @@ import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.AggregateSource
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Feature.Post.domain.Models.User
@@ -71,24 +72,14 @@ class UserProfileImpl(
                         .toObject(BasicProfileDTO::class.java)
                 }
 
-                val connRequestDeferred = async {
-                    firestore.collection("Users")
-                        .document(userId)
-                        .collection("LinkUpRequests")
-                        .document(auth.currentUser!!.uid)
-                        .get()
-                        .await()
-                }
-
                 val userData = userDeferred.await()
-                val connRequest = connRequestDeferred.await()
 
                 if (userData == null) {
                     Result.failure<BasicProfileDTO>(Exception("User not found"))
                 } else {
-                    val isConnected = connRequest.getBoolean("status") == true
-                    val updatedData = userData.copy(isRequestSent = isConnected)
-                    Result.success(updatedData)
+
+                    Result.success(userData)
+
                 }
             }
         } catch (e: Exception) {
@@ -217,17 +208,47 @@ class UserProfileImpl(
 
     override suspend fun sendLinkUpRequest(requestUserId: String, currentState: Boolean?): Result<Boolean> {
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
+        if (userId == requestUserId) return Result.failure(Exception("You cannot send a request to yourself"))
+        if (requestUserId.isEmpty()) return Result.failure(Exception("Invalid user ID"))
+
         return try {
+
+            val senderRef = firestore.collection("Users")
+                .document(userId)
+                .collection("Connections")
+                .document(requestUserId)
+
+            val receiverRef = firestore.collection("Users")
+                .document(requestUserId)
+                .collection("Connections")
+                .document(userId)
+
+            val serverTimestamp = FieldValue.serverTimestamp()
+
+            val senderData = mapOf(
+                "receiverId" to requestUserId,
+                "status" to false,
+                "createdAt" to serverTimestamp
+            )
+
+            val receiverData = mapOf(
+                "senderId" to userId,
+                "status" to false,
+                "createdAt" to serverTimestamp
+            )
+
             if (currentState == null) {
-                firestore.collection("Users").document(requestUserId)
-                    .collection("LinkUpRequests").document(userId)
-                    .set(mapOf("senderId" to userId, "status" to false, "createdAt" to System.currentTimeMillis()))
-                    .await()
+                firestore.runBatch { batch ->
+                    batch.set(senderRef, senderData)
+                    batch.set(receiverRef, receiverData)
+                }.await()
                 sendPushNotification.messageNotification(requestUserId, "REQUEST")
             } else {
-                firestore.collection("Users").document(requestUserId)
-                    .collection("LinkUpRequests").document(userId)
-                    .delete().await()
+                firestore.runBatch {
+                    batch ->
+                    batch.delete(senderRef)
+                    batch.delete(receiverRef)
+                }
             }
             Result.success(true)
         } catch (e: Exception) {
@@ -238,9 +259,22 @@ class UserProfileImpl(
     override suspend fun acceptLinkUpRequest(requestUserId: String): Result<Boolean> {
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
         return try {
-            firestore.collection("Users").document(userId)
-                .collection("LinkUpRequests").document(requestUserId)
-                .update("status", true).await()
+
+            val senderRef = firestore.collection("Users")
+                .document(userId)
+                .collection("Connections")
+                .document(requestUserId)
+
+            val receiverRef = firestore.collection("Users")
+                .document(requestUserId)
+                .collection("Connections")
+                .document(userId)
+            firestore.runBatch {
+                batch ->
+                batch.update(senderRef, "status", true)
+                batch.update(receiverRef, "status", true)
+            }.await()
+
             Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)
@@ -250,10 +284,24 @@ class UserProfileImpl(
     override suspend fun rejectLinkUpRequest(requestUserId: String): Result<Boolean> {
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
         return try {
-            firestore.collection("Users").document(userId)
-                .collection("LinkUpRequests").document(requestUserId)
-                .delete().await()
+
+            val senderRef = firestore.collection("Users")
+                .document(userId)
+                .collection("Connections")
+                .document(requestUserId)
+
+            val receiverRef = firestore.collection("Users")
+                .document(requestUserId)
+                .collection("Connections")
+                .document(userId)
+            firestore.runBatch {
+                batch ->
+                batch.delete(senderRef)
+                batch.delete(receiverRef)
+            }.await()
+
             Result.success(true)
+
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -261,8 +309,8 @@ class UserProfileImpl(
 
     override suspend fun getConnectionsCount(userId: String): Result<Int> {
         return try {
-            val snapshot = firestore.collection("Users").document(userId)
-                .collection("LinkUpRequests")
+            val snapshot = firestore.collection("Users").document(auth.currentUser!!.uid)
+                .collection("Connections")
                 .whereEqualTo("status", true)
                 .count()
                 .get(AggregateSource.SERVER)
@@ -276,8 +324,9 @@ class UserProfileImpl(
     override suspend fun getConnections(userId: String): Result<List<ConnectionsDTO>> {
         return try {
             val snapshot = firestore.collection("Users").document(userId)
-                .collection("LinkUpRequests")
+                .collection("Connections")
                 .whereEqualTo("status", true)
+
                 .get().await()
 
             val connections = snapshot.documents.mapNotNull { doc ->
@@ -302,7 +351,30 @@ class UserProfileImpl(
         }
     }
 
-    override fun updateUniversity(title: String): Flow<UiState<List<UniversityDTO>>> = flow {
+    override suspend fun hasConnection(userId: String): Result<Boolean?> {
+        return try {
+           val deferred =  firestore.collection("Users")
+                .document(auth.currentUser!!.uid)
+                .collection("Connections")
+                .document(userId)
+                .get()
+                .await()
+
+            if (deferred.exists()){
+                val isConnected = deferred.getBoolean("status")
+                Result.success(isConnected)
+            }
+            else{
+                Result.success(null)
+            }
+
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+    }
+
+    override fun updateUniversity(title: String): Flow<UiState<List<UniversityDTO>>> =
+        flow {
         emit(UiState.Loading)
 
         try {

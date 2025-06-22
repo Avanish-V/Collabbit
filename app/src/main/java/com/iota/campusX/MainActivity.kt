@@ -79,8 +79,10 @@ import com.iota.campusX.Screens.Post.CreatePostScreen
 import com.iota.campusX.Screens.PostReplyScreen
 import com.iota.campusX.Screens.Profile.EditProfileScreen
 import com.iota.campusX.Screens.Profile.ProfileScreen
+import com.iota.campusX.Screens.Profile.ProfilyTypeViewModel
 import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
+import com.iota.campusX.Screens.Society.Society
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.initCloudinary
@@ -138,6 +140,7 @@ class MainActivity : ComponentActivity() {
             val homeViewModel = koinInject<HomeViewModel>()
             val notificationViewModel = koinInject<NotificationViewModel>()
             val replyViewModel = koinInject<ReplyViewModel>()
+            val profileTypeViewModel = koinInject<ProfilyTypeViewModel>()
 
 
             val navBackStackEntry by navHostController.currentBackStackEntryAsState()
@@ -160,7 +163,7 @@ class MainActivity : ComponentActivity() {
                     listOf(
                         Routes.Main.Home.routes,
                         Routes.Main.Search.routes,
-                        Routes.Main.Voxci.routes,
+                        Routes.Main.Society.routes,
                         Routes.Main.Notification.routes,
                         Routes.Main.Profile.routes
                     )
@@ -236,7 +239,9 @@ class MainActivity : ComponentActivity() {
                                             postViewModel = postFeedViewModel,
                                             profileViewModel = userProfileViewModel,
                                             googleSignInViewModel = googleAuthViewModel,
-                                            navigationViewModel = navigationViewModel
+                                            navigationViewModel = navigationViewModel,
+                                            replyViewModel = replyViewModel,
+                                            profileTypeViewModel = profileTypeViewModel
                                         )
 
                                     }
@@ -252,6 +257,9 @@ class MainActivity : ComponentActivity() {
                                         SearchScreen(
                                             navHostController = navHostController
                                         )
+                                    }
+                                    composable (route = Routes.Main.Society.routes){
+                                        Society()
                                     }
                                     composable(route = Routes.Main.Voxci.routes) {
                                         VoxciScreen()
@@ -289,7 +297,10 @@ class MainActivity : ComponentActivity() {
                                             postViewModel = postFeedViewModel,
                                             profileViewModel = userProfileViewModel,
                                             googleSignInViewModel = googleAuthViewModel,
-                                            navigationViewModel = navigationViewModel
+                                            navigationViewModel = navigationViewModel,
+                                            replyViewModel = replyViewModel,
+                                            profileTypeViewModel = profileTypeViewModel
+
                                         )
                                     }
 

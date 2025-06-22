@@ -75,6 +75,10 @@ class EditProfileViewModel: ViewModel() {
         _campus.value = _campus.value.copy(fieldOfStudy = fieldOfStudy)
     }
 
+    fun editDegree(degree: String){
+        _campus.value = _campus.value.copy(degree = degree)
+    }
+
     fun editCourseStart(courseStart: CourseDuration){
         _campus.value = _campus.value.copy(courseStart = courseStart)
     }

@@ -26,12 +26,12 @@ val navBarItems = listOf(
         R.drawable.search_bold,
         Routes.Main.Search.routes
     ),
-//    navItems(
-//        "Voxci",
-//        R.drawable.messages_normal,
-//        R.drawable.messages_bold,
-//        Routes.Main.Voxci.routes
-//    ),
+    navItems(
+        "Society",
+        R.drawable.people,
+        R.drawable.people_bold,
+        Routes.Main.Society.routes
+    ),
     navItems(
         "Notification",
         R.drawable.notification_normal,

@@ -11,7 +11,8 @@ class CreateReplyUseCase(private val repository: PostRepository) {
         content: String,
         creatorId: String,
         visibilityMode: PostVisibilityMode,
-        mode: FeedMode
+        mode: FeedMode,
+        campusId: String?
     ): Result<Unit> {
         return repository.createReply(
             replyId = replyId,
@@ -19,7 +20,8 @@ class CreateReplyUseCase(private val repository: PostRepository) {
             content = content,
             creatorId = creatorId,
             visibilityMode = visibilityMode,
-            mode = mode
+            mode = mode,
+            campusId
         )
     }
 }

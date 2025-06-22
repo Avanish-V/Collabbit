@@ -20,49 +20,26 @@ interface PostRepository {
 
     suspend fun getPosts(): Result<List<GetPostDTO>>
 
-
     suspend fun fetchCampusPosts(feedMode: FeedMode, campusId: String?): Result<List<GetPostDTO>>
-
 
     suspend fun editPost(postId: String, editedText: String, campusId: String?,feedMode: FeedMode): Result<Unit>
 
-    suspend fun getPostsById(userId: String, campusId: String?): Result<List<GetPostDTO>>
+    suspend fun getPostsById(userId: String, campusId: String?,feedMode: FeedMode): Result<List<GetPostDTO>>
 
+    suspend fun createReply(replyId: String, postId: String, content: String, creatorId: String, visibilityMode: PostVisibilityMode, mode: FeedMode, campusId: String?): Result<Unit>
 
-    suspend fun createReply(
-        replyId: String,
-        postId: String,
-        content: String,
-        creatorId: String,
-        visibilityMode: PostVisibilityMode,
-        mode: FeedMode
-    ): Result<Unit>
-
-    suspend fun getReplies(postId: String): Result<List<GetRepliesDTO>>
-
+    suspend fun getReplies(postId: String,campusId: String?,feedMode: FeedMode): Result<List<GetRepliesDTO>>
 
     suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean,campusId: String?, feedMode: FeedMode): Result<Unit>
 
-    suspend fun likeReply(
-        creatorId: String,
-        postId: String,
-        replyId: String,
-        isLiked: Boolean
-    ): Result<Unit>
+    suspend fun likeReply(creatorId: String, postId: String, replyId: String, isLiked: Boolean): Result<Unit>
 
+    suspend fun deleteReply(postId: String, replyId: String, campusId: String?,feedMode: FeedMode): Result<Unit>
 
-    suspend fun deleteReply(postId: String, replyId: String, campusId: String?): Result<Unit>
-
-    suspend fun editReply(
-        postId: String,
-        replyId: String,
-        content: String,
-        campusId: String?
-    ): Result<Unit>
-
+    suspend fun editReply(postId: String,replyId: String, content: String, campusId: String?, feedMode: FeedMode): Result<Unit>
 
     suspend fun createPoll(post: CreatePostDTO): Result<Unit>
 
-    suspend fun voteOnPoll(postId: String, optionId: String): Result<Unit>
+    suspend fun voteOnPoll(postId: String, optionId: String,campusId: String?,feedMode: FeedMode): Result<Unit>
 
 }

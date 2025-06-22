@@ -47,22 +47,14 @@ class PostRepoImpl(
     private val firestore: FirebaseFirestore
 ) :PostRepository {
 
-    override suspend fun createPost(
-        dto: CreatePostDTO,
-        imageUri: Uri?
-    ): Flow<UploadState> = callbackFlow {
+    override suspend fun createPost(dto: CreatePostDTO, imageUri: Uri?): Flow<UploadState> = callbackFlow {
 
         trySend(UploadState.Loading)
 
-
-        val postRef = getBaseCollection(
-            feedMode = dto.feedMode,
-            campusId = dto.campusId,
-            firestore = firestore
-        )
+        val path = if (dto.feedMode == FeedMode.CAMPUS) "CampusPosts" else "GlobalPosts"
 
          fun uploadPost(post: CreatePostDTO, uploadId: String? = null) {
-            postRef.document(dto.postId).set(post)
+            firestore.collection(path).document(dto.postId).set(post)
                 .addOnSuccessListener {
                     trySend(UploadState.Success(uploadId ?: ""))
                     close()
@@ -115,21 +107,16 @@ class PostRepoImpl(
 
         if (postId.isBlank()) return Result.failure(IllegalArgumentException("Invalid post ID"))
 
-        val postRef = getBaseCollection(
-            feedMode = feedMode,
-            campusId = campusId,
-            firestore = firestore
-        )
+        val path = if (feedMode == FeedMode.CAMPUS) "CampusPosts" else "GlobalPosts"
 
-        Log.d("PostRepoImpl", "deletePost: $postId $campusId $feedMode")
         return try {
             val task = if (!campusId.isNullOrBlank()) {
 
-                postRef
+                firestore.collection(path)
                     .document(postId)
                     .delete()
             } else {
-                postRef
+                firestore.collection(path)
                     .document(postId)
                     .delete()
             }
@@ -145,9 +132,10 @@ class PostRepoImpl(
 
     override suspend fun getPosts(): Result<List<GetPostDTO>> {
         return try {
+
             if (auth.currentUser == null) return Result.failure(Exception("User not logged in"))
 
-            val baseCollection = firestore.collection("GlobalPosts")
+            val baseCollection = getBaseCollection(feedMode = FeedMode.GLOBAL, campusId = null, firestore = firestore)
             val postsSnapshot = baseCollection.get().await()
 
             val postList = coroutineScope {
@@ -227,21 +215,21 @@ class PostRepoImpl(
         }
     }
 
-    override suspend fun fetchCampusPosts(
-        feedMode: FeedMode,
-        campusId: String?
-    ): Result<List<GetPostDTO>> {
+    override suspend fun fetchCampusPosts(feedMode: FeedMode, campusId: String?): Result<List<GetPostDTO>> {
         return try {
 
 
             if (auth.currentUser == null) return Result.failure(Exception("User not logged in"))
+
             if (campusId.isNullOrEmpty()) return Result.failure(Exception(Error.CAMPUS_NOT_FOUND.name))
 
-            val baseCollection = firestore.collection("CampusPosts")
-                .document(campusId)
-                .collection("Posts")
+            val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
 
-            val postsSnapshot = baseCollection.get().await()
+            val postsSnapshot = baseCollection
+                .whereEqualTo("campusId", campusId)
+                .whereEqualTo("feedMode", feedMode)
+                .get()
+                .await()
 
             val postList = coroutineScope {
                 postsSnapshot.documents.map { doc ->
@@ -320,30 +308,15 @@ class PostRepoImpl(
         }
     }
 
-
-    override suspend fun editPost(
-        postId: String,
-        editedText: String,
-        campusId: String?,
-        feedMode: FeedMode
-    ): Result<Unit> {
+    override suspend fun editPost(postId: String, editedText: String, campusId: String?, feedMode: FeedMode): Result<Unit> {
         return try {
 
             if (postId.isBlank()) return Result.failure(IllegalArgumentException("Invalid post ID"))
             if (editedText.isBlank()) return Result.failure(IllegalArgumentException("Edited text cannot be empty"))
 
-            Log.d("PostRepoImpl", "editPost: $postId $editedText $campusId $feedMode")
-            val postRef = if (feedMode == FeedMode.CAMPUS && !campusId.isNullOrBlank()) {
-                firestore.collection("CampusPosts")
-                    .document(campusId)
-                    .collection("Posts")
-                    .document(postId)
-            } else {
-                firestore.collection("GlobalPosts")
-                    .document(postId)
-            }
+            val postRef = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
 
-            postRef.update("postContent.postData.postText", editedText).await()
+            postRef.document(postId).update("postContent.postData.postText", editedText).await()
 
             Result.success(Unit)
 
@@ -356,129 +329,97 @@ class PostRepoImpl(
         }
     }
 
-    override suspend fun getPostsById(userId: String, campusId: String?): Result<List<GetPostDTO>> {
+    override suspend fun getPostsById(userId: String, campusId: String?,feedMode: FeedMode): Result<List<GetPostDTO>> {
         return try {
-            val currentUserId = auth.currentUser?.uid
 
-            val globalPostsTask = firestore.collection("GlobalPosts")
+            if (auth.currentUser == null) return Result.failure(Exception("User not logged in"))
+
+            val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
+
+            val postsSnapshot = baseCollection
                 .whereEqualTo("creatorId", userId)
+                .whereEqualTo("campusId", campusId)
                 .get()
-
-            val campusPostsTask = if (!campusId.isNullOrBlank()) {
-                firestore.collection("CampusPosts")
-                    .document(campusId)
-                    .collection("Posts")
-                    .whereEqualTo("creatorId", userId)
-                    .get()
-            } else null
-
-            val (globalPosts, campusPosts) = coroutineScope {
-                val global = async { globalPostsTask.await() }
-                val campus = campusPostsTask?.let { async { it.await() } }
-                global.await() to campus?.await()
-            }
-
-            val allDocuments = buildList {
-                addAll(globalPosts.documents)
-                campusPosts?.documents?.let { addAll(it) }
-            }.distinctBy { it.id }
-
-            val filteredDocuments = allDocuments.filter { doc ->
-                val type = doc.getString("type")
-                if (userId == currentUserId) type == "USER" || type == "ANONYMOUS" else type == "USER"
-            }
+                .await()
 
             val postList = coroutineScope {
-                filteredDocuments.map { doc ->
+                postsSnapshot.documents.map { doc ->
                     async {
-                        doc.toObject(CreatePostDTO::class.java)?.let { post ->
-                            val userDeferred = async {
-                                firestore.collection("Users")
-                                    .document(post.creatorId)
-                                    .get()
-                                    .await()
-                                    .toObject(User::class.java)
-                            }
+                        val post = doc.toObject(CreatePostDTO::class.java) ?: return@async null
 
-                            val likesDeferred = async {
-                                firestore.collection("GlobalPosts")
-                                    .document(post.postId)
-                                    .collection("Likes")
-                                    .document(post.postId)
-                                    .get()
-                                    .await()
-                                    .get("likes") as? List<String> ?: emptyList()
-                            }
-
-                            val replyCountDeferred = async {
-                                firestore.collection("GlobalPosts")
-                                    .document(post.postId)
-                                    .collection("Replies")
-                                    .get()
-                                    .await()
-                                    .size()
-                            }
-
-                            val (user, likes, replyCount) = awaitAll(
-                                userDeferred,
-                                likesDeferred,
-                                replyCountDeferred
-                            )
-
-                            val isLiked = (likes as List<*>).contains(currentUserId)
-                            val userInfo = visibilityMode(post.visibilityMode, user as User)
-                            val isCurrentUser = post.creatorId == currentUserId
-
-                            GetPostDTO(
-                                postId = post.postId,
-                                createdAt = post.createdAt,
-                                creatorDetail = CreatorDetail(
-                                    isCurrentUser = isCurrentUser,
-                                    isVerified = false,
-                                    isPremium = false,
-                                    profile = User(
-                                        userName = userInfo.first,
-                                        id = post.creatorId,
-                                        userImage = userInfo.second
-                                    )
-                                ),
-                                reference = post.reference,
-                                visibilityMode = post.visibilityMode,
-                                postContent = PostContent(
-                                    postType = post.postContent.postType,
-                                    postData = PostData(
-                                        postText = post.postContent.postData.postText,
-                                        postImage = post.postContent.postData.postImage
-                                    )
-                                ),
-                                postActions = PostActions(
-                                    isLiked = isLiked,
-                                    likesCount = likes.size,
-                                    replies = emptyList(),
-                                    replyCount = replyCount as Int
-                                )
-                            )
+                        val userDeferred = async {
+                            firestore.collection("Users")
+                                .document(post.creatorId)
+                                .get()
+                                .await()
+                                .toObject(User::class.java)
                         }
+
+                        val likesDeferred = async {
+                            baseCollection.document(post.postId)
+                                .collection("Likes")
+                                .document(post.postId)
+                                .get()
+                                .await()
+                                .get("likes") as? List<String> ?: emptyList()
+                        }
+
+                        val repliesCountDeferred = async {
+                            baseCollection.document(post.postId)
+                                .collection("Replies")
+                                .get()
+                                .await()
+                                .size()
+                        }
+
+                        val user = userDeferred.await()
+                        val likes = likesDeferred.await()
+                        val repliesCount = repliesCountDeferred.await()
+
+                        val isLiked = auth.currentUser?.uid in likes
+                        val isCurrentUser = auth.currentUser?.uid == post.creatorId
+                        val profile = visibilityMode(post.visibilityMode, user)
+
+                        GetPostDTO(
+                            postId = post.postId,
+                            createdAt = post.createdAt,
+                            creatorDetail = CreatorDetail(
+                                isCurrentUser = isCurrentUser,
+                                isVerified = false,
+                                isPremium = false,
+                                profile = User(
+                                    id = post.creatorId,
+                                    userName = profile.first,
+                                    userImage = profile.second,
+                                    userBio = user?.userBio ?: ""
+                                )
+                            ),
+                            campusId = post.campusId,
+                            feedMode = post.feedMode,
+                            reference = post.reference,
+                            visibilityMode = post.visibilityMode,
+                            postContent = post.postContent,
+                            postActions = PostActions(
+                                isLiked = isLiked,
+                                likesCount = likes.size,
+                                replies = emptyList(),
+                                replyCount = repliesCount
+                            )
+                        )
                     }
                 }.mapNotNull { it.await() }
             }
 
             Result.success(postList)
+
         } catch (e: FirebaseNetworkException) {
-            Result.failure(Exception(e.localizedMessage ?: "No internet connection"))
+            Result.failure(Exception("No internet connection"))
         } catch (e: Exception) {
-            Result.failure(Exception(e.localizedMessage ?: "Something went wrong!"))
+            Result.failure(e)
         }
     }
 
-    override suspend fun createReply(
-        replyId: String,
-        postId: String,
-        content: String,
-        creatorId: String,
-        visibilityMode: PostVisibilityMode,
-        mode: FeedMode
-    ): Result<Unit> {
+    override suspend fun createReply(replyId: String, postId: String, content: String, creatorId: String, visibilityMode: PostVisibilityMode, mode: FeedMode,campusId: String?): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid
                 ?: return Result.failure(IllegalStateException("User not logged in"))
@@ -495,7 +436,13 @@ class PostRepoImpl(
 
             )
 
-            firestore.collection("GlobalPosts")
+            val baseCollection = getBaseCollection(
+                feedMode = mode,
+                campusId = campusId,
+                firestore = firestore
+            )
+
+            baseCollection
                 .document(postId)
                 .collection("Replies")
                 .document(replyId)
@@ -532,10 +479,12 @@ class PostRepoImpl(
         }
     }
 
-    override suspend fun getReplies(postId: String): Result<List<GetRepliesDTO>> {
+    override suspend fun getReplies(postId: String,capurId: String?,feedMode: FeedMode): Result<List<GetRepliesDTO>> {
         return try {
-            Log.d("PostRepoImpl", "getReplies: $postId")
-            val repliesSnapshot = firestore.collection("GlobalPosts")
+
+            val baseCollection = getBaseCollection(feedMode = feedMode, campusId = capurId, firestore = firestore)
+
+            val repliesSnapshot = baseCollection
                 .document(postId)
                 .collection("Replies")
                 .get()
@@ -592,6 +541,7 @@ class PostRepoImpl(
                                     userBio = user?.userBio ?: "",
                                 )
                             ),
+                            isEdited = reply.isEdited,
                             content = reply.content,
                             repliedAt = reply.repliedAt,
                             visibilityMode = reply.visibilityMode,
@@ -617,26 +567,11 @@ class PostRepoImpl(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun toggleLike(
-        userId: String,
-        postId: String,
-        isLiked: Boolean,
-        campusId: String?,
-        feedMode: FeedMode
-    ): Result<Unit> = suspendCancellableCoroutine { cont ->
-        val baseCollection = if (feedMode == FeedMode.CAMPUS && !campusId.isNullOrBlank()) {
-            firestore.collection("CampusPosts")
-                .document(campusId)
-                .collection("Posts")
-                .document(postId)
-                .collection("Likes")
-                .document(postId)
-        } else {
-            firestore.collection("GlobalPosts")
-                .document(postId)
-                .collection("Likes")
-                .document(postId)
-        }
+    override suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean, campusId: String?, feedMode: FeedMode): Result<Unit> = suspendCancellableCoroutine { cont ->
+
+        val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
+
+        val path =  baseCollection.document(postId).collection("Likes").document(postId)
 
         val updateData = mapOf(
             "likes" to if (isLiked) FieldValue.arrayRemove(auth.currentUser?.uid) else FieldValue.arrayUnion(
@@ -644,7 +579,7 @@ class PostRepoImpl(
             )
         )
 
-        baseCollection.set(updateData, SetOptions.merge())
+        path.set(updateData, SetOptions.merge())
             .addOnSuccessListener {
                 if (userId != auth.currentUser?.uid && !isLiked) {
                     val notification = CreateNotificationDTO(
@@ -675,13 +610,7 @@ class PostRepoImpl(
             }
     }
 
-
-    override suspend fun likeReply(
-        creatorId: String,
-        postId: String,
-        replyId: String,
-        isLiked: Boolean
-    ): Result<Unit> = suspendCoroutine { cont ->
+    override suspend fun likeReply(creatorId: String, postId: String, replyId: String, isLiked: Boolean): Result<Unit> = suspendCoroutine { cont ->
         val likeDocRef = firestore.collection("GlobalPosts")
             .document(postId)
             .collection("Replies")
@@ -738,30 +667,18 @@ class PostRepoImpl(
             }
     }
 
-
-    override suspend fun deleteReply(
-        postId: String,
-        replyId: String,
-        campusId: String?
-    ): Result<Unit> {
+    override suspend fun deleteReply(postId: String, replyId: String, campusId: String?,feedMode: FeedMode): Result<Unit> {
         return try {
             if (replyId.isBlank()) {
                 return Result.failure(Exception("Invalid post ID"))
             }
 
-            val task = if (!campusId.isNullOrEmpty()) {
-                firestore.collection("CampusPosts")
-                    .document(campusId)
-                    .collection("Posts")
-                    .document(replyId)
-                    .delete()
-            } else {
-                firestore.collection("GlobalPosts")
-                    .document(postId)
-                    .collection("Replies")
-                    .document(replyId)
-                    .delete()
-            }
+            val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
+
+            val task = baseCollection.document(postId)
+                .collection("Replies")
+                .document(replyId)
+                .delete()
 
             // Suspend until task completes
             task.await()
@@ -773,35 +690,25 @@ class PostRepoImpl(
         }
     }
 
-
-    override suspend fun editReply(
-        postId: String,
-        replyId: String,
-        content: String,
-        campusId: String?
-    ): Result<Unit> {
+    override suspend fun editReply(postId: String, replyId: String, content: String, campusId: String?,feedMode: FeedMode): Result<Unit> {
         return try {
+
             if (replyId.isBlank()) {
                 return Result.failure(IllegalArgumentException("Invalid reply ID"))
             }
+
+            val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
+
 
             val update = mapOf(
                 "content" to content,
                 "isEdited" to true
             )
 
-
-            if (!campusId.isNullOrEmpty()) {
-                firestore.collection("CampusPosts").document(campusId)
-                    .collection("Posts").document(replyId)
-                    .update(update)
-                    .await()
-            } else {
-                firestore.collection("GlobalPosts").document(postId)
-                    .collection("Replies").document(replyId)
-                    .update(update)
-                    .await()
-            }
+            baseCollection.document(postId)
+                .collection("Replies").document(replyId)
+                .update(update)
+                .await()
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -809,20 +716,25 @@ class PostRepoImpl(
         }
     }
 
-
     override suspend fun createPoll(post: CreatePostDTO): Result<Unit> {
         return runCatching {
-            firestore.collection("GlobalPosts")
+
+            val baseCollection = getBaseCollection(feedMode = post.feedMode, campusId = post.campusId, firestore = firestore)
+
+            baseCollection
                 .document(post.postId)
                 .set(post)
                 .await() // If this throws, it's caught by runCatching
         }
     }
 
-
-    override suspend fun voteOnPoll(postId: String, optionId: String): Result<Unit> {
+    override suspend fun voteOnPoll(postId: String, optionId: String,campusId: String?,feedMode: FeedMode): Result<Unit> {
         return runCatching {
-            val postRef = firestore.collection("GlobalPosts").document(postId)
+
+            Log.d("VOTE_ON_POL", "voteOnPoll: $postId $feedMode $campusId")
+            val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
+
+            val postRef = baseCollection.document(postId)
             val snapshot = postRef.get().await()
             val post = snapshot.toObject(CreatePostDTO::class.java)
             val poll = post?.postContent?.postData?.poll ?: throw Exception("Poll not found")
@@ -842,8 +754,6 @@ class PostRepoImpl(
         }
     }
 
-
-
 }
 
 enum class Error {
@@ -858,19 +768,12 @@ fun visibilityMode(visibilityMode: PostVisibilityMode, user: User?): Pair<String
     }
 }
 
-fun getBaseCollection(
-    feedMode: FeedMode,
-    campusId: String?,
-    firestore: FirebaseFirestore
-): CollectionReference {
+fun getBaseCollection(feedMode: FeedMode, campusId: String?, firestore: FirebaseFirestore): CollectionReference {
     return when (feedMode) {
         FeedMode.CAMPUS -> {
             requireNotNull(campusId) { "Campus ID is required for campus feed." }
             firestore.collection("CampusPosts")
-                .document(campusId)
-                .collection("Posts")
         }
-
         FeedMode.GLOBAL -> firestore.collection("GlobalPosts")
     }
 }

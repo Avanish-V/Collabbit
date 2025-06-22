@@ -44,6 +44,7 @@ import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Home.dataStore
 import com.iota.campusX.Screens.Post.PollViewModel
 import com.iota.campusX.Screens.Post.PostScreenViewModel
+import com.iota.campusX.Screens.Profile.ProfilyTypeViewModel
 import com.iota.campusX.Utils.ServerTimeStampViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -188,6 +189,7 @@ val appModule = module {
     viewModel { PollViewModel() }
     viewModel { PostScreenViewModel() }
     viewModel { ConsentAgreeViewModel(get()) }
+    viewModel { ProfilyTypeViewModel() }
 }
 
 

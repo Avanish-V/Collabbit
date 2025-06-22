@@ -23,6 +23,8 @@ sealed class Routes(val routes:String){
         data object CreatePost : Routes("CREATE_POST")
         data object ReplyPost : Routes("REPLY_POST")
         data object Setting : Routes("SETTING")
+        data object Society: Routes("SOCIETY")
+        data object CreateSociety: Routes("CREATE_SOCIETY")
 
 
 

@@ -680,9 +680,9 @@ fun CreatePostScreen(
 
                                 VisibilityModeChanger(
                                     modifier = Modifier.size(38.dp),
-                                    selectedVisibility = visibility,
+                                    visibility = visibility,
                                     onVisibilityModeChange = {
-                                        Log.d("Visibility", "CreatePostScreen: $it")
+
                                         when(isConsentAgree){
                                             is UiState.Success -> {
                                                 if (it == PostVisibilityMode.ANONYMOUS){
@@ -935,29 +935,17 @@ enum class PostVisibilityMode { USER, ANONYMOUS }
 @Composable
 fun VisibilityModeChanger(
     modifier: Modifier = Modifier,
-    selectedVisibility:PostVisibilityMode,
+    visibility: PostVisibilityMode,
     onVisibilityModeChange: (PostVisibilityMode) -> Unit,
     userImage: String
 ) {
-
     var visibility by remember { mutableStateOf(PostVisibilityMode.USER) }
-
-    LaunchedEffect(visibility) {
-        if (visibility == PostVisibilityMode.ANONYMOUS){
-           visibility = PostVisibilityMode.USER
-        }
-        if (visibility == PostVisibilityMode.USER){
-            visibility = PostVisibilityMode.ANONYMOUS
-        }
-    }
-
     val context = LocalContext.current
     val offsetX = remember { Animatable(0f) }
-    val threshold = 200f // Distance to trigger vanish mode horizontally
+    val threshold = 200f
     val coroutineScope = rememberCoroutineScope()
 
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-
         Box(
             modifier = modifier
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
@@ -966,10 +954,9 @@ fun VisibilityModeChanger(
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onHorizontalDrag = { _, dragAmount ->
-                            if (dragAmount > 0) { // Only allow dragging to the right
+                            if (dragAmount > 0) {
                                 coroutineScope.launch {
-                                    val newOffset = offsetX.value + dragAmount
-                                    offsetX.snapTo(newOffset)
+                                    offsetX.snapTo(offsetX.value + dragAmount)
                                 }
                             }
                         },
@@ -977,13 +964,13 @@ fun VisibilityModeChanger(
                             coroutineScope.launch {
                                 if (offsetX.value > threshold) {
 
-                                    if (visibility == PostVisibilityMode.USER){
-                                        visibility = PostVisibilityMode.ANONYMOUS
+                                    visibility = if (visibility == PostVisibilityMode.USER) {
+                                        PostVisibilityMode.ANONYMOUS
+                                    } else {
+                                        PostVisibilityMode.USER
                                     }
 
-                                    if (visibility == PostVisibilityMode.ANONYMOUS){
-                                        visibility = PostVisibilityMode.USER
-                                    }
+                                    onVisibilityModeChange(visibility)
 
                                     context.vibrate()
                                 }

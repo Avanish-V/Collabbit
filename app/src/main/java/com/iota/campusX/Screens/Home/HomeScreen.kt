@@ -395,7 +395,13 @@ fun LazyListScope.postsLazyColumn(
                 post = it,
                 navHostController = navHostController,
                 onPollSelect = { optionId ->
-
+                    postFeedViewModel.voteOnPoll(
+                        postId = it.postId,
+                        optionId = optionId,
+                        userId = "dfd",
+                        campusId = it.campusId,
+                        feedMode = it.feedMode
+                    )
                 }
             )
 
@@ -568,6 +574,7 @@ fun GlobalPosts(
         PostDotOptionBottomSheet(
             isBottomSheet = bottomSheetData.isBottomSheet,
             bottomSheetViewModel = bottomSheetViewModel,
+            replyViewModel = replyViewModel,
             postFeedViewModel = postFeedViewModel,
             onDismiss = {
                 bottomSheetViewModel.dismissBottomSheet()
@@ -606,7 +613,8 @@ fun GlobalPosts(
                     replyViewModel.deleteReply(
                         postId = bottomSheetData.content.postId,
                         replyId = bottomSheetData.content.replyId,
-                        campusId = bottomSheetData.campusId
+                        campusId = bottomSheetData.campusId,
+                        feedMode = bottomSheetData.feedMode
                     )
                 }
                 context.vibrate()

@@ -32,7 +32,7 @@ interface UserProfileRepo {
 
     suspend fun updateCampus(campus: Campus): Result<Boolean>
 
-    suspend fun sendLinkUpRequest(requestUserId: String,currentState: Boolean? = null): Result<Boolean>
+    suspend fun sendLinkUpRequest(requestUserId: String,currentState: Boolean?): Result<Boolean>
 
     suspend fun acceptLinkUpRequest(requestUserId: String): Result<Boolean>
 
@@ -41,6 +41,8 @@ interface UserProfileRepo {
     suspend fun getConnectionsCount(userId: String): Result<Int>
 
     suspend fun getConnections(userId: String): Result<List<ConnectionsDTO>>
+
+    suspend fun hasConnection(userId: String): Result<Boolean?>
 
     fun updateUniversity(title: String): Flow<UiState<List<UniversityDTO>>>
 

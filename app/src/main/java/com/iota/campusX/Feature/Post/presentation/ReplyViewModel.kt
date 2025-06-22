@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Post.presentation
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Post.data.visibilityMode
@@ -39,10 +40,10 @@ class ReplyViewModel(
     private val _likeReplyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val likeReplyState: StateFlow<UiState<Unit>> get() = _likeReplyState
 
-    fun getReplies(postId: String) {
+    fun getReplies(postId: String,campusId:String?,feedMode: FeedMode) {
         viewModelScope.launch {
             _repliesState.value = UiState.Loading
-            val result = getRepliesUseCase(postId)
+            val result = getRepliesUseCase(postId,campusId,feedMode)
             _repliesState.value = result.fold(
                 onSuccess = { UiState.Success(it) },
                 onFailure = { UiState.Error(it.message ?: "Failed to fetch replies") }
@@ -57,11 +58,12 @@ class ReplyViewModel(
         creatorId: String,
         visibilityMode: PostVisibilityMode,
         mode: FeedMode,
+        campusId: String?,
         user: User
     ) {
         viewModelScope.launch {
             _createReplyState.value = UiState.Loading
-            val result = createReplyUseCase(replyId, postId, content, creatorId, visibilityMode,mode)
+            val result = createReplyUseCase(replyId, postId, content, creatorId, visibilityMode,mode,campusId)
             _createReplyState.value = result.fold(
                 onSuccess = {
 
@@ -103,10 +105,10 @@ class ReplyViewModel(
         }
     }
 
-    fun deleteReply(postId: String, replyId: String, campusId: String?) {
+    fun deleteReply(postId: String, replyId: String, campusId: String?,feedMode: FeedMode) {
         viewModelScope.launch {
             _deleteReplyState.value = UiState.Loading
-            val result = postRepository.deleteReply(postId, replyId, campusId)
+            val result = postRepository.deleteReply(postId, replyId, campusId,feedMode)
             _deleteReplyState.value = result.fold(
                 onSuccess = {
                     removeReplyOnDelete(replyId)
@@ -117,10 +119,10 @@ class ReplyViewModel(
         }
     }
 
-    fun editReply(postId: String, replyId: String, content: String, campusId: String?) {
+    fun editReply(postId: String, replyId: String, content: String, campusId: String?,feedMode: FeedMode) {
         viewModelScope.launch {
             _editReplyState.value = UiState.Loading
-            val result = postRepository.editReply(postId, replyId, content, campusId)
+            val result = postRepository.editReply(postId, replyId, content, campusId,feedMode)
             _editReplyState.value = result.fold(
                 onSuccess = {
                     UiState.Success(Unit).also {
@@ -133,6 +135,7 @@ class ReplyViewModel(
     }
 
     fun updateReplyLocallyOnEdit(replyId: String, editedContent: String) {
+        Log.d("REPLY_VIEW_MODEL", " ${repliesState.value}")
         val current = _repliesState.value as? UiState.Success ?: return
         val updatedReplies = current.data.map { reply ->
             if (reply.replyId == replyId) reply.copy(content = editedContent) else reply

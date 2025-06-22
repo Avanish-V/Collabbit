@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Post.presentation
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -81,11 +82,11 @@ class PostFeedViewModel(
         }
     }
 
-    fun fetchPostById(userId: String, campusId: String?) {
+    fun fetchPostById(userId: String, campusId: String?,feedMode: FeedMode) {
 
         viewModelScope.launch {
             _postById.value = UiState.Loading
-            val result = postByIdUseCase(userId, campusId)
+            val result = postByIdUseCase(userId, campusId,feedMode)
             _postById.value = result.fold(
                 onSuccess = { UiState.Success(it) },
                 onFailure = { UiState.Error(it.message ?: "Something went wrong") }
@@ -171,10 +172,11 @@ class PostFeedViewModel(
         }
     }
 
-    fun voteOnPoll(postId: String, optionId: String, userId: String) {
+    fun voteOnPoll(postId: String, optionId: String, userId: String,campusId:String?,feedMode: FeedMode) {
+        Log.d("PostFeedViewModel", "voteOnPoll called with postId: $postId, optionId: $optionId, userId: $userId")
         viewModelScope.launch {
             votePollState = UiState.Loading
-            votePollUseCase(postId, optionId)
+            votePollUseCase(postId, optionId,campusId,feedMode)
                 .onSuccess {
                     votePollState = UiState.Success(Unit)
 

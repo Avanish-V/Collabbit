@@ -171,8 +171,11 @@ fun EditProfileScreen(
                         withDismissAction = true
                     )
                 }
+                isLoading = false
             }
-            else -> {}
+            else -> {
+                isLoading = false
+            }
         }
     }
 
@@ -599,6 +602,15 @@ fun EditProfileScreen(
                 editProfileViewModel.editCampus(userProfile?.campus ?: Campus())
             }
 
+            LaunchedEffect(Unit) {
+                editProfileViewModel.editUniversity(
+                    University(
+                        university = selectedUni?.first ?: "",
+                        logo = selectedUni?.second ?: ""
+                    )
+                )
+            }
+
             EditPage(
                 onCancelClick = { navController.popBackStack() },
                 onSubmitClick = {
@@ -645,9 +657,9 @@ fun EditProfileScreen(
 
                 CustomTextField(
                     modifier = Modifier.fillMaxWidth(),
-                    value = editProfileViewModel.campus.value.fieldOfStudy,
+                    value = editProfileViewModel.campus.value.degree?:"",
                     onValueChange = {
-                        editProfileViewModel.editFieldOfStudy(it.toString())
+                        editProfileViewModel.editDegree(it.toString())
                     },
                     label = "Degree",
                     placeHolder = "Ex-Bachelor",
@@ -683,7 +695,7 @@ fun EditProfileScreen(
                                 .height(48.dp)
                                 .border(
                                     width = 1.dp,
-                                    color = Black300,
+                                    color = Color.LightGray,
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .padding(start = 12.dp),
@@ -706,9 +718,9 @@ fun EditProfileScreen(
                         }
 
                         Text(
-                            "To",
+                            "-",
                             modifier = Modifier.padding(horizontal = 5.dp),
-                            style = typography.labelRegular
+                            style = typography.headingMedium
                         )
 
                         Row(
@@ -717,7 +729,7 @@ fun EditProfileScreen(
                                 .height(48.dp)
                                 .border(
                                     width = 1.dp,
-                                    color = Black300,
+                                    color = Color.LightGray,
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .padding(start = 12.dp),
@@ -725,7 +737,7 @@ fun EditProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${editProfileViewModel.campus.value.courseEnd?.month?:"Start"}${editProfileViewModel.campus.value.courseEnd?.year?:""}"
+                                text = "${editProfileViewModel.campus.value.courseEnd?.month?:"Start"} ${editProfileViewModel.campus.value.courseEnd?.year?:""}"
                             )
                             IconButton(onClick = {
                                 calenderSwitch = 1
@@ -740,7 +752,6 @@ fun EditProfileScreen(
                         }
 
                     }
-
                 }
 
 
@@ -845,6 +856,7 @@ fun UniversityDropdown(
                     IconButton(onClick = {
                         selectedUniversity = null
                         searchText = ""
+                        userProfileViewModel.resetUniversityData()
                     }
                     ) {
                         Icon(
@@ -860,7 +872,7 @@ fun UniversityDropdown(
 
         ExposedDropdownMenu(
             containerColor = Color.White,
-            expanded = universityList?.isNotEmpty() ?: false,
+            expanded = universityListState is UiState.Success,
             onDismissRequest = { expanded = false }
         ) {
 
@@ -873,10 +885,11 @@ fun UniversityDropdown(
                     universityList.forEach { selectionOption ->
                         DropdownMenuItem(
                             onClick = {
-                                selectedUniversity =
-                                    Pair(selectionOption.name, selectionOption.logo)
+                                selectedUniversity = Pair(selectionOption.name, selectionOption.logo)
                                 searchText = selectedUniversity?.first ?: ""
                                 onUniversitySelected(selectedUniversity)
+                                userProfileViewModel.resetUniversityData()
+
                             },
                             text = {
                                 Text(text = selectionOption.name)
@@ -926,8 +939,8 @@ fun EditPage(
 ) {
     LazyColumn(
         modifier = Modifier
-            .imePadding()
             .fillMaxSize()
+            .imePadding()
             .padding(WindowInsets.statusBars.asPaddingValues())
             .background(color = White900),
         contentPadding = PaddingValues(bottom = 16.dp),

@@ -1,6 +1,9 @@
 package com.iota.campusX.Screens
 
+import ConsentAgreeViewModel
+import ConsentBottomSheet
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -88,6 +91,7 @@ import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
 import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Post.PostOptions
+import com.iota.campusX.Screens.Post.VisibilityModeChanger
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.generateUID
@@ -101,6 +105,7 @@ import com.iota.campusX.ui.UIComponents.PostHeader
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
+import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White900
 import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
@@ -121,6 +126,9 @@ fun PostReplyScreen(
     replyViewModel: ReplyViewModel
 ) {
 
+    val consentAgreeViewModel = koinInject<ConsentAgreeViewModel>()
+    val isConsentAgree by consentAgreeViewModel.isAgree.collectAsState()
+    var consentBottomSheet = remember { mutableStateOf(false) }
 
     val userProfileState = profileViewModel.userBaseProfile.collectAsState().value
     val repliesState = replyViewModel.repliesState.collectAsState().value
@@ -135,7 +143,11 @@ fun PostReplyScreen(
 
     val mode = homeViewModel.mode.collectAsState().value
 
-    val userProfile = (userProfileState as UiState.Success).data
+    val userProfile = when (userProfileState) {
+        is UiState.Success -> userProfileState.data
+        else -> null // Or handle accordingly
+    }
+
 
     val keyboard = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
@@ -158,7 +170,9 @@ fun PostReplyScreen(
 
     var postData by remember { mutableStateOf<GetPostDTO?>(null) }
 
-    LaunchedEffect(mode as UiState.Success) {
+    LaunchedEffect(editPostState) {
+
+        val mode = mode as UiState.Success
 
         val post = if (mode.data == FeedMode.GLOBAL) globalPostState as UiState.Success else campusPostState as UiState.Success
 
@@ -170,9 +184,22 @@ fun PostReplyScreen(
             }
 
     }
+    when (repliesState) {
+        is UiState.Idle -> Log.d("REPLIES", "Replies are idle.")
+        is UiState.Loading -> Log.d("REPLIES", "Replies are loading.")
+        is UiState.Success -> Log.d("REPLIES", "Replies loaded: ${repliesState.data.size}")
+        is UiState.Error -> Log.d("REPLIES", "Replies error: ${repliesState.message}")
+    }
+
 
     LaunchedEffect(Unit) {
-        postId?.let { replyViewModel.getReplies(postId = it) }
+        postData?.let {
+            replyViewModel.getReplies(
+                postId = it.postId,
+                campusId = it.campusId,
+                feedMode = it.feedMode
+            )
+        }
     }
 
     LaunchedEffect(editPostState) {
@@ -280,7 +307,7 @@ fun PostReplyScreen(
                         Text("Edit reply", color = primary, fontWeight = FontWeight.Bold)
                     }
                 }
-                HorizontalDivider(color = Black300)
+                HorizontalDivider(color = White400)
 
                 BottomTextInput(
                     focusRequester = focusRequester,
@@ -304,20 +331,35 @@ fun PostReplyScreen(
                                         creatorId = it.creatorDetail.profile?.id ?: "",
                                         visibilityMode = visibilityMode,
                                         user = User(
-                                            id = userProfile.id,
-                                            userImage = userProfile.userImage,
-                                            userName = userProfile.userName,
+                                            id = userProfile?.id ?: "",
+                                            userImage = userProfile?.userImage ?: "",
+                                            userName = userProfile?.userName ?: "",
                                         ),
-                                        mode = it.feedMode
+                                        mode = it.feedMode,
+                                        campusId = it.campusId
                                     )
                                 }
                             }
                         }
                     },
                     isLoading = isLoading,
-                    userImage = userProfile.userImage,
+                    userImage = userProfile?.userImage ?: "",
                     onVisibilityChange = {
-                        visibilityMode = it
+                        when(isConsentAgree){
+                            is UiState.Success -> {
+                                if (it == PostVisibilityMode.ANONYMOUS){
+                                    if ((isConsentAgree as UiState.Success<Boolean>).data){
+                                        visibilityMode = it
+                                    }else{
+                                        consentBottomSheet.value = true
+                                        visibilityMode = PostVisibilityMode.USER
+                                    }
+                                }else{
+                                    visibilityMode = it
+                                }
+                            }
+                            else -> {}
+                        }
                     }
                 )
             }
@@ -325,6 +367,7 @@ fun PostReplyScreen(
         snackbarHost = { SnackbarHost(snackBarHostState) },
         containerColor = secondary
     ) { innerPadding ->
+
         LazyColumn(
             modifier = Modifier.padding(innerPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -411,24 +454,28 @@ fun PostReplyScreen(
                                 navHostController = navHostController,
                                 onLikeClick = {
                                     replyViewModel.likeReply(
-                                        creatorId = userProfile.id,
+                                        creatorId = userProfile?.id ?: "",
                                         postId = reply.postId,
                                         replyId = reply.replyId,
                                         isLiked = reply.actions.isLiked
                                     )
                                 },
                                 onDotsClick = {
-                                    bottomSheetViewModel.setBottomSheetState(
-                                        state = true,
-                                        isCurrentUser = reply.creatorDetail.isCurrentUser,
-                                        content = Content(
-                                            postId = reply.postId,
-                                            text = reply.content,
-                                            replyId = reply.replyId,
-                                        ),
-                                        contentType = ContentType.REPLY,
-                                        sheetType = SheetType.MENU_LIST,
-                                    )
+                                    postData?.let {
+                                        bottomSheetViewModel.setBottomSheetState(
+                                            state = true,
+                                            isCurrentUser = reply.creatorDetail.isCurrentUser,
+                                            content = Content(
+                                                postId = reply.postId,
+                                                text = reply.content,
+                                                replyId = reply.replyId,
+                                            ),
+                                            contentType = ContentType.REPLY,
+                                            sheetType = SheetType.MENU_LIST,
+                                            feedMode = it.feedMode,
+                                            campusId = it.campusId
+                                        )
+                                    }
                                 }
                             )
                         }
@@ -447,6 +494,7 @@ fun PostReplyScreen(
         PostDotOptionBottomSheet(
             isBottomSheet = bottomSheetData.isBottomSheet,
             bottomSheetViewModel = bottomSheetViewModel,
+            replyViewModel = replyViewModel,
             postFeedViewModel = postViewModel,
             onDismiss = {
                 bottomSheetViewModel.dismissBottomSheet()
@@ -481,7 +529,8 @@ fun PostReplyScreen(
                     replyViewModel.deleteReply(
                         postId = bottomSheetData.content.postId,
                         replyId = bottomSheetData.content.replyId,
-                        campusId = bottomSheetData.campusId
+                        campusId = bottomSheetData.campusId,
+                        feedMode = bottomSheetData.feedMode
                     )
                 }
                 context.vibrate()
@@ -490,9 +539,19 @@ fun PostReplyScreen(
             showLoading = bottomSheetViewModel.isLoading.collectAsState().value
         )
 
-//        DragTopButton {
-//            visibilityMode = if (visibilityMode == PostVisibilityMode.USER) PostVisibilityMode.ANONYMOUS else PostVisibilityMode.USER
-//        }
+        ConsentBottomSheet(
+            isVisible = consentBottomSheet.value,
+            onDismiss = {
+                consentBottomSheet.value = false
+                visibilityMode = PostVisibilityMode.USER
+            },
+            onAgree = {
+                consentAgreeViewModel.saveSwitchState(
+                    true
+                )
+            }
+        )
+
     }
 }
 
@@ -593,15 +652,13 @@ fun ReplyWidget(
     ) {
 
         Row(
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
             CircleImage(
                 image = repliesDTO.creatorDetail.profile?.userImage ?: "",
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape),
+                modifier = Modifier.size(42.dp).clip(CircleShape),
                 onClick = {
                     if (repliesDTO.visibilityMode == PostVisibilityMode.USER) {
                         navHostController.navigate(Routes.Main.ProfileByID.routes)
@@ -615,75 +672,79 @@ fun ReplyWidget(
                 }
             )
 
-            PostHeader(
-                user = repliesDTO.creatorDetail.profile,
-                postedAt = getTimeAgo(repliesDTO.repliedAt)
-            )
-        }
+            Column {
 
-        PostBody(
-            postContent = PostContent(
-                postType = PostOptions.TEXT,
-                postData = PostData(
-                    postText = repliesDTO.content
-                )
-            ),
-            navHostController = navHostController,
-            onPollSelect = {
-
-            }
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-
-                Text(text = repliesDTO.actions.likesCount.toString(), color = Black500)
-
-                Icon(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {
-                                onLikeClick.invoke()
-                            }
-                        ),
-                    painter = painterResource(if (repliesDTO.actions.isLiked) R.drawable.heart_bold else R.drawable.heart_outline),
-                    contentDescription = "Like",
-                    tint = if (repliesDTO.actions.isLiked) Color.Red else Black500
+                PostHeader(
+                    user = repliesDTO.creatorDetail.profile,
+                    postedAt = getTimeAgo(repliesDTO.repliedAt)
                 )
 
-            }
+                PostBody(
+                    postContent = PostContent(
+                        postType = PostOptions.TEXT,
+                        postData = PostData(
+                            postText = repliesDTO.content
+                        )
+                    ),
+                    navHostController = navHostController,
+                    onPollSelect = {
 
-            Row (verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)){
+                    }
+                )
 
-                if (repliesDTO.isEdited){
-                    Text("Edited", color = Black300, fontSize = 12.sp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+
+                        Text(text = repliesDTO.actions.likesCount.toString(), color = Black500)
+
+                        Icon(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {
+                                        onLikeClick.invoke()
+                                    }
+                                ),
+                            painter = painterResource(if (repliesDTO.actions.isLiked) R.drawable.heart_bold else R.drawable.heart_outline),
+                            contentDescription = "Like",
+                            tint = if (repliesDTO.actions.isLiked) Color.Red else Black500
+                        )
+
+                    }
+
+                    Row (verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)){
+
+                        if (repliesDTO.isEdited){
+                            Text("Edited", color = Black300, fontSize = 12.sp)
+                        }
+
+                        Icon(
+                            modifier = Modifier
+                                .rotate(90f)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {
+                                        onDotsClick.invoke()
+                                    }
+                                ),
+                            painter = painterResource(R.drawable.dots_menu),
+                            contentDescription = "Dots",
+                            tint = Black500
+                        )
+                    }
+
+
                 }
 
-                Icon(
-                    modifier = Modifier
-                        .rotate(90f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {
-                                onDotsClick.invoke()
-                            }
-                        ),
-                    painter = painterResource(R.drawable.dots_menu),
-                    contentDescription = "Dots",
-                    tint = Black500
-                )
             }
-
-
         }
     }
 }
@@ -702,7 +763,7 @@ fun BottomTextInput(
 ) {
 
     val keyboard = LocalSoftwareKeyboardController.current
-    var visibilityMode by remember { mutableStateOf(PostVisibilityMode.USER) }
+
 
 
     Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
@@ -710,7 +771,7 @@ fun BottomTextInput(
         TextField(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 42.dp)
+                .padding(start = 52.dp)
                 .imePadding()
                 .focusRequester(focusRequester)
                 .onFocusChanged { onFocusChange.invoke(it) },
@@ -718,6 +779,7 @@ fun BottomTextInput(
             onValueChange = {
                 onTextChange.invoke(it)
             },
+            shape = CircleShape,
             placeholder = { Text("Type a comment...", color = Black400) },
             trailingIcon = {
                 IconButton(
@@ -741,20 +803,22 @@ fun BottomTextInput(
                 }
             },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = White900,
-                unfocusedContainerColor = White900,
+                focusedContainerColor = White400,
+                unfocusedContainerColor = White400,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedTrailingIconColor = primary
             )
         )
 
-//        VisibilityModeChanger(
-//            modifier = Modifier.size(42.dp),
-//            selectedMode ={onVisibilityChange(it)},
-//            userImage = userImage,
-//            isConsentAgreed = visibilityMode
-//        )
+        VisibilityModeChanger(
+            visibility = PostVisibilityMode.USER,
+            onVisibilityModeChange = {
+                onVisibilityChange.invoke(it)
+            },
+            modifier = Modifier.size(42.dp),
+            userImage = userImage
+        )
 
 
     }

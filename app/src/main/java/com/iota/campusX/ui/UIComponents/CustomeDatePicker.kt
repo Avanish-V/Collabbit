@@ -148,7 +148,7 @@ fun MonthYearPicker(
                                 interactionSource = remember { MutableInteractionSource() }
                             ),
                         color = if (month == selectedMonth) Color.Black else Color.Gray,
-                        fontSize = if (month == selectedMonth) 22.sp else 16.sp,
+                        fontSize = if (month == selectedMonth) 20.sp else 16.sp,
                         fontWeight = if (month == selectedMonth) FontWeight.Bold else FontWeight.Normal
                     )
                 }
@@ -171,7 +171,7 @@ fun MonthYearPicker(
                                 interactionSource = remember { MutableInteractionSource() }
                             ),
                         color = if (year.toString() == selectedYear) Color.Black else Color.Gray,
-                        fontSize = if (year.toString() == selectedYear) 22.sp else 16.sp,
+                        fontSize = if (year.toString() == selectedYear) 20.sp else 16.sp,
                         fontWeight = if (year.toString() == selectedYear) FontWeight.Bold else FontWeight.Normal
                     )
                 }

@@ -3,6 +3,7 @@ package com.iota.campusX.ui.UIComponents
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -124,13 +125,7 @@ fun PostCard(
             sheetType = SheetType.MENU_LIST,
         )
     },
-    onPollSelect: (String) -> Unit = {
-        feedViewModel.voteOnPoll(
-            postId = post.postId,
-            optionId = it,
-            userId = "dfd"
-        )
-    },
+    onPollSelect: (String) -> Unit,
     navHostController: NavHostController
 ) {
 
@@ -194,6 +189,7 @@ fun PostCard(
                         rightColumnHeight = coordinates.size.height
                     }
             ) {
+
                 PostHeader(
                     about = post.creatorDetail.profile?.userBio.orEmpty(),
                     user = post.creatorDetail.profile,
@@ -204,7 +200,9 @@ fun PostCard(
                 PostBody(
                     postContent = post.postContent,
                     navHostController = navHostController,
-                    onPollSelect = onPollSelect
+                    onPollSelect = {
+                        onPollSelect(it)
+                    }
                 )
 
                 PostActionsComponent(
@@ -228,31 +226,12 @@ fun PostHeader(
     user: User?,
     pod: Reference? = null,
     postedAt: String? = null,
+    visibilityMode: PostVisibilityMode? = null
 ) {
-
-    val text = buildAnnotatedString {
-
-        withStyle(style = SpanStyle(color = White400)) {
-            append(" ● ")
-        }
-
-        withStyle(style = SpanStyle(color = Black500, fontWeight = FontWeight.SemiBold)) {
-            append("3yr")
-        }
-        withStyle(style = SpanStyle(color = White400)) {
-            append(" ● ")
-        }
-
-        withStyle(style = SpanStyle(color = Black500, fontWeight = FontWeight.SemiBold)) {
-            append(postedAt.toString())
-        }
-
-    }
-
 
     Row(
         modifier = Modifier.height(48.dp),
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
 
@@ -260,76 +239,59 @@ fun PostHeader(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
 
-                Row (){
-                    Text(
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {
+                Text(
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
 
-                                }
-                            ),
-                        text = user?.userName ?: "",
-                        fontSize = 14.sp,
-                        lineHeight = 14.sp,
-                        maxLines = 1,
-                        softWrap = false,
-                        style = typography.headingMedium,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                            }
+                        ),
+                    text = user?.userName ?: "",
+                    fontSize = 14.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    style = typography.headingMedium,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-                }
+                Text(" ● ",color = White400)
 
-                Row (Modifier.weight(1f)){
+                Text(
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
 
-                    Text(
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {
-
-                                }
-                            ),
-                        text = text,
-                        fontSize = 14.sp,
-                        lineHeight = 0.1.sp,
-                        maxLines = 1,
-                    )
-                }
+                            }
+                        ),
+                    text = postedAt.toString(),
+                    fontSize = 14.sp,
+                    lineHeight = 0.1.sp,
+                    maxLines = 1,
+                    color = Black300
+                )
 
 
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row (verticalAlignment = Alignment.CenterVertically){
-
-                if (!about.isEmpty()){
-                    Text(
-                        modifier = Modifier.weight(1f),
-                        text = about,
-                        style = typography.labelRegular,
-                        color = Black800,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-//                Text(
-//                    modifier = Modifier,
-//                    text = postedAt.toString(),
-//                    fontSize = 14.sp,
-//                    lineHeight = 0.1.sp,
-//                    maxLines = 1,
-//                    color = Black300
-//                )
 
 
+            if (visibilityMode == PostVisibilityMode.USER){
+                if (about.isEmpty()) return@Column
+                Spacer(modifier = Modifier.height(4.dp))
 
+                Text(
+                    text = about,
+                    style = typography.labelRegular,
+                    color = Black800,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-
         }
 
         if (pod != null) {
@@ -648,7 +610,7 @@ fun PollOptionsUI(
                         .height(48.dp)
                         .border(
                             width = 1.dp,
-                            color = Black300,
+                            color = White400,
                             shape = RoundedCornerShape(6.dp)
                         )
                         .clip(RoundedCornerShape(6.dp))
@@ -665,7 +627,6 @@ fun PollOptionsUI(
                                 )
                             }
                         }
-
                         .clickable {
                             if (hasVoted) return@clickable
                             onOptionSelected(option.optionId)

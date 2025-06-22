@@ -2,8 +2,8 @@ package com.iota.campusX.Screens.Profile
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -13,7 +13,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -24,7 +23,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,7 +45,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -86,14 +83,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.User
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
+import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
 import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -102,15 +100,11 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
-import com.iota.campusX.Screens.Home.BottomSheet.Content
-import com.iota.campusX.Screens.Home.BottomSheet.ContentType
 import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
-import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ProfileEdit
-import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
-import com.iota.campusX.Utils.timeMillsToString
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.PostCard
@@ -134,7 +128,9 @@ fun ProfileScreen(
     postViewModel: PostFeedViewModel,
     profileViewModel: UserProfileViewModel,
     googleSignInViewModel: AuthViewModel,
-    navigationViewModel: NavigationViewModel
+    navigationViewModel: NavigationViewModel,
+    replyViewModel: ReplyViewModel,
+    profileTypeViewModel: ProfilyTypeViewModel
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
@@ -144,45 +140,92 @@ fun ProfileScreen(
     val snackBarHostState = remember { SnackbarHostState() }
     val postLazyColumnState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
+    // ✅ Use shared ViewModel properly
     val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
     val bottomSheetData by bottomSheetViewModel.bottomSheetState.collectAsState()
 
+    // ✅ Derive routing and profile type
     val navBackStackEntry by navHostController.currentBackStackEntryAsState()
-    val creatorId = navBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
+    val currentDestination = navBackStackEntry?.destination?.route
+    val creatorId = remember(navBackStackEntry) {
+        navBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
+    }
+    val isOwnProfile = currentDestination == Routes.Main.Profile.routes
 
+    // ✅ Set user type only once
+    LaunchedEffect(isOwnProfile) {
+        val type = if (isOwnProfile) UserType.Owner else UserType.User
+        profileTypeViewModel.setUserType(type)
+    }
+
+    val userType by profileTypeViewModel.userType.collectAsState()
+
+    // ✅ Avoid unnecessary fetching
+    LaunchedEffect(userType, creatorId) {
+        if (userType == UserType.User && !creatorId.isNullOrEmpty()) {
+            profileViewModel.getUserById(creatorId)
+            profileViewModel.getConnectionCount(creatorId)
+            profileViewModel.hasConnection(creatorId)
+        } else {
+            profileViewModel.getConnectionCount(currentUser)
+        }
+    }
+
+    // ✅ Collect profile states
     val userBaseProfile by profileViewModel.userBaseProfile.collectAsState()
     val profileByIdState by profileViewModel.profileById.collectAsState()
     val connectionsCountState by profileViewModel.connectionCount.collectAsState()
-    val connectionsCount = (connectionsCountState as? UiState.Success)?.data ?: 0
+    val hasConnection by profileViewModel.hasConnection.collectAsState()
+    val modifyState by profileViewModel.modifyState.collectAsState()
 
-    val profileState = if (currentUser == creatorId || creatorId == null) {
-        (userBaseProfile as? UiState.Success)?.data
-    } else {
-        (profileByIdState as? UiState.Success)?.data
+    // ✅ Derive profile data and loading state
+    val profileData = remember(userType, userBaseProfile, profileByIdState) {
+        when (userType) {
+            UserType.Owner -> (userBaseProfile as? UiState.Success)?.data
+            UserType.User -> (profileByIdState as? UiState.Success)?.data
+            else -> null
+        }
     }
 
-    val profileType = if (currentUser == creatorId || creatorId == null) ProfileType.CURRENT_USER else ProfileType.CREATOR
+    val isProfileLoading = remember(userType, userBaseProfile, profileByIdState) {
+        when (userType) {
+            UserType.User -> profileByIdState is UiState.Loading
+            else -> false
 
+        }
+    }
+
+    // ✅ Modify state side-effect
+    LaunchedEffect(modifyState) {
+        when (modifyState) {
+            is UiState.Success -> {
+                if (userType == UserType.User && !creatorId.isNullOrEmpty()) {
+                    profileViewModel.hasConnection(creatorId)
+                }
+            }
+            is UiState.Error -> {
+                scope.launch {
+                    snackBarHostState.showSnackbar((modifyState as UiState.Error).message)
+                }
+            }
+            else -> Unit
+        }
+    }
+
+    // ✅ Other UI states
+    val isConnected = (hasConnection as? UiState.Success)?.data
     val isLoading = remember { mutableStateOf(false) }
     val isAlertDialogVisible = remember { mutableStateOf(false) }
-
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val density = LocalDensity.current
     var headerHeightDp by remember { mutableStateOf(0.dp) }
     var tabRowHeightDp by remember { mutableStateOf(0.dp) }
 
     val horizontalPagerHeight by remember {
-        derivedStateOf { screenHeight - (headerHeightDp + tabRowHeightDp + 12.dp + 52.dp) }
+        derivedStateOf {
+            screenHeight - (headerHeightDp + tabRowHeightDp + 12.dp + 52.dp)
+        }
     }
-
-    LaunchedEffect(creatorId) {
-        if (!creatorId.isNullOrEmpty()) profileViewModel.getUserById(creatorId)
-    }
-
-    LaunchedEffect(Unit) {
-        profileViewModel.getConnectionCount(userId = creatorId ?: currentUser)
-    }
-
     HideBottomBar(navigationViewModel, postLazyColumnState)
 
     Scaffold(
@@ -194,14 +237,14 @@ fun ProfileScreen(
                     scrolledContainerColor = Color.White
                 ),
                 actions = {
-                    if (creatorId.isNullOrEmpty()) {
+                    if (isOwnProfile) {
                         IconButton(onClick = { navHostController.navigate("SETTING") }) {
                             Icon(painterResource(R.drawable.setting), contentDescription = null)
                         }
                     }
                 },
                 navigationIcon = {
-                    if (profileType == ProfileType.CREATOR) {
+                    if (!isOwnProfile) {
                         IconButton(onClick = { navHostController.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                         }
@@ -222,69 +265,37 @@ fun ProfileScreen(
             state = postLazyColumnState
         ) {
 
-
-            item {
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-
-                ) {
-                    // Circular Image half inside, half outside the Box
-                    Image(
-                        painter = painterResource(id = R.drawable.man), // replace with your image
-                        contentDescription = "Profile Picture",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, Color.White, CircleShape)
-                            .align(Alignment.TopCenter)
-                            .offset(y = (-50).dp) // Move half image height up
-                            .zIndex(1f)
-                    )
-                }
-
-
-
-
-
-            }
-
-
-
-
             item {
                 ProfileHeader(
+                    snackbarHostState = snackBarHostState,
                     modifier = Modifier.fillMaxSize(),
                     headerHeight = { headerHeightDp = it },
                     navHostController = navHostController,
                     user = User(
-                        userName = profileState?.userName.orEmpty(),
-                        userImage = profileState?.userImage.orEmpty(),
-                        id = profileState?.id.orEmpty()
+                        userName = profileData?.userName.orEmpty(),
+                        userImage = profileData?.userImage.orEmpty(),
+                        id = profileData?.id.orEmpty()
                     ),
-                    profileType = profileType,
+                    userType = userType,
                     onLinkUpRequestClick = {
                         scope.launch {
                             profileViewModel.sendLinkUpRequest(
-                                requestUserId = creatorId.orEmpty(),
-                                currentState = profileState?.isRequestSent
+                                requestUserId = creatorId.toString(),
+                                currentState = isConnected
                             )
                         }
                     },
                     onMessageClick = {
                         navHostController.navigate(Routes.Main.SendMessage.routes).apply {
                             navHostController.currentBackStackEntry?.savedStateHandle?.apply {
-                                set("USER_ID", profileState?.id)
-                                set("USER_NAME", profileState?.userName)
-                                set("USER_IMAGE", profileState?.userImage)
+                                set("USER_ID", profileData?.id)
+                                set("USER_NAME", profileData?.userName)
+                                set("USER_IMAGE", profileData?.userImage)
                             }
                         }
                     },
-                    isLinkUpRequestSent = profileState?.isRequestSent,
-                    connectionsCount = connectionsCount
+                    connectionsCount = (connectionsCountState as? UiState.Success)?.data ?: 0,
+                    hasConnection = hasConnection
                 )
             }
 
@@ -332,11 +343,11 @@ fun ProfileScreen(
                         .height(horizontalPagerHeight)
                 ) { page ->
                     when (page) {
-                        0 -> profileState?.let {
+                        0 -> profileData?.let {
                             UserAbout(
                                 userBasicProfileDTO = it,
                                 navHostController = navHostController,
-                                isCurrentUser = creatorId == null || creatorId == currentUser
+                                isCurrentUser = userType == UserType.Owner
                             )
                         }
                         1 -> PostScreenComponent(
@@ -345,7 +356,7 @@ fun ProfileScreen(
                             navigationViewModel = navigationViewModel,
                             bottomSheetSharedViewModel = bottomSheetViewModel,
                             currentUser = creatorId ?: currentUser,
-                            campusId = profileState?.campus?.campusCode,
+                            campusId = profileData?.campus?.campusCode,
                             context = context
                         )
                     }
@@ -356,6 +367,7 @@ fun ProfileScreen(
         PostDotOptionBottomSheet(
             isBottomSheet = bottomSheetData.isBottomSheet,
             bottomSheetViewModel = bottomSheetViewModel,
+            replyViewModel = replyViewModel,
             postFeedViewModel = postViewModel,
             onDismiss = {},
             isCurrentUser = bottomSheetData.isCurrentUser,
@@ -410,6 +422,8 @@ fun ProfileScreen(
                 }
             }
         }
+
+        LoadingUI(isLoading = isProfileLoading)
     }
 }
 
@@ -417,25 +431,21 @@ fun ProfileScreen(
 
 @Composable
 fun ProfileHeader(
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier,
     headerHeight:(Dp)-> Unit,
     navHostController: NavHostController,
     user: User,
-    profileType:ProfileType,
+    userType: UserType,
     onLinkUpRequestClick: (() -> Unit)? = null,
     onMessageClick: (() -> Unit)? = null,
-    isLinkUpRequestSent: Boolean? = null,
-    connectionsCount: Int = 0
+    connectionsCount: Int = 0,
+    hasConnection:UiState<Boolean?>
 ) {
 
     val density = LocalDensity.current
     var headerHeightDp by remember { mutableStateOf(0.dp) }
 
-    val connectionText = when (isLinkUpRequestSent) {
-        null -> "Connect"
-        true -> "Remove Connection"
-        false -> "Withdraw request"
-    }
 
     Column(
         modifier = modifier
@@ -458,7 +468,7 @@ fun ProfileHeader(
 
                 AsyncImage(
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(80.dp)
                         .clip(CircleShape)
                         .border(
                             width = 2.dp,
@@ -476,7 +486,7 @@ fun ProfileHeader(
                     fontSize = 16.sp
                 )
             }
-            if (profileType == ProfileType.CURRENT_USER) {
+            if (userType == UserType.Owner) {
 
                 Image(
                     modifier = Modifier.clickable(
@@ -564,7 +574,7 @@ fun ProfileHeader(
         }
 
 
-        if (profileType == ProfileType.CREATOR) {
+        if (userType == UserType.User) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -587,21 +597,48 @@ fun ProfileHeader(
                         interactionSource = remember { MutableInteractionSource() }
                     ),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Image(
-                        modifier = Modifier.size(24.dp),
-                        painter = painterResource(R.drawable.user_add),
-                        contentDescription = null,
-                        colorFilter = ColorFilter.tint(
-                            color = if (isLinkUpRequestSent == null) Black900 else Black500
-                        )
-                    )
-                    Text(
-                        text = connectionText,
-                        style = typography.labelMedium,
-                        color = if (isLinkUpRequestSent == null) Black900 else Black500
-                    )
+                    Log.d("ProfileHeader", "hasConnection: $hasConnection")
+
+                    when(hasConnection){
+
+                        is UiState.Success -> {
+
+                            val connectionText = when (hasConnection.data) {
+                                null -> "Connect"
+                                true -> "Remove Connection"
+                                false -> "Withdraw request"
+                            }
+
+                            Image(
+                                modifier = Modifier.size(24.dp),
+                                painter = painterResource(R.drawable.user_add),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(
+                                    color = if (hasConnection.data == null) Black900 else Black500
+                                )
+                            )
+                            Text(
+                                text = connectionText,
+                                style = typography.labelMedium,
+                                color = if (hasConnection.data == null) Black900 else Black500
+                            )
+                        }
+                        is UiState.Loading->{
+                            CircularProgressIndicator(
+                                color = Black900,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        is UiState.Error->{
+                            LaunchedEffect(Unit) {
+                                snackbarHostState.showSnackbar(hasConnection.message)
+                            }
+                        }
+                        else -> {}
+                    }
+
                 }
 
                 VerticalDivider(
@@ -814,7 +851,11 @@ fun PostScreenComponent(
 ) {
 
     LaunchedEffect(Unit) {
-        postViewModel.fetchPostById(currentUser, campusId)
+        postViewModel.fetchPostById(
+            currentUser,
+            campusId,
+            feedMode = FeedMode.GLOBAL
+        )
     }
 
     val postById = postViewModel.postById.collectAsState().value
@@ -831,6 +872,13 @@ fun PostScreenComponent(
                 is UiState.Success -> {
 
                     val sortedPost = postById.data.sortedByDescending { it.createdAt }
+
+                    if (sortedPost.isEmpty())
+                        StatusScreen(
+                            isActive = true,
+                            text = "No Posts"
+                        )
+                    return
 
                     sortedPost.forEach {
 
@@ -864,7 +912,11 @@ fun PostScreenComponent(
                         image = R.drawable.landscape_placeholder_svgrepo_com,
                         buttonText = "Try again",
                         onReTry = {
-                            postViewModel.fetchPostById(currentUser, campusId)
+                            postViewModel.fetchPostById(
+                                currentUser,
+                                campusId,
+                                feedMode = FeedMode.GLOBAL
+                            )
                         }
                     )
                 }

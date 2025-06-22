@@ -65,14 +65,13 @@ fun PostDotOptionBottomSheet(
     isBottomSheet: Boolean,
     bottomSheetViewModel: BottomSheetSharedViewModel,
     postFeedViewModel: PostFeedViewModel,
+    replyViewModel: ReplyViewModel,
     onDismiss: () -> Unit,
     isCurrentUser: Boolean,
     onDeleteClick: () -> Unit,
     onEditClick: () -> Unit,
     onHideBottomSheet: (Boolean) -> Unit
 ) {
-
-    val replyViewModel = koinInject<ReplyViewModel>()
 
 
     bottomSheetViewModel.modificationRequest.collectAsState().value
@@ -121,6 +120,7 @@ fun PostDotOptionBottomSheet(
         }
     }
 
+
     LaunchedEffect(editReplyState.value) {
         when (editReplyState.value) {
             is UiState.Loading -> {
@@ -134,11 +134,10 @@ fun PostDotOptionBottomSheet(
             }
 
             is UiState.Error->{
+                isLoading = false
                 Log.d("ERROR", "PostDotOptionBottomSheet: ${editReplyState.value}")
             }
-            UiState.Idle -> {
-                isLoading = false
-            }
+            else -> {}
         }
     }
 
@@ -242,6 +241,7 @@ fun PostDotOptionBottomSheet(
                                         postId = bottomSheetData.content.postId,
                                         replyId = bottomSheetData.content.replyId,
                                         campusId = bottomSheetData.campusId,
+                                        feedMode = bottomSheetData.feedMode,
                                         content = replyText
                                     )
                                 }

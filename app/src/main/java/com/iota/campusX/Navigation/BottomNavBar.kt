@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -37,6 +38,8 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
+import com.iota.campusX.ui.theme.Black300
+import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.primary
 
 
@@ -79,7 +82,7 @@ fun BottomAppBar(
                                         badgeCount.toString(),
                                         color = Color.White,
                                         fontSize = 10.sp,
-                                        lineHeight = 1.sp,
+                                        lineHeight = 10.sp,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier
                                             .padding(1.dp)
@@ -106,7 +109,7 @@ fun BottomAppBar(
                     }
 
                 },
-                //label = { Text(item.item, fontWeight = if (destination == item.route) FontWeight.Bold else FontWeight.Normal) },
+                label = { Text(item.item, fontWeight = if (destination == item.route) FontWeight.Bold else FontWeight.Normal, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 selected = destination == item.route,
                 onClick = {
 
@@ -125,10 +128,12 @@ fun BottomAppBar(
 
 
                 },
-                alwaysShowLabel = false,
+                alwaysShowLabel = true,
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.Black,
                     indicatorColor = Color.Transparent,
+                    unselectedTextColor = Black300,
+                    selectedTextColor = Black800
                 )
 
             )

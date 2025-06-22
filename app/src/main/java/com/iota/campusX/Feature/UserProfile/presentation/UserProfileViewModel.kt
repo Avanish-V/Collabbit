@@ -40,6 +40,8 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     private val _universityData = MutableStateFlow<UiState<List<UniversityDTO>>>(UiState.Idle)
     val universityData: StateFlow<UiState<List<UniversityDTO>>> = _universityData.asStateFlow()
 
+    private val _hasConnection = MutableStateFlow<UiState<Boolean?>>(UiState.Idle)
+    val hasConnection: StateFlow<UiState<Boolean?>> = _hasConnection.asStateFlow()
 
     private val _connections = MutableStateFlow<UiState<List<ConnectionsDTO>>>(UiState.Idle)
     val connections: StateFlow<UiState<List<ConnectionsDTO>>> = _connections.asStateFlow()
@@ -185,10 +187,19 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
     }
 
-    fun sendLinkUpRequest(requestUserId: String, currentState: Boolean? = null) = viewModelScope.launch {
+    fun sendLinkUpRequest(requestUserId: String, currentState: Boolean?) = viewModelScope.launch {
         _modifyState.value = UiState.Loading
         _modifyState.value = userProfileRepo.sendLinkUpRequest(requestUserId, currentState).fold(
             onSuccess = { UiState.Success(Unit) },
+            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+        )
+        resetModifyState()
+    }
+
+    fun hasConnection(userId: String) = viewModelScope.launch {
+        _hasConnection.value = UiState.Loading
+        _hasConnection.value = userProfileRepo.hasConnection(userId).fold(
+            onSuccess = { UiState.Success(it) },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
     }
@@ -261,6 +272,9 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(campus = campus))
     }
 
+    fun resetUniversityData() {
+        _universityData.value = UiState.Idle
+    }
 }
 
 

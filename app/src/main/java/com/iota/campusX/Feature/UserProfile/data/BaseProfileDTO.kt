@@ -44,6 +44,7 @@ data class Campus(
     @SerialName("university") val university: University? = null,
     @SerialName("collegeName") val collegeName: String = "",
     @SerialName("campusCode") val campusCode: String? = null,
+    @SerialName("degree") val degree: String? = null,
     @SerialName("fieldOfStudy") val fieldOfStudy: String = "",
     @SerialName("courseStart") val courseStart: CourseDuration? = null,
     @SerialName("courseEnd") val courseEnd: CourseDuration? = null
