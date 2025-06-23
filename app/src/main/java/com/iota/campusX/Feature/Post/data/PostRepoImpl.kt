@@ -13,6 +13,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
+import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Post.domain.Models.CreatePostDTO
 import com.iota.campusX.Feature.Post.domain.Models.CreatorDetail
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
@@ -452,9 +453,9 @@ class PostRepoImpl(
             if (creatorId != currentUserId) {
                 val notification = CreateNotificationDTO(
                     notificationId = replyId,
-                    type = "POST_REPLY",
+                    type = NotificationType.COMMENTED,
                     visibilityMode = visibilityMode,
-                    contentId = replyId,
+                    replyId = replyId,
                     postId = postId,
                     creatorId = creatorId,
                     actionBy = currentUserId,
@@ -584,10 +585,10 @@ class PostRepoImpl(
                 if (userId != auth.currentUser?.uid && !isLiked) {
                     val notification = CreateNotificationDTO(
                         notificationId = postId + userId,
-                        type = "LIKE",
+                        type = NotificationType.LIKE_POST,
                         postId = postId,
                         isRead = false,
-                        contentId = postId,
+                        replyId = null,
                         creatorId = userId,
                         actionBy = auth.currentUser?.uid ?: "",
                         createdAt = System.currentTimeMillis()
@@ -635,8 +636,8 @@ class PostRepoImpl(
 
                 if (!isLiked) {
                     val notification = CreateNotificationDTO(
-                        type = "LIKE_REPLY",
-                        contentId = replyId,
+                        type = NotificationType.LIKE_REPLY,
+                        replyId = replyId,
                         postId = postId,
                         creatorId = creatorId,
                         actionBy = auth.currentUser?.uid ?: "",

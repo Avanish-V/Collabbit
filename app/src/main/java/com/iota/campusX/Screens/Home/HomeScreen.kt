@@ -175,15 +175,15 @@ fun MainScreen(
                         BadgedBox(
                             badge = {
                                 if (chatBadgeCount != 0) {
-                                    Text(
-                                        chatBadgeCount.toString(),
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        modifier = Modifier
-                                            .padding(1.dp)
-                                            .size(16.dp)
-                                            .background(Color.Red, CircleShape)
-                                    )
+                                    Box(modifier = Modifier.size(12.dp).background(Color.Red, CircleShape),contentAlignment = Alignment.Center){
+                                        Text(
+                                            chatBadgeCount.toString(),
+                                            color = Color.White,
+                                            fontSize = 8.sp,
+                                            lineHeight = 10.sp
+                                        )
+                                    }
+
                                 }
                             }
                         ) {

@@ -35,6 +35,7 @@ fun Society(modifier: Modifier = Modifier) {
 
 
 
+
         }
 
 

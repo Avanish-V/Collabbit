@@ -52,6 +52,13 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     private val _modifyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val modifyState: StateFlow<UiState<Unit>> = _modifyState.asStateFlow()
 
+    private val _rejectState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val rejectState: StateFlow<UiState<Unit>> = _rejectState.asStateFlow()
+
+    private val _acceptState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val acceptState: StateFlow<UiState<Unit>> = _acceptState.asStateFlow()
+
+
 
     fun getUserProfile() {
 
@@ -205,19 +212,21 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     }
 
     fun acceptLinkUpRequest(requestUserId: String) = viewModelScope.launch {
-        _modifyState.value = UiState.Loading
-        _modifyState.value = userProfileRepo.acceptLinkUpRequest(requestUserId).fold(
+        _acceptState.value = UiState.Loading
+        _acceptState.value = userProfileRepo.acceptLinkUpRequest(requestUserId).fold(
             onSuccess = { UiState.Success(Unit) },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
+        resetModifyState()
     }
 
     fun rejectLinkUpRequest(requestUserId: String) = viewModelScope.launch {
-        _modifyState.value = UiState.Loading
-        _modifyState.value = userProfileRepo.rejectLinkUpRequest(requestUserId).fold(
+        _rejectState.value = UiState.Loading
+        _rejectState.value = userProfileRepo.rejectLinkUpRequest(requestUserId).fold(
             onSuccess = { UiState.Success(Unit) },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
+        resetModifyState()
     }
 
     suspend fun deleteUserProfile() = userProfileRepo.deleteAccount()

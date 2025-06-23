@@ -45,6 +45,7 @@ import com.iota.campusX.Screens.Home.dataStore
 import com.iota.campusX.Screens.Post.PollViewModel
 import com.iota.campusX.Screens.Post.PostScreenViewModel
 import com.iota.campusX.Screens.Profile.ProfilyTypeViewModel
+import com.iota.campusX.Utils.ServerTimeFetcher
 import com.iota.campusX.Utils.ServerTimeStampViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -77,9 +78,9 @@ val appModule = module {
                 })
             }
             install(HttpTimeout) {
-                requestTimeoutMillis = 15_000
-                connectTimeoutMillis = 15_000
-                socketTimeoutMillis = 15_000
+                requestTimeoutMillis = 5000
+                connectTimeoutMillis = 5000
+                socketTimeoutMillis = 5000
             }
             install(io.ktor.client.plugins.logging.Logging) {
                 level = LogLevel.ALL
@@ -114,6 +115,7 @@ val appModule = module {
             auth = get(),
             firebaseStorage = get(),
             httpClient = get(),
+            serverTimeFetcher = get()
         )
     }
     single<GoogleAuthRepo> {
@@ -122,6 +124,7 @@ val appModule = module {
     single<PostRepository> { PostRepoImpl(get(), get(), get()) }
     single<ChatRepository> { ChatImpl(get(), get(), get(), get()) }
     single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
+    single { ServerTimeFetcher(get()) }
 
     single<DataStore<Preferences>> {
         androidContext().dataStore

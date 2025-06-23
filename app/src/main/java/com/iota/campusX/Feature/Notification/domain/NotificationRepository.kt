@@ -7,11 +7,11 @@ interface NotificationRepository {
 
     fun fetchNotification(): Flow<ResultState<List<NotificationDTO>>>
 
-    fun fetchLinkUpRequest(): Flow<ResultState<List<NotificationDTO>>>
-
     fun markNotificationAsRead()
 
     fun getNotificationCount(): Flow<ResultState<Int>>
+
+    suspend fun deleteNotification(notificationId: String) : Result<Unit>
 
      fun observeTotalUnreadCount(): Flow<Int>
 

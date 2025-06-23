@@ -10,9 +10,13 @@ import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
+import com.iota.campusX.Feature.Notification.domain.NotificationType
+import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.User
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.ServerTimeFetcher
 import com.iota.campusX.Utils.UiState
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -32,13 +36,15 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import java.io.IOException
+import java.util.UUID
 
 class UserProfileImpl(
     private val sendPushNotification: SendPushNotification,
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
+    private val serverTimeFetcher: ServerTimeFetcher
 ) : UserProfileRepo {
 
 
@@ -242,7 +248,31 @@ class UserProfileImpl(
                     batch.set(senderRef, senderData)
                     batch.set(receiverRef, receiverData)
                 }.await()
-                sendPushNotification.messageNotification(requestUserId, "REQUEST")
+
+                if (requestUserId != auth.currentUser!!.uid) {
+                    val notification = CreateNotificationDTO(
+                        notificationId = UUID.randomUUID().toString(),
+                        type = NotificationType.REQUEST,
+                        visibilityMode = PostVisibilityMode.USER,
+                        replyId = null,
+                        postId = null,
+                        creatorId = requestUserId,
+                        actionBy = auth.currentUser!!.uid,
+                        createdAt = System.currentTimeMillis()
+                    )
+
+                    firestore.collection("Users")
+                        .document(requestUserId)
+                        .collection("Notifications")
+                        .document(notification.notificationId)
+                        .set(notification)
+                        .await()
+
+                    sendPushNotification.messageNotification(
+                        notificationReceiverId = requestUserId,
+                        notificationType = "REQUEST"
+                    )
+                }
             } else {
                 firestore.runBatch {
                     batch ->
@@ -326,11 +356,12 @@ class UserProfileImpl(
             val snapshot = firestore.collection("Users").document(userId)
                 .collection("Connections")
                 .whereEqualTo("status", true)
-
                 .get().await()
 
             val connections = snapshot.documents.mapNotNull { doc ->
+
                 val request = doc.toObject(LinkUpRequestDTO::class.java)
+
                 request?.let {
                     val userSnapshot = firestore.collection("Users").document(it.senderId).get().await()
                     val userData = userSnapshot.toObject(BasicProfileDTO::class.java)

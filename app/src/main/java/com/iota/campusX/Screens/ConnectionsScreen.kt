@@ -1,5 +1,6 @@
 package com.iota.campusX.Screens
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,6 +65,7 @@ fun ConnectionsScreen(navHostController: NavHostController) {
     val user = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
 
     LaunchedEffect(Unit) {
+        Log.d("USER_ID",user.toString())
         user?.let { profileViewModel.getConnections(it) }
     }
 
@@ -135,7 +137,7 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                 }
                 is UiState.Error -> {
                     ErrorScreen(
-                        text = "Something went wrong!",
+                        text = "${connections.message}Something went wrong!",
                         image = R.drawable.undraw_voice_assistant_k27k,
                         onReTry = {
                             scope.launch {

@@ -17,8 +17,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
+import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -54,6 +58,7 @@ import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.StatusScreen
+import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.ErrorScreen
@@ -77,12 +82,17 @@ fun NotificationScreen(
 
     val notificationViewModel = koinInject<NotificationViewModel>()
     val state = notificationViewModel.notification.collectAsState().value
+    val acceptState = userProfileViewModel.acceptState.collectAsState().value
+    val rejectState = userProfileViewModel.rejectState.collectAsState().value
+
+
     LaunchedEffect(Unit) {
         notificationViewModel.fetchNotifications()
     }
     LaunchedEffect(Unit) {
         notificationViewModel.markNotificationAsRead()
     }
+
     val lazyState = rememberLazyListState()
 
     HideBottomBar(
@@ -90,6 +100,8 @@ fun NotificationScreen(
         navigationViewModel = navigationViewModel
     )
     val scope = rememberCoroutineScope()
+
+    val snackBarHostState = SnackbarHostState()
 
     Scaffold(
         topBar = {
@@ -99,6 +111,12 @@ fun NotificationScreen(
                 },
             )
         },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackBarHostState,
+                modifier = Modifier.padding(bottom = 40.dp)
+            )
+        }
 
         ) { innerPadding ->
 
@@ -140,21 +158,31 @@ fun NotificationScreen(
                             if (it.actionBy.userName.isEmpty() || it.actionBy.userImage.isEmpty()) return@items
 
                             NotificationItem(
-                                notificationDTO =  it,
+                                notificationDTO = it,
                                 scope = scope,
                                 userProfileViewModel = userProfileViewModel,
                                 notificationViewModel = notificationViewModel,
                                 onNotificationClick = {
-                                    navHostController.navigate(Routes.Main.ReplyPost.routes).apply{
-                                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID",it.postId)
+                                    navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>(
+                                            "POST_ID",
+                                            it.postId
+                                        )
                                     }
                                 },
                                 geToUserProfile = {
                                     if (it.visibilityMode != PostVisibilityMode.USER) return@NotificationItem
-                                    navHostController.navigate(Routes.Main.Profile.routes).apply{
-                                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("USER_ID",it.actionBy.id)
+                                    navHostController.navigate(Routes.Main.Profile.routes).apply {
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>(
+                                            "USER_ID",
+                                            it.actionBy.id
+                                        )
                                     }
-                                }
+                                },
+                                acceptState = acceptState,
+                                rejectState = rejectState,
+                                snackbarHostState = snackBarHostState
+
                             )
                         }
                     }
@@ -180,22 +208,36 @@ fun NotificationScreen(
 @Composable
 fun NotificationItem(
     notificationDTO: NotificationDTO,
+    snackbarHostState: SnackbarHostState,
     userProfileViewModel: UserProfileViewModel,
     notificationViewModel: NotificationViewModel,
     scope: CoroutineScope,
     onNotificationClick: () -> Unit,
-    geToUserProfile:()-> Unit
+    geToUserProfile:()-> Unit,
+    onAcceptRequestClick:()-> Unit = {
+        userProfileViewModel.acceptLinkUpRequest(
+            notificationDTO.actionBy.id
+        )
+    },
+    onRejectRequestClick:()-> Unit = {
+        userProfileViewModel.rejectLinkUpRequest(
+            notificationDTO.actionBy.id
+        )
+    },
+    acceptState: UiState<Unit>,
+    rejectState: UiState<Unit>
+
 ) {
 
     var isAccepted by remember { mutableStateOf(true) }
 
-    val text = if (notificationDTO.type == "LIKE")
+    val text = if (notificationDTO.type == NotificationType.LIKE_POST)
         "Liked your Post"
-    else if (notificationDTO.type == "LIKE_REPLY")
+    else if (notificationDTO.type == NotificationType.LIKE_REPLY)
         "Liked your reply"
-    else if (notificationDTO.type == "POST_REPLY")
+    else if (notificationDTO.type == NotificationType.COMMENTED)
         "Replied your post"
-    else if (notificationDTO.type == "LINK_REQUEST")
+    else if (notificationDTO.type == NotificationType.REQUEST)
         "Sent you a link request"
     else ""
 
@@ -304,7 +346,7 @@ fun NotificationItem(
             }
 
 
-            if (notificationDTO.type == "LINK_REQUEST") {
+            if (notificationDTO.type == NotificationType.REQUEST) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -314,27 +356,64 @@ fun NotificationItem(
                 ) {
                     TextButton(
                         onClick = {
-                            scope.launch {
-                                userProfileViewModel.rejectLinkUpRequest(
-                                    notificationDTO.actionBy.id
-                                )
-                            }
-                            notificationViewModel.deleteNotificationFromList(notificationDTO)
+                            onRejectRequestClick.invoke()
                         },
                     ) {
-                        Text("Reject")
+                        when(rejectState){
+                            is UiState.Loading -> {
+                                CircularProgressIndicator(
+                                    color = Black900,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            is UiState.Success->{
+                                notificationViewModel.deleteNotification(notificationDTO.notificationId.toString())
+                                notificationViewModel.deleteNotificationFromList(notificationDTO)
+                            }
+                            is UiState.Error->{
+                                LaunchedEffect(Unit) {
+                                    snackbarHostState.showSnackbar(
+                                        rejectState.message
+                                    )
+                                }
+                            }
+                            else -> {
+                                Text("Reject")
+                            }
+
+                        }
+
                     }
                     TextButton(
                         enabled = isAccepted,
                         onClick = {
-                            scope.launch {
-                                userProfileViewModel.acceptLinkUpRequest(
-                                    notificationDTO.actionBy.id
-                                )
-                            }
+                            onAcceptRequestClick.invoke()
                         },
                     ) {
-                        Text("Accept")
+                        when(acceptState){
+                            is UiState.Loading -> {
+                                CircularProgressIndicator(
+                                    color = Black900,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            is UiState.Success->{
+                                Text("Accepted")
+                                notificationViewModel.deleteNotification(notificationDTO.notificationId.toString())
+
+                            }
+                            is UiState.Error->{
+                                LaunchedEffect(Unit) {
+                                    snackbarHostState.showSnackbar(
+                                        acceptState.message
+                                    )
+                                }
+                            }
+                            else -> {
+                                Text("Accept")
+                            }
+
+                        }
                     }
                 }
             }

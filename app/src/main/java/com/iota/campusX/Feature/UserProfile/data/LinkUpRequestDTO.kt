@@ -1,12 +1,14 @@
-package com.iota.campusX.Feature.UserProfile.data
-
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ServerTimestamp
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class LinkUpRequestDTO(
     var senderId: String = "",
     var status: Boolean = false,
-    var createdAt: Long = 0L
-) {
-    constructor() : this("", false)
-}
+
+    @Contextual
+    @ServerTimestamp
+    val createdAt: Timestamp? = null
+)

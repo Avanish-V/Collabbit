@@ -13,11 +13,12 @@ import com.iota.campusX.Feature.Notification.domain.Content
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
+import com.iota.campusX.Feature.Notification.domain.NotificationType
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.ReplyDTO
 import com.iota.campusX.Feature.Post.domain.Models.User
-import com.iota.campusX.Feature.UserProfile.data.LinkUpRequestDTO
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.awaitClose
@@ -55,6 +56,7 @@ class NotificationImpl(
                         async {
 
                             val notificationData = data.toObject(CreateNotificationDTO::class.java)
+                            val path = if (notificationData.feedMode == FeedMode.GLOBAL) "GlobalPosts" else "CampusPosts"
 
 
                             val actionByDeferred = async {
@@ -65,12 +67,12 @@ class NotificationImpl(
                                     .toObject(User::class.java)
                             }
 
-                            val getRepliesDeferred = async {
-                                if (notificationData.contentId.isNotBlank()) {
-                                    firestore.collection("GlobalPosts")
-                                        .document(notificationData.postId)
+                            val getReplyDeferred = async {
+                                if (!notificationData.replyId.isNullOrEmpty()) {
+                                    firestore.collection(path)
+                                        .document(notificationData.postId.toString())
                                         .collection("Replies")
-                                        .document(notificationData.contentId)
+                                        .document(notificationData.replyId.toString())
                                         .get()
                                         .await()
                                         .toObject(ReplyDTO::class.java)
@@ -79,23 +81,10 @@ class NotificationImpl(
                                 }
                             }
 
-                            val getLikedReplyDeferred = async {
-                                if (notificationData.contentId.isNotBlank()) {
-                                    firestore.collection("GlobalPosts")
-                                        .document(notificationData.postId)
-                                        .collection("Replies")
-                                        .document(notificationData.contentId)
-                                        .get()
-                                        .await()
-                                        .toObject(ReplyDTO::class.java)
-                                } else {
-                                    null
-                                }
-                            }
 
                             val getLikedPostDeferred = async {
-                                if (notificationData.contentId.isNotBlank()) {
-                                    val snapshot = firestore.collection("GlobalPosts")
+                                if (notificationData.postId != null) {
+                                    val snapshot = firestore.collection(path)
                                         .document(notificationData.postId)
                                         .get()
                                         .await()
@@ -105,32 +94,28 @@ class NotificationImpl(
                                 }
                             }
 
-                            val getReplies = getRepliesDeferred.await()
-                            val getLikedReply = getLikedReplyDeferred.await()
+                            val getReply = getReplyDeferred.await()
                             val actionedBy = actionByDeferred.await()
                             val post = getLikedPostDeferred.await()
 
+
+
                             val content: Content = when (notificationData.type) {
-                                "LIKE" -> Content(
-                                    text = post?.postContent?.postData?.postText
-                                        ?: "Deleted by user",
+                                NotificationType.LIKE_POST  -> Content(
+                                    text = post?.postContent?.postData?.postText ?: "Deleted by user",
                                     image = post?.postContent?.postData?.postImage ?: ""
                                 )
 
-                                "POST_REPLY" -> Content(
-                                    text = getReplies?.content ?: "Deleted by user"
+                                NotificationType.LIKE_REPLY  -> Content(
+                                    text = getReply?.content ?: "Deleted by user"
                                 )
 
-                                "LIKE_REPLY" -> Content(
-                                    text = getLikedReply?.content ?: "Deleted by user"
+                                NotificationType.COMMENTED  -> Content(
+                                    text = getReply?.content ?: "Deleted by user"
                                 )
 
-                                "LINK_REQUEST" -> Content(
+                                NotificationType.REQUEST -> Content(
                                     text = "Sent you a link request"
-                                )
-
-                                else -> Content(
-                                    text = ""
                                 )
                             }
 
@@ -151,9 +136,9 @@ class NotificationImpl(
 
                             NotificationDTO(
                                 notificationId = notificationData.notificationId,
-                                createrId = notificationData.creatorId,
+                                creatorId = notificationData.creatorId,
                                 createdAt = createdAt,
-                                postId = notificationData.postId,
+                                postId = notificationData.postId.toString(),
                                 actionBy = User(
                                     userName = userType.first,
                                     id = actionedBy?.id ?: "",
@@ -161,7 +146,8 @@ class NotificationImpl(
                                 ),
                                 content = content,
                                 type = notificationData.type,
-                                visibilityMode = notificationData.visibilityMode
+                                visibilityMode = notificationData.visibilityMode,
+                                feedMode = notificationData.feedMode
                             )
 
                         }
@@ -180,71 +166,6 @@ class NotificationImpl(
 
         }
 
-    }
-
-    override fun fetchLinkUpRequest(): Flow<ResultState<List<NotificationDTO>>> {
-        return flow {
-
-            emit(ResultState.Loading)
-
-            try {
-
-                val notificationSnapshot =
-                    firestore.collection("Users").document(auth.currentUser!!.uid)
-                        .collection("LinkUpRequests")
-                        .whereEqualTo("status", false)
-                        .get()
-                        .await()
-
-                val notificationList = coroutineScope {
-
-                    notificationSnapshot.map { data ->
-
-                        async {
-
-                            val notificationData = data.toObject(LinkUpRequestDTO::class.java)
-
-                            val sendByDeferred = async {
-                                firestore.collection("Users")
-                                    .document(notificationData.senderId)
-                                    .get()
-                                    .await()
-                                    .toObject(User::class.java)
-                            }
-
-
-                            val likedBy = sendByDeferred.await()
-
-
-                            val createdAt = notificationData.createdAt
-
-
-                            NotificationDTO(
-                                notificationId = notificationData.senderId,
-                                createrId = notificationData.senderId,
-                                createdAt = createdAt,
-                                actionBy = User(
-                                    userName = likedBy?.userName ?: "",
-                                    id = likedBy?.id ?: "",
-                                    userImage = likedBy?.userImage ?: ""
-                                ),
-                                type = "LINK_REQUEST"
-                            )
-
-                        }
-
-                    }.map { it.await() }
-
-                }
-
-                emit(ResultState.Success(notificationList))
-
-
-            } catch (e: Exception) {
-                emit(ResultState.Error(e.message.toString()))
-            }
-
-        }
     }
 
     override fun markNotificationAsRead() {
@@ -300,7 +221,21 @@ class NotificationImpl(
         }
     }
 
-   override fun observeTotalUnreadCount(): Flow<Int> = callbackFlow {
+    override suspend fun deleteNotification(notificationId: String): Result<Unit> {
+        return try {
+            firestore.collection("Users")
+                .document(auth.currentUser!!.uid)
+                .collection("Notifications")
+                .document(notificationId)
+                .delete()
+                .await()
+            Result.success(Unit)
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+    }
+
+    override fun observeTotalUnreadCount(): Flow<Int> = callbackFlow {
 
         val currentUserId = auth.currentUser?.uid
         if (currentUserId == null) {

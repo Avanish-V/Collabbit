@@ -5,10 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.UiState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class NotificationViewModel(private val notificationRepository: NotificationRepository): ViewModel() {
@@ -22,30 +23,27 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
     private val _chatCount: MutableStateFlow<Int> = MutableStateFlow(0)
     val chatCount: StateFlow<Int> = _chatCount.asStateFlow()
 
+    private val _deleteNotificationState: MutableStateFlow<UiState<Unit>> = MutableStateFlow(UiState.Idle)
+    val deleteNotificationState: StateFlow<UiState<Unit>> = _deleteNotificationState.asStateFlow()
+
     fun fetchNotifications() {
         viewModelScope.launch {
-            combine(
-                notificationRepository.fetchNotification(),
-                notificationRepository.fetchLinkUpRequest()
-            ) { notificationsResult, linkUpRequestsResult ->
-                Pair(notificationsResult, linkUpRequestsResult)
-            }.collect { (notificationsResult, linkUpRequestsResult) ->
 
-                when {
-                    notificationsResult is ResultState.Loading || linkUpRequestsResult is ResultState.Loading -> {
+            notificationRepository.fetchNotification().collect {
+
+                when (it) {
+                    is ResultState.Success -> {
+                        _notification.value = NotificationResultState(data = it.data)
+                    }
+
+                    is ResultState.Loading -> {
                         _notification.value = NotificationResultState(isLoading = true)
                     }
-                    notificationsResult is ResultState.Error -> {
-                        _notification.value = NotificationResultState(error = notificationsResult.message)
+
+                    is ResultState.Error -> {
+                        _notification.value = NotificationResultState(error = it.message)
                     }
-                    linkUpRequestsResult is ResultState.Error -> {
-                        _notification.value = NotificationResultState(error = linkUpRequestsResult.message)
-                    }
-                    notificationsResult is ResultState.Success && linkUpRequestsResult is ResultState.Success -> {
-                        // Here you can merge both data
-                        val combinedData = notificationsResult.data + linkUpRequestsResult.data // assuming it's List or similar
-                        _notification.value = NotificationResultState(data = combinedData)
-                    }
+
                 }
             }
         }
@@ -88,6 +86,22 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
         }
     }
 
+    fun deleteNotification(notificationId: String) {
+        viewModelScope.launch {
+            _deleteNotificationState.value = UiState.Loading
+            val result = notificationRepository.deleteNotification(notificationId)
+            _deleteNotificationState.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message.toString()) }
+            )
+            resetState()
+        }
+    }
+
+    suspend fun resetState(){
+        delay(1000)
+        _deleteNotificationState.value = UiState.Idle
+    }
 
 }
 

@@ -78,18 +78,15 @@ fun BottomAppBar(
                         BadgedBox(
                             badge = {
                                 if (badgeCount != 0) {
-                                    Text(
-                                        badgeCount.toString(),
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        lineHeight = 10.sp,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier
-                                            .padding(1.dp)
-                                            .size(16.dp)
-                                            .background(color = Color.Red, shape = CircleShape
-                                            )
-                                    )
+                                    Box(modifier = Modifier.size(12.dp).background(Color.Red, CircleShape),contentAlignment = Alignment.Center){
+                                        Text(
+                                            badgeCount.toString(),
+                                            color = Color.White,
+                                            fontSize = 8.sp,
+                                            lineHeight = 10.sp
+                                        )
+                                    }
+
                                 }
                             }
                         ) {
