@@ -36,6 +36,9 @@ import com.iota.campusX.Feature.Post.domain.UseCases.VotePollUseCase
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
+import com.iota.campusX.Feature.Society.data.SocietyImplementation
+import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
+import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Feature.UserProfile.data.UserProfileImpl
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -44,7 +47,7 @@ import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Home.dataStore
 import com.iota.campusX.Screens.Post.PollViewModel
 import com.iota.campusX.Screens.Post.PostScreenViewModel
-import com.iota.campusX.Screens.Profile.ProfilyTypeViewModel
+import com.iota.campusX.Screens.Profile.ProfileTypeViewModel
 import com.iota.campusX.Utils.ServerTimeFetcher
 import com.iota.campusX.Utils.ServerTimeStampViewModel
 import io.ktor.client.HttpClient
@@ -125,6 +128,7 @@ val appModule = module {
     single<ChatRepository> { ChatImpl(get(), get(), get(), get()) }
     single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
     single { ServerTimeFetcher(get()) }
+    single <SocietyRepository>{ SocietyImplementation(get(),get()) }
 
     single<DataStore<Preferences>> {
         androidContext().dataStore
@@ -192,7 +196,8 @@ val appModule = module {
     viewModel { PollViewModel() }
     viewModel { PostScreenViewModel() }
     viewModel { ConsentAgreeViewModel(get()) }
-    viewModel { ProfilyTypeViewModel() }
+    viewModel { ProfileTypeViewModel() }
+    viewModel { SocietyViewModel(get()) }
 }
 
 

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,7 +80,7 @@ import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostContent
 import com.iota.campusX.Feature.Post.domain.Models.PostData
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -330,7 +332,7 @@ fun PostReplyScreen(
                                         content = replyText,
                                         creatorId = it.creatorDetail.profile?.id ?: "",
                                         visibilityMode = visibilityMode,
-                                        user = User(
+                                        user = UserDetail(
                                             id = userProfile?.id ?: "",
                                             userImage = userProfile?.userImage ?: "",
                                             userName = userProfile?.userName ?: "",
@@ -382,7 +384,8 @@ fun PostReplyScreen(
                         navHostController = navHostController,
                         onPostClick = {},
                         onReplyClick = { keyboard?.show() },
-                        onPollSelect = {}
+                        onPollSelect = {},
+                        profileViewModel = profileViewModel
                     )
                 }
             }
@@ -768,48 +771,60 @@ fun BottomTextInput(
 
     Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
 
-        TextField(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 52.dp)
-                .imePadding()
-                .focusRequester(focusRequester)
-                .onFocusChanged { onFocusChange.invoke(it) },
-            value = text,
-            onValueChange = {
-                onTextChange.invoke(it)
-            },
-            shape = CircleShape,
-            placeholder = { Text("Type a comment...", color = Black400) },
-            trailingIcon = {
-                IconButton(
-                    onClick = {
-                        onSubmitClick.invoke()
-                    }
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            trackColor = secondary,
-                            color = primary
-                        )
-                    } else {
-                        Icon(
-                            painterResource(R.drawable.send_2),
-                            contentDescription = "Send",
-                            tint = primary
-                        )
-                    }
-                }
-            },
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = White400,
-                unfocusedContainerColor = White400,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedTrailingIconColor = primary
+        Row (verticalAlignment = Alignment.CenterVertically){
+
+            TextField(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 52.dp)
+                    .border(
+                        width = 1.dp,
+                        color = White400,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .imePadding()
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { onFocusChange.invoke(it) },
+                value = text,
+                onValueChange = {
+                    onTextChange.invoke(it)
+                },
+                shape = RoundedCornerShape(6.dp),
+                placeholder = { Text("Type a comment...", color = Black400) },
+                trailingIcon = {
+
+                },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor =Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTrailingIconColor = primary
+                ),
             )
-        )
+
+            IconButton(
+                onClick = {
+                    onSubmitClick.invoke()
+                }
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        trackColor = secondary,
+                        color = primary
+                    )
+                } else {
+                    Icon(
+                        painterResource(R.drawable.send_2),
+                        contentDescription = "Send",
+                        tint = primary
+                    )
+                }
+            }
+
+        }
+
 
         VisibilityModeChanger(
             visibility = PostVisibilityMode.USER,

@@ -1,6 +1,7 @@
 package com.iota.campusX.Feature.UserProfile.presentation
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.UserProfile.data.Campus
@@ -9,6 +10,8 @@ import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
+import com.iota.campusX.Navigation.Routes
+import com.iota.campusX.Screens.Profile.UserType
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -57,6 +60,30 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
     private val _acceptState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val acceptState: StateFlow<UiState<Unit>> = _acceptState.asStateFlow()
+
+    private val _userType = MutableStateFlow<UserType>(UserType.Idle)
+    val userType: StateFlow<UserType> = _userType.asStateFlow()
+
+
+    fun getProfileIdByPost(
+        userIdByFeed: String,
+        loggedInUserId: String,
+        currentDestination : String
+    ){
+        if (currentDestination == Routes.Main.Profile.routes){
+            _userType.value = UserType.Owner
+            getConnectionCount(loggedInUserId)
+        }else if(currentDestination == Routes.Main.ProfileByID.routes && userIdByFeed == loggedInUserId){
+            _userType.value = UserType.Owner
+            getConnectionCount(loggedInUserId)
+        }else{
+            _userType.value = UserType.User
+             getUserById(userIdByFeed)
+             getConnectionCount(userIdByFeed)
+             hasConnection(loggedInUserId)
+        }
+
+    }
 
 
 
@@ -223,7 +250,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     fun rejectLinkUpRequest(requestUserId: String) = viewModelScope.launch {
         _rejectState.value = UiState.Loading
         _rejectState.value = userProfileRepo.rejectLinkUpRequest(requestUserId).fold(
-            onSuccess = { UiState.Success(Unit) },
+            onSuccess = { UiState.Success(Unit.also { removeConnectionFromList(requestUserId) }) },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
         resetModifyState()
@@ -284,23 +311,8 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     fun resetUniversityData() {
         _universityData.value = UiState.Idle
     }
+    fun removeConnectionFromList(userId: String){
+        _connections.value = UiState.Success((connections.value as UiState.Success).data.filter { it.user.id != userId })
+    }
 }
 
-
-data class UserBaseProfileResultState(
-    val isLoading:Boolean = false,
-    val baseProfileData: BasicProfileDTO = BasicProfileDTO(),
-    val error:String = ""
-)
-
-data class UniversityDataResultState(
-    val isLoading:Boolean = false,
-    val universityList: List<UniversityDTO> = emptyList(),
-    val error:String = ""
-)
-
-data class ConnectionsResultState(
-    val isLoading:Boolean = false,
-    val connectionList:List<ConnectionsDTO> = emptyList(),
-    val error:String = ""
-)

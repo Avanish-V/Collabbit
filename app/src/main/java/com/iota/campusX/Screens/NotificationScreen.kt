@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -63,6 +64,7 @@ import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.Black300
+import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.Black900
 import com.iota.campusX.ui.theme.White400
@@ -82,8 +84,6 @@ fun NotificationScreen(
 
     val notificationViewModel = koinInject<NotificationViewModel>()
     val state = notificationViewModel.notification.collectAsState().value
-    val acceptState = userProfileViewModel.acceptState.collectAsState().value
-    val rejectState = userProfileViewModel.rejectState.collectAsState().value
 
 
     LaunchedEffect(Unit) {
@@ -179,8 +179,6 @@ fun NotificationScreen(
                                         )
                                     }
                                 },
-                                acceptState = acceptState,
-                                rejectState = rejectState,
                                 snackbarHostState = snackBarHostState
 
                             )
@@ -220,14 +218,16 @@ fun NotificationItem(
         )
     },
     onRejectRequestClick:()-> Unit = {
-        userProfileViewModel.rejectLinkUpRequest(
-            notificationDTO.actionBy.id
+        notificationViewModel.deleteNotification(
+            notificationDTO.notificationId.toString()
         )
     },
-    acceptState: UiState<Unit>,
-    rejectState: UiState<Unit>
 
 ) {
+
+    val acceptState = userProfileViewModel.acceptState.collectAsState().value
+    val rejectState = notificationViewModel.deleteNotificationState.collectAsState().value
+
 
     var isAccepted by remember { mutableStateOf(true) }
 
@@ -243,7 +243,7 @@ fun NotificationItem(
 
     val annotatedText = buildAnnotatedString {
 
-        withStyle(style = SpanStyle(color = Black800, fontWeight = FontWeight.Medium)) {
+        withStyle(style = SpanStyle(color = Black900, fontWeight = FontWeight.Medium)) {
             append(notificationDTO.actionBy.userName)
         }
         withStyle(style = SpanStyle(color = White400)) {
@@ -253,14 +253,6 @@ fun NotificationItem(
         withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
             append(text)
         }
-        withStyle(style = SpanStyle(color = White400)) {
-            append(" ● ")
-        }
-
-        withStyle(style = SpanStyle(color = Black300, fontWeight = FontWeight.Normal)) {
-            append(getTimeAgo(notificationDTO.createdAt))
-        }
-
     }
 
 
@@ -271,16 +263,17 @@ fun NotificationItem(
         .clickable(
             onClick = { onNotificationClick.invoke() },
             indication = null,
-            interactionSource = remember { MutableInteractionSource() })) {
+            interactionSource = remember { MutableInteractionSource() })
+    ) {
 
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
 
             Row (
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ){
 
@@ -295,32 +288,35 @@ fun NotificationItem(
 
                 )
 
-                Column(modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)) {
-
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = annotatedText,
                         fontSize = 14.sp,
                         maxLines = 2,
                     )
+                    Text(
+                        text = getTimeAgo(notificationDTO.createdAt),
+                        fontSize = 14.sp,
+                        maxLines = 2,
+                        color = Black500
+                    )
                 }
 
-                if (!notificationDTO.content?.image.isNullOrEmpty()) {
-                    AsyncImage(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(6.dp)),
-                        model = notificationDTO.content?.image,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                    )
+                Column {
 
+                    if (!notificationDTO.content?.image.isNullOrEmpty()) {
+                        AsyncImage(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                            model = notificationDTO.content?.image,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                        )
+
+                    }
                 }
             }
-
-
-
         }
 
 
@@ -351,44 +347,15 @@ fun NotificationItem(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    TextButton(
-                        onClick = {
-                            onRejectRequestClick.invoke()
-                        },
-                    ) {
-                        when(rejectState){
-                            is UiState.Loading -> {
-                                CircularProgressIndicator(
-                                    color = Black900,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            is UiState.Success->{
-                                notificationViewModel.deleteNotification(notificationDTO.notificationId.toString())
-                                notificationViewModel.deleteNotificationFromList(notificationDTO)
-                            }
-                            is UiState.Error->{
-                                LaunchedEffect(Unit) {
-                                    snackbarHostState.showSnackbar(
-                                        rejectState.message
-                                    )
-                                }
-                            }
-                            else -> {
-                                Text("Reject")
-                            }
-
-                        }
-
-                    }
-                    TextButton(
+                    Button(
                         enabled = isAccepted,
                         onClick = {
                             onAcceptRequestClick.invoke()
                         },
+                        shape = RoundedCornerShape(6.dp)
                     ) {
                         when(acceptState){
                             is UiState.Loading -> {
@@ -412,7 +379,36 @@ fun NotificationItem(
                             else -> {
                                 Text("Accept")
                             }
+                        }
+                    }
 
+                    TextButton(
+                        onClick = {
+                            onRejectRequestClick.invoke()
+                        },
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        when(rejectState){
+                            is UiState.Loading -> {
+                                CircularProgressIndicator(
+                                    color = Black900,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            is UiState.Success->{
+                                notificationViewModel.deleteNotification(notificationDTO.notificationId.toString())
+                                notificationViewModel.deleteNotificationFromList(notificationDTO)
+                            }
+                            is UiState.Error->{
+                                LaunchedEffect(Unit) {
+                                    snackbarHostState.showSnackbar(
+                                        rejectState.message
+                                    )
+                                }
+                            }
+                            else -> {
+                                Text("Reject")
+                            }
                         }
                     }
                 }

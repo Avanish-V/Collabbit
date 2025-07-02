@@ -100,7 +100,7 @@ import com.iota.campusX.Feature.Post.domain.Models.PostContent
 import com.iota.campusX.Feature.Post.domain.Models.PostData
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.Reference
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.UploadState
@@ -201,7 +201,7 @@ fun CreatePostScreen(
                             icon = selectedPod?.icon ?: ""
                         ),
                         creatorDetail = CreatorDetail(
-                            profile = User(
+                            profile = UserDetail(
                                 userName = userProfile.data.userName,
                                 id = userProfile.data.id,
                                 userImage = userProfile.data.userImage,
@@ -483,7 +483,7 @@ fun CreatePostScreen(
                                         feedMode = feedMode.data
                                     ),
                                     imageUri = selectedImages,
-                                    user = User(
+                                    user = UserDetail(
                                         userName = userProfile.data.userName,
                                         id = userProfile.data.id,
                                         userImage = userProfile.data.userImage,

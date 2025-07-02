@@ -62,11 +62,27 @@ fun ConnectionsScreen(navHostController: NavHostController) {
     val scope = rememberCoroutineScope()
     val profileViewModel = koinInject<UserProfileViewModel>()
     val connections = profileViewModel.connections.collectAsStateWithLifecycle().value
+    val rejectConnectionState = profileViewModel.rejectState.collectAsStateWithLifecycle().value
     val user = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
 
     LaunchedEffect(Unit) {
         Log.d("USER_ID",user.toString())
         user?.let { profileViewModel.getConnections(it) }
+    }
+
+    LaunchedEffect(rejectConnectionState) {
+        when(rejectConnectionState){
+            is UiState.Loading -> {
+
+            }
+            is UiState.Success<*> -> {
+
+            }
+            is UiState.Error -> {
+
+            }
+            else -> {}
+        }
     }
 
     Scaffold(
@@ -126,9 +142,7 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                                 },
                                 connectionData = connections,
                                 onRejectClick = {
-                                    scope.launch {
-                                        profileViewModel.rejectLinkUpRequest(connections.user.id)
-                                    }
+                                    profileViewModel.rejectLinkUpRequest(connections.user.id)
                                 }
                             )
                         }
@@ -200,10 +214,6 @@ fun ConnectionsItemView(
 
             TextButton (
                 onClick = { onRejectClick.invoke() },
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = White400
-                ),
                 shape = RoundedCornerShape(6.dp)
 
             ) {

@@ -35,12 +35,12 @@ data class CreatorDetail(
     val isCurrentUser: Boolean = false,
     val isVerified: Boolean = false,
     val isPremium: Boolean = false,
-    val profile: User? = null
+    val profile: UserDetail? = null
 )
 
 
 @Serializable
-data class User(
+data class UserDetail(
     val userName: String = "",
     val id: String = "",
     val userImage: String = "",

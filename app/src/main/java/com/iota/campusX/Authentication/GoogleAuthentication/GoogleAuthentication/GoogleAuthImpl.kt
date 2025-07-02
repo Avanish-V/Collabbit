@@ -3,6 +3,7 @@ package com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthenticatio
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
+import android.util.Log
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.BeginSignInRequest.GoogleIdTokenRequestOptions
 import com.google.android.gms.auth.api.identity.Identity
@@ -142,11 +143,13 @@ class GoogleAuthUiClient(
                             }
                             .addOnFailureListener {
                                 FirebaseAuth.getInstance().signOut()
+                                Log.d("AUTH_FAILED", "verifyUser: ${it.message}")
                             }
 
                     }
                 }
                 .addOnFailureListener {
+                    Log.d("AUTH_FAILED", "verifyUser: ${it.message}")
                     trySend(
                         ResultState.Error("false")
                     )

@@ -16,13 +16,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,6 +36,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -68,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -85,11 +87,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
 import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
@@ -106,8 +107,10 @@ import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
+import com.iota.campusX.ui.UIComponents.CourseDuration
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.PostCard
+import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black500
 import com.iota.campusX.ui.theme.Black800
@@ -118,6 +121,7 @@ import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 // ProfileScreen.kt
 @RequiresApi(Build.VERSION_CODES.O)
@@ -130,8 +134,23 @@ fun ProfileScreen(
     googleSignInViewModel: AuthViewModel,
     navigationViewModel: NavigationViewModel,
     replyViewModel: ReplyViewModel,
-    profileTypeViewModel: ProfilyTypeViewModel
+    profileTypeViewModel: ProfileTypeViewModel
 ) {
+
+//
+
+    val useridByFeed =
+        navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
+    val currentDestination = navHostController.currentDestination?.route
+
+    LaunchedEffect(Unit) {
+        profileViewModel.getProfileIdByPost(
+            userIdByFeed = useridByFeed ?: "",
+            loggedInUserId = googleSignInViewModel.userId(),
+            currentDestination = currentDestination ?: ""
+        )
+    }
+
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
     val currentUser = googleSignInViewModel.userId()
@@ -144,31 +163,12 @@ fun ProfileScreen(
     val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
     val bottomSheetData by bottomSheetViewModel.bottomSheetState.collectAsState()
 
-    // ✅ Derive routing and profile type
-    val navBackStackEntry by navHostController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination?.route
-    val creatorId = remember(navBackStackEntry) {
-        navBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
-    }
-    val isOwnProfile = currentDestination == Routes.Main.Profile.routes
-
-    // ✅ Set user type only once
-    LaunchedEffect(isOwnProfile) {
-        val type = if (isOwnProfile) UserType.Owner else UserType.User
-        profileTypeViewModel.setUserType(type)
-    }
-
-    val userType by profileTypeViewModel.userType.collectAsState()
+    val userType by profileViewModel.userType.collectAsState()
 
     // ✅ Avoid unnecessary fetching
-    LaunchedEffect(userType, creatorId) {
-        if (userType == UserType.User && !creatorId.isNullOrEmpty()) {
-            profileViewModel.getUserById(creatorId)
-            profileViewModel.getConnectionCount(creatorId)
-            profileViewModel.hasConnection(creatorId)
-        } else {
-            profileViewModel.getConnectionCount(currentUser)
-        }
+    LaunchedEffect(Unit) {
+        profileViewModel.getConnectionCount(currentUser)
+
     }
 
     // ✅ Collect profile states
@@ -179,13 +179,13 @@ fun ProfileScreen(
     val modifyState by profileViewModel.modifyState.collectAsState()
 
     // ✅ Derive profile data and loading state
-    val profileData = remember(userType, userBaseProfile, profileByIdState) {
+    val profileData =
         when (userType) {
             UserType.Owner -> (userBaseProfile as? UiState.Success)?.data
             UserType.User -> (profileByIdState as? UiState.Success)?.data
             else -> null
         }
-    }
+
 
     val isProfileLoading = remember(userType, userBaseProfile, profileByIdState) {
         when (userType) {
@@ -195,22 +195,6 @@ fun ProfileScreen(
         }
     }
 
-    // ✅ Modify state side-effect
-    LaunchedEffect(modifyState) {
-        when (modifyState) {
-            is UiState.Success -> {
-                if (userType == UserType.User && !creatorId.isNullOrEmpty()) {
-                    profileViewModel.hasConnection(creatorId)
-                }
-            }
-            is UiState.Error -> {
-                scope.launch {
-                    snackBarHostState.showSnackbar((modifyState as UiState.Error).message)
-                }
-            }
-            else -> Unit
-        }
-    }
 
     // ✅ Other UI states
     val isConnected = (hasConnection as? UiState.Success)?.data
@@ -237,14 +221,14 @@ fun ProfileScreen(
                     scrolledContainerColor = Color.White
                 ),
                 actions = {
-                    if (isOwnProfile) {
+                    if (userType == UserType.Owner) {
                         IconButton(onClick = { navHostController.navigate("SETTING") }) {
                             Icon(painterResource(R.drawable.setting), contentDescription = null)
                         }
                     }
                 },
                 navigationIcon = {
-                    if (!isOwnProfile) {
+                    if (userType == UserType.User) {
                         IconButton(onClick = { navHostController.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                         }
@@ -271,7 +255,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxSize(),
                     headerHeight = { headerHeightDp = it },
                     navHostController = navHostController,
-                    user = User(
+                    user = UserDetail(
                         userName = profileData?.userName.orEmpty(),
                         userImage = profileData?.userImage.orEmpty(),
                         id = profileData?.id.orEmpty()
@@ -279,10 +263,12 @@ fun ProfileScreen(
                     userType = userType,
                     onLinkUpRequestClick = {
                         scope.launch {
-                            profileViewModel.sendLinkUpRequest(
-                                requestUserId = creatorId.toString(),
-                                currentState = isConnected
-                            )
+                            profileData?.let {
+                                profileViewModel.sendLinkUpRequest(
+                                    requestUserId = it.id,
+                                    currentState = isConnected
+                                )
+                            }
                         }
                     },
                     onMessageClick = {
@@ -353,9 +339,10 @@ fun ProfileScreen(
                         1 -> PostScreenComponent(
                             navHostController = navHostController,
                             postViewModel = postViewModel,
+                            userProfileViewModel = profileViewModel,
                             navigationViewModel = navigationViewModel,
                             bottomSheetSharedViewModel = bottomSheetViewModel,
-                            currentUser = creatorId ?: currentUser,
+                            currentUser = profileData?.id ?: "",
                             campusId = profileData?.campus?.campusCode,
                             context = context
                         )
@@ -435,7 +422,7 @@ fun ProfileHeader(
     modifier: Modifier,
     headerHeight:(Dp)-> Unit,
     navHostController: NavHostController,
-    user: User,
+    user: UserDetail,
     userType: UserType,
     onLinkUpRequestClick: (() -> Unit)? = null,
     onMessageClick: (() -> Unit)? = null,
@@ -466,19 +453,60 @@ fun ProfileHeader(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                AsyncImage(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 2.dp,
-                            color = secondary,
-                            shape = CircleShape
-                        ),
-                    model = user.userImage,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop
-                )
+
+                Box(
+                    modifier = Modifier.size(120.dp),
+                    contentAlignment = Alignment.BottomEnd
+
+                ) {
+
+                    AsyncImage(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .border(width = 6.dp, color = Color.White, shape = CircleShape)
+                            .shadow(
+                                elevation = 12.dp,
+                                shape = CircleShape,
+                                ambientColor = primary,
+                                spotColor = primary
+                            ),
+                        model = user.userImage,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop
+                    )
+
+                    if (userType == UserType.Owner) {
+
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(color = Color.White)
+                                .clickable(
+                                    onClick = {
+                                        navHostController.navigate(Routes.Main.EditProfile.routes)
+                                            .apply {
+                                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                                    "PROFILE_EDIT",
+                                                    ProfileEdit.PROFILE_SCREEN
+                                                )
+                                            }
+                                    },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                )
+
+                        ) {
+                            Icon(
+                                modifier = Modifier.padding(3.dp),
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Back",
+                                tint = primary
+                            )
+                        }
+                    }
+                }
+
 
                 Text(
                     text = user.userName,
@@ -486,23 +514,7 @@ fun ProfileHeader(
                     fontSize = 16.sp
                 )
             }
-            if (userType == UserType.Owner) {
 
-                Image(
-                    modifier = Modifier.clickable(
-                        onClick = {
-                            navHostController.navigate(Routes.Main.EditProfile.routes).apply {
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set("PROFILE_EDIT", ProfileEdit.PROFILE_SCREEN)
-                            }
-                        },
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ),
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Back",
-                    colorFilter = ColorFilter.tint(primary)
-                )
-            }
         }
 
 
@@ -573,42 +585,32 @@ fun ProfileHeader(
             Text(text = "$connectionsCount Connections",fontWeight = FontWeight.Bold)
         }
 
+        Log.d("ProfileHeader", "ProfileHeader: $userType")
 
         if (userType == UserType.User) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min) // ✅ Makes dividers take height of tallest Column
-                    .border(
-                        width = 1.dp,
-                        color = White400,
-                        shape = RoundedCornerShape(5.dp)
-                    )
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
 
-                Column(
-                    modifier = Modifier.clickable(
-                        onClick = {
-                            onLinkUpRequestClick?.invoke()
-                        },
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+            Row {
+                Button(
+                    onClick = { onLinkUpRequestClick?.invoke() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .shadow(
+                            elevation = 20.dp,
+                            shape = RoundedCornerShape(6.dp),
+                            ambientColor = primary,
+                            spotColor = primary
+                        ),
+                    shape = RoundedCornerShape(6.dp)
                 ) {
-                    Log.d("ProfileHeader", "hasConnection: $hasConnection")
-
                     when(hasConnection){
 
                         is UiState.Success -> {
 
                             val connectionText = when (hasConnection.data) {
                                 null -> "Connect"
-                                true -> "Remove Connection"
-                                false -> "Withdraw request"
+                                true -> "Remove"
+                                false -> "Requested"
                             }
 
                             Image(
@@ -616,13 +618,16 @@ fun ProfileHeader(
                                 painter = painterResource(R.drawable.user_add),
                                 contentDescription = null,
                                 colorFilter = ColorFilter.tint(
-                                    color = if (hasConnection.data == null) Black900 else Black500
+                                    color = if (hasConnection.data == null || hasConnection.data == true) White900 else Black500
                                 )
+                            )
+                            Spacer(
+                                modifier = Modifier.width(12.dp)
                             )
                             Text(
                                 text = connectionText,
                                 style = typography.labelMedium,
-                                color = if (hasConnection.data == null) Black900 else Black500
+                                color = if (hasConnection.data == null || hasConnection.data == true) White900 else Black500
                             )
                         }
                         is UiState.Loading->{
@@ -638,39 +643,38 @@ fun ProfileHeader(
                         }
                         else -> {}
                     }
-
                 }
-
-                VerticalDivider(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(1.dp),
-                    color = White400
+                Spacer(
+                    modifier = Modifier.width(12.dp)
                 )
-
-                Column(
-                    modifier = Modifier.clickable(
-                        onClick = {
-                            onMessageClick?.invoke()
-                        },
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                Button(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .align(Alignment.CenterVertically),
+                    onClick = { onMessageClick?.invoke() },
+                    shape = RoundedCornerShape(6.dp),
+                    border = BorderStroke(1.dp, Black300),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = White900,
+                        contentColor = Black900
+                    )
                 ) {
                     Image(
                         modifier = Modifier.size(24.dp),
-                        painter = painterResource(R.drawable.chatbubble_outline),
-                        contentDescription = null
+                        painter = painterResource(R.drawable.send_2),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(
+                            color = Black500
+                        )
                     )
-                    Text(
-                        text = "Message",
-                        style = typography.labelMedium
+                    Spacer(
+                        modifier = Modifier.width(12.dp)
                     )
+                    Text("Message", color = Black500)
                 }
-
             }
+
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -843,6 +847,7 @@ fun CampusWidget(campus: Campus?) {
 fun PostScreenComponent(
     navHostController: NavHostController,
     postViewModel: PostFeedViewModel,
+    userProfileViewModel: UserProfileViewModel,
     navigationViewModel: NavigationViewModel,
     bottomSheetSharedViewModel: BottomSheetSharedViewModel,
     currentUser: String,
@@ -885,6 +890,7 @@ fun PostScreenComponent(
                         PostCard(
                             feedViewModel = postViewModel,
                             bottomSheetSharedViewModel = bottomSheetSharedViewModel,
+                            profileViewModel = userProfileViewModel,
                             onPostClick = {
                                 navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
                                     navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID", it.postId)
@@ -928,3 +934,10 @@ fun PostScreenComponent(
     }
 }
 
+fun currentYear(courseStart: CourseDuration, courseEnd: CourseDuration) {
+
+    val currentMonth = Calendar.MONTH
+    val currentYear = Calendar.YEAR
+
+
+}

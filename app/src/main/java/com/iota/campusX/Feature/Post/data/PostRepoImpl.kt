@@ -20,17 +20,14 @@ import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostActions
-import com.iota.campusX.Feature.Post.domain.Models.PostContent
-import com.iota.campusX.Feature.Post.domain.Models.PostData
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.ReplyDTO
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.presentation.UploadState
 import com.iota.campusX.Utils.anonymousImage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -149,7 +146,7 @@ class PostRepoImpl(
                                 .document(post.creatorId)
                                 .get()
                                 .await()
-                                .toObject(User::class.java)
+                                .toObject(UserDetail::class.java)
                         }
 
                         val likesDeferred = async {
@@ -184,7 +181,7 @@ class PostRepoImpl(
                                 isCurrentUser = isCurrentUser,
                                 isVerified = false,
                                 isPremium = false,
-                                profile = User(
+                                profile = UserDetail(
                                     id = post.creatorId,
                                     userName = profile.first,
                                     userImage = profile.second,
@@ -242,7 +239,7 @@ class PostRepoImpl(
                                 .document(post.creatorId)
                                 .get()
                                 .await()
-                                .toObject(User::class.java)
+                                .toObject(UserDetail::class.java)
                         }
 
                         val likesDeferred = async {
@@ -277,7 +274,7 @@ class PostRepoImpl(
                                 isCurrentUser = isCurrentUser,
                                 isVerified = false,
                                 isPremium = false,
-                                profile = User(
+                                profile = UserDetail(
                                     id = post.creatorId,
                                     userName = profile.first,
                                     userImage = profile.second,
@@ -353,7 +350,7 @@ class PostRepoImpl(
                                 .document(post.creatorId)
                                 .get()
                                 .await()
-                                .toObject(User::class.java)
+                                .toObject(UserDetail::class.java)
                         }
 
                         val likesDeferred = async {
@@ -388,7 +385,7 @@ class PostRepoImpl(
                                 isCurrentUser = isCurrentUser,
                                 isVerified = false,
                                 isPremium = false,
-                                profile = User(
+                                profile = UserDetail(
                                     id = post.creatorId,
                                     userName = profile.first,
                                     userImage = profile.second,
@@ -501,7 +498,7 @@ class PostRepoImpl(
                                 .document(reply.repliedBy)
                                 .get()
                                 .await()
-                                .toObject(User::class.java)
+                                .toObject(UserDetail::class.java)
                         }
 
                         val likesDeferred = async {
@@ -535,7 +532,7 @@ class PostRepoImpl(
                                 isCurrentUser = isCurrentUser,
                                 isVerified = false,
                                 isPremium = false,
-                                profile = User(
+                                profile = UserDetail(
                                     id = reply.creatorId,
                                     userName = userName ?: "",
                                     userImage = userImage ?: "",
@@ -762,7 +759,7 @@ enum class Error {
     CAMPUS_NOT_FOUND
 }
 
-fun visibilityMode(visibilityMode: PostVisibilityMode, user: User?): Pair<String, String> {
+fun visibilityMode(visibilityMode: PostVisibilityMode, user: UserDetail?): Pair<String, String> {
     return when (visibilityMode) {
         PostVisibilityMode.ANONYMOUS -> Pair("Anonymous", anonymousImage)
         PostVisibilityMode.USER -> Pair(user?.userName.toString(), user?.userImage.toString())

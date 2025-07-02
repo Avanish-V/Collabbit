@@ -18,7 +18,7 @@ import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.ReplyDTO
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.awaitClose
@@ -64,7 +64,7 @@ class NotificationImpl(
                                     .document(notificationData.actionBy)
                                     .get()
                                     .await()
-                                    .toObject(User::class.java)
+                                    .toObject(UserDetail::class.java)
                             }
 
                             val getReplyDeferred = async {
@@ -114,9 +114,7 @@ class NotificationImpl(
                                     text = getReply?.content ?: "Deleted by user"
                                 )
 
-                                NotificationType.REQUEST -> Content(
-                                    text = "Sent you a link request"
-                                )
+                                NotificationType.REQUEST -> Content(text = "")
                             }
 
                             val userType: Pair<String, String> =
@@ -139,7 +137,7 @@ class NotificationImpl(
                                 creatorId = notificationData.creatorId,
                                 createdAt = createdAt,
                                 postId = notificationData.postId.toString(),
-                                actionBy = User(
+                                actionBy = UserDetail(
                                     userName = userType.first,
                                     id = actionedBy?.id ?: "",
                                     userImage = userType.second

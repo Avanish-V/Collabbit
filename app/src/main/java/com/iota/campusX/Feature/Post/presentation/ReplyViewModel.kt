@@ -9,7 +9,7 @@ import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostActions
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.domain.UseCases.CreateReplyUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetRepliesUseCase
@@ -59,7 +59,7 @@ class ReplyViewModel(
         visibilityMode: PostVisibilityMode,
         mode: FeedMode,
         campusId: String?,
-        user: User
+        user: UserDetail
     ) {
         viewModelScope.launch {
             _createReplyState.value = UiState.Loading
@@ -79,7 +79,7 @@ class ReplyViewModel(
                             replyId = replyId,
                             visibilityMode = visibilityMode,
                             creatorDetail = CreatorDetail(
-                                profile = User(
+                                profile = UserDetail(
                                     userName = visibility.first,
                                     id = user.id,
                                     userImage = visibility.second,

@@ -3,7 +3,6 @@ package com.iota.campusX.ui.UIComponents
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -54,12 +53,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -74,8 +69,9 @@ import com.iota.campusX.Feature.Post.domain.Models.PostActions
 import com.iota.campusX.Feature.Post.domain.Models.PostContent
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.Reference
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
+import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
@@ -84,6 +80,7 @@ import com.iota.campusX.Screens.Home.BottomSheet.ContentType
 import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Screens.Post.PollOption
 import com.iota.campusX.Screens.Post.PostOptions
+import com.iota.campusX.Screens.Profile.ProfileTypeViewModel
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.theme.Black300
@@ -100,6 +97,7 @@ import kotlinx.coroutines.withContext
 fun PostCard(
     feedViewModel: PostFeedViewModel,
     bottomSheetSharedViewModel: BottomSheetSharedViewModel,
+    profileViewModel: UserProfileViewModel,
     post: GetPostDTO,
     onPostClick: () -> Unit,
     onLikeClick: () -> Unit = {
@@ -163,10 +161,9 @@ fun PostCard(
 
                         navHostController.navigate(Routes.Main.ProfileByID.routes)
                             .apply {
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                    "USER_ID",
-                                    post.creatorDetail.profile?.id
-                                )
+                                navHostController.currentBackStackEntry?.savedStateHandle?.apply {
+                                    set("USER_ID", post.creatorDetail.profile?.id)
+                                }
                             }
                     }
                 )
@@ -223,7 +220,7 @@ fun PostCard(
 @Composable
 fun PostHeader(
     about: String = "",
-    user: User?,
+    user: UserDetail?,
     pod: Reference? = null,
     postedAt: String? = null,
     visibilityMode: PostVisibilityMode? = null
@@ -311,7 +308,7 @@ fun PostHeader(
 @Composable
 fun PostActionsComponent(
     postAction: PostActions,
-    user: User?,
+    user: UserDetail?,
     onLikeClick: (() -> Unit)? = null,
     onReplyClick: (() -> Unit)? = null,
     onDotMenuClick: (() -> Unit)? = null,

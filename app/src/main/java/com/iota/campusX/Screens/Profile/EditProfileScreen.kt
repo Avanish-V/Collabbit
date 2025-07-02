@@ -38,20 +38,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
@@ -70,6 +74,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,6 +84,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -102,16 +108,17 @@ import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CourseDuration
 import com.iota.campusX.ui.UIComponents.CustomDatePicker
-import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.Black400
 import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.Black900
+import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.background
 import com.iota.campusX.ui.theme.primary
 import com.iota.campusX.ui.theme.secondary
-import com.iota.campusX.ui.theme.background
-import com.iota.campusX.ui.theme.White900
 import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -644,6 +651,17 @@ fun EditProfileScreen(
                     placeHolder = "Enter your college",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
+                var selectedStudy by remember { mutableStateOf("") }
+
+                AutoCompleteFieldOfStudyDropdown(
+                    fieldOptions = fieldsOfStudy,
+                    selectedField = selectedStudy,
+                    onFieldChange = {
+                        selectedStudy = it
+                    },
+                    label = "Field of study"
+                )
+
                 CustomTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = editProfileViewModel.campus.value.campusCode?:"",
@@ -675,6 +693,7 @@ fun EditProfileScreen(
                     placeHolder = "Ex-Computer Science",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
+
 
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -786,6 +805,22 @@ fun EditProfileScreen(
 
 
 }
+
+val fieldsOfStudy = listOf(
+    "Computer Science & Engineering",
+    "Mechanical Engineering",
+    "Civil Engineering",
+    "Electrical Engineering",
+    "Electronics & Communication",
+    "Information Technology",
+    "Business Administration",
+    "Law",
+    "Medicine",
+    "Pharmacy",
+    "Data Science",
+    "Cybersecurity"
+)
+
 
 
 
@@ -1097,3 +1132,80 @@ fun InterestComponent(
 val interestList = listOf("Coding", "Gaming", "Entrepreneur")
 
 
+@Composable
+fun AutoCompleteFieldOfStudyDropdown(
+    modifier: Modifier = Modifier,
+    fieldOptions: List<String>,
+    selectedField: String,
+    onFieldChange: (String) -> Unit,
+    label: String = "Field of Study"
+) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    var query by remember { mutableStateOf(selectedField) }
+    var expanded by remember { mutableStateOf(false) }
+    var filteredSuggestions by remember { mutableStateOf(emptyList<String>()) }
+
+    // Debounce logic with coroutine
+    LaunchedEffect(query) {
+        snapshotFlow { query }
+            .debounce(300) // 300ms debounce
+            .collectLatest { typedText ->
+                filteredSuggestions = fieldOptions.filter {
+                    it.contains(typedText, ignoreCase = true)
+                }.take(5)
+                expanded = filteredSuggestions.isNotEmpty()
+            }
+    }
+
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = {
+                query = it
+                onFieldChange(it)
+            },
+            label = { Text(label) },
+            trailingIcon = {
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.ArrowDropDown,
+                        contentDescription = "Toggle dropdown"
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                }
+            )
+        )
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            filteredSuggestions.forEach { suggestion ->
+                DropdownMenuItem(
+                    onClick = {
+                        query = suggestion
+                        onFieldChange(suggestion)
+                        expanded = false
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                    },
+                    text = {
+                        Text(suggestion)
+                    }
+                )
+
+            }
+        }
+    }
+}

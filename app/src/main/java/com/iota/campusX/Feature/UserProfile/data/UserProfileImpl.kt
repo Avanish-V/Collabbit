@@ -2,20 +2,20 @@ package com.iota.campusX.Feature.UserProfile.data
 
 import SendPushNotification
 import android.net.Uri
+import android.util.Log
 import com.cloudinary.android.MediaManager
-import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
-import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.ServerTimeFetcher
 import com.iota.campusX.Utils.UiState
 import io.ktor.client.HttpClient
@@ -28,15 +28,11 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
-import java.io.IOException
-import java.util.UUID
 
 class UserProfileImpl(
     private val sendPushNotification: SendPushNotification,
@@ -232,7 +228,7 @@ class UserProfileImpl(
             val serverTimestamp = FieldValue.serverTimestamp()
 
             val senderData = mapOf(
-                "receiverId" to requestUserId,
+                "senderId" to requestUserId,
                 "status" to false,
                 "createdAt" to serverTimestamp
             )
@@ -251,7 +247,7 @@ class UserProfileImpl(
 
                 if (requestUserId != auth.currentUser!!.uid) {
                     val notification = CreateNotificationDTO(
-                        notificationId = UUID.randomUUID().toString(),
+                        notificationId = userId+requestUserId,
                         type = NotificationType.REQUEST,
                         visibilityMode = PostVisibilityMode.USER,
                         replyId = null,
@@ -264,7 +260,7 @@ class UserProfileImpl(
                     firestore.collection("Users")
                         .document(requestUserId)
                         .collection("Notifications")
-                        .document(notification.notificationId)
+                        .document(userId+requestUserId)
                         .set(notification)
                         .await()
 
@@ -290,6 +286,8 @@ class UserProfileImpl(
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
         return try {
 
+
+
             val senderRef = firestore.collection("Users")
                 .document(userId)
                 .collection("Connections")
@@ -301,12 +299,13 @@ class UserProfileImpl(
                 .document(userId)
             firestore.runBatch {
                 batch ->
-                batch.update(senderRef, "status", true)
-                batch.update(receiverRef, "status", true)
+                batch.set(senderRef, mapOf("status" to true), SetOptions.merge())
+                batch.set(receiverRef, mapOf("status" to true), SetOptions.merge())
             }.await()
 
             Result.success(true)
         } catch (e: Exception) {
+            Log.d("UserProfileImpl", "acceptLinkUpRequest: ${e.message}")
             Result.failure(e)
         }
     }
@@ -367,7 +366,7 @@ class UserProfileImpl(
                     val userData = userSnapshot.toObject(BasicProfileDTO::class.java)
                     userData?.let { data ->
                         ConnectionsDTO(
-                            user = User(
+                            user = UserDetail(
                                 id = data.id,
                                 userName = data.userName,
                                 userImage = data.userImage

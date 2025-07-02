@@ -105,5 +105,6 @@ dependencies {
 
     implementation("com.google.auth:google-auth-library-oauth2-http:1.2.2")
 
+    implementation("io.getstream:stream-video-android-ui-compose:1.8.0")
 
 }

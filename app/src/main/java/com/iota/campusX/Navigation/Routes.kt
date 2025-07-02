@@ -25,6 +25,7 @@ sealed class Routes(val routes:String){
         data object Setting : Routes("SETTING")
         data object Society: Routes("SOCIETY")
         data object CreateSociety: Routes("CREATE_SOCIETY")
+        data object JoinSociety: Routes("JOIN_SOCIETY")
 
 
 

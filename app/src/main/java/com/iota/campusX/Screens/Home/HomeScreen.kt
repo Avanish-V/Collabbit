@@ -294,7 +294,8 @@ fun MainScreen(
                             navigationViewModel = navigationViewModel,
                             profileImage = userProfile.userImage,
                             scrollBehavior = scrollBehavior,
-                            pageIndex = page
+                            pageIndex = page,
+                            userProfileViewModel = profileViewModel
                         )
                     }
                 }
@@ -362,6 +363,7 @@ fun LazyListScope.postsLazyColumn(
     postData: List<GetPostDTO>,
     navHostController: NavHostController,
     postFeedViewModel: PostFeedViewModel,
+    userProfileViewModel: UserProfileViewModel,
     bottomSheetSharedViewModel: BottomSheetSharedViewModel,
     context: Context,
 ) {
@@ -376,6 +378,7 @@ fun LazyListScope.postsLazyColumn(
             PostCard(
                 postFeedViewModel,
                 bottomSheetSharedViewModel = bottomSheetSharedViewModel,
+                profileViewModel = userProfileViewModel,
                 onPostClick = {
                     navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
                         navHostController.currentBackStackEntry?.savedStateHandle?.set<String>(
@@ -423,7 +426,8 @@ fun GlobalPosts(
     navigationViewModel: NavigationViewModel,
     profileImage: String,
     scrollBehavior: TopAppBarScrollBehavior,
-    pageIndex: Int
+    pageIndex: Int,
+    userProfileViewModel: UserProfileViewModel
 ) {
     val replyViewModel = koinInject<ReplyViewModel>()
     val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
@@ -513,6 +517,7 @@ fun GlobalPosts(
                                 context = context,
                                 scrollBehavior = scrollBehavior,
                                 lazyState = lazyState,
+                                userProfileViewModel = userProfileViewModel
                             )
                         }
 
@@ -559,6 +564,7 @@ fun GlobalPosts(
                                 context = context,
                                 scrollBehavior = scrollBehavior,
                                 lazyState = lazyState,
+                                userProfileViewModel = userProfileViewModel
                             )
                         }
 
@@ -681,6 +687,7 @@ fun PostFeedList(
     postData: List<GetPostDTO>,
     navHostController: NavHostController,
     profileImage: String,
+    userProfileViewModel: UserProfileViewModel,
     postFeedViewModel: PostFeedViewModel,
     bottomSheetSharedViewModel: BottomSheetSharedViewModel,
     context: Context,
@@ -707,6 +714,7 @@ fun PostFeedList(
         postsLazyColumn(
             postData = postData,
             navHostController = navHostController,
+            userProfileViewModel = userProfileViewModel,
             postFeedViewModel = postFeedViewModel,
             bottomSheetSharedViewModel = bottomSheetSharedViewModel,
             context = context,

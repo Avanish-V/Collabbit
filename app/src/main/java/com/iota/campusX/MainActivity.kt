@@ -79,10 +79,12 @@ import com.iota.campusX.Screens.Post.CreatePostScreen
 import com.iota.campusX.Screens.PostReplyScreen
 import com.iota.campusX.Screens.Profile.EditProfileScreen
 import com.iota.campusX.Screens.Profile.ProfileScreen
-import com.iota.campusX.Screens.Profile.ProfilyTypeViewModel
+import com.iota.campusX.Screens.Profile.ProfileTypeViewModel
 import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
-import com.iota.campusX.Screens.Society.Society
+import com.iota.campusX.Feature.Society.presentation.Screens.CreateSociety
+import com.iota.campusX.Feature.Society.presentation.Screens.JoinSociety
+import com.iota.campusX.Feature.Society.presentation.Screens.Society
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.initCloudinary
@@ -140,7 +142,7 @@ class MainActivity : ComponentActivity() {
             val homeViewModel = koinInject<HomeViewModel>()
             val notificationViewModel = koinInject<NotificationViewModel>()
             val replyViewModel = koinInject<ReplyViewModel>()
-            val profileTypeViewModel = koinInject<ProfilyTypeViewModel>()
+            val profileTypeViewModel = koinInject<ProfileTypeViewModel>()
 
 
             val navBackStackEntry by navHostController.currentBackStackEntryAsState()
@@ -259,7 +261,13 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     composable (route = Routes.Main.Society.routes){
-                                        Society()
+                                        Society(navHostController)
+                                    }
+                                    composable (route = Routes.Main.CreateSociety.routes){
+                                        CreateSociety(navHostController)
+                                    }
+                                    composable (route = Routes.Main.JoinSociety.routes){
+                                        JoinSociety(navHostController,userProfileViewModel)
                                     }
                                     composable(route = Routes.Main.Voxci.routes) {
                                         VoxciScreen()

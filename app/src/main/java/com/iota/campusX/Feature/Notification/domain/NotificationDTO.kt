@@ -2,13 +2,13 @@ package com.iota.campusX.Feature.Notification.domain
 
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.User
+import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 
 data class NotificationDTO(
     var notificationId: String? = null,
     var creatorId: String? = null,
     var createdAt: Long = 0L,
-    var actionBy: User = User(), // Ensure User also has a no-arg constructor
+    var actionBy: UserDetail = UserDetail(), // Ensure User also has a no-arg constructor
     var content: Content? = null,
     var type: NotificationType = NotificationType.COMMENTED,
     val feedMode: FeedMode = FeedMode.GLOBAL,
