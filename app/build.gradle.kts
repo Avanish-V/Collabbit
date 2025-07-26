@@ -107,4 +107,7 @@ dependencies {
 
     implementation("io.getstream:stream-video-android-ui-compose:1.8.0")
 
+    implementation("io.agora.rtc:voice-sdk:4.5.0")
+    implementation("commons-codec:commons-codec:1.9")
+
 }

@@ -26,13 +26,13 @@ interface PostRepository {
 
     suspend fun getPostsById(userId: String, campusId: String?,feedMode: FeedMode): Result<List<GetPostDTO>>
 
-    suspend fun createReply(replyId: String, postId: String, content: String, creatorId: String, visibilityMode: PostVisibilityMode, mode: FeedMode, campusId: String?): Result<Unit>
+    suspend fun createReply(replyId: String, postId: String, content: String, postCreatorId: String, visibilityMode: PostVisibilityMode, mode: FeedMode, campusId: String?): Result<Unit>
 
     suspend fun getReplies(postId: String,campusId: String?,feedMode: FeedMode): Result<List<GetRepliesDTO>>
 
     suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean,campusId: String?, feedMode: FeedMode): Result<Unit>
 
-    suspend fun likeReply(creatorId: String, postId: String, replyId: String, isLiked: Boolean): Result<Unit>
+    suspend fun likeReply(repliedById: String, postId: String, replyId: String, isLiked: Boolean,campusId: String?, feedMode: FeedMode): Result<Unit>
 
     suspend fun deleteReply(postId: String, replyId: String, campusId: String?,feedMode: FeedMode): Result<Unit>
 

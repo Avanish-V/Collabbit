@@ -2,13 +2,13 @@ package com.iota.campusX.Screens.Home
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +34,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -56,7 +58,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,27 +86,18 @@ import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.Permissions.NotificationPermissionRequester
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
-import com.iota.campusX.Screens.Home.BottomSheet.Content
 import com.iota.campusX.Screens.Home.BottomSheet.ContentType
 import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
-import com.iota.campusX.Screens.Home.BottomSheet.SheetType
+import com.iota.campusX.Screens.Post.defaultPostHandlers
+import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.PostCard
-import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.Black400
-import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.Black800
-import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.background
-import com.iota.campusX.ui.theme.primary
-import com.iota.campusX.ui.theme.secondary
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
+import com.iota.campusX.ui.theme.LightTheme_White
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -159,11 +151,11 @@ fun MainScreen(
             TopAppBar(
                 title = {
                     Image(
-                        painter = painterResource(R.drawable.campusx),
+                        painter = painterResource(if (isSystemInDarkTheme()) R.drawable.logo_dark else R.drawable.logo_light),
                         contentDescription = "Logo",
                         modifier = Modifier
                             .height(60.dp)
-                            .width(140.dp)
+                            .width(100.dp)
                     )
                 },
                 actions = {
@@ -175,7 +167,7 @@ fun MainScreen(
                         BadgedBox(
                             badge = {
                                 if (chatBadgeCount != 0) {
-                                    Box(modifier = Modifier.size(12.dp).background(Color.Red, CircleShape),contentAlignment = Alignment.Center){
+                                    Box(modifier = Modifier.size(14.dp).background(Color.Red, CircleShape),contentAlignment = Alignment.Center){
                                         Text(
                                             chatBadgeCount.toString(),
                                             color = Color.White,
@@ -189,7 +181,7 @@ fun MainScreen(
                         ) {
                             IconButton(
                                 onClick = { navHostController.navigate(Routes.Main.ChatList.routes) },
-                                modifier = Modifier.border(1.dp, background, CircleShape)
+                                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.messages_normal),
@@ -201,8 +193,8 @@ fun MainScreen(
                 },
                 scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    scrolledContainerColor = Color.White
+                    scrolledContainerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
@@ -212,7 +204,6 @@ fun MainScreen(
                 hostState = snackbarHostState
             )
         },
-        containerColor = White900
     ) { innerPadding ->
 
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -246,13 +237,13 @@ fun MainScreen(
 
                     PrimaryTabRow(
                         selectedTabIndex = pagerState.currentPage,
-                        containerColor = White900,
-                        divider = { HorizontalDivider(color = White400) },
+                        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outline) },
+                        containerColor = MaterialTheme.colorScheme.background,
                         indicator = {
                             TabRowDefaults.PrimaryIndicator(
                                 modifier = Modifier.tabIndicatorOffset(pagerState.currentPage),
                                 width = 48.dp,
-                                color = primary,
+                                color = MaterialTheme.colorScheme.primary,
                                 shape = RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
                             )
                         }
@@ -262,27 +253,26 @@ fun MainScreen(
                                 text = {
                                     Text(
                                         text = title,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.headlineMedium
                                     )
                                 },
-                                icon = {
-                                    Icon(
-                                        modifier = Modifier.size(20.dp),
-                                        painter = painterResource(
-                                            if (index == 0) R.drawable.globe else R.drawable.school
-                                        ),
-                                        contentDescription = null
-                                    )
-                                },
+//                                icon = {
+//                                    Icon(
+//                                        modifier = Modifier.size(20.dp),
+//                                        painter = painterResource(
+//                                            if (index == 0) R.drawable.globe else R.drawable.school
+//                                        ),
+//                                        contentDescription = null
+//                                    )
+//                                },
                                 selected = pagerState.currentPage == index,
                                 onClick = {
                                     scope.launch {
                                         pagerState.animateScrollToPage(index)
                                     }
                                 },
-                                selectedContentColor = Black800,
-                                unselectedContentColor = Black400
+                                selectedContentColor = MaterialTheme.colorScheme.onBackground,
+                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -295,7 +285,8 @@ fun MainScreen(
                             profileImage = userProfile.userImage,
                             scrollBehavior = scrollBehavior,
                             pageIndex = page,
-                            userProfileViewModel = profileViewModel
+                            userProfileViewModel = profileViewModel,
+                            feedMode = feedMode
                         )
                     }
                 }
@@ -317,9 +308,6 @@ fun LazyListScope.writePost(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    color = White900
-                )
                 .padding(12.dp)
                 .clickable(
                     indication = null,
@@ -345,13 +333,13 @@ fun LazyListScope.writePost(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "What's on your mind?",
-                    color = Black500
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.headlineMedium
                 )
 
                 Icon(
                     painter = painterResource(R.drawable.write),
                     contentDescription = null,
-                    tint = Black300
                 )
             }
         }
@@ -363,9 +351,7 @@ fun LazyListScope.postsLazyColumn(
     postData: List<GetPostDTO>,
     navHostController: NavHostController,
     postFeedViewModel: PostFeedViewModel,
-    userProfileViewModel: UserProfileViewModel,
     bottomSheetSharedViewModel: BottomSheetSharedViewModel,
-    context: Context,
 ) {
 
     if (postData.isNotEmpty()) {
@@ -374,43 +360,20 @@ fun LazyListScope.postsLazyColumn(
 
         items(sortedPost, key = {it.postId}) {
 
-
             PostCard(
-                postFeedViewModel,
-                bottomSheetSharedViewModel = bottomSheetSharedViewModel,
-                profileViewModel = userProfileViewModel,
-                onPostClick = {
-                    navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
-                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>(
-                            "POST_ID",
-                            it.postId
-                        )
-                    }
-                },
-                onReplyClick = {
-                    navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
-                        navHostController.currentBackStackEntry?.savedStateHandle?.set<String>(
-                            "POST_ID",
-                            it.postId
-                        )
-                    }
-                },
                 post = it,
-                navHostController = navHostController,
-                onPollSelect = { optionId ->
-                    postFeedViewModel.voteOnPoll(
-                        postId = it.postId,
-                        optionId = optionId,
-                        userId = "dfd",
-                        campusId = it.campusId,
-                        feedMode = it.feedMode
-                    )
-                }
+                handlers = defaultPostHandlers(
+                    context = LocalContext.current,
+                    post = it,
+                    feedViewModel = postFeedViewModel,
+                    bottomSheetSharedViewModel = bottomSheetSharedViewModel,
+                    navController = navHostController,
+                )
             )
 
             HorizontalDivider(
-                thickness = 12.dp,
-                color = secondary
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outline
             )
         }
     }
@@ -427,7 +390,8 @@ fun GlobalPosts(
     profileImage: String,
     scrollBehavior: TopAppBarScrollBehavior,
     pageIndex: Int,
-    userProfileViewModel: UserProfileViewModel
+    userProfileViewModel: UserProfileViewModel,
+    feedMode: FeedMode
 ) {
     val replyViewModel = koinInject<ReplyViewModel>()
     val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
@@ -440,6 +404,15 @@ fun GlobalPosts(
 
     val globalPostState = postFeedViewModel.globalPosts.collectAsStateWithLifecycle().value
     val campusPostState = postFeedViewModel.campusPosts.collectAsState().value
+    val profile = userProfileViewModel.userBaseProfile.collectAsState().value
+
+    val campusId = when(profile){
+        is UiState.Success->{
+            profile.data.campus?.campusCode
+        }else -> {
+            null
+        }
+    }
 
     val pullToRefreshState = rememberPullToRefreshState()
     val lazyState = rememberLazyListState()
@@ -497,11 +470,16 @@ fun GlobalPosts(
 
                     when (globalPostState) {
                         is UiState.Loading -> {
-                            Loader()
+                            LoadingUI(isLoading = true)
                         }
 
                         is UiState.Error -> {
-                            StatusScreen(true, globalPostState.message)
+                            ErrorScreen(
+                                text = globalPostState.message, image = null, onReTry = {
+                                    postFeedViewModel.fetchGlobalPosts()
+                                },
+                                buttonText = "Retry"
+                            )
                         }
 
                         is UiState.Success -> {
@@ -533,7 +511,7 @@ fun GlobalPosts(
                     when (campusPostState) {
 
                         is UiState.Loading -> {
-                            Loader()
+                            LoadingUI(isLoading = true)
                         }
 
                         is UiState.Error -> {
@@ -547,7 +525,17 @@ fun GlobalPosts(
                                     buttonText = "Update"
                                 )
                             } else {
-                                StatusScreen(true, campusPostState.message)
+                                ErrorScreen(
+                                    text = campusPostState.message,
+                                    image = null,
+                                    onReTry = {
+                                        postFeedViewModel.fetchCampusPosts(
+                                            feedMode = feedMode,
+                                            campusId = campusId
+                                        )
+                                    },
+                                    buttonText = "Retry"
+                                )
                             }
                         }
 
@@ -652,7 +640,7 @@ fun RefreshBox(
             Indicator(
                 state = pullToRefreshState,
                 isRefreshing = isRefreshing,
-                color = primary,
+                color = LightTheme_Blue,
                 containerColor = Color.White
             )
         },
@@ -661,13 +649,6 @@ fun RefreshBox(
     }
 }
 
-
-@Composable
-fun Loader() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = primary)
-    }
-}
 
 @Composable
 fun StatusScreen(isActive: Boolean, text: String) {
@@ -707,17 +688,16 @@ fun PostFeedList(
         item {
             HorizontalDivider(
                 thickness = 12.dp,
-                color = secondary
+                color = MaterialTheme.colorScheme.surface
+
             )
         }
         
         postsLazyColumn(
             postData = postData,
             navHostController = navHostController,
-            userProfileViewModel = userProfileViewModel,
             postFeedViewModel = postFeedViewModel,
             bottomSheetSharedViewModel = bottomSheetSharedViewModel,
-            context = context,
         )
     }
 }

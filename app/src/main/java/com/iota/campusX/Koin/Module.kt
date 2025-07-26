@@ -36,13 +36,22 @@ import com.iota.campusX.Feature.Post.domain.UseCases.VotePollUseCase
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
+import com.iota.campusX.Feature.Search.Data.SearchRepositoryImpl
+import com.iota.campusX.Feature.Search.Domain.SearchRepository
+import com.iota.campusX.Feature.Search.Presentation.SearchViewModel
 import com.iota.campusX.Feature.Society.data.SocietyImplementation
+import com.iota.campusX.Feature.Society.data.StreamImplementation
 import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
+import com.iota.campusX.Feature.Society.domain.repository.StreamRepository
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
+import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
 import com.iota.campusX.Feature.UserProfile.data.UserProfileImpl
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.NavigationViewModel
+import com.iota.campusX.NetworkCapability.AndroidConnectivityObserver
+import com.iota.campusX.NetworkCapability.ConnectivityObserver
+import com.iota.campusX.NetworkCapability.ConnectivityViewModel
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Home.dataStore
 import com.iota.campusX.Screens.Post.PollViewModel
@@ -129,6 +138,9 @@ val appModule = module {
     single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
     single { ServerTimeFetcher(get()) }
     single <SocietyRepository>{ SocietyImplementation(get(),get()) }
+    single <StreamRepository>{ StreamImplementation() }
+    single <SearchRepository>{ SearchRepositoryImpl(get()) }
+    single <ConnectivityObserver>{ AndroidConnectivityObserver(get()) }
 
     single<DataStore<Preferences>> {
         androidContext().dataStore
@@ -198,6 +210,9 @@ val appModule = module {
     viewModel { ConsentAgreeViewModel(get()) }
     viewModel { ProfileTypeViewModel() }
     viewModel { SocietyViewModel(get()) }
+    viewModel { StreamViewModel(get()) }
+    viewModel { ConnectivityViewModel(get()) }
+    viewModel { SearchViewModel(get()) }
 }
 
 

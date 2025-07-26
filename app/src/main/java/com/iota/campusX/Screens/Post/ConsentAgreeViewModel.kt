@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 import androidx.lifecycle.ViewModel
+import com.iota.campusX.ui.UIComponents.PrimaryButton
 
 
 class ConsentAgreeViewModel(
@@ -96,7 +98,7 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
         ModalBottomSheet(
             onDismissRequest = { onDismiss() },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
         ){
 
             LazyColumn (
@@ -105,7 +107,7 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ){
                 item {
-                    Text("Communication guidelines", fontWeight = FontWeight.Bold)
+                    Text("Communication guidelines", style = MaterialTheme.typography.headlineLarge)
                 }
 
                 item {
@@ -124,17 +126,14 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
                 }
             }
 
+            PrimaryButton(
+                modifier = Modifier.padding(16.dp),
+                buttonText = "I agree and understand",
+                onClick = {
+                    onAgree.invoke()
+                }
 
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .padding(horizontal = 20.dp),
-                onClick = {onAgree.invoke()},
-                shape = RoundedCornerShape(6.dp)
-            ) {
-                Text("I agree and understand")
-            }
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -148,8 +147,8 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
 fun ConsentSingleMessage(title: String,description: String) {
 
     Column (verticalArrangement = Arrangement.spacedBy(6.dp)){
-        Text(title, fontWeight = FontWeight.Bold)
-        Text(description, style = typography.bodyMedium)
+        Text(title, style = MaterialTheme.typography.headlineMedium)
+        Text(description, style = MaterialTheme.typography.bodyMedium)
     }
 
 }

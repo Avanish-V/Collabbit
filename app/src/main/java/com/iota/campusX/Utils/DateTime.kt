@@ -23,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -55,7 +55,7 @@ fun CalendarSelector(
                     },
                     enabled = datePickerState.selectedDateMillis != null,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = primary,
+                        containerColor = LightTheme_Blue,
 
                     )
 
@@ -70,10 +70,10 @@ fun CalendarSelector(
                     },
                     border = BorderStroke(
                         width = 1.dp,
-                        color = primary
+                        color = LightTheme_Blue
                     ),
                     colors = ButtonDefaults.buttonColors(
-                        contentColor = primary,
+                        contentColor = LightTheme_Blue,
                         containerColor = Color.Transparent
                     )
                 ) {
@@ -92,9 +92,9 @@ fun CalendarSelector(
                 colors = DatePickerDefaults.colors(
                     containerColor = Color.White,
                     selectedDayContentColor = Color.White,
-                    selectedDayContainerColor = primary,
-                    todayDateBorderColor = primary,
-                    todayContentColor = primary
+                    selectedDayContainerColor = LightTheme_Blue,
+                    todayDateBorderColor = LightTheme_Blue,
+                    todayContentColor = LightTheme_Blue
                 )
 
             )

@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.ui.theme.Black500
+import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.White400
 
 @Composable
@@ -38,15 +38,14 @@ fun ErrorScreen(text: String, image: Int? = null, onReTry: () -> Unit, buttonTex
 
             Text(
                 text = text,
-                style = MaterialTheme.typography.titleMedium,
-                color = Black500,
+                style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
 
             OutlinedButton(
                 onClick = { onReTry.invoke() },
                 border = _root_ide_package_.androidx.compose.foundation.BorderStroke(
-                    color = White400,
+                    color = MaterialTheme.colorScheme.outline,
                     width = 1.dp
                 )
             ) {

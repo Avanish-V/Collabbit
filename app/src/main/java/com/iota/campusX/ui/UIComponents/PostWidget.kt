@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -35,7 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,17 +47,15 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -70,24 +66,16 @@ import com.iota.campusX.Feature.Post.domain.Models.PostContent
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.Reference
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
-import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
-import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
-import com.iota.campusX.Screens.Home.BottomSheet.Content
-import com.iota.campusX.Screens.Home.BottomSheet.ContentType
-import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Screens.Post.PollOption
+import com.iota.campusX.Screens.Post.PostActionHandlers
 import com.iota.campusX.Screens.Post.PostOptions
-import com.iota.campusX.Screens.Profile.ProfileTypeViewModel
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.Black800
+import com.iota.campusX.ui.theme.LightTheme_LightGray
 import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.Dispatchers
@@ -95,98 +83,37 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun PostCard(
-    feedViewModel: PostFeedViewModel,
-    bottomSheetSharedViewModel: BottomSheetSharedViewModel,
-    profileViewModel: UserProfileViewModel,
     post: GetPostDTO,
-    onPostClick: () -> Unit,
-    onLikeClick: () -> Unit = {
-        feedViewModel.toggleLike(
-            userId = post.creatorDetail.profile?.id ?: "",
-            postId = post.postId,
-            isLiked = post.postActions.isLiked,
-            campusId = post.campusId,
-            feedMode = post.feedMode)
-        },
-    onReplyClick: () -> Unit,
-    onDotMenuClick: () -> Unit = {
-        bottomSheetSharedViewModel.setBottomSheetState(
-            state = true,
-            isCurrentUser = post.creatorDetail.isCurrentUser,
-            campusId = post.campusId,
-            content = Content(
-                postId = post.postId,
-                text = post.postContent.postData.postText
-            ),
-            feedMode = post.feedMode,
-            contentType = ContentType.POST,
-            sheetType = SheetType.MENU_LIST,
-        )
-    },
-    onPollSelect: (String) -> Unit,
-    navHostController: NavHostController
+    handlers: PostActionHandlers
 ) {
-
-    var rightColumnHeight by remember { mutableIntStateOf(0) }
-
-    LocalDensity.current
 
     Column(
         modifier = Modifier
-            .padding(horizontal = 8.dp, vertical = 12.dp)
-            .background(White900)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                onClick = {handlers.onPostClick.invoke()},
                 indication = null,
-                onClick = onPostClick
+                interactionSource = remember { MutableInteractionSource() }
             )
+            .padding(horizontal = 8.dp, vertical = 12.dp)
             .fillMaxWidth()
-
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // Left column with explicit height synced to rightColumnHeight
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                //modifier = Modifier.height(with(density) { rightColumnHeight.toDp() })
-            ) {
-
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircleImage(
                     image = post.creatorDetail.profile?.userImage.orEmpty(),
                     modifier = Modifier.size(42.dp),
                     onClick = {
-
-                        if (post.visibilityMode != PostVisibilityMode.USER) return@CircleImage
-
-                        navHostController.navigate(Routes.Main.ProfileByID.routes)
-                            .apply {
-                                navHostController.currentBackStackEntry?.savedStateHandle?.apply {
-                                    set("USER_ID", post.creatorDetail.profile?.id)
-                                }
-                            }
+                        if (post.visibilityMode == PostVisibilityMode.USER) {
+                            post.creatorDetail.profile?.id?.let(handlers.onProfileClick)
+                        }
                     }
                 )
-
                 Spacer(modifier = Modifier.height(12.dp))
-
-//                VerticalDivider(
-//                    modifier = Modifier.fillMaxHeight()
-//                )
-
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Right column - capture height on layout
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .onGloballyPositioned { coordinates ->
-                        rightColumnHeight = coordinates.size.height
-                    }
-            ) {
-
+            Column(modifier = Modifier.weight(1f)) {
                 PostHeader(
                     about = post.creatorDetail.profile?.userBio.orEmpty(),
                     user = post.creatorDetail.profile,
@@ -196,25 +123,29 @@ fun PostCard(
 
                 PostBody(
                     postContent = post.postContent,
-                    navHostController = navHostController,
-                    onPollSelect = {
-                        onPollSelect(it)
+                    onPollSelect = handlers.onPollSelect,
+                    onPostImageClick = {
+                        handlers.onPostImageClick.invoke(post.postContent.postData.postImage.toString())
+                    },
+                    onBodyClick = {
+                        handlers.onPostClick.invoke()
                     }
                 )
 
                 PostActionsComponent(
                     postAction = post.postActions,
                     user = post.creatorDetail.profile,
-                    onLikeClick = onLikeClick,
-                    onReplyClick = onReplyClick,
-                    onDotMenuClick = onDotMenuClick
+                    onLikeClick = handlers.onLikeClick,
+                    onReplyClick = handlers.onReplyClick,
+                    onDotMenuClick = handlers.onDotMenuClick
                 )
-
             }
         }
-
     }
 }
+
+
+
 
 
 @Composable
@@ -227,7 +158,6 @@ fun PostHeader(
 ) {
 
     Row(
-        modifier = Modifier.height(48.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -246,45 +176,35 @@ fun PostHeader(
                             }
                         ),
                     text = user?.userName ?: "",
-                    fontSize = 14.sp,
-                    lineHeight = 14.sp,
                     maxLines = 1,
                     softWrap = false,
-                    style = typography.headingMedium,
+                    style = MaterialTheme.typography.headlineMedium,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Text(" ● ",color = White400)
+                Text(text = " • ",color = MaterialTheme.colorScheme.surface)
 
                 Text(
-                    modifier = Modifier
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {
-
-                            }
-                        ),
+                    modifier = Modifier,
                     text = postedAt.toString(),
-                    fontSize = 14.sp,
-                    lineHeight = 0.1.sp,
                     maxLines = 1,
-                    color = Black300
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium
                 )
 
 
             }
 
-
-
             if (visibilityMode == PostVisibilityMode.USER){
+
                 if (about.isEmpty()) return@Column
+
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = about,
-                    style = typography.labelRegular,
-                    color = Black800,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -327,40 +247,11 @@ fun PostActionsComponent(
             modifier = Modifier.weight(1f)
         ) {
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                AnimatedContent(
-                    targetState = postAction.likesCount,
-                    transitionSpec = {
-                        slideInVertically { height -> height } + fadeIn() togetherWith
-                                slideOutVertically { height -> -height } + fadeOut()
-                    },
-                    label = "LikeCountAnimation"
-                ) { likeCount ->
-                    Text(
-                        text = likeCount.toString(),
-                        color = Black500,
-                        style = typography.labelMedium
-                    )
-                }
-
-
-                Icon(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            onClick = { onLikeClick?.invoke() }
-                        ),
-                    painter = painterResource(if (postAction.isLiked) R.drawable.heart_sharp else R.drawable.heart_outline),
-                    contentDescription = "Like",
-                    tint = if (postAction.isLiked) Color.Red else Black500
-                )
-            }
-
+            AnimatedLikeButton(
+                onLike = { onLikeClick?.invoke() },
+                likesCount = postAction.likesCount,
+                isLiked = postAction.isLiked
+            )
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -368,7 +259,6 @@ fun PostActionsComponent(
             ) {
                 Text(
                     text = postAction.replyCount.toString(),
-                    color = Black500,
                     style = typography.labelMedium
                 )
                 Icon(
@@ -381,7 +271,6 @@ fun PostActionsComponent(
                         ),
                     painter = painterResource(R.drawable.chatbubble_outline),
                     contentDescription = "Reply",
-                    tint = Black500
                 )
             }
 
@@ -397,10 +286,45 @@ fun PostActionsComponent(
                 ),
             painter = painterResource(R.drawable.dots_menu),
             contentDescription = "Dots",
-            tint = Black500
+            tint =  MaterialTheme.colorScheme.onSurface
         )
 
 
+    }
+}
+
+@Composable
+fun AnimatedLikeButton(onLike:()-> Unit,likesCount: Int,isLiked: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        AnimatedContent(
+            targetState = likesCount,
+            transitionSpec = {
+                slideInVertically { height -> height } + fadeIn() togetherWith
+                        slideOutVertically { height -> -height } + fadeOut()
+            },
+            label = "LikeCountAnimation"
+        ) { likeCount ->
+            Text(
+                text = likeCount.toString(),
+                style = typography.labelMedium
+            )
+        }
+
+        Icon(
+            modifier = Modifier
+                .size(22.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { onLike.invoke() }
+                ),
+            painter = painterResource(if (isLiked) R.drawable.heart_sharp else R.drawable.heart_outline),
+            contentDescription = "Like",
+            tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onBackground
+        )
     }
 }
 
@@ -436,7 +360,9 @@ fun ExpandableText(
                     isTextOverflowing = result.hasVisualOverflow
                 }
             },
-            style = MaterialTheme.typography.bodyMedium,
+            style = TextStyle(
+                color = MaterialTheme.colorScheme.onSurface
+            ),
             onClick = { offset ->
                 annotatedText.getStringAnnotations(tag = "URL", start = offset, end = offset)
                     .firstOrNull()?.let { annotation ->
@@ -453,7 +379,6 @@ fun ExpandableText(
             val label = if (isExpanded) "Read Less" else "Read More"
             Text(
                 text = label,
-                color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier
                     .padding(top = 4.dp)
@@ -479,7 +404,7 @@ fun ReplyRail(reliesList: List<PostActions>) {
                         .padding(start = (index * 20).dp)
                         .size(28.dp)
                         .clip(CircleShape)
-                        .border(2.dp, White900, CircleShape),
+                        .border(2.dp, White, CircleShape),
                     model = item,
                     contentDescription = "Reply User",
                     contentScale = ContentScale.Crop
@@ -513,11 +438,16 @@ suspend fun getImageSize(context: Context, imageUrl: String): Pair<Int, Int>? {
 @Composable
 fun PostBody(
     postContent: PostContent,
-    navHostController: NavHostController,
-    onPollSelect: (String) -> Unit
+    onPollSelect: (String) -> Unit,
+    onPostImageClick:(String)-> Unit,
+    onBodyClick:()-> Unit
 ) {
 
-    Column(modifier = Modifier.padding(vertical = 12.dp)) {
+    Column(modifier = Modifier.padding(vertical = 12.dp).clickable(
+        onClick = {onBodyClick.invoke()},
+        indication = null,
+        interactionSource = remember { MutableInteractionSource() }
+    )) {
 
         when(postContent.postType){
 
@@ -547,7 +477,7 @@ fun PostBody(
                     ImageWithDynamicRatio(
                         imageUrl = postContent.postData.postImage,
                         modifier = Modifier.fillMaxWidth(),
-                        navHostController = navHostController
+                        onImageClick = {onPostImageClick.invoke(postContent.postData.postImage)}
                     )
                 }
 
@@ -588,12 +518,39 @@ fun PollOptionsUI(
 
         Text(
             text = question,
-            style = typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium
         )
 
+
         options?.forEach { option ->
+
             val isSelected = selectedOptionId == option.optionId
+
             val percentage = if (totalVotes > 0) (option.votes.count() * 100 / totalVotes) else 0
+
+            val backgroundColor = if (isSelected) {
+                Color.Transparent
+            } else {
+                MaterialTheme.colorScheme.surface // <-- COMPOSABLE SAFE
+            }
+
+
+            Box(
+                modifier = Modifier
+                    .drawBehind {
+                        if (showResults) {
+                            val fillWidth = size.width * (percentage / 100f)
+                            drawRoundRect(
+                                color = backgroundColor, // ✅ use the extracted color
+                                size = Size(
+                                    width = fillWidth,
+                                    height = size.height
+                                ),
+                                cornerRadius = CornerRadius(12f, 12f)
+                            )
+                        }
+                    }
+            )
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -606,8 +563,8 @@ fun PollOptionsUI(
                         .fillMaxWidth()
                         .height(48.dp)
                         .border(
-                            width = 1.dp,
-                            color = White400,
+                            width = 0.5.dp,
+                            color=MaterialTheme.colorScheme.outline,
                             shape = RoundedCornerShape(6.dp)
                         )
                         .clip(RoundedCornerShape(6.dp))
@@ -615,7 +572,7 @@ fun PollOptionsUI(
                             if (showResults) {
                                 val fillWidth = size.width * (percentage / 100f)
                                 drawRoundRect(
-                                    color = if (isSelected) Color.Black else White400,
+                                    color = backgroundColor,
                                     size = Size(
                                         width = fillWidth,
                                         height = size.height
@@ -635,14 +592,13 @@ fun PollOptionsUI(
                     Text(
                         modifier = Modifier.weight(1f),
                         text = option.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Text(text = "$percentage%")
+                    Text(text = "$percentage%",style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -651,7 +607,11 @@ fun PollOptionsUI(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "Total Votes $totalVotes • Poll ended", color = Black300)
+            Text(
+                text = "Total Votes $totalVotes • Poll ended",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }
@@ -667,7 +627,7 @@ fun ImageWithDynamicRatio(
     imageUrl: String,
     modifier: Modifier = Modifier,
     viewModel: ImageSizeViewModel = viewModel(),
-    navHostController: NavHostController
+    onImageClick:()-> Unit
 ) {
     val context = LocalContext.current
     val imageSizeCache = viewModel.imageSizeCache
@@ -688,7 +648,7 @@ fun ImageWithDynamicRatio(
             null -> 200.dp // fallback
             else -> {
                 val (width, height) = size
-                if (width > height) 180.dp else 350.dp
+                if (width > height) 180.dp else 250.dp
             }
         }
     }
@@ -697,18 +657,13 @@ fun ImageWithDynamicRatio(
         modifier = Modifier
             .height(dynamicHeight)
             .border(
-                width = 2.dp,
-                color = secondary,
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(5.dp)
             )
             .clickable(
                 onClick = {
-                    navHostController.navigate(Routes.Main.PostViewScreen.routes).apply {
-                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                            "POST_IMAGE",
-                            imageUrl
-                        )
-                    }
+                    onImageClick()
                 },
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }

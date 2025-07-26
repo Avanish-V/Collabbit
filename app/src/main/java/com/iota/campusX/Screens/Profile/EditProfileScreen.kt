@@ -62,6 +62,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -105,17 +107,21 @@ import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.CustomTextFieldWithLeadingIcon
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.UIComponents.AutoCompleteFieldOfStudyDropdown
 import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.CourseDuration
 import com.iota.campusX.ui.UIComponents.CustomDatePicker
-import com.iota.campusX.ui.theme.Black400
+import com.iota.campusX.ui.UIComponents.SubmitButton
+import com.iota.campusX.ui.theme.LightBlack
 import com.iota.campusX.ui.theme.Black800
-import com.iota.campusX.ui.theme.Black900
-import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.background
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.LightTheme_Black
+import com.iota.campusX.ui.theme.White
+import com.iota.campusX.ui.theme.LightTheme_White
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -207,7 +213,7 @@ fun EditProfileScreen(
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = secondary
+                            containerColor = MaterialTheme.colorScheme.background
                         ),
                         actions = {
                             Row(modifier = Modifier.padding(end = 12.dp)) {
@@ -217,7 +223,7 @@ fun EditProfileScreen(
                                     if (isLoading) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp),
-                                            color = primary,
+                                            color = LightTheme_Blue,
                                             strokeWidth = 2.dp
                                         )
                                     } else {
@@ -263,9 +269,7 @@ fun EditProfileScreen(
                                             )
                                         }
                                     }
-
                                 }
-
                             }
                         }
                     )
@@ -273,7 +277,6 @@ fun EditProfileScreen(
                 snackbarHost = {
                     SnackbarHost(hostState = snackBarHostState)
                 },
-                containerColor = secondary
             ) { innerPadding ->
 
                 LaunchedEffect(Unit) {
@@ -302,7 +305,7 @@ fun EditProfileScreen(
                                 .size(100.dp)
                                 .border(
                                     width = 2.dp,
-                                    color = secondary,
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = CircleShape
                                 ),
                             shape = CircleShape,
@@ -333,7 +336,7 @@ fun EditProfileScreen(
                                     Icon(
                                         painter = painterResource(R.drawable.camera),
                                         contentDescription = null,
-                                        tint = White900
+                                        tint = White
                                     )
                                 }
 
@@ -411,15 +414,13 @@ fun EditProfileScreen(
                                 ),
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Back",
-                                colorFilter = ColorFilter.tint(primary)
+                                colorFilter = ColorFilter.tint(LightTheme_Blue)
                             )
 
                         }
 
                         CustomTextField(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusManager),
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusManager),
                             value = editProfileViewModel.name.value,
                             onValueChange = { editProfileViewModel.editName(it.toString()) },
                             label = "",
@@ -455,7 +456,7 @@ fun EditProfileScreen(
                                 ),
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Back",
-                                colorFilter = ColorFilter.tint(primary)
+                                colorFilter = ColorFilter.tint(LightTheme_Blue)
                             )
 
                         }
@@ -565,14 +566,14 @@ fun EditProfileScreen(
                                 },
                                 label = {
                                     Text(
-                                        it,
+                                        text = it,
                                         modifier = Modifier.padding(10.dp),
-                                        color = Color.Black
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 },
                                 border = BorderStroke(
                                     width = 1.dp,
-                                    color = Color.LightGray
+                                    color = MaterialTheme.colorScheme.outline
                                 ),
                                 trailingIcon = {
                                     Icon(
@@ -585,37 +586,23 @@ fun EditProfileScreen(
                                         ),
                                         imageVector = Icons.Default.Close,
                                         contentDescription = null,
-                                        tint = Color.Black
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             )
                         }
-
                     }
-
-
                 }
             )
         }
 
         ProfileEdit.EDIT_CAMPUS -> {
 
-            var selectedUni by remember { mutableStateOf<Pair<String, String>?>(null) }
-            var uniSearchText by rememberSaveable { mutableStateOf("") }
             var isCalenderVisible by remember { mutableStateOf(false) }
             var calenderSwitch by rememberSaveable { mutableIntStateOf(0) }
 
             LaunchedEffect(Unit) {
                 editProfileViewModel.editCampus(userProfile?.campus ?: Campus())
-            }
-
-            LaunchedEffect(Unit) {
-                editProfileViewModel.editUniversity(
-                    University(
-                        university = selectedUni?.first ?: "",
-                        logo = selectedUni?.second ?: ""
-                    )
-                )
             }
 
             EditPage(
@@ -629,18 +616,23 @@ fun EditProfileScreen(
             ) {
 
                 UniversityDropdown(
-                    universityList = universityList,
                     userProfileViewModel = userProfileViewModel,
-                    modifier = Modifier,
+                    selectedUniversity = editProfileViewModel.campus.value.university,
                     onUniversitySelected = {
                         editProfileViewModel.editUniversity(
                             University(
-                                university = it?.first ?: "",
-                                logo = it?.second ?: ""
+                                university = it.university,
+                                logo = it.logo
                             )
                         )
                     },
-                    campus = editProfileViewModel.campus.value,
+                    onFieldChange = {
+                        editProfileViewModel.editUniversity(University(university = it))
+                        userProfileViewModel.onUniversityQueryChanged(it)
+                    },
+                    onClearClick = {
+                        editProfileViewModel.editUniversity(null)
+                    }
                 )
 
                 CustomTextField(
@@ -651,13 +643,14 @@ fun EditProfileScreen(
                     placeHolder = "Enter your college",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
-                var selectedStudy by remember { mutableStateOf("") }
+
+                Log.d("Selected Study", editProfileViewModel.campus.value.university.toString())
 
                 AutoCompleteFieldOfStudyDropdown(
                     fieldOptions = fieldsOfStudy,
-                    selectedField = selectedStudy,
+                    selectedField = editProfileViewModel.campus.value.fieldOfStudy,
                     onFieldChange = {
-                        selectedStudy = it
+                        editProfileViewModel.editFieldOfStudy(it.toString())
                     },
                     label = "Field of study"
                 )
@@ -683,27 +676,12 @@ fun EditProfileScreen(
                     placeHolder = "Ex-Bachelor",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
-                CustomTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = editProfileViewModel.campus.value.fieldOfStudy,
-                    onValueChange = {
-                        editProfileViewModel.editFieldOfStudy(it.toString())
-                    },
-                    label = "Field of study",
-                    placeHolder = "Ex-Computer Science",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                )
-
-
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
                     Text(
                         text = "Duration",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Black800,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp
+                        style = MaterialTheme.typography.headlineMedium,
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -714,16 +692,21 @@ fun EditProfileScreen(
                                 .height(48.dp)
                                 .border(
                                     width = 1.dp,
-                                    color = Color.LightGray,
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .padding(start = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${editProfileViewModel.campus.value.courseStart?.month?:"End"} ${editProfileViewModel.campus.value.courseStart?.year?:""}"
-                            )
+                            if (editProfileViewModel.campus.value.courseStart?.month.isNullOrEmpty() ){
+                                Text("Start", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }else{
+                                Text(
+                                    text = "${editProfileViewModel.campus.value.courseStart?.month} ${editProfileViewModel.campus.value.courseStart?.year}"
+                                )
+                            }
+
                             IconButton(onClick = {
                                 calenderSwitch = 0
                                 isCalenderVisible = !isCalenderVisible
@@ -731,7 +714,7 @@ fun EditProfileScreen(
                                 Icon(
                                     painter = painterResource(R.drawable.calendar_1),
                                     contentDescription = null,
-                                    tint = Black400
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -739,7 +722,7 @@ fun EditProfileScreen(
                         Text(
                             "-",
                             modifier = Modifier.padding(horizontal = 5.dp),
-                            style = typography.headingMedium
+                            style = MaterialTheme.typography.headlineMedium
                         )
 
                         Row(
@@ -748,16 +731,21 @@ fun EditProfileScreen(
                                 .height(48.dp)
                                 .border(
                                     width = 1.dp,
-                                    color = Color.LightGray,
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .padding(start = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${editProfileViewModel.campus.value.courseEnd?.month?:"Start"} ${editProfileViewModel.campus.value.courseEnd?.year?:""}"
-                            )
+                            if (editProfileViewModel.campus.value.courseEnd?.month.isNullOrEmpty()){
+                                Text("End", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }else{
+                                Text(
+                                    text = "${editProfileViewModel.campus.value.courseEnd?.month} ${editProfileViewModel.campus.value.courseEnd?.year}"
+                                )
+                            }
+
                             IconButton(onClick = {
                                 calenderSwitch = 1
                                 isCalenderVisible = !isCalenderVisible
@@ -765,7 +753,7 @@ fun EditProfileScreen(
                                 Icon(
                                     painter = painterResource(R.drawable.calendar_1),
                                     contentDescription = null,
-                                    tint = Black400
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -830,40 +818,17 @@ val fieldsOfStudy = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UniversityDropdown(
-    universityList: List<UniversityDTO>?,
+    selectedUniversity : University?,
     userProfileViewModel: UserProfileViewModel,
-    modifier: Modifier = Modifier,
-    onUniversitySelected: (Pair<String, String>?) -> Unit,
-    campus: Campus
+    onFieldChange: (String) -> Unit,
+    onUniversitySelected: (University) -> Unit,
+    onClearClick:()-> Unit
 ) {
-    var selectedUniversity by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
-    var searchText by rememberSaveable { mutableStateOf("") }
-    var isFocused by remember { mutableStateOf(false) }
+
+
     val universityListState by userProfileViewModel.universityData.collectAsState()
 
-    val coroutineScope = rememberCoroutineScope()
-
-
-    // Notify parent
-    LaunchedEffect(selectedUniversity) {
-        onUniversitySelected(selectedUniversity)
-    }
-
-    LaunchedEffect(Unit) {
-        searchText = campus.university?.university ?: ""
-
-    }
-    // Re-request focus when dropdown expands and was previously focused
-    LaunchedEffect(universityList) {
-        if (isFocused) {
-            coroutineScope.launch {
-                delay(50) // Let composition settle
-            }
-        }
-    }
-
     var expanded by remember { mutableStateOf(false) }
-
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -872,26 +837,24 @@ fun UniversityDropdown(
 
         CustomTextFieldWithLeadingIcon(
             modifier = Modifier.fillMaxWidth(),
-            value = searchText,
+            value = selectedUniversity?.university ?: "",
             onValueChange = {
-                searchText = it.toString()
-                userProfileViewModel.onUniversityQueryChanged(it.toString())
+                onFieldChange(it.toString())
             },
             label = "Search",
             enabled = true,
             placeHolder = "Search",
             leadingIcon = {
                 CircleImage(
-                    image = selectedUniversity?.second ?: (campus.university?.logo ?: ""),
-                    modifier = Modifier.size(34.dp)
-                ) { }
+                    image = selectedUniversity?.logo ?: "",
+                    modifier = Modifier.size(34.dp),
+                    onClick = {}
+                )
             },
             trailingIcon = {
                 if (selectedUniversity != null) {
                     IconButton(onClick = {
-                        selectedUniversity = null
-                        searchText = ""
-                        userProfileViewModel.resetUniversityData()
+                        onClearClick.invoke()
                     }
                     ) {
                         Icon(
@@ -920,11 +883,13 @@ fun UniversityDropdown(
                     universityList.forEach { selectionOption ->
                         DropdownMenuItem(
                             onClick = {
-                                selectedUniversity = Pair(selectionOption.name, selectionOption.logo)
-                                searchText = selectedUniversity?.first ?: ""
-                                onUniversitySelected(selectedUniversity)
+                                onUniversitySelected(
+                                    University(
+                                        university = selectionOption.name,
+                                        logo = selectionOption.logo
+                                    )
+                                )
                                 userProfileViewModel.resetUniversityData()
-
                             },
                             text = {
                                 Text(text = selectionOption.name)
@@ -951,7 +916,7 @@ fun UniversityDropdown(
 
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = primary,
+                        color = LightTheme_Blue,
                         strokeWidth = 2.dp
                     )
 
@@ -965,6 +930,7 @@ fun UniversityDropdown(
 }
 
 
+
 @Composable
 fun EditPage(
     onCancelClick: (ProfileEdit) -> Unit,
@@ -973,11 +939,7 @@ fun EditPage(
     content: @Composable () -> Unit,
 ) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding()
-            .padding(WindowInsets.statusBars.asPaddingValues())
-            .background(color = White900),
+        modifier = Modifier.fillMaxSize().background(color = MaterialTheme.colorScheme.background).imePadding().padding(WindowInsets.statusBars.asPaddingValues()),
         contentPadding = PaddingValues(bottom = 16.dp),
     ) {
         item {
@@ -997,17 +959,10 @@ fun EditPage(
                 }
 
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = primary,
-                        strokeWidth = 2.dp
-                    )
+                    CircularLoading()
                 } else {
-                    IconButton(onClick = onSubmitClick) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null
-                        )
+                    SubmitButton {
+                        onSubmitClick.invoke()
                     }
                 }
             }
@@ -1036,14 +991,17 @@ fun ProfileComponent(
 
 ) {
 
-    Column {
+    Column (modifier = Modifier.padding(12.dp)){
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            Text(text = title, fontWeight = FontWeight.Bold)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineMedium
+            )
 
             if (isCurrentUser) {
                 Image(
@@ -1054,7 +1012,7 @@ fun ProfileComponent(
                     ),
                     imageVector = if (isContentExist) Icons.Default.Add else Icons.Default.Edit,
                     contentDescription = "Back",
-                    colorFilter = ColorFilter.tint(primary)
+                    colorFilter = ColorFilter.tint(LightTheme_Blue)
                 )
             }
 
@@ -1080,7 +1038,12 @@ fun GenderSelector(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .background(color = background, shape = RoundedCornerShape(5.dp)),
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                ,
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
@@ -1089,123 +1052,14 @@ fun GenderSelector(
                     selected = selectedGender == it,
                     onClick = { onSelect(it) },
                     colors = RadioButtonDefaults.colors(
-                        selectedColor = primary,
-                        unselectedColor = Black900
+                        selectedColor = LightTheme_Blue,
+                        unselectedColor = LightTheme_Black
                     )
                 )
-                Text(text = it.name)
+                Text(text = it.name.lowercase()[0].uppercase())
             }
         }
     }
 
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun InterestComponent(
-    interestList: List<String>
-) {
-
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        if (interestList.isNotEmpty()) {
-            interestList.forEach {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.background(
-                        color = background,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                ) {
-                    Text(text = it, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-                }
-            }
-        }
-
-    }
-
-
-}
-
-val interestList = listOf("Coding", "Gaming", "Entrepreneur")
-
-
-@Composable
-fun AutoCompleteFieldOfStudyDropdown(
-    modifier: Modifier = Modifier,
-    fieldOptions: List<String>,
-    selectedField: String,
-    onFieldChange: (String) -> Unit,
-    label: String = "Field of Study"
-) {
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
-
-    var query by remember { mutableStateOf(selectedField) }
-    var expanded by remember { mutableStateOf(false) }
-    var filteredSuggestions by remember { mutableStateOf(emptyList<String>()) }
-
-    // Debounce logic with coroutine
-    LaunchedEffect(query) {
-        snapshotFlow { query }
-            .debounce(300) // 300ms debounce
-            .collectLatest { typedText ->
-                filteredSuggestions = fieldOptions.filter {
-                    it.contains(typedText, ignoreCase = true)
-                }.take(5)
-                expanded = filteredSuggestions.isNotEmpty()
-            }
-    }
-
-    Column(modifier = modifier) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = {
-                query = it
-                onFieldChange(it)
-            },
-            label = { Text(label) },
-            trailingIcon = {
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.ArrowDropDown,
-                        contentDescription = "Toggle dropdown"
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                }
-            )
-        )
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            filteredSuggestions.forEach { suggestion ->
-                DropdownMenuItem(
-                    onClick = {
-                        query = suggestion
-                        onFieldChange(suggestion)
-                        expanded = false
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                    },
-                    text = {
-                        Text(suggestion)
-                    }
-                )
-
-            }
-        }
-    }
-}

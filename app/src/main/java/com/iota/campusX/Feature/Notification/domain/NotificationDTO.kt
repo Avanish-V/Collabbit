@@ -5,7 +5,7 @@ import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 
 data class NotificationDTO(
-    var notificationId: String? = null,
+    var notificationId: String = "",
     var creatorId: String? = null,
     var createdAt: Long = 0L,
     var actionBy: UserDetail = UserDetail(), // Ensure User also has a no-arg constructor

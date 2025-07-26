@@ -1,5 +1,9 @@
 # === Firebase and Firestore DTO Rules ===
 
+
+-keep class io.agora.** { *; }
+-dontwarn io.agora.**
+
 # Notification-related DTOs
 -keep class com.iota.campusX.Feature.Notification.domain.NotificationDTO { *; }
 -keep class com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO { *; }

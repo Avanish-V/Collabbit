@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -27,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +36,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -41,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,7 +56,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +65,7 @@ import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -67,7 +73,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -94,25 +103,23 @@ import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Screens.Post.VisibilityModeChanger
+import com.iota.campusX.Screens.Post.defaultPostHandlers
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
+import com.iota.campusX.ui.UIComponents.AnimatedLikeButton
 import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.CircularLoading
+import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.PostBody
 import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.UIComponents.PostHeader
 import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.Black400
-import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.secondary
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -167,31 +174,9 @@ fun PostReplyScreen(
     val modificationRequest = bottomSheetViewModel.modificationRequest.collectAsState().value
     val isAlertDialogVisible = remember { mutableStateOf(false) }
 
-    val postId = navHostController.currentBackStackEntry
-        ?.savedStateHandle?.get<String>("POST_ID")
+    val postId = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("POST_ID")
 
     var postData by remember { mutableStateOf<GetPostDTO?>(null) }
-
-    LaunchedEffect(editPostState) {
-
-        val mode = mode as UiState.Success
-
-        val post = if (mode.data == FeedMode.GLOBAL) globalPostState as UiState.Success else campusPostState as UiState.Success
-
-        snapshotFlow { post.data.find { it.postId == postId } }
-            .filterNotNull()
-            .first()
-            .let { it ->
-                postData = it
-            }
-
-    }
-    when (repliesState) {
-        is UiState.Idle -> Log.d("REPLIES", "Replies are idle.")
-        is UiState.Loading -> Log.d("REPLIES", "Replies are loading.")
-        is UiState.Success -> Log.d("REPLIES", "Replies loaded: ${repliesState.data.size}")
-        is UiState.Error -> Log.d("REPLIES", "Replies error: ${repliesState.message}")
-    }
 
 
     LaunchedEffect(Unit) {
@@ -213,11 +198,12 @@ fun PostReplyScreen(
             is UiState.Success -> {
                 replyText = ""
                 isLoading = false
-                snackBarHostState.showSnackbar("Success")
+                snackBarHostState.showSnackbar("Done!")
             }
 
             is UiState.Error -> {
                 snackBarHostState.showSnackbar("Something went wrong!")
+                isLoading = false
             }
 
             else -> {}
@@ -287,8 +273,6 @@ fun PostReplyScreen(
 
     }
 
-
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -297,19 +281,19 @@ fun PostReplyScreen(
                     IconButton(onClick = { navHostController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         bottomBar = {
             Column {
                 if (modificationRequest == "EDIT") {
-                    Box(Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)) {
-                        Text("Edit reply", color = primary, fontWeight = FontWeight.Bold)
+                    Box(Modifier.fillMaxWidth().padding(12.dp)) {
+                        Text("Edit reply", color = LightTheme_Blue, fontWeight = FontWeight.Bold)
                     }
                 }
-                HorizontalDivider(color = White400)
+
+                Divider()
 
                 BottomTextInput(
                     focusRequester = focusRequester,
@@ -323,14 +307,14 @@ fun PostReplyScreen(
                     onSubmitClick = {
                         if (replyText.isNotEmpty()) {
                             val docID = generateUID()
-                            keyboard?.hide()
                             scope.launch {
+                                keyboard?.hide()
                                 postData?.let {
                                     replyViewModel.createReply(
                                         replyId = docID,
                                         postId = it.postId,
                                         content = replyText,
-                                        creatorId = it.creatorDetail.profile?.id ?: "",
+                                        postCreatorId = it.creatorDetail.profile?.id ?: "",
                                         visibilityMode = visibilityMode,
                                         user = UserDetail(
                                             id = userProfile?.id ?: "",
@@ -367,38 +351,63 @@ fun PostReplyScreen(
             }
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
-        containerColor = secondary
     ) { innerPadding ->
 
         LazyColumn(
             modifier = Modifier.padding(innerPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Render PostCard if postData is not null
-            postData?.let { post ->
-                item {
-                    PostCard(
-                        feedViewModel = postViewModel,
-                        bottomSheetSharedViewModel = bottomSheetViewModel,
-                        post = post,
-                        navHostController = navHostController,
-                        onPostClick = {},
-                        onReplyClick = { keyboard?.show() },
-                        onPollSelect = {},
-                        profileViewModel = profileViewModel
-                    )
+
+            when(globalPostState){
+                is UiState.Success -> {
+                    items(globalPostState.data.filter { it.postId == postId }) {
+                        PostCard(
+                            post = it,
+                            handlers = defaultPostHandlers(
+                                context = context,
+                                post = it,
+                                feedViewModel = postViewModel,
+                                bottomSheetSharedViewModel = bottomSheetViewModel,
+                                navController = navHostController,
+                            )
+                        )
+                        postData = it
+                    }
                 }
+                else -> {}
+
+            }
+            when(campusPostState){
+                is UiState.Success -> {
+                    items(campusPostState.data.filter { it.postId == postId }) {
+                        PostCard(
+                            post = it,
+                            handlers = defaultPostHandlers(
+                                context = context,
+                                post = it,
+                                feedViewModel = postViewModel,
+                                bottomSheetSharedViewModel = bottomSheetViewModel,
+                                navController = navHostController,
+                            )
+                        )
+                        postData = it
+                    }
+                }
+                else -> {}
+
             }
 
             // Replies Header
             item {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(secondary)
-                        .padding(start = 16.dp)
+                        .padding(start = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Replies", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Divider()
+                    Text(text = "Replies", style = MaterialTheme.typography.headlineLarge)
+                    Divider()
                 }
             }
 
@@ -429,7 +438,6 @@ fun PostReplyScreen(
                             }
                         }
                     }
-
                 }
 
                 is UiState.Success -> {
@@ -457,10 +465,12 @@ fun PostReplyScreen(
                                 navHostController = navHostController,
                                 onLikeClick = {
                                     replyViewModel.likeReply(
-                                        creatorId = userProfile?.id ?: "",
+                                        repliedById = reply.creatorDetail.profile?.id ?: "",
                                         postId = reply.postId,
                                         replyId = reply.replyId,
-                                        isLiked = reply.actions.isLiked
+                                        isLiked = reply.actions.isLiked,
+                                        campusId = postData?.campusId,
+                                        feedMode = postData?.feedMode ?: FeedMode.GLOBAL
                                     )
                                 },
                                 onDotsClick = {
@@ -649,7 +659,6 @@ fun ReplyWidget(
 
     Column(
         modifier = Modifier
-            .background(color = White900)
             .fillMaxWidth()
             .padding(12.dp),
     ) {
@@ -661,7 +670,9 @@ fun ReplyWidget(
 
             CircleImage(
                 image = repliesDTO.creatorDetail.profile?.userImage ?: "",
-                modifier = Modifier.size(42.dp).clip(CircleShape),
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape),
                 onClick = {
                     if (repliesDTO.visibilityMode == PostVisibilityMode.USER) {
                         navHostController.navigate(Routes.Main.ProfileByID.routes)
@@ -689,10 +700,11 @@ fun ReplyWidget(
                             postText = repliesDTO.content
                         )
                     ),
-                    navHostController = navHostController,
-                    onPollSelect = {
+                    onPollSelect = { },
+                    onPostImageClick = {},
+                    onBodyClick = {
 
-                    }
+                    },
                 )
 
                 Row(
@@ -701,29 +713,15 @@ fun ReplyWidget(
                     modifier = Modifier.fillMaxWidth()
                 ) {
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-
-                        Text(text = repliesDTO.actions.likesCount.toString(), color = Black500)
-
-                        Icon(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = {
-                                        onLikeClick.invoke()
-                                    }
-                                ),
-                            painter = painterResource(if (repliesDTO.actions.isLiked) R.drawable.heart_bold else R.drawable.heart_outline),
-                            contentDescription = "Like",
-                            tint = if (repliesDTO.actions.isLiked) Color.Red else Black500
-                        )
-
-                    }
+                    AnimatedLikeButton(
+                        onLike = {onLikeClick.invoke()},
+                        likesCount = repliesDTO.actions.likesCount,
+                        isLiked = repliesDTO.actions.isLiked
+                    )
 
                     Row (verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)){
 
+                        Log.d("IS_EDITED",repliesDTO.isEdited.toString())
                         if (repliesDTO.isEdited){
                             Text("Edited", color = Black300, fontSize = 12.sp)
                         }
@@ -740,7 +738,7 @@ fun ReplyWidget(
                                 ),
                             painter = painterResource(R.drawable.dots_menu),
                             contentDescription = "Dots",
-                            tint = Black500
+                            tint =  MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -765,43 +763,50 @@ fun BottomTextInput(
     userImage: String
 ) {
 
-    val keyboard = LocalSoftwareKeyboardController.current
-
-
-
-    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
 
         Row (verticalAlignment = Alignment.CenterVertically){
 
-            TextField(
+            BasicTextField(
+                value = text,
+                onValueChange = { onTextChange.invoke(it) },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 52.dp)
+                    .height(48.dp) // Ensures consistent height
+                    .padding(start = 52.dp) // Adjusted padding
                     .border(
                         width = 1.dp,
-                        color = White400,
+                        color = MaterialTheme.colorScheme.outline,
                         shape = RoundedCornerShape(6.dp)
                     )
                     .imePadding()
                     .focusRequester(focusRequester)
-                    .onFocusChanged { onFocusChange.invoke(it) },
-                value = text,
-                onValueChange = {
-                    onTextChange.invoke(it)
-                },
-                shape = RoundedCornerShape(6.dp),
-                placeholder = { Text("Type a comment...", color = Black400) },
-                trailingIcon = {
-
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor =Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTrailingIconColor = primary
+                    .onFocusChanged { onFocusChange.invoke(it) }
+                    .padding(horizontal = 12.dp),
+                textStyle = LocalTextStyle.current.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 16.sp
                 ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (text.isEmpty()) {
+                            Text(
+                                text = "Write.....",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 16.sp
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
             )
+
 
             IconButton(
                 onClick = {
@@ -809,16 +814,11 @@ fun BottomTextInput(
                 }
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        trackColor = secondary,
-                        color = primary
-                    )
+                    CircularLoading()
                 } else {
                     Icon(
                         painterResource(R.drawable.send_2),
                         contentDescription = "Send",
-                        tint = primary
                     )
                 }
             }
@@ -827,7 +827,7 @@ fun BottomTextInput(
 
 
         VisibilityModeChanger(
-            visibility = PostVisibilityMode.USER,
+            selectedVisibility = PostVisibilityMode.USER,
             onVisibilityModeChange = {
                 onVisibilityChange.invoke(it)
             },

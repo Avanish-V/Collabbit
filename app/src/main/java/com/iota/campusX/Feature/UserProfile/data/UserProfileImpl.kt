@@ -286,8 +286,6 @@ class UserProfileImpl(
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
         return try {
 
-
-
             val senderRef = firestore.collection("Users")
                 .document(userId)
                 .collection("Connections")

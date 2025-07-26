@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class NotificationViewModel(private val notificationRepository: NotificationRepository): ViewModel() {
@@ -50,7 +51,11 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
     }
 
     fun deleteNotificationFromList(notificationDTO: NotificationDTO) {
-        _notification.value = NotificationResultState(data = _notification.value.data - notificationDTO)
+        _notification.update { currentState ->
+            currentState.copy(
+                data = currentState.data - notificationDTO
+            )
+        }
     }
 
     fun markNotificationAsRead() {

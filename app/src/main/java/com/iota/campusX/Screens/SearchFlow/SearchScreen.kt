@@ -1,25 +1,32 @@
 package com.voxcii.voxcii.Screens.SearchFlow
 
-import androidx.compose.foundation.background
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,84 +43,104 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.iota.campusX.Feature.Chats.data.UserChatsDTO
+import com.iota.campusX.Feature.Search.Domain.Models.UserSearchDTO
+import com.iota.campusX.Feature.Search.Presentation.SearchViewModel
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Chat.convertTimestampToTime
-import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.Black900
-import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.theme.LightTheme_Gray
+import com.iota.campusX.ui.theme.LightTheme_Black
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class,)
 @Composable
 fun SearchScreen(navHostController: NavHostController) {
 
-    var searchValue by remember {
-        mutableStateOf("")
-    }
+    val searchViewModel = koinViewModel<SearchViewModel>()
 
-    Column(modifier = Modifier.background(color = White900)) {
+    val searchResults by searchViewModel.searchResults.collectAsState()
 
-        SearchBar(
+    var searchValue by remember { mutableStateOf("") }
 
-            inputField = {
+    val snackBar = remember { SnackbarHostState() }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextField(
-                        modifier = Modifier
-                            .padding(horizontal = 10.dp)
-                            .weight(1f),
-                        value = searchValue,
-                        onValueChange = { searchValue = it },
-                        placeholder = {
-                            Text(
-                                text = "Search - work on progress",
-                                color = Black900
-                            )
-                        },
-                        textStyle = TextStyle(
-                            fontWeight = FontWeight.Bold,
-                        ),
-                        colors = TextFieldDefaults.colors(
 
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Black
-                        ),
-                        leadingIcon = {
-                            Icon(
-                                modifier = Modifier.size(22.dp),
-                                painter = painterResource(R.drawable.search_normal),
-                                contentDescription = null
-                            )
-                        },
-                        shape = RoundedCornerShape(32.dp)
+    Scaffold(
+        topBar = {
+            TextField(
+                modifier = Modifier.padding(horizontal = 10.dp).fillMaxWidth(),
+                value = searchValue,
+                onValueChange = {
+                    searchValue = it
+                    searchViewModel.onSearchQuery(it)
+                },
+                placeholder = {
+                    Text(
+                        text = "Search...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
+                },
+                textStyle = TextStyle(
+                    fontWeight = FontWeight.Bold,
+                ),
+                colors = TextFieldDefaults.colors(
 
-            },
-            expanded = true,
-            onExpandedChange = {
-
-            },
-            shape = RoundedCornerShape(10.dp),
-            colors = SearchBarDefaults.colors(
-                containerColor = White900,
-                dividerColor = Color.Transparent
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                leadingIcon = {
+                    Icon(
+                        modifier = Modifier.size(22.dp),
+                        painter = painterResource(R.drawable.search_normal),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                shape = RoundedCornerShape(32.dp)
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackBar)
+        },
+        bottomBar = {}
+    ) {
 
-        ) {
+        Box(modifier = Modifier.padding(it)){
+            when(searchResults){
+                is UiState.Loading -> {
+                    LoadingUI(isLoading = true)
+                }
+                is UiState.Success -> {
+                    val result = (searchResults as UiState.Success<*>).data
 
+                    Log.d("SearchScreen", "SearchScreen: $result")
+                    LazyColumn{
+                        items(result as List<UserSearchDTO>){
+                            MentorSingleCard(
+                                user = it,
+                                onClick = {
 
-
+                                }
+                            )
+                        }
+                    }
+                }
+                is UiState.Error -> {
+                    LaunchedEffect(Unit) {
+                        snackBar.showSnackbar((searchResults as UiState.Error).message)
+                    }
+                }
+                else -> {}
+            }
         }
 
     }
 }
 
 @Composable
-fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
-
-
+fun MentorSingleCard(user: UserSearchDTO, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(0.dp),
         onClick={onClick.invoke()},
@@ -131,7 +158,7 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(60.dp)
                     .clip(CircleShape),
-                model = chatItem.userImage,
+                model = user.userImage,
                 contentDescription = null,
                 contentScale = ContentScale.Crop
             )
@@ -141,20 +168,19 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    chatItem.userName,
-                    color = Black900,
+                    user.userName,
+                    color = LightTheme_Black,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
 
                 )
                 Text(
-                    chatItem.lastMessage.lastMessage,
-                    color = Black500,
+                    user.userBio,
+                    color = LightTheme_Gray,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Text(convertTimestampToTime(chatItem.lastMessage.timeStamp))
 
         }
     }

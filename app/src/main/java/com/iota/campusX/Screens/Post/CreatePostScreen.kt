@@ -51,6 +51,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -61,6 +62,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -76,6 +78,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -111,14 +114,17 @@ import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.vibrate
+import com.iota.campusX.ui.UIComponents.AutoCompleteFieldOfStudyDropdown
 import com.iota.campusX.ui.UIComponents.IconButtonWidget
+import com.iota.campusX.ui.UIComponents.PrimaryButton
+import com.iota.campusX.ui.UIComponents.SimpleDropDown
 import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.Black900
+import com.iota.campusX.ui.theme.LightTheme_Gray
+import com.iota.campusX.ui.theme.LightTheme_Black
 import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.background
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.White
+import com.iota.campusX.ui.theme.LightTheme_White
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.secondary
 import io.ktor.util.date.getTimeMillis
 import kotlinx.coroutines.launch
@@ -152,6 +158,7 @@ fun CreatePostScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var text by remember { mutableStateOf("") }
+    var selectedFeedMode by remember { mutableStateOf("") }
     var selectedPod by remember { mutableStateOf<Reference?>(null) }
     var isExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
@@ -164,6 +171,8 @@ fun CreatePostScreen(
     )
     val snackbarHostState = remember { SnackbarHostState() }
     val feedMode = homeViewModel.mode.collectAsState().value
+
+
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -284,16 +293,11 @@ fun CreatePostScreen(
         }
     }
 
-    LaunchedEffect(visibility) {
-        Log.d("VisibilityChange", "Visibility changed to $visibility")
-    }
-
-
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Create Post", style = MaterialTheme.typography.titleMedium) },
+                title = { Text("Create Post") },
                 navigationIcon = {
                     IconButton(onClick = { navHostController.popBackStack() }) {
                         Icon(
@@ -302,62 +306,14 @@ fun CreatePostScreen(
                         )
                     }
                 },
-                actions = {
-
-                    Row(
-                        modifier = Modifier.padding(end = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-
-                        when (feedMode) {
-
-                            is UiState.Success -> {
-                                Icon(
-                                    modifier = Modifier.size(20.dp),
-                                    painter = painterResource(R.drawable.globe),
-                                    contentDescription = null
-                                )
-                                Switch(
-                                    checked = feedMode.data == FeedMode.CAMPUS,
-                                    onCheckedChange = { isChecked ->
-                                        val newMode = if (isChecked) FeedMode.CAMPUS else FeedMode.GLOBAL
-                                        homeViewModel.saveSwitchState(newMode)
-                                        context.vibrate()
-                                    },
-                                    colors = SwitchDefaults.colors(
-                                        uncheckedThumbColor = Black500,
-                                        uncheckedIconColor = White400,
-                                        uncheckedTrackColor = White900,
-                                        uncheckedBorderColor = Black500
-                                    )
-                                )
-                                Icon(
-                                    modifier = Modifier.size(20.dp),
-                                    painter = painterResource(R.drawable.school),
-                                    contentDescription = null
-                                )
-                            }
-
-                            else -> {
-                                // Optionally show a disabled switch or a placeholder
-                                Switch(
-                                    checked = false,
-                                    onCheckedChange = {},
-                                    enabled = false
-                                )
-                            }
-                        }
-
-                    }
-                }
+                actions = {},
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         bottomBar = {
             Row(
                 modifier = Modifier
                     .imePadding()
-                    .background(White900)
                     .padding(16.dp)
             ) {
 
@@ -394,8 +350,8 @@ fun CreatePostScreen(
 
                 Button(
                     modifier = Modifier.shadow(
-                        ambientColor = primary,
-                        spotColor = primary,
+                        ambientColor = LightTheme_Blue,
+                        spotColor = LightTheme_Blue,
                         elevation = 20.dp,
                     ),
                     onClick = {
@@ -426,10 +382,7 @@ fun CreatePostScreen(
                                         visibilityMode = PostVisibilityMode.USER,
                                         createdAt = getTimeMillis(),
                                         creatorId = authViewModel.userId(),
-                                        reference = Reference(
-                                            title = "Poll",
-                                            icon = "https://cdn-icons-png.flaticon.com/128/741/741867.png"
-                                        ),
+                                        reference = null,
                                         postContent = PostContent(
                                             postType = postScreenViewModel.post.value,
                                             postData = PostData(
@@ -448,14 +401,8 @@ fun CreatePostScreen(
                             }
 
                             else -> {
+
                                 val feedMode = feedMode as UiState.Success<FeedMode>
-                                Log.d("Posts", "CreatePostScreen: ${feedMode.data}")
-                                if (selectedPod == null) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Select Pod")
-                                    }
-                                    return@Button
-                                }
 
                                 if (selectedImages == null && text.isEmpty()) {
                                     scope.launch {
@@ -472,7 +419,7 @@ fun CreatePostScreen(
                                         visibilityMode = visibility,
                                         createdAt = getTimeMillis(),
                                         creatorId = userProfile.data.id,
-                                        reference = selectedPod!!,
+                                        reference = selectedPod,
                                         postContent = PostContent(
                                             postType = postScreenViewModel.post.value,
                                             postData = PostData(
@@ -503,7 +450,7 @@ fun CreatePostScreen(
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
-                            color = White900,
+                            color = White,
                             strokeWidth = 2.dp
                         )
                     } else {
@@ -526,8 +473,9 @@ fun CreatePostScreen(
                 Snackbar(snackbarData = it)
             }
         },
-        containerColor = White900
     ) { innerPadding ->
+
+        val feedMode = feedMode as UiState.Success<FeedMode>
 
         LazyColumn(
             modifier = Modifier.padding(innerPadding),
@@ -536,7 +484,27 @@ fun CreatePostScreen(
         ) {
 
             item {
-                Text(text = "This post will be visible to all campuses.", color = Black300)
+
+                Row (verticalAlignment = Alignment.CenterVertically){
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "Visibility", style = MaterialTheme.typography.headlineMedium)
+                        Text(text = "This post will be visible to all campuses.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    SimpleDropDown(
+                        modifier = Modifier.weight(1f),
+                        fieldOptions = listOf("Campus","Global"),
+                        currentMode = feedMode.data,
+                        selectedField = selectedFeedMode,
+                        onFieldChange = {
+                            selectedFeedMode = it
+                            val newMode = if (it == "Campus") FeedMode.CAMPUS else FeedMode.GLOBAL
+                            homeViewModel.saveSwitchState(newMode)
+                            context.vibrate()
+                        },
+                        label = "Visibility"
+                    )
+                }
+
             }
 
             item {
@@ -564,7 +532,7 @@ fun CreatePostScreen(
                                         .fillMaxWidth()
                                         .border(
                                             width = 1.dp,
-                                            color = White400,
+                                            color = MaterialTheme.colorScheme.outline,
                                             shape = RoundedCornerShape(10.dp)
                                         )
                                         .padding(12.dp),
@@ -573,9 +541,8 @@ fun CreatePostScreen(
                                         pollViewModel.updatePollQuestion(it)
                                     },
                                     textStyle = TextStyle(
-                                        fontSize = 18.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = Black900
                                     ),
                                     decorationBox = {
 
@@ -622,7 +589,7 @@ fun CreatePostScreen(
                                                             Icon(
                                                                 imageVector = Icons.Default.Clear,
                                                                 contentDescription = "Add Option",
-                                                                tint = primary
+                                                                tint = LightTheme_Blue
                                                             )
                                                         }
                                                     },
@@ -652,7 +619,7 @@ fun CreatePostScreen(
                                         }
 
                                     },
-                                    cursorBrush = Brush.verticalGradient(listOf(primary, primary))
+                                    cursorBrush = Brush.verticalGradient(listOf(LightTheme_Blue, LightTheme_Blue))
                                 )
                             }
                         }
@@ -665,7 +632,7 @@ fun CreatePostScreen(
                                 .fillMaxWidth()
                                 .border(
                                     width = 1.dp,
-                                    color = White400,
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = RoundedCornerShape(10.dp)
                                 )
                                 .padding(12.dp),
@@ -680,7 +647,7 @@ fun CreatePostScreen(
 
                                 VisibilityModeChanger(
                                     modifier = Modifier.size(38.dp),
-                                    visibility = visibility,
+                                    selectedVisibility = visibility,
                                     onVisibilityModeChange = {
 
                                         when(isConsentAgree){
@@ -704,109 +671,109 @@ fun CreatePostScreen(
 
                                 )
 
-                                AnimatedVisibility(visible = true) {
-                                    ExposedDropdownMenuBox(
-                                        modifier = Modifier,
-                                        expanded = false,
-                                        onExpandedChange = {}
-
-                                    ) {
-
-                                        Row(
-                                            modifier = Modifier
-                                                .border(
-                                                    width = 1.dp,
-                                                    color = White400,
-                                                    shape = RoundedCornerShape(10.dp)
-                                                )
-                                                .padding(4.dp)
-                                                .clickable(
-                                                    onClick = {
-                                                        isExpanded = true
-                                                    },
-                                                    indication = null,
-                                                    interactionSource = remember { MutableInteractionSource() }
-                                                ),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            selectedPod?.let {
-
-                                                AsyncImage(
-                                                    modifier = Modifier
-                                                        .size(42.dp)
-                                                        .clip(CircleShape),
-                                                    model = it.icon,
-                                                    contentDescription = null,
-                                                    contentScale = ContentScale.Crop
-                                                )
-
-                                            }
-
-                                            Text(
-                                                text = selectedPod?.title ?: "Select Pod",
-                                                color = Black900
-                                            )
-
-                                            IconButton(
-                                                onClick = {
-                                                    if (selectedPod?.title.isNullOrEmpty()) {
-                                                        isExpanded = !isExpanded
-                                                    } else {
-                                                        selectedPod = null
-                                                    }
-                                                }
-                                            ) {
-                                                if (selectedPod?.title.isNullOrEmpty()) {
-                                                    ExposedDropdownMenuDefaults.TrailingIcon(
-                                                        expanded = isExpanded
-                                                    )
-                                                } else {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Close,
-                                                        contentDescription = "Close"
-                                                    )
-                                                }
-
-                                            }
-
-                                        }
-
-                                        DropdownMenu(
-                                            modifier = Modifier
-                                                .wrapContentWidth()
-                                                .background(color = background),
-                                            shape = RoundedCornerShape(5.dp),
-                                            shadowElevation = 0.dp,
-                                            expanded = isExpanded,
-                                            onDismissRequest = { isExpanded = false }
-                                        ) {
-                                            podListItems.forEach {
-                                                DropdownMenuItem(
-                                                    modifier = Modifier.padding(vertical = 5.dp),
-                                                    text = { Text(text = it.title) },
-                                                    leadingIcon = {
-                                                        AsyncImage(
-                                                            modifier = Modifier
-                                                                .size(42.dp)
-                                                                .clip(CircleShape),
-                                                            model = it.icon,
-                                                            contentDescription = null,
-                                                            contentScale = ContentScale.Crop
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        selectedPod = Reference(
-                                                            title = it.title,
-                                                            icon = it.icon
-                                                        )
-                                                        isExpanded = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+//                                AnimatedVisibility(visible = true) {
+//                                    ExposedDropdownMenuBox(
+//                                        modifier = Modifier,
+//                                        expanded = false,
+//                                        onExpandedChange = {}
+//
+//                                    ) {
+//
+//                                        Row(
+//                                            modifier = Modifier
+//                                                .border(
+//                                                    width = 1.dp,
+//                                                    color = White400,
+//                                                    shape = RoundedCornerShape(10.dp)
+//                                                )
+//                                                .padding(4.dp)
+//                                                .clickable(
+//                                                    onClick = {
+//                                                        isExpanded = true
+//                                                    },
+//                                                    indication = null,
+//                                                    interactionSource = remember { MutableInteractionSource() }
+//                                                ),
+//                                            verticalAlignment = Alignment.CenterVertically,
+//                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+//                                        ) {
+//                                            selectedPod?.let {
+//
+//                                                AsyncImage(
+//                                                    modifier = Modifier
+//                                                        .size(42.dp)
+//                                                        .clip(CircleShape),
+//                                                    model = it.icon,
+//                                                    contentDescription = null,
+//                                                    contentScale = ContentScale.Crop
+//                                                )
+//
+//                                            }
+//
+//                                            Text(
+//                                                text = selectedPod?.title ?: "Select Pod",
+//                                                color = LightTheme_Black
+//                                            )
+//
+//                                            IconButton(
+//                                                onClick = {
+//                                                    if (selectedPod?.title.isNullOrEmpty()) {
+//                                                        isExpanded = !isExpanded
+//                                                    } else {
+//                                                        selectedPod = null
+//                                                    }
+//                                                }
+//                                            ) {
+//                                                if (selectedPod?.title.isNullOrEmpty()) {
+//                                                    ExposedDropdownMenuDefaults.TrailingIcon(
+//                                                        expanded = isExpanded
+//                                                    )
+//                                                } else {
+//                                                    Icon(
+//                                                        imageVector = Icons.Default.Close,
+//                                                        contentDescription = "Close"
+//                                                    )
+//                                                }
+//
+//                                            }
+//
+//                                        }
+//
+//                                        DropdownMenu(
+//                                            modifier = Modifier
+//                                                .wrapContentWidth()
+//                                                .background(color = LightTheme_White),
+//                                            shape = RoundedCornerShape(5.dp),
+//                                            shadowElevation = 0.dp,
+//                                            expanded = isExpanded,
+//                                            onDismissRequest = { isExpanded = false }
+//                                        ) {
+//                                            podListItems.forEach {
+//                                                DropdownMenuItem(
+//                                                    modifier = Modifier.padding(vertical = 5.dp),
+//                                                    text = { Text(text = it.title) },
+//                                                    leadingIcon = {
+//                                                        AsyncImage(
+//                                                            modifier = Modifier
+//                                                                .size(42.dp)
+//                                                                .clip(CircleShape),
+//                                                            model = it.icon,
+//                                                            contentDescription = null,
+//                                                            contentScale = ContentScale.Crop
+//                                                        )
+//                                                    },
+//                                                    onClick = {
+//                                                        selectedPod = Reference(
+//                                                            title = it.title,
+//                                                            icon = it.icon
+//                                                        )
+//                                                        isExpanded = false
+//                                                    }
+//                                                )
+//                                            }
+//                                        }
+//                                    }
+//                                }
 
 
                             }
@@ -816,16 +783,15 @@ fun CreatePostScreen(
                                     .fillMaxWidth(),
                                 value = text,
                                 onValueChange = { text = it },
-                                textStyle = TextStyle(
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Black900
+                                textStyle = LocalTextStyle.current.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 16.sp
                                 ),
                                 decorationBox = {
                                     if (text.isEmpty()) {
                                         Text(
                                             text = "What's on your mind?",
-                                            color = Black300
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     Column {
@@ -836,7 +802,11 @@ fun CreatePostScreen(
                                             modifier = Modifier.fillMaxWidth(),
                                             contentAlignment = Alignment.CenterEnd
                                         ) {
-                                            Text(text = "${text.count()}/500", color = Black300)
+                                            Text(
+                                                text = "${text.count()}/500",
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
                                         }
 
                                         if (postOption == PostOptions.IMAGE) {
@@ -880,7 +850,7 @@ fun CreatePostScreen(
                                     }
 
                                 },
-                                cursorBrush = Brush.verticalGradient(listOf(primary, primary))
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             )
                         }
 
@@ -935,7 +905,7 @@ enum class PostVisibilityMode { USER, ANONYMOUS }
 @Composable
 fun VisibilityModeChanger(
     modifier: Modifier = Modifier,
-    visibility: PostVisibilityMode,
+    selectedVisibility: PostVisibilityMode,
     onVisibilityModeChange: (PostVisibilityMode) -> Unit,
     userImage: String
 ) {
@@ -944,6 +914,10 @@ fun VisibilityModeChanger(
     val offsetX = remember { Animatable(0f) }
     val threshold = 200f
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(selectedVisibility) {
+        visibility = selectedVisibility
+    }
 
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(

@@ -21,10 +21,11 @@ import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostActions
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.ReplyDTO
+import com.iota.campusX.Feature.Post.domain.Models.CreateReplyDTO
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.presentation.UploadState
+import com.iota.campusX.NetworkCapability.ConnectivityObserver
 import com.iota.campusX.Utils.anonymousImage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -42,16 +43,25 @@ import kotlin.coroutines.suspendCoroutine
 class PostRepoImpl(
     private val sendPushNotification: SendPushNotification,
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
 ) :PostRepository {
 
+
     override suspend fun createPost(dto: CreatePostDTO, imageUri: Uri?): Flow<UploadState> = callbackFlow {
+
+        if (dto.feedMode == FeedMode.CAMPUS && dto.campusId == null){
+            trySend(UploadState.Error("Campus id is not updated"))
+            awaitClose {
+                close()
+            }
+            return@callbackFlow
+        }
 
         trySend(UploadState.Loading)
 
         val path = if (dto.feedMode == FeedMode.CAMPUS) "CampusPosts" else "GlobalPosts"
 
-         fun uploadPost(post: CreatePostDTO, uploadId: String? = null) {
+        fun uploadPost(post: CreatePostDTO, uploadId: String? = null) {
             firestore.collection(path).document(dto.postId).set(post)
                 .addOnSuccessListener {
                     trySend(UploadState.Success(uploadId ?: ""))
@@ -99,6 +109,7 @@ class PostRepoImpl(
         }
 
         awaitClose { /* clean-up if needed */ }
+
     }
 
     override suspend fun deletePost(postId: String, campusId: String?,feedMode: FeedMode): Result<Unit> {
@@ -417,7 +428,7 @@ class PostRepoImpl(
         }
     }
 
-    override suspend fun createReply(replyId: String, postId: String, content: String, creatorId: String, visibilityMode: PostVisibilityMode, mode: FeedMode,campusId: String?): Result<Unit> {
+    override suspend fun createReply(replyId: String, postId: String, content: String, postCreatorId: String, visibilityMode: PostVisibilityMode, mode: FeedMode,campusId: String?): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid
                 ?: return Result.failure(IllegalStateException("User not logged in"))
@@ -425,7 +436,6 @@ class PostRepoImpl(
             val replyPayload = mapOf(
                 "replyId" to replyId,
                 "postId" to postId,
-                "creatorId" to creatorId,
                 "repliedBy" to currentUserId,
                 "content" to content,
                 "repliedAt" to System.currentTimeMillis(),
@@ -447,26 +457,26 @@ class PostRepoImpl(
                 .set(replyPayload)
                 .await()
 
-            if (creatorId != currentUserId) {
+            if (postCreatorId != currentUserId) {
                 val notification = CreateNotificationDTO(
                     notificationId = replyId,
                     type = NotificationType.COMMENTED,
                     visibilityMode = visibilityMode,
                     replyId = replyId,
                     postId = postId,
-                    creatorId = creatorId,
+                    creatorId = postCreatorId,
                     actionBy = currentUserId,
                     createdAt = System.currentTimeMillis()
                 )
 
                 firestore.collection("Users")
-                    .document(creatorId)
+                    .document(postCreatorId)
                     .collection("Notifications")
                     .add(notification)
                     .await()
 
                 sendPushNotification.messageNotification(
-                    notificationReceiverId = creatorId,
+                    notificationReceiverId = postCreatorId,
                     notificationType = "COMMENTED"
                 )
             }
@@ -477,10 +487,10 @@ class PostRepoImpl(
         }
     }
 
-    override suspend fun getReplies(postId: String,capurId: String?,feedMode: FeedMode): Result<List<GetRepliesDTO>> {
+    override suspend fun getReplies(postId: String, campusId: String?, feedMode: FeedMode): Result<List<GetRepliesDTO>> {
         return try {
 
-            val baseCollection = getBaseCollection(feedMode = feedMode, campusId = capurId, firestore = firestore)
+            val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
 
             val repliesSnapshot = baseCollection
                 .document(postId)
@@ -491,7 +501,10 @@ class PostRepoImpl(
             val replies = coroutineScope {
                 repliesSnapshot.documents.map { document ->
                     async {
-                        val reply = document.toObject(ReplyDTO::class.java) ?: return@async null
+
+                        val reply = document.toObject(CreateReplyDTO::class.java) ?: return@async null
+
+                        Log.d("GET_REPLIES", "${reply.isEdited}")
 
                         val userDeferred = async {
                             firestore.collection("Users")
@@ -502,7 +515,8 @@ class PostRepoImpl(
                         }
 
                         val likesDeferred = async {
-                            firestore.collection("GlobalPosts")
+                            baseCollection
+
                                 .document(reply.postId)
                                 .collection("Replies")
                                 .document(reply.replyId)
@@ -518,7 +532,7 @@ class PostRepoImpl(
 
                         val currentUserId = auth.currentUser?.uid
                         val isLiked = currentUserId != null && likes.contains(currentUserId)
-                        val isCurrentUser = reply.creatorId == currentUserId
+                        val isCurrentUser = user?.id == currentUserId
 
                         val (userName, userImage) = when (reply.visibilityMode) {
                             PostVisibilityMode.USER -> user?.userName to user?.userImage
@@ -533,7 +547,7 @@ class PostRepoImpl(
                                 isVerified = false,
                                 isPremium = false,
                                 profile = UserDetail(
-                                    id = reply.creatorId,
+                                    id = user?.id ?: "",
                                     userName = userName ?: "",
                                     userImage = userImage ?: "",
                                     userBio = user?.userBio ?: "",
@@ -608,8 +622,11 @@ class PostRepoImpl(
             }
     }
 
-    override suspend fun likeReply(creatorId: String, postId: String, replyId: String, isLiked: Boolean): Result<Unit> = suspendCoroutine { cont ->
-        val likeDocRef = firestore.collection("GlobalPosts")
+    override suspend fun likeReply(repliedById: String, postId: String, replyId: String, isLiked: Boolean, campusId: String?, feedMode: FeedMode): Result<Unit> = suspendCoroutine { cont ->
+
+        val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
+
+        val likeDocRef = baseCollection
             .document(postId)
             .collection("Replies")
             .document(replyId)
@@ -626,7 +643,7 @@ class PostRepoImpl(
         likeDocRef.set(updateData, SetOptions.merge())
             .addOnSuccessListener {
                 // Skip notification if the user liked their own reply
-                if (creatorId == auth.currentUser?.uid) {
+                if (repliedById == auth.currentUser?.uid) {
                     cont.resume(Result.success(Unit))
                     return@addOnSuccessListener
                 }
@@ -636,19 +653,19 @@ class PostRepoImpl(
                         type = NotificationType.LIKE_REPLY,
                         replyId = replyId,
                         postId = postId,
-                        creatorId = creatorId,
+                        creatorId = repliedById,
                         actionBy = auth.currentUser?.uid ?: "",
                         createdAt = System.currentTimeMillis(),
                         notificationId = replyId + (auth.currentUser?.uid ?: "")
                     )
 
-                    firestore.collection("Users").document(creatorId)
+                    firestore.collection("Users").document(repliedById)
                         .collection("Notifications")
                         .document(notification.notificationId)
                         .set(notification)
                         .addOnSuccessListener {
                             sendPushNotification.messageNotification(
-                                notificationReceiverId = creatorId,
+                                notificationReceiverId = repliedById,
                                 notificationType = "LIKE_REPLY"
                             )
                             cont.resume(Result.success(Unit))
@@ -773,6 +790,7 @@ fun getBaseCollection(feedMode: FeedMode, campusId: String?, firestore: Firebase
             firestore.collection("CampusPosts")
         }
         FeedMode.GLOBAL -> firestore.collection("GlobalPosts")
+        FeedMode.USER -> TODO()
     }
 }
 

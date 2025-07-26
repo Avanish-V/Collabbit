@@ -152,7 +152,19 @@ class PostFeedViewModel(
 
     fun toggleLike(userId: String, postId: String, isLiked: Boolean, campusId: String?, feedMode: FeedMode) {
         viewModelScope.launch {
-            val state = if (feedMode == FeedMode.CAMPUS) _campusPosts else _globalPosts
+
+            val state = when(feedMode){
+                FeedMode.CAMPUS -> {
+                    _campusPosts
+                }
+                FeedMode.GLOBAL -> {
+                    _globalPosts
+                }
+                FeedMode.USER -> {
+                    _postById
+                }
+
+            }
             state.update {
                 if (it is UiState.Success) {
                     UiState.Success(
@@ -170,6 +182,7 @@ class PostFeedViewModel(
             }
             postRepository.toggleLike(userId, postId, isLiked,campusId,feedMode)
         }
+
     }
 
     fun voteOnPoll(postId: String, optionId: String, userId: String,campusId:String?,feedMode: FeedMode) {
@@ -231,6 +244,7 @@ class PostFeedViewModel(
         val currentState = when (getPostDTO.feedMode) {
             FeedMode.GLOBAL -> _globalPosts
             FeedMode.CAMPUS -> _campusPosts
+            FeedMode.USER -> { _postById }
         }
 
         val current = currentState.value

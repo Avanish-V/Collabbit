@@ -1,20 +1,8 @@
 package com.iota.campusX.Screens.Chat
 
-import android.net.Uri
 import android.os.Build
-import android.text.format.DateUtils.isToday
-import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +37,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -69,8 +57,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -99,21 +85,18 @@ import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.ServerTimeStampViewModel
 import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.vibrate
-import com.iota.campusX.ui.theme.Black400
-import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.Black800
+import com.iota.campusX.ui.UIComponents.Divider
+import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.Green
 import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.primary
-import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.LightTheme_Blue
+import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.secondary
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import org.koin.core.parameter.parametersOf
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -219,41 +202,49 @@ fun SendMessageScreen(
             }
         },
         bottomBar = {
+            Column(modifier = Modifier, verticalArrangement = Arrangement.SpaceBetween){
+                Divider()
+                Row(modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically){
+                    MessageInputBar(
+                        modifier = Modifier.weight(1f),
+                        messageText = messageText,
+                        onMessageChange = { messageText = it },
+                        onSendClick = {
 
-            Box(modifier = Modifier.background(color = White900)){
-                MessageInputBar(
-                    messageText = messageText,
-                    onMessageChange = { messageText = it },
-                    onSendClick = {
-                        if (messageText.isBlank()) return@MessageInputBar
-
-                        val messageId = generateUID()
-                        val message = messageText
-                        messageText = ""
-
-                        scope.launch {
-                            chatsViewModel.sendMessages(
-                                message = message,
-                                messageId = messageId,
-                                roomId = roomId,
-                                timestamp = 0L,
-                                receiverId = userUUID
-                            ).collect {
-                                when(it){
-                                    is ResultState.Loading -> {}
-                                    is ResultState.Success -> {
-                                        chatsViewModel.fetchRoomID(userUUID)
+                        }
+                    )
+                    IconButton(
+                        onClick = {
+                            if (messageText.isBlank()) return@IconButton
+                            val messageId = generateUID()
+                            val message = messageText
+                            messageText = ""
+                            scope.launch {
+                                chatsViewModel.sendMessages(
+                                    message = message,
+                                    messageId = messageId,
+                                    roomId = roomId,
+                                    timestamp = 0L,
+                                    receiverId = userUUID
+                                ).collect {
+                                    when(it){
+                                        is ResultState.Loading -> {}
+                                        is ResultState.Success -> {
+                                            chatsViewModel.fetchRoomID(userUUID)
+                                        }
+                                        is ResultState.Error -> {}
                                     }
-                                    is ResultState.Error -> {}
                                 }
                             }
-                        }
-
+                        },
+                        enabled = messageText.isNotBlank()
+                    ) {
+                        Icon(painter = painterResource(R.drawable.send_2), contentDescription = null, tint = LightTheme_Blue)
                     }
-                )
+                }
             }
+
         },
-        containerColor = Color.White
     ) { padding ->
         ChatList(
             modifier = Modifier.padding(padding),
@@ -293,35 +284,42 @@ fun ChatTopBar(name: String, image: String, isActive: Boolean, navHostController
                         model = image,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(40.dp).clip(CircleShape)
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
                     )
                 }
-                Column { Text(name) }
+                Column { Text(name, style = MaterialTheme.typography.headlineMedium) }
             }
         },
         navigationIcon = {
             IconButton(onClick = { navHostController.popBackStack() }) {
                 Icon(Icons.Default.ArrowBack, contentDescription = null)
             }
-        }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
     )
 }
 
 @Composable
-fun MessageInputBar(messageText: String, onMessageChange: (String) -> Unit, onSendClick: () -> Unit) {
-    TextField(
+fun MessageInputBar(modifier :Modifier = Modifier, messageText: String, onMessageChange: (String) -> Unit, onSendClick: () -> Unit) {
+    OutlinedTextField(
         value = messageText,
         onValueChange = onMessageChange,
-        modifier = Modifier.padding(12.dp).fillMaxWidth().imePadding(),
+        modifier = modifier
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .imePadding(),
         placeholder = { Text("Write a text...") },
         trailingIcon = {
-            IconButton(onClick = onSendClick, enabled = messageText.isNotBlank()) {
-                Icon(painter = painterResource(R.drawable.send_2), contentDescription = null, tint = primary)
-            }
+
         },
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = secondary,
-            unfocusedContainerColor = secondary,
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent
         ),
@@ -364,7 +362,9 @@ fun ChatList(
                 LottieAnimation(
                     composition = typingAnimation,
                     iterations = LottieConstants.IterateForever,
-                    modifier = Modifier.size(48.dp).padding(start = 12.dp)
+                    modifier = Modifier
+                        .size(48.dp)
+                        .padding(start = 12.dp)
                 )
             }
         }
@@ -378,26 +378,30 @@ fun HeaderLabel(text: String) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        HorizontalDivider(Modifier.weight(1f).padding(horizontal = 12.dp))
-        Box(Modifier.background(secondary, RoundedCornerShape(6.dp)).padding(horizontal = 16.dp, vertical = 4.dp)) {
-            Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Divider(modifier = Modifier.weight(1f))
+        Box(Modifier
+            .background(MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
+            .padding(horizontal = 16.dp, vertical = 4.dp)) {
+            Text(text,color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium)
         }
-        HorizontalDivider(Modifier.weight(1f).padding(horizontal = 12.dp))
+        Divider(modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
 fun ReceivedMessageBubble(chat: ChatMessage) {
     Column(
-        Modifier.fillMaxWidth().padding(end = 40.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(end = 40.dp),
         horizontalAlignment = Alignment.Start
     ) {
         Box(
-            Modifier.background(White400, RoundedCornerShape(0.dp, 12.dp, 12.dp, 12.dp))
+            Modifier.background(MaterialTheme.colorScheme.outline, RoundedCornerShape(0.dp, 12.dp, 12.dp, 12.dp))
         ) {
-            Column(Modifier.padding(12.dp)) {
-                Text(chat.text)
-                Text(convertTimestampToTime(chat.timestamp), fontSize = 12.sp)
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(chat.text, style = MaterialTheme.typography.bodyMedium)
+                Text(convertTimestampToTime(chat.timestamp), style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -431,7 +435,7 @@ fun ChatBubbleItem(
                         context.vibrate()
                     } // Show menu on long press
                 )
-                .background(primary, RoundedCornerShape(12.dp, 0.dp, 12.dp, 12.dp))
+                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp, 0.dp, 12.dp, 12.dp))
                 .padding(horizontal = 6.dp, vertical = 6.dp)
         ) {
             Column(horizontalAlignment = Alignment.End) {
@@ -444,19 +448,23 @@ fun ChatBubbleItem(
                     )
                 }
 
-                Text(chat.text, color = White900)
+                Text(chat.text, style = MaterialTheme.typography.bodyMedium,color = MaterialTheme.colorScheme.onPrimary)
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(R.drawable.baseline_done_all_24),
-                        contentDescription = null,
-                        tint = if (chat.read) White900 else Black500
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         convertTimestampToTime(chat.timestamp),
-                        fontSize = 12.sp,
-                        color = White900
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        modifier = Modifier.size(20.dp),
+                        painter = painterResource(R.drawable.baseline_done_all_24),
+                        contentDescription = null,
+                        tint = if (chat.read) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+
                 }
             }
 
@@ -465,7 +473,7 @@ fun ChatBubbleItem(
                 expanded = showMenu,
                 offset = DpOffset(x = -100.dp, y = 0.dp),
                 onDismissRequest = { showMenu = false },
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
             ) {
 
                 DropDownItem {
@@ -475,7 +483,6 @@ fun ChatBubbleItem(
                         onDelete()
                     }
                 }
-
             }
         }
     }
@@ -489,7 +496,7 @@ fun DropDownItem(onDelete: () -> Unit) {
             Row(
                 modifier = Modifier
                     .clickable(
-                        onClick = {onDelete.invoke()},
+                        onClick = { onDelete.invoke() },
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
                     )
@@ -504,7 +511,7 @@ fun DropDownItem(onDelete: () -> Unit) {
                     contentDescription = null,
                     tint = Color.Red
                 )
-                Text("Delete")
+                Text("Delete", style = MaterialTheme.typography.bodyMedium)
             }
 
 

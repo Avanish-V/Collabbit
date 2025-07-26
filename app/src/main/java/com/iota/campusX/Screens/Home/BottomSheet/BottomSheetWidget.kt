@@ -3,6 +3,7 @@ package com.iota.campusX.Screens.Home.BottomSheet
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +23,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -50,14 +53,15 @@ import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Utils.UiState
-import com.iota.campusX.ui.theme.Black500
+import com.iota.campusX.ui.UIComponents.Divider
+import com.iota.campusX.ui.UIComponents.PrimaryButton
+import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.White
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +90,7 @@ fun PostDotOptionBottomSheet(
 
     val scope = rememberCoroutineScope()
     LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     LocalSoftwareKeyboardController.current
 
     LaunchedEffect(bottomSheetData) {
@@ -112,6 +117,7 @@ fun PostDotOptionBottomSheet(
 
             is UiState.Error -> {
                 isLoading = false
+                snackbarHostState.showSnackbar(editPostState.message)
             }
 
             else -> {
@@ -148,7 +154,7 @@ fun PostDotOptionBottomSheet(
         ModalBottomSheet(
             onDismissRequest = { onDismiss() },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
         ) {
 
             when (bottomSheetData.sheetType) {
@@ -156,9 +162,7 @@ fun PostDotOptionBottomSheet(
                 SheetType.MENU_LIST -> {
 
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 20.dp, horizontal = 16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp, horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
 
@@ -181,6 +185,8 @@ fun PostDotOptionBottomSheet(
                                 }
                             )
 
+                            Divider()
+
                             MenuItem(
                                 icon = R.drawable.trash,
                                 text = "Delete",
@@ -190,9 +196,10 @@ fun PostDotOptionBottomSheet(
                                 }
                             )
 
+                            Divider()
+
                         }
 
-                        HorizontalDivider(color = White400)
 
                         MenuItem(
                             icon = R.drawable.warning_2,
@@ -272,12 +279,19 @@ fun ReportContent(modifier: Modifier = Modifier) {
 
         LazyColumn (verticalArrangement = Arrangement.spacedBy(12.dp)){
             item {
-                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Report", style = typography.headingMedium)
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
+
+                    Text("Report", style = MaterialTheme.typography.headlineLarge)
+
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)){
-                        Text("CampusX protects your identity",style = typography.headingMedium)
-                        Text("When reporting a post, your identity remains confidential. Your concerns are addressed without revealing your name or information to ensure anonymity" +
-                                "and maintain privacy throughout the process.")
+                        Divider()
+                        Text(text = "CampusX protects your identity",style = MaterialTheme.typography.headlineMedium)
+                        Text(text = "When reporting a post, your identity remains confidential. Your concerns are addressed without revealing your name or information to ensure anonymity" +
+                                "and maintain privacy throughout the process.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Divider()
 
                     }
                 }
@@ -288,17 +302,10 @@ fun ReportContent(modifier: Modifier = Modifier) {
         }
 
 
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 20.dp),
-            onClick = {},
-            shape = RoundedCornerShape(6.dp)
-        ) {
-            Text("Submit")
-        }
-
+        PrimaryButton (
+            buttonText = "Submit",
+            onClick = {}
+        )
 
     }
 
@@ -382,8 +389,11 @@ fun MenuItem(
             .height(48.dp)
             .fillMaxWidth()
             .padding(start = 10.dp)
-            .background(color = secondary, shape = RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            )
     ) {
         Icon(
             painter = painterResource(id = icon),
@@ -410,10 +420,14 @@ fun EditTextSection(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            Text(title, color = primary, fontWeight = FontWeight.Bold)
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineLarge
+            )
         }
 
-        HorizontalDivider(color = Black500)
+        Divider()
 
         TextField(
             modifier = Modifier
@@ -427,11 +441,11 @@ fun EditTextSection(
                 SendButton(isLoading = isLoading, onClick = onSendClick)
             },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = White900,
-                unfocusedContainerColor = White900,
+                focusedContainerColor = MaterialTheme.colorScheme.background,
+                unfocusedContainerColor = MaterialTheme.colorScheme.background,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                focusedTrailingIconColor = primary
+                focusedTrailingIconColor = LightTheme_Blue
             )
         )
     }
@@ -444,13 +458,13 @@ fun SendButton(isLoading: Boolean, onClick: () -> Unit) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
                 trackColor = secondary,
-                color = primary
+                color = LightTheme_Blue
             )
         } else {
             Icon(
                 painter = painterResource(R.drawable.send_2),
                 contentDescription = "Send",
-                tint = primary
+                tint = LightTheme_Blue
             )
         }
     }

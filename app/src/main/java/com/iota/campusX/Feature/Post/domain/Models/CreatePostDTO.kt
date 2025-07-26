@@ -10,7 +10,7 @@ data class CreatePostDTO(
     val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
     val createdAt: Long = 0L,
     val creatorId: String = "",
-    val reference: Reference = Reference(),
+    val reference: Reference? = null,
     val campusId: String? = null,
     val feedMode: FeedMode = FeedMode.GLOBAL,
     val postContent: PostContent = PostContent(),

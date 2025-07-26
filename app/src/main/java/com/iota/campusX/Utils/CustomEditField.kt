@@ -10,10 +10,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -21,9 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.iota.campusX.ui.theme.Black400
-import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.secondary
 
 @Composable
@@ -46,19 +39,16 @@ fun CustomTextField(
 ) {
 
     Column(
-
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
         if (label.isNotEmpty()){
             Text(
                 text = label,
-                style = MaterialTheme.typography.titleMedium,
-                color = Black800,
-                fontWeight = FontWeight.Medium,
-                fontSize = 16.sp
+                style = MaterialTheme.typography.headlineMedium,
             )
         }
+
         OutlinedTextField(
             modifier = modifier,
             value = value,
@@ -68,7 +58,6 @@ fun CustomTextField(
             placeholder = {
                 Text(
                     text = placeHolder,
-                    color = Black400
                 )
             },
             enabled = enabled ?:true,
@@ -78,15 +67,11 @@ fun CustomTextField(
             colors = TextFieldDefaults.colors(
                 unfocusedContainerColor = Color.Transparent,
                 focusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                unfocusedIndicatorColor = Color.LightGray,
+                focusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
                 disabledContainerColor = secondary
             ),
             shape = RoundedCornerShape(8.dp),
-            textStyle = TextStyle(
-                color = Black800,
-                fontWeight = FontWeight.Bold
-            ),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions
         )
@@ -126,10 +111,7 @@ fun CustomTextFieldWithLeadingIcon(
         if (label.isNotEmpty()){
             Text(
                 text = label,
-                style = MaterialTheme.typography.titleMedium,
-                color = Black800,
-                fontWeight = FontWeight.Medium,
-                fontSize = 16.sp
+                style = MaterialTheme.typography.headlineMedium,
             )
         }
         OutlinedTextField(
@@ -141,7 +123,6 @@ fun CustomTextFieldWithLeadingIcon(
             placeholder = {
                 Text(
                     text = placeHolder,
-                    color = Black400
                 )
             },
             enabled = enabled ?:true,
@@ -154,15 +135,13 @@ fun CustomTextFieldWithLeadingIcon(
             colors = TextFieldDefaults.colors(
                 unfocusedContainerColor = Color.Transparent,
                 focusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                unfocusedIndicatorColor = Color.LightGray,
+                focusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
                 disabledContainerColor = secondary
             ),
             shape = RoundedCornerShape(8.dp),
-            textStyle = TextStyle(
-                color = Black800,
-                fontWeight = FontWeight.Bold
-            ),
+            textStyle = MaterialTheme.typography.headlineMedium,
+            maxLines = 1,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions
         )

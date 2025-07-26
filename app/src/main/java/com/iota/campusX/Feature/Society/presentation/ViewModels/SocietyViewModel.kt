@@ -1,16 +1,14 @@
 package com.iota.campusX.Feature.Society.presentation.ViewModels
 
-import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
-import com.iota.campusX.Feature.Society.domain.models.JoinRequests
+import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
 import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
 import com.iota.campusX.Utils.UiState
-import io.getstream.video.android.core.Call
-import io.getstream.video.android.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,18 +23,18 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
     private val _getSocietyState = MutableStateFlow<UiState<List<GetSocietyDTO>>>(UiState.Idle)
     val getSocietyState : StateFlow<UiState<List<GetSocietyDTO>>> = _getSocietyState.asStateFlow()
 
-    private val _startRoomState = MutableStateFlow<UiState<Call>>(UiState.Idle)
-    val startRoomState : StateFlow<UiState<Call>> = _startRoomState.asStateFlow()
-
-    private val _joinRequests = MutableStateFlow<List<JoinRequests>>(emptyList())
-    val joinRequests: StateFlow<List<JoinRequests>> = _joinRequests
+    private val _joinRequests = MutableStateFlow<List<GetJoinRequestDTO>>(emptyList())
+    val joinRequests: StateFlow<List<GetJoinRequestDTO>> = _joinRequests.asStateFlow()
 
 
-    private val _joinRequestState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val joinRequestState : StateFlow<UiState<Unit>> = _joinRequestState.asStateFlow()
+    private val _joinRequestState = MutableStateFlow<UiState<Int>>(UiState.Idle)
+    val joinRequestState : StateFlow<UiState<Int>> = _joinRequestState.asStateFlow()
 
     private val _stageUpState = MutableStateFlow<UiState<String>>(UiState.Idle)
     val stageUpState : StateFlow<UiState<String>> = _stageUpState.asStateFlow()
+
+    private val _askToSpeak = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val askToSpeak : StateFlow<UiState<Unit>> = _askToSpeak.asStateFlow()
 
     fun createSociety(societyName: String, description: String,mode: FeedMode){
 
@@ -74,16 +72,6 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
         }
     }
 
-    fun startRoom(user: User,context: Context){
-        _startRoomState.value = UiState.Loading
-        viewModelScope.launch {
-            val result = societyRepository.startCall(user,context)
-            _startRoomState.value = result.fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error(it.message.toString()) }
-            )
-        }
-    }
 
     fun updateRoom(roomId: String,isActive:Boolean,feedMode: FeedMode,campusId: String?){
         viewModelScope.launch {
@@ -96,6 +84,7 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
             societyRepository.listenForApproval(roomId, feedMode, campusId)
                 .collectLatest {
                     _joinRequests.value = it
+                    Log.d("JOIN_REQUESTS", it.toString())
                 }
         }
     }
@@ -105,7 +94,7 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
             _joinRequestState.value = UiState.Loading
              val result = societyRepository.requestToJoin(roomId,role, status,feedMode, campusId)
             _joinRequestState.value = result.fold(
-                onSuccess = { UiState.Success(it) },
+                onSuccess = { UiState.Success(data = it) },
                 onFailure = { UiState.Error(it.message.toString()) }
             )
         }
@@ -137,6 +126,17 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
     fun isSpeaking(roomId: String,isSpeaking: Boolean,requestId:String, feedMode: FeedMode, campusId: String?) {
         viewModelScope.launch {
             val result = societyRepository.isSpeaking(roomId, isSpeaking,requestId,feedMode, campusId)
+        }
+    }
+
+    fun askToSpeak(roomId: String,isRaiseHand: Boolean,requestId:String, feedMode: FeedMode, campusId: String?) {
+        viewModelScope.launch {
+            _askToSpeak.value = UiState.Loading
+            val result = societyRepository.askToSpeak(roomId, isRaiseHand,requestId,feedMode, campusId)
+            _askToSpeak.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message.toString())}
+            )
         }
     }
 

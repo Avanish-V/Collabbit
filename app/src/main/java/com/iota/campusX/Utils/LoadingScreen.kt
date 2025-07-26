@@ -14,26 +14,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.ui.theme.Black500
-import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.LightTheme_Gray
+import com.iota.campusX.ui.theme.White
+import com.iota.campusX.ui.theme.LightTheme_Blue
 
 @Composable
 fun LoadingUI(isLoading:Boolean,modifier: Modifier = Modifier) {
 
     if (isLoading){
 
-        Box(modifier = modifier
-            .fillMaxSize()
-            .background(Color.White), contentAlignment = Alignment.Center){
+        Box(modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ){
             CircularProgressIndicator(
                 modifier = Modifier.size(32.dp),
-                color = primary
+                strokeWidth = 2.dp,
+                strokeCap = StrokeCap.Round,
+                color = MaterialTheme.colorScheme.primary
             )
         }
-
 
     }
 
@@ -45,9 +47,10 @@ fun StatusScreen(isActive:Boolean,text:String,image:Int?= null) {
 
     if (isActive){
 
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .background(White900), contentAlignment = Alignment.Center){
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ){
             Column (
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
@@ -60,7 +63,7 @@ fun StatusScreen(isActive:Boolean,text:String,image:Int?= null) {
                     )
                 }
 
-                Text(text = text, style = MaterialTheme.typography.titleMedium, color = Black500)
+                Text(text = text, style = MaterialTheme.typography.titleMedium)
 
             }
 
@@ -88,7 +91,7 @@ fun ConnectingLoadingUI(isLoading:Boolean) {
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(32.dp),
-                    color = primary
+                    color = LightTheme_Blue
                 )
                 Text("Finding match...")
             }

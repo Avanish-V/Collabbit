@@ -1,6 +1,5 @@
 package com.iota.campusX.Screens.Profile
 
-import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,6 +41,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
@@ -102,26 +101,26 @@ import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
 import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
+import com.iota.campusX.Screens.Post.defaultPostHandlers
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
-import com.iota.campusX.ui.UIComponents.CourseDuration
+import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.Black400
-import com.iota.campusX.ui.theme.Black500
+import com.iota.campusX.ui.theme.LightBlack
+import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.Black800
-import com.iota.campusX.ui.theme.Black900
+import com.iota.campusX.ui.theme.LightTheme_Black
 import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.White
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 // ProfileScreen.kt
 @RequiresApi(Build.VERSION_CODES.O)
@@ -134,13 +133,9 @@ fun ProfileScreen(
     googleSignInViewModel: AuthViewModel,
     navigationViewModel: NavigationViewModel,
     replyViewModel: ReplyViewModel,
-    profileTypeViewModel: ProfileTypeViewModel
 ) {
 
-//
-
-    val useridByFeed =
-        navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
+    val useridByFeed = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
     val currentDestination = navHostController.currentDestination?.route
 
     LaunchedEffect(Unit) {
@@ -150,6 +145,8 @@ fun ProfileScreen(
             currentDestination = currentDestination ?: ""
         )
     }
+
+
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
@@ -165,18 +162,26 @@ fun ProfileScreen(
 
     val userType by profileViewModel.userType.collectAsState()
 
-    // ✅ Avoid unnecessary fetching
-    LaunchedEffect(Unit) {
-        profileViewModel.getConnectionCount(currentUser)
-
-    }
-
     // ✅ Collect profile states
     val userBaseProfile by profileViewModel.userBaseProfile.collectAsState()
     val profileByIdState by profileViewModel.profileById.collectAsState()
     val connectionsCountState by profileViewModel.connectionCount.collectAsState()
     val hasConnection by profileViewModel.hasConnection.collectAsState()
-    val modifyState by profileViewModel.modifyState.collectAsState()
+    val linkupRequestState by profileViewModel.sendLinkUpRequestState.collectAsState()
+
+    LaunchedEffect(linkupRequestState) {
+        when(linkupRequestState){
+            is UiState.Loading->{}
+            is UiState.Success->{
+                useridByFeed?.let { profileViewModel.hasConnection(it) }
+            }
+            is UiState.Error-> {
+                snackBarHostState.showSnackbar((linkupRequestState as UiState.Error).message)
+                profileViewModel.resetModifyState()
+            }
+            else -> {}
+        }
+    }
 
     // ✅ Derive profile data and loading state
     val profileData =
@@ -210,19 +215,22 @@ fun ProfileScreen(
             screenHeight - (headerHeightDp + tabRowHeightDp + 12.dp + 52.dp)
         }
     }
+
     HideBottomBar(navigationViewModel, postLazyColumnState)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    scrolledContainerColor = Color.White
-                ),
+                title = { Text(text ="Profile") },
                 actions = {
                     if (userType == UserType.Owner) {
-                        IconButton(onClick = { navHostController.navigate("SETTING") }) {
+                        IconButton(
+                            onClick = { navHostController.navigate("SETTING") },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+
+                        ) {
                             Icon(painterResource(R.drawable.setting), contentDescription = null)
                         }
                     }
@@ -234,11 +242,11 @@ fun ProfileScreen(
                         }
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 scrollBehavior = scrollBehavior
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
-        containerColor = secondary
     ) { innerPadding ->
 
         LazyColumn(
@@ -281,7 +289,7 @@ fun ProfileScreen(
                         }
                     },
                     connectionsCount = (connectionsCountState as? UiState.Success)?.data ?: 0,
-                    hasConnection = hasConnection
+                    hasConnection = hasConnection,
                 )
             }
 
@@ -293,8 +301,7 @@ fun ProfileScreen(
                         tabRowHeightDp = with(density) { it.size.height.toDp() }
                     },
                     selectedTabIndex = pagerState.currentPage,
-                    containerColor = Color.White,
-                    divider = { HorizontalDivider(color = White400) },
+                    divider = { Divider() },
                     indicator = {
                         TabRowDefaults.PrimaryIndicator(
                             modifier = Modifier.tabIndicatorOffset(
@@ -302,20 +309,21 @@ fun ProfileScreen(
                                 matchContentSize = false
                             ),
                             width = 48.dp,
-                            color = primary,
+                            color = MaterialTheme.colorScheme.primary,
                             shape = RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
                         )
-                    }
+                    },
+                    containerColor = MaterialTheme.colorScheme.background
                 ) {
                     listOf("About", "Posts").forEachIndexed { index, title ->
                         Tab(
                             text = {
-                                Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(text = title, style = MaterialTheme.typography.headlineMedium)
                             },
                             selected = pagerState.currentPage == index,
                             onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                            selectedContentColor = Black800,
-                            unselectedContentColor = Black400
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContentColor = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -324,9 +332,7 @@ fun ProfileScreen(
             item {
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(horizontalPagerHeight)
+                    modifier = Modifier.fillMaxWidth().height(horizontalPagerHeight)
                 ) { page ->
                     when (page) {
                         0 -> profileData?.let {
@@ -339,12 +345,9 @@ fun ProfileScreen(
                         1 -> PostScreenComponent(
                             navHostController = navHostController,
                             postViewModel = postViewModel,
-                            userProfileViewModel = profileViewModel,
-                            navigationViewModel = navigationViewModel,
                             bottomSheetSharedViewModel = bottomSheetViewModel,
                             currentUser = profileData?.id ?: "",
                             campusId = profileData?.campus?.campusCode,
-                            context = context
                         )
                     }
                 }
@@ -400,7 +403,7 @@ fun ProfileScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isLoading.value)
-                                    CircularProgressIndicator(color = primary, modifier = Modifier.size(24.dp))
+                                    CircularProgressIndicator(color = LightTheme_Blue, modifier = Modifier.size(24.dp))
                                 else
                                     Text("Delete", color = MaterialTheme.colorScheme.primary)
                             }
@@ -427,7 +430,7 @@ fun ProfileHeader(
     onLinkUpRequestClick: (() -> Unit)? = null,
     onMessageClick: (() -> Unit)? = null,
     connectionsCount: Int = 0,
-    hasConnection:UiState<Boolean?>
+    hasConnection:UiState<Boolean?>,
 ) {
 
     val density = LocalDensity.current
@@ -441,7 +444,6 @@ fun ProfileHeader(
                 headerHeightDp = with(density) { heightPx.toDp() }
                 headerHeight(headerHeightDp)
             }
-            .background(White900)
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -461,16 +463,7 @@ fun ProfileHeader(
                 ) {
 
                     AsyncImage(
-                        modifier = Modifier
-                            .size(120.dp)
-                            .clip(CircleShape)
-                            .border(width = 6.dp, color = Color.White, shape = CircleShape)
-                            .shadow(
-                                elevation = 12.dp,
-                                shape = CircleShape,
-                                ambientColor = primary,
-                                spotColor = primary
-                            ),
+                        modifier = Modifier.size(120.dp).clip(CircleShape),
                         model = user.userImage,
                         contentDescription = null,
                         contentScale = ContentScale.Crop
@@ -481,7 +474,12 @@ fun ProfileHeader(
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .background(color = Color.White)
+                                .border(
+                                    width = 4.dp,
+                                    color = MaterialTheme.colorScheme.background,
+                                    shape = CircleShape
+                                )
+                                .background(color = MaterialTheme.colorScheme.surface)
                                 .clickable(
                                     onClick = {
                                         navHostController.navigate(Routes.Main.EditProfile.routes)
@@ -498,10 +496,10 @@ fun ProfileHeader(
 
                         ) {
                             Icon(
-                                modifier = Modifier.padding(3.dp),
+                                modifier = Modifier.padding(10.dp),
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Back",
-                                tint = primary
+                                tint = LightTheme_Blue
                             )
                         }
                     }
@@ -517,75 +515,20 @@ fun ProfileHeader(
 
         }
 
-
-
-//        Row(
-//            modifier = Modifier.fillMaxWidth(),
-//            horizontalArrangement = Arrangement.SpaceBetween,
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//
-//            Row (modifier = Modifier.weight(1f)){
-//
-//                Column (
-//                    Modifier.weight(1f),
-//                    verticalArrangement = Arrangement.spacedBy(12.dp)
-//                ){
-//
-//                    Row (verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.spacedBy(12.dp)){
-//                        Image(
-//                            painter = painterResource(R.drawable.user_add__1_),
-//                            modifier = Modifier.size(24.dp),
-//                            contentDescription = null
-//                        )
-//                        Text(text = connectionsCount.toString(), fontWeight = FontWeight.Bold)
-//                    }
-//                    Text("Connections")
-//
-//                }
-//
-//                Column (Modifier.weight(1f),verticalArrangement = Arrangement.spacedBy(12.dp)){
-//
-//                    Row (verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.spacedBy(12.dp)){
-//                        Image(
-//                            painter = painterResource(R.drawable.fire_flame_curved),
-//                            modifier = Modifier.size(24.dp),
-//                            contentDescription = null
-//                        )
-//                        Text(text = connectionsCount.toString(), fontWeight = FontWeight.Bold)
-//                    }
-//                    Text("Aura")
-//
-//                }
-//
-//                Column (Modifier.weight(1f)){
-//
-//                    Row (verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.spacedBy(12.dp)){
-//                        Image(
-//                            painter = painterResource(R.drawable.fire_flame_curved),
-//                            modifier = Modifier.size(24.dp),
-//                            contentDescription = null
-//                        )
-//                        Text(text = connectionsCount.toString(), fontWeight = FontWeight.Bold)
-//                    }
-//                    Text("Posts")
-//
-//                }
-//
-//            }
-//
-//        }
-
         TextButton( onClick = {
             navHostController.navigate(Routes.Main.Connections.routes).apply {
                 navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID", user.id)
             }
         }
         ) {
-            Text(text = "$connectionsCount Connections",fontWeight = FontWeight.Bold)
+            Text(
+                text = "$connectionsCount Connections",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineMedium
+            )
         }
 
-        Log.d("ProfileHeader", "ProfileHeader: $userType")
+
 
         if (userType == UserType.User) {
 
@@ -598,8 +541,8 @@ fun ProfileHeader(
                         .shadow(
                             elevation = 20.dp,
                             shape = RoundedCornerShape(6.dp),
-                            ambientColor = primary,
-                            spotColor = primary
+                            ambientColor = LightTheme_Blue,
+                            spotColor = LightTheme_Blue
                         ),
                     shape = RoundedCornerShape(6.dp)
                 ) {
@@ -613,12 +556,14 @@ fun ProfileHeader(
                                 false -> "Requested"
                             }
 
+                            Log.d("HAS_CONNECTION",hasConnection.data.toString())
+
                             Image(
                                 modifier = Modifier.size(24.dp),
                                 painter = painterResource(R.drawable.user_add),
                                 contentDescription = null,
                                 colorFilter = ColorFilter.tint(
-                                    color = if (hasConnection.data == null || hasConnection.data == true) White900 else Black500
+                                    color = if (hasConnection.data == null || hasConnection.data == true) White else LightTheme_Gray
                                 )
                             )
                             Spacer(
@@ -627,12 +572,12 @@ fun ProfileHeader(
                             Text(
                                 text = connectionText,
                                 style = typography.labelMedium,
-                                color = if (hasConnection.data == null || hasConnection.data == true) White900 else Black500
+                                color = if (hasConnection.data == null || hasConnection.data == true) White else LightTheme_Gray
                             )
                         }
                         is UiState.Loading->{
                             CircularProgressIndicator(
-                                color = Black900,
+                                color = LightTheme_Black,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -656,8 +601,8 @@ fun ProfileHeader(
                     shape = RoundedCornerShape(6.dp),
                     border = BorderStroke(1.dp, Black300),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = White900,
-                        contentColor = Black900
+                        containerColor = White,
+                        contentColor = LightTheme_Black
                     )
                 ) {
                     Image(
@@ -665,13 +610,13 @@ fun ProfileHeader(
                         painter = painterResource(R.drawable.send_2),
                         contentDescription = null,
                         colorFilter = ColorFilter.tint(
-                            color = Black500
+                            color = LightTheme_Gray
                         )
                     )
                     Spacer(
                         modifier = Modifier.width(12.dp)
                     )
-                    Text("Message", color = Black500)
+                    Text("Message", color = LightTheme_Gray)
                 }
             }
 
@@ -689,14 +634,7 @@ fun ProfileHeader(
 @Composable
 fun UserAbout(userBasicProfileDTO: BasicProfileDTO, navHostController: NavHostController, isCurrentUser: Boolean) {
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color = White900)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-//        space b
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
 
         ProfileComponent(
             title = "Bio",
@@ -708,7 +646,7 @@ fun UserAbout(userBasicProfileDTO: BasicProfileDTO, navHostController: NavHostCo
             body = {
                 if (userBasicProfileDTO.userBio.isEmpty()) return@ProfileComponent
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(text = userBasicProfileDTO.userBio.toString())
+                Text(text = userBasicProfileDTO.userBio)
 
             },
             contentDescription = "BIO",
@@ -716,10 +654,7 @@ fun UserAbout(userBasicProfileDTO: BasicProfileDTO, navHostController: NavHostCo
             isContentExist = userBasicProfileDTO.userBio.isEmpty()
         )
 
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-            color = White400
-        )
+        Divider()
 
         ProfileComponent(
             title = "Interests",
@@ -744,28 +679,23 @@ fun UserAbout(userBasicProfileDTO: BasicProfileDTO, navHostController: NavHostCo
                                 Text(
                                     it,
                                     modifier = Modifier.padding(10.dp),
-                                    color = Color.Black
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                             },
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = Color.LightGray
+                                color = MaterialTheme.colorScheme.outline
                             ),
-
-                            )
+                        )
                     }
                 }
-
             },
             contentDescription = "INTERESTS",
             isCurrentUser = isCurrentUser,
             isContentExist = userBasicProfileDTO.interests.isEmpty()
         )
 
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-            color = White400
-        )
+        Divider()
 
         ProfileComponent(
             title = "Campus Detail",
@@ -801,7 +731,7 @@ fun CampusWidget(campus: Campus?) {
             Box(modifier = Modifier
                 .fillMaxWidth()
                 .height(150.dp), contentAlignment = Alignment.Center) {
-                Text(text = "Update Campus", modifier = Modifier.align(Alignment.Center), color = Black400)
+                Text(text = "Update Campus", modifier = Modifier.align(Alignment.Center), color = LightBlack)
             }
         }else{
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -816,25 +746,29 @@ fun CampusWidget(campus: Campus?) {
                 Column {
                     Text(
                         text = campus.university?.university ?: "",
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.headlineMedium
                     )
                     Text(
                         text = campus.collegeName,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.headlineMedium,
                         overflow = TextOverflow.Ellipsis,
                         maxLines = 1
                     )
-                    Text(text = campus.fieldOfStudy)
+                    Text(
+                        text = campus.fieldOfStudy,
+                        style = MaterialTheme.typography.headlineMedium
+                    )
 
 
                     if (campus.courseStart != null && campus.courseEnd != null) {
                         Text(
-                            text = "${campus.courseStart.month + campus.courseStart.year} - ${campus.courseEnd.month + campus.courseEnd.year}"
+                            text = "${campus.courseStart.month + campus.courseStart.year} - ${campus.courseEnd.month + campus.courseEnd.year}",
+                            style = MaterialTheme.typography.headlineMedium
 
                         )
                     }
 
-                    campus.campusCode?.let { Text(text = it) }
+                    campus.campusCode?.let { Text(text = it,style = MaterialTheme.typography.headlineMedium) }
                 }
             }
         }
@@ -847,12 +781,9 @@ fun CampusWidget(campus: Campus?) {
 fun PostScreenComponent(
     navHostController: NavHostController,
     postViewModel: PostFeedViewModel,
-    userProfileViewModel: UserProfileViewModel,
-    navigationViewModel: NavigationViewModel,
     bottomSheetSharedViewModel: BottomSheetSharedViewModel,
     currentUser: String,
     campusId: String?,
-    context: Context
 ) {
 
     LaunchedEffect(Unit) {
@@ -878,38 +809,26 @@ fun PostScreenComponent(
 
                     val sortedPost = postById.data.sortedByDescending { it.createdAt }
 
-                    if (sortedPost.isEmpty())
+                    if (sortedPost.isEmpty()){
                         StatusScreen(
                             isActive = true,
                             text = "No Posts"
                         )
-                    return
-
-                    sortedPost.forEach {
-
-                        PostCard(
-                            feedViewModel = postViewModel,
-                            bottomSheetSharedViewModel = bottomSheetSharedViewModel,
-                            profileViewModel = userProfileViewModel,
-                            onPostClick = {
-                                navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
-                                    navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID", it.postId)
-                                }
-                            },
-                            onReplyClick = {
-                                navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
-                                    navHostController.currentBackStackEntry?.savedStateHandle?.set<String>("POST_ID", it.postId)
-                                }
-                            },
-                            post = it,
-                            navHostController = navHostController,
-                            onPollSelect = {
-
-                            }
-                        )
-
+                        return
                     }
 
+                    sortedPost.forEach {
+                        PostCard(
+                            post = it,
+                            handlers = defaultPostHandlers(
+                                context = LocalContext.current,
+                                post = it,
+                                feedViewModel = postViewModel,
+                                bottomSheetSharedViewModel = bottomSheetSharedViewModel,
+                                navController = navHostController,
+                            )
+                        )
+                    }
                 }
 
                 is UiState.Error -> {
@@ -929,15 +848,6 @@ fun PostScreenComponent(
 
                 is UiState.Idle -> {}
             }
-
         }
     }
-}
-
-fun currentYear(courseStart: CourseDuration, courseEnd: CourseDuration) {
-
-    val currentMonth = Calendar.MONTH
-    val currentYear = Calendar.YEAR
-
-
 }

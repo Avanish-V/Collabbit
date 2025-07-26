@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.typography
-import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -19,32 +18,32 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = LightTheme_Blue,
+    onPrimary = Color.White,
+    background = DarkTheme_Black,
+    onBackground = White,
+    surface = DarkTheme_LightBlack,
+    onSurface = White,
+    onSurfaceVariant = DarkTheme_Gray,
+    outline = DarkTheme_LightBlack,
+
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = primary,
-    secondary = Black800,
-    // TODO:: not defined
-    tertiary = Pink40,
-    background = background,
-    surface = surface,
-    /* Other defaultr colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = LightTheme_Blue,
     onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    background = LightTheme_White,
+    onBackground = LightTheme_Black,
+    surface = LightTheme_LightGray,
+    onSurface = LightTheme_Black,
+    onSurfaceVariant = LightTheme_DarkGray,
+    outline = LightTheme_Gray,
+
 )
 
 @Composable
 fun CampusXTheme(
-    darkTheme: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -62,14 +61,13 @@ fun CampusXTheme(
 
     // Apply status bar color
     SideEffect {
-        window.statusBarColor = colorScheme.surface.toArgb()
+        window.statusBarColor = colorScheme.background.toArgb()
         WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = typography,
+        typography = Typography,
         content = content
-
     )
 }

@@ -2,6 +2,7 @@ package com.iota.campusX.Feature.Chats.data
 
 import SendPushNotification
 import android.util.Log
+import com.google.android.gms.tasks.Tasks
 import com.iota.campusX.Feature.Chats.domain.ChatRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -15,6 +16,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Utils.ResultState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -28,13 +33,7 @@ class ChatImpl(
     private val firestore: FirebaseFirestore
 ) : ChatRepository {
 
-    override fun sendMessage(
-        message: String,
-        messageId: String,
-        timestamp: Long,
-        receiverId: String,
-        roomId: String
-    ): Flow<ResultState<Boolean>> {
+    override fun sendMessage(message: String, messageId: String, timestamp: Long, receiverId: String, roomId: String): Flow<ResultState<Boolean>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
@@ -128,128 +127,85 @@ class ChatImpl(
         }
     }
 
-    override fun getChats(): Flow<ResultState<List<UserChatsDTO>>> = callbackFlow {
+    override suspend fun getChats(): Result<List<UserChatsDTO>> {
+        return try {
+            val currentUserId = auth.currentUser?.uid
+                ?: return Result.failure(Exception("User not authenticated"))
 
+            val chatList = mutableListOf<UserChatsDTO>()
+            val userChatsRef = firestore.collection("Chats").document(currentUserId).collection("Messages")
 
-        val currentUserId = auth.currentUser?.uid
+            val messageDocs = Tasks.await(userChatsRef.get())
+            val chatCount = messageDocs.size()
+            if (chatCount == 0) {
+                return Result.success(emptyList())
+            }
 
-        if (currentUserId == null) {
-            trySend(ResultState.Error("User not authenticated"))
-            close()
-            return@callbackFlow
-        }
-
-        trySend(ResultState.Loading)
-
-        val chatList = mutableListOf<UserChatsDTO>()
-        val userChatsRef = firestore.collection("Chats").document(currentUserId).collection("Messages")
-
-        userChatsRef.get()
-            .addOnSuccessListener { messageDocs ->
-                val chatCount = messageDocs.size()
-                if (chatCount == 0) {
-                    trySend(ResultState.Success(emptyList()))
-                    close()
-                    return@addOnSuccessListener
-                }
-
-                var processedChats = 0
-
-                for (doc in messageDocs) {
+            var processedChats = 0
+            val deferreds = messageDocs.map { doc ->
+                CoroutineScope(Dispatchers.IO).async {
                     val idData = doc.toObject(ID::class.java)
                     val receiverId = idData._id
                     val roomId = idData.roomId
 
-                    if (receiverId.isEmpty() || roomId.isEmpty()) {
-                        processedChats++
-                        if (processedChats == chatCount) {
-                            trySend(ResultState.Success(chatList))
-                            close()
-                        }
-                        continue
+                    if (receiverId.isEmpty() || roomId.isEmpty()) return@async null
+
+                    val userSnapshot = try {
+                        Tasks.await(firestore.collection("Users").document(receiverId).get())
+                    } catch (e: Exception) {
+                        return@async null
                     }
 
-                    firestore.collection("Users").document(receiverId).get()
-                        .addOnSuccessListener { userSnapshot ->
-                            val userData = userSnapshot.toObject(BasicProfileDTO::class.java)
+                    val userData = userSnapshot.toObject(BasicProfileDTO::class.java) ?: return@async null
 
-                            if (userData == null) {
-                                processedChats++
-                                if (processedChats == chatCount) {
-                                    trySend(ResultState.Success(chatList))
-                                    close()
-                                }
-                                return@addOnSuccessListener
+                    val snapshot = try {
+                        Tasks.await(database.getReference("ChatRoom").child(roomId).child("messages").get())
+                    } catch (e: Exception) {
+                        return@async null
+                    }
+
+                    var unreadCount = 0
+                    var lastMessage: ChatMessage? = null
+
+                    for (messageSnap in snapshot.children) {
+                        val message = messageSnap.getValue(ChatMessage::class.java)
+                        if (message != null) {
+                            if (message.senderId != currentUserId && message.read == false) {
+                                unreadCount++
                             }
-
-                            val messagesRef = database.getReference("ChatRoom").child(roomId).child("messages")
-
-                            // Fetch both unread count and last message together
-                            messagesRef.get().addOnSuccessListener { snapshot ->
-                                var unreadCount = 0
-                                var lastMessage: ChatMessage? = null
-
-                                for (messageSnap in snapshot.children) {
-                                    val message = messageSnap.getValue(ChatMessage::class.java)
-                                    if (message != null) {
-                                        if (message.senderId != auth.currentUser!!.uid && message.read == false) {
-                                            unreadCount++
-                                        }
-                                        if (lastMessage == null || message.timestamp.toLong() > lastMessage.timestamp.toLong()
-                                        ) {
-                                            lastMessage = message
-                                        }
-                                    }
-                                }
-
-                                val isLastMessageReadByReceiver = lastMessage?.senderId == currentUserId && lastMessage.read == true
-                                val lastMessageBy = lastMessage?.senderId == currentUserId
-
-                                chatList.add(
-                                    UserChatsDTO(
-                                        roomId = roomId,
-                                        receiverId = receiverId,
-                                        userName = userData.userName,
-                                        userImage = userData.userImage,
-                                        lastMessage = LastMessage(
-                                            lastMessage = lastMessage?.text ?: "",
-                                            timeStamp = lastMessage?.timestamp?.toLong() ?: 0L,
-                                            unreadCount = unreadCount,
-                                            isRead = isLastMessageReadByReceiver,
-                                            lastMessageBy = lastMessageBy
-                                        )
-                                    )
-                                )
-
-                                processedChats++
-                                if (processedChats == chatCount) {
-                                    trySend(ResultState.Success(chatList.sortedByDescending { it.lastMessage.timeStamp }))
-                                    close()
-                                }
-                            }.addOnFailureListener {
-                                processedChats++
-                                if (processedChats == chatCount) {
-                                    trySend(ResultState.Success(chatList.sortedByDescending { it.lastMessage.timeStamp }))
-                                    close()
-                                }
+                            if (lastMessage == null || message.timestamp.toLong() > lastMessage.timestamp.toLong()) {
+                                lastMessage = message
                             }
                         }
-                        .addOnFailureListener {
-                            processedChats++
-                            if (processedChats == chatCount) {
-                                trySend(ResultState.Success(chatList))
-                                close()
-                            }
-                        }
+                    }
+
+                    val isLastMessageReadByReceiver = lastMessage?.senderId == currentUserId && lastMessage.read == true
+                    val lastMessageBy = lastMessage?.senderId == currentUserId
+
+                    UserChatsDTO(
+                        roomId = roomId,
+                        receiverId = receiverId,
+                        userName = userData.userName,
+                        userImage = userData.userImage,
+                        lastMessage = LastMessage(
+                            lastMessage = lastMessage?.text ?: "",
+                            timeStamp = lastMessage?.timestamp?.toLong() ?: 0L,
+                            unreadCount = unreadCount,
+                            isRead = isLastMessageReadByReceiver,
+                            lastMessageBy = lastMessageBy
+                        )
+                    )
                 }
             }
-            .addOnFailureListener {
-                trySend(ResultState.Error(it.message ?: "Failed to fetch chats"))
-                close()
-            }
 
-        awaitClose()
+            val results = deferreds.awaitAll().filterNotNull()
+            Result.success(results.sortedByDescending { it.lastMessage.timeStamp })
+
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
+
 
     override fun markMessagesAsReed(participantId: String, roomId: String): Flow<Unit> = callbackFlow {
 

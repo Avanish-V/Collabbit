@@ -1,7 +1,6 @@
 package com.iota.campusX.Screens
 
 import android.util.Log
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,18 +35,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
-import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
-import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.ErrorScreen
-import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
 
@@ -95,7 +91,7 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = White900
+                    containerColor = White
                 ),
                 navigationIcon = {
                     IconButton(onClick = { navHostController.popBackStack() }) {
@@ -180,7 +176,7 @@ fun ConnectionsItemView(
             onItemClick.invoke()
         },
         colors = CardDefaults.cardColors(
-            containerColor = White900
+            containerColor = White
         ),
         shape = RoundedCornerShape(0.dp)
     ) {

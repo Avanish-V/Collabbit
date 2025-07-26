@@ -2,16 +2,14 @@ package com.iota.campusX.Navigation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
@@ -29,18 +27,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
-import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.Black800
-import com.iota.campusX.ui.theme.primary
 
 
 @Composable
@@ -61,19 +54,13 @@ fun BottomAppBar(
     val destination = navBackStackEntry?.destination?.route
 
     NavigationBar(
-
-        containerColor = Color.White,
-        modifier = Modifier.shadow(elevation = 5.dp),
-        contentColor = Color.Transparent
-
+        containerColor = MaterialTheme.colorScheme.background,
     ) {
-
 
         navBarItems.forEachIndexed { index, item ->
 
             NavigationBarItem(
                 icon = {
-
                     if (item.item == "Notification") {
                         BadgedBox(
                             badge = {
@@ -81,7 +68,6 @@ fun BottomAppBar(
                                     Box(modifier = Modifier.size(12.dp).background(Color.Red, CircleShape),contentAlignment = Alignment.Center){
                                         Text(
                                             badgeCount.toString(),
-                                            color = Color.White,
                                             fontSize = 8.sp,
                                             lineHeight = 10.sp
                                         )
@@ -127,10 +113,9 @@ fun BottomAppBar(
                 },
                 alwaysShowLabel = true,
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.Black,
                     indicatorColor = Color.Transparent,
-                    unselectedTextColor = Black300,
-                    selectedTextColor = Black800
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedTextColor = MaterialTheme.colorScheme.onBackground,
                 )
 
             )

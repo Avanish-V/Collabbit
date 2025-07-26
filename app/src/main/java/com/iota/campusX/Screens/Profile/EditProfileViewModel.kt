@@ -62,7 +62,7 @@ class EditProfileViewModel: ViewModel() {
     fun editCampus(campus: Campus){
         _campus.value = campus
     }
-    fun editUniversity(university: University){
+    fun editUniversity(university: University?){
         _campus.value = _campus.value.copy(university = university)
     }
     fun editCollege(collegeName: String){

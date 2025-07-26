@@ -7,10 +7,13 @@ import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.Feature.Chats.data.UserChatsDTO
 import com.iota.campusX.Feature.Chats.domain.ChatRepository
 import com.iota.campusX.Utils.ResultState
+import com.iota.campusX.Utils.UiState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
@@ -22,8 +25,8 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     private val _textMessage:MutableStateFlow<String> = MutableStateFlow("")
     val textMessage:StateFlow<String> = _textMessage.asStateFlow()
 
-    private val _userChats:MutableStateFlow<UserChatsResultState> = MutableStateFlow(UserChatsResultState())
-    val userChats:StateFlow<UserChatsResultState> = _userChats.asStateFlow()
+    private val _userChats = MutableStateFlow<UiState<List<UserChatsDTO>>>(UiState.Loading)
+    val userChats: StateFlow<UiState<List<UserChatsDTO>>> = _userChats.asStateFlow()
 
     private val _chats: MutableStateFlow<List<ChatMessage>> = MutableStateFlow(emptyList())
     val chats:StateFlow<List<ChatMessage>> = _chats.asStateFlow()
@@ -82,27 +85,21 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
         }
     }
 
-    fun getChats(){
-
+    fun getChats() {
         viewModelScope.launch {
-            chatRepository.getChats().collect{
-                when(it) {
-                    is ResultState.Loading -> {
-                        _userChats.value = UserChatsResultState(isLoading = true)
-                    }
+            _userChats.value = UiState.Loading
 
-                    is ResultState.Success -> {
-                        _userChats.value = UserChatsResultState(userChats = it.data)
-
-                    }
-
-                    is ResultState.Error -> {
-                        _userChats.value = UserChatsResultState(error = it.message)
-                    }
-                }
+            val result = withContext(Dispatchers.IO) {
+                chatRepository.getChats()
             }
+
+            _userChats.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message ?: "Something went wrong!") }
+            )
         }
     }
+
 
     fun updateChatRoomData(chatMessage: ChatMessage) {
         _chats.value = _chats.value.toMutableList().apply {
@@ -150,12 +147,6 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     }
 
 }
-
-data class UserChatsResultState(
-    val isLoading:Boolean = false,
-    val userChats:List<UserChatsDTO> = emptyList(),
-    val error:String = ""
-)
 
 
 

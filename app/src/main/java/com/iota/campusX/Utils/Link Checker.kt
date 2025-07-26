@@ -1,20 +1,10 @@
 package com.iota.campusX.Utils
 
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import java.util.regex.Pattern
 
 fun buildAnnotatedAutoLinkText(text: String): AnnotatedString {
@@ -31,7 +21,7 @@ fun buildAnnotatedAutoLinkText(text: String): AnnotatedString {
             append(text.substring(lastIndex, start))
 
             pushStringAnnotation(tag = "URL", annotation = url)
-            withStyle(SpanStyle(color = primary)) {
+            withStyle(SpanStyle(color = LightTheme_Blue)) {
                 append(url)
             }
             pop()

@@ -23,6 +23,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,24 +38,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
-import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
-import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.Setting
 import com.iota.campusX.ui.theme.Black800
-import com.iota.campusX.ui.theme.Black900
-import com.iota.campusX.ui.theme.primary
-import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.LightTheme_Black
+import com.iota.campusX.ui.theme.LightTheme_Blue
+import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,10 +71,10 @@ fun SettingScreen(
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = { Text("Setting") },
+                        title = { Text("Setting", color = MaterialTheme.colorScheme.onSurface) },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = White900,
-                            titleContentColor = Black900
+                            containerColor = MaterialTheme.colorScheme.background,
+                            titleContentColor = LightTheme_Black
                         ),
                         navigationIcon = {
                             IconButton(onClick = {
@@ -93,7 +89,6 @@ fun SettingScreen(
 
                     )
                 },
-                containerColor = White900
             ) { paddingValues ->
 
                 Column(modifier = Modifier.padding(paddingValues)) {
@@ -121,13 +116,13 @@ fun SettingScreen(
                                         modifier = Modifier.size(22.dp),
                                         painter = painterResource(it.icon),
                                         contentDescription = null,
-                                        tint = primary
+                                        tint = LightTheme_Blue
 
                                     )
                                     Text(
                                         text = it.title,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Black800
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -156,7 +151,7 @@ fun SettingScreen(
                                 modifier = Modifier.size(22.dp),
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = null,
-                                tint = primary
+                                tint = LightTheme_Blue
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text("Delete account")
@@ -290,12 +285,10 @@ fun SettingPage(
                 title = {
                     Text(
                         title,
-                        color = Black900
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = White900,
-                    titleContentColor = Black900
+                    containerColor = MaterialTheme.colorScheme.background,
                 ),
                 navigationIcon = {
                     IconButton(onClick = {
@@ -310,7 +303,6 @@ fun SettingPage(
 
             )
         },
-        containerColor = White900
     ) { paddingValues ->
 
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {

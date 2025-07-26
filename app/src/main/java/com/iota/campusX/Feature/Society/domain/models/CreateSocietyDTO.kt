@@ -25,3 +25,4 @@ data class GetSocietyDTO(
     val campusId: String? = null,
     val isActive: Boolean = false
 )
+

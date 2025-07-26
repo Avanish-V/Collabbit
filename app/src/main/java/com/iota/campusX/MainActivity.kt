@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,15 +84,15 @@ import com.iota.campusX.Screens.Profile.ProfileTypeViewModel
 import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Feature.Society.presentation.Screens.CreateSociety
-import com.iota.campusX.Feature.Society.presentation.Screens.JoinSociety
+import com.iota.campusX.Feature.Society.presentation.Screens.JoinSocietyScreen
 import com.iota.campusX.Feature.Society.presentation.Screens.Society
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.initCloudinary
 import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.CampusXTheme
-import com.iota.campusX.ui.theme.White900
-import com.iota.campusX.ui.theme.primary
+import com.iota.campusX.ui.theme.White
+import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.secondary
 import com.iota.campusX.ui.theme.typography
 import com.voxcii.voxcii.Screens.SearchFlow.SearchScreen
@@ -126,7 +127,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
 
         setContent {
 
@@ -178,9 +178,7 @@ class MainActivity : ComponentActivity() {
             }
 
             CampusXTheme {
-                Surface(
-
-                ) {
+                Surface() {
 
 
                     Column {
@@ -243,7 +241,6 @@ class MainActivity : ComponentActivity() {
                                             googleSignInViewModel = googleAuthViewModel,
                                             navigationViewModel = navigationViewModel,
                                             replyViewModel = replyViewModel,
-                                            profileTypeViewModel = profileTypeViewModel
                                         )
 
                                     }
@@ -267,7 +264,7 @@ class MainActivity : ComponentActivity() {
                                         CreateSociety(navHostController)
                                     }
                                     composable (route = Routes.Main.JoinSociety.routes){
-                                        JoinSociety(navHostController,userProfileViewModel)
+                                        JoinSocietyScreen(navHostController,userProfileViewModel)
                                     }
                                     composable(route = Routes.Main.Voxci.routes) {
                                         VoxciScreen()
@@ -307,7 +304,6 @@ class MainActivity : ComponentActivity() {
                                             googleSignInViewModel = googleAuthViewModel,
                                             navigationViewModel = navigationViewModel,
                                             replyViewModel = replyViewModel,
-                                            profileTypeViewModel = profileTypeViewModel
 
                                         )
                                     }
@@ -424,77 +420,66 @@ fun UploadProgressUI(
         enter = fadeIn() + slideInVertically(initialOffsetY = { -40 }),
         exit = fadeOut() + slideOutVertically(targetOffsetY = { -40 })
     ) {
-        Surface(
-            color = White900,
-            modifier = Modifier.fillMaxWidth()
-
+        Column(
+            modifier = Modifier.background(color = MaterialTheme.colorScheme.background).padding(horizontal = 12.dp).fillMaxWidth(),
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+
+            val statusText = when (uploadProgress) {
+                is UploadState.Error -> "Upload Failed"
+                is UploadState.Progress -> if (progress >= 100) "Completed" else "Uploading..."
+                else -> ""
+            }
+
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-
-                val statusText = when (uploadProgress) {
-                    is UploadState.Error -> "Upload Failed"
-                    is UploadState.Progress -> if (progress >= 100) "Completed" else "Uploading..."
-                    else -> ""
-                }
-
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        AnimatedContent(
-                            targetState = progress,
-                            transitionSpec = {
-                                slideInVertically { height -> height } + fadeIn() togetherWith
-                                        slideOutVertically { height -> -height } + fadeOut()
-                            },
-                            label = "ProgressPercentage"
-                        ) { value ->
-                            Text(
-                                text = "$value",
-                                style = typography.headingRegular,
-                                color = Black800
-                            )
-                        }
+                    AnimatedContent(
+                        targetState = progress,
+                        transitionSpec = {
+                            slideInVertically { height -> height } + fadeIn() togetherWith
+                                    slideOutVertically { height -> -height } + fadeOut()
+                        },
+                        label = "ProgressPercentage"
+                    ) { value ->
                         Text(
-                            text = "%",
-                            style = typography.headingRegular,
-                            color = Black800
+                            text = "$value",
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
-
-                    LinearProgressIndicator(
-                        progress = { animatedProgress },
-                        modifier = Modifier
-                            .height(8.dp)
-                            .weight(1f)
-                            .clip(RoundedCornerShape(50)),
-                        color = primary,
-                        trackColor = secondary
+                    Text(
+                        text = "%",
+                        style = MaterialTheme.typography.bodyMedium,
                     )
+                }
 
-                    IconButton(onClick = onCancel) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancel Upload",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .height(8.dp)
+                        .weight(1f)
+                        .clip(RoundedCornerShape(50)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surface
+                )
+
+                IconButton(onClick = onCancel) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancel Upload",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }

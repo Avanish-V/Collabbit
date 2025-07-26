@@ -9,7 +9,7 @@ class CreateReplyUseCase(private val repository: PostRepository) {
         replyId: String,
         postId: String,
         content: String,
-        creatorId: String,
+        postCreatorId: String,
         visibilityMode: PostVisibilityMode,
         mode: FeedMode,
         campusId: String?
@@ -18,7 +18,7 @@ class CreateReplyUseCase(private val repository: PostRepository) {
             replyId = replyId,
             postId =  postId,
             content = content,
-            creatorId = creatorId,
+            postCreatorId = postCreatorId,
             visibilityMode = visibilityMode,
             mode = mode,
             campusId

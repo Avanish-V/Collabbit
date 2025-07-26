@@ -17,7 +17,7 @@ import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.ReplyDTO
+import com.iota.campusX.Feature.Post.domain.Models.CreateReplyDTO
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.async
@@ -75,7 +75,7 @@ class NotificationImpl(
                                         .document(notificationData.replyId.toString())
                                         .get()
                                         .await()
-                                        .toObject(ReplyDTO::class.java)
+                                        .toObject(CreateReplyDTO::class.java)
                                 } else {
                                     null
                                 }
@@ -102,16 +102,16 @@ class NotificationImpl(
 
                             val content: Content = when (notificationData.type) {
                                 NotificationType.LIKE_POST  -> Content(
-                                    text = post?.postContent?.postData?.postText ?: "Deleted by user",
+                                    text = post?.postContent?.postData?.postText ?: "",
                                     image = post?.postContent?.postData?.postImage ?: ""
                                 )
 
                                 NotificationType.LIKE_REPLY  -> Content(
-                                    text = getReply?.content ?: "Deleted by user"
+                                    text = getReply?.content ?: ""
                                 )
 
                                 NotificationType.COMMENTED  -> Content(
-                                    text = getReply?.content ?: "Deleted by user"
+                                    text = getReply?.content ?: ""
                                 )
 
                                 NotificationType.REQUEST -> Content(text = "")

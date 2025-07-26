@@ -7,17 +7,25 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.annotation.RequiresApi
 
-@RequiresApi(Build.VERSION_CODES.O)
-fun Context.vibrate() {
+fun Context.vibrate(duration: Long = 100L) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val vibratorManager = getSystemService(VibratorManager::class.java)
-        vibratorManager.defaultVibrator.vibrate(
-            VibrationEffect.createOneShot(100L, VibrationEffect.DEFAULT_AMPLITUDE)
+        // Android 12+ uses VibratorManager
+        val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+        vibratorManager?.defaultVibrator?.vibrate(
+            VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE)
         )
     } else {
-        val vibrator = getSystemService(Vibrator::class.java)
-        vibrator?.vibrate(
-            VibrationEffect.createOneShot(100L, VibrationEffect.DEFAULT_AMPLITUDE)
-        )
+        // Older versions use Vibrator directly
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        vibrator?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                it.vibrate(
+                    VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                it.vibrate(duration)
+            }
+        }
     }
 }

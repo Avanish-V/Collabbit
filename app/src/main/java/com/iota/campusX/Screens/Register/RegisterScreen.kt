@@ -45,8 +45,8 @@ import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardin
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.ui.theme.primary
-import com.iota.campusX.ui.theme.White900
+import com.iota.campusX.ui.theme.LightTheme_Blue
+import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -124,7 +124,7 @@ fun SignInScreen(navHostController: NavHostController) {
 
 
 
-    Column ( modifier = Modifier.fillMaxSize().background(color = White900)) {
+    Column ( modifier = Modifier.fillMaxSize().background(color = White)) {
 
 
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center){
@@ -170,7 +170,7 @@ fun SignInScreen(navHostController: NavHostController) {
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     contentColor = Color.White,
-                    containerColor = primary
+                    containerColor = LightTheme_Blue
                 )
 
             ) {
@@ -185,7 +185,7 @@ fun SignInScreen(navHostController: NavHostController) {
                             modifier = Modifier.size(20.dp),
                             painter = painterResource(id = R.drawable.google),
                             contentDescription = null,
-                            tint = White900
+                            tint = White
                         )
                         Text(
                             text = "Continue with Google",

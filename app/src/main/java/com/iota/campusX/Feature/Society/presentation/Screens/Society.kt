@@ -10,27 +10,34 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -47,7 +54,7 @@ import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.ErrorScreen
-import com.iota.campusX.ui.theme.Black500
+import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.White400
 import org.koin.compose.koinInject
@@ -76,7 +83,7 @@ fun Society(navHostController: NavHostController) {
                 },
                 actions = {
                     Row(modifier = Modifier.padding(end = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        IconButton(onClick = {}, colors = IconButtonDefaults.iconButtonColors(containerColor = White400)) {
+                        IconButton(onClick = {}, colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
                             Icon(
                                 painter = painterResource(R.drawable.search_normal),
                                 contentDescription = "Search"
@@ -91,7 +98,8 @@ fun Society(navHostController: NavHostController) {
                             Text("Create")
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
     ) {
@@ -108,7 +116,7 @@ fun Society(navHostController: NavHostController) {
 
                     val societyList = state.value as UiState.Success
 
-                    LazyColumn(modifier = Modifier.fillMaxSize(),contentPadding = PaddingValues(12.dp),verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LazyColumn(modifier = Modifier.fillMaxSize(),contentPadding = PaddingValues(12.dp),verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
                         items(societyList.data){
                             SocietyCard(
@@ -121,8 +129,6 @@ fun Society(navHostController: NavHostController) {
                                 getSocietyDTO = it
                             )
                         }
-
-
                     }
 
                 }
@@ -142,32 +148,33 @@ fun Society(navHostController: NavHostController) {
                     )
 
                 }
-
                 else -> {}
-
             }
-
-
-
         }
-
-
-
-
     }
-
 }
 
 
 @Composable
 fun SocietyCard(onCardClick: () -> Unit,getSocietyDTO: GetSocietyDTO) {
 
-    ElevatedCard(
+    Card(
         onClick = {onCardClick.invoke()},
-        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+//            .shadow(
+//                elevation = 0.dp,
+//                spotColor = MaterialTheme.colorScheme.primary,5
+//                ambientColor = Color.White,
+//                shape = RoundedCornerShape(12.dp)
+//            ),
+                ,
         colors = CardDefaults.cardColors(
-            containerColor = androidx.compose.ui.graphics.Color.White
+            containerColor = MaterialTheme.colorScheme.surface,
         )
+
     ) {
 
         Row {
@@ -176,18 +183,19 @@ fun SocietyCard(onCardClick: () -> Unit,getSocietyDTO: GetSocietyDTO) {
                 Column (verticalArrangement = Arrangement.spacedBy(6.dp)){
                     Text(
                         text = getSocietyDTO.societyName,
-                        color = Black800,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineLarge
                     )
 
                     Text(
                         text = getSocietyDTO.description,
-                        color = Black500
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+
                     )
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Hosted by")
+                    Text("Hosted by",style = MaterialTheme.typography.headlineMedium)
                     Row (
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -197,7 +205,7 @@ fun SocietyCard(onCardClick: () -> Unit,getSocietyDTO: GetSocietyDTO) {
                             modifier = Modifier.size(28.dp),
                             onClick = {}
                         )
-                        Text(getSocietyDTO.createdBy.userName)
+                        Text(text = getSocietyDTO.createdBy.userName,style = MaterialTheme.typography.headlineMedium)
                     }
 
                 }

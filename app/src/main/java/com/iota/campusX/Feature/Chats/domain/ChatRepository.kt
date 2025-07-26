@@ -26,7 +26,7 @@ interface ChatRepository {
 
     fun receiveMessage(participantId: String,roomId: String):Flow<ResultState<List<ChatMessage>>>
 
-    fun getChats():Flow<ResultState<List<UserChatsDTO>>>
+    suspend fun getChats(): Result<List<UserChatsDTO>>
 
     fun markMessagesAsReed(participantId: String,roomId: String): Flow<Unit>
 

@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,7 +68,7 @@ fun CustomDatePicker(
 
         Column(
             modifier = Modifier
-                .background(color = Color.White, shape = RoundedCornerShape(12.dp))
+                .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp))
                 .clip(RoundedCornerShape(12.dp)),
             horizontalAlignment = Alignment.End
         ) {
@@ -147,7 +148,7 @@ fun MonthYearPicker(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             ),
-                        color = if (month == selectedMonth) Color.Black else Color.Gray,
+                        color = if (month == selectedMonth) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = if (month == selectedMonth) 20.sp else 16.sp,
                         fontWeight = if (month == selectedMonth) FontWeight.Bold else FontWeight.Normal
                     )
@@ -170,7 +171,7 @@ fun MonthYearPicker(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             ),
-                        color = if (year.toString() == selectedYear) Color.Black else Color.Gray,
+                        color = if (year.toString() == selectedYear) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = if (year.toString() == selectedYear) 20.sp else 16.sp,
                         fontWeight = if (year.toString() == selectedYear) FontWeight.Bold else FontWeight.Normal
                     )

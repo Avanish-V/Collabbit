@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.update
 
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -52,8 +53,8 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     private val _connectionCount = MutableStateFlow<UiState<Int>>(UiState.Idle)
     val connectionCount: StateFlow<UiState<Int>> = _connectionCount.asStateFlow()
 
-    private val _modifyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val modifyState: StateFlow<UiState<Unit>> = _modifyState.asStateFlow()
+    private val _sendLinkUpRequestState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val sendLinkUpRequestState: StateFlow<UiState<Unit>> = _sendLinkUpRequestState.asStateFlow()
 
     private val _rejectState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val rejectState: StateFlow<UiState<Unit>> = _rejectState.asStateFlow()
@@ -64,6 +65,8 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     private val _userType = MutableStateFlow<UserType>(UserType.Idle)
     val userType: StateFlow<UserType> = _userType.asStateFlow()
 
+    private val _modifyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val modifyState: StateFlow<UiState<Unit>> = _modifyState.asStateFlow()
 
     fun getProfileIdByPost(
         userIdByFeed: String,
@@ -80,7 +83,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
             _userType.value = UserType.User
              getUserById(userIdByFeed)
              getConnectionCount(userIdByFeed)
-             hasConnection(loggedInUserId)
+             hasConnection(userIdByFeed)
         }
 
     }
@@ -215,15 +218,20 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     fun modifyProfileImage(imageUri: Uri) = viewModelScope.launch {
         _modifyState.value = UiState.Loading
         _modifyState.value = userProfileRepo.updateProfileImage(imageUri).fold(
-            onSuccess = { UiState.Success(Unit) },
+            onSuccess = {
+                UiState.Success(Unit).apply {
+                   updateImageLocally(imageUri)
+                }
+            },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
+        resetModifyState()
 
     }
 
     fun sendLinkUpRequest(requestUserId: String, currentState: Boolean?) = viewModelScope.launch {
-        _modifyState.value = UiState.Loading
-        _modifyState.value = userProfileRepo.sendLinkUpRequest(requestUserId, currentState).fold(
+        _sendLinkUpRequestState.value = UiState.Loading
+        _sendLinkUpRequestState.value = userProfileRepo.sendLinkUpRequest(requestUserId, currentState).fold(
             onSuccess = { UiState.Success(Unit) },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
@@ -250,7 +258,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     fun rejectLinkUpRequest(requestUserId: String) = viewModelScope.launch {
         _rejectState.value = UiState.Loading
         _rejectState.value = userProfileRepo.rejectLinkUpRequest(requestUserId).fold(
-            onSuccess = { UiState.Success(Unit.also { removeConnectionFromList(requestUserId) }) },
+            onSuccess = { UiState.Success(Unit) },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
         resetModifyState()
@@ -271,7 +279,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         viewModelScope.launch {
             searchQuery
                 .debounce(500) // 500ms debounce delay
-                .filter { it.isNotBlank() }
+                .filter { it.isNotBlank() && it.length < 5 }
                 .distinctUntilChanged()
                 .flatMapLatest { query ->
                     userProfileRepo.updateUniversity(query)
@@ -308,10 +316,15 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(campus = campus))
     }
 
+    fun updateImageLocally(imageUri: Uri){
+        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(userImage = imageUri.toString()))
+    }
+
     fun resetUniversityData() {
         _universityData.value = UiState.Idle
     }
     fun removeConnectionFromList(userId: String){
+        if (connections.value is UiState.Idle || connections.value is UiState.Loading) return
         _connections.value = UiState.Success((connections.value as UiState.Success).data.filter { it.user.id != userId })
     }
 }

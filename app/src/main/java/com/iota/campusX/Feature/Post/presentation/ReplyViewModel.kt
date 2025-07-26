@@ -17,6 +17,7 @@ import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ReplyViewModel(
@@ -51,19 +52,10 @@ class ReplyViewModel(
         }
     }
 
-    fun createReply(
-        replyId: String,
-        postId: String,
-        content: String,
-        creatorId: String,
-        visibilityMode: PostVisibilityMode,
-        mode: FeedMode,
-        campusId: String?,
-        user: UserDetail
-    ) {
+    fun createReply(replyId: String, postId: String, content: String, postCreatorId: String, visibilityMode: PostVisibilityMode, mode: FeedMode, campusId: String?, user: UserDetail) {
         viewModelScope.launch {
             _createReplyState.value = UiState.Loading
-            val result = createReplyUseCase(replyId, postId, content, creatorId, visibilityMode,mode,campusId)
+            val result = createReplyUseCase(replyId, postId, content, postCreatorId, visibilityMode,mode,campusId)
             _createReplyState.value = result.fold(
                 onSuccess = {
 
@@ -99,8 +91,40 @@ class ReplyViewModel(
         }
     }
 
-    fun likeReply(creatorId: String, postId: String, replyId: String, isLiked: Boolean) {
+    fun likeReply(
+        repliedById: String,
+        postId: String,
+        replyId: String,
+        isLiked: Boolean,
+        campusId: String?,
+        feedMode: FeedMode
+    ) {
         viewModelScope.launch {
+
+            _repliesState.update {
+                if (it is UiState.Success){
+                    UiState.Success(
+                        it.data.map {reply->
+
+                            if (reply.replyId == replyId){
+                                val update = reply.actions.copy(
+                                    isLiked = !isLiked,
+                                    likesCount = if (isLiked) reply.actions.likesCount - 1 else reply.actions.likesCount + 1
+                                )
+                                reply.copy(
+                                    actions = update
+                                )
+                            }
+                            else reply
+
+                        }
+                    )
+                }else{
+                    it
+                }
+            }
+
+            postRepository.likeReply(repliedById, postId, replyId, isLiked, campusId, feedMode)
 
         }
     }

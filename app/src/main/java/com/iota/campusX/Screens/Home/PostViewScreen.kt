@@ -6,7 +6,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,6 +14,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -30,9 +31,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.iota.campusX.ui.theme.Black900
+import com.iota.campusX.ui.theme.DarkTheme_Black
 import io.ktor.websocket.Frame.Text
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +42,8 @@ import io.ktor.websocket.Frame.Text
 fun PostViewScreen(navHostController: NavHostController) {
 
     val postImage = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("POST_IMAGE")
+
+
 
     Scaffold(
         topBar = {
@@ -57,11 +61,14 @@ fun PostViewScreen(navHostController: NavHostController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black
+                    containerColor = DarkTheme_Black
                 )
             )
         },
-        containerColor = Color.Black
+        bottomBar = {
+
+        },
+        containerColor = DarkTheme_Black
     ) { padding->
 
         Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center){
@@ -111,7 +118,7 @@ fun ZoomableImage(image: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .padding(24.dp)
             .transformable(state)
             .graphicsLayer(
                 scaleX = scale,

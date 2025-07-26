@@ -1,22 +1,17 @@
 package com.iota.campusX.Feature.Society.data
 
-import android.content.Context
 import android.util.Log
 import com.google.api.client.util.Data.mapOf
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.Society.AgoraTokenBuilder.generateDigitRandom
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
-import com.iota.campusX.Feature.Society.domain.models.JoinRequests
+import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
+import com.iota.campusX.Feature.Society.domain.models.SetJoinRequestDTO
 import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
-import com.iota.campusX.Utils.UiState
-import io.getstream.video.android.core.Call
-import io.getstream.video.android.core.GEO
-import io.getstream.video.android.core.StreamVideoBuilder
-import io.getstream.video.android.model.User
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -122,7 +117,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
         }
     }
 
-    override suspend fun requestToJoin(roomId: String,role: String,status:Boolean, feedMode: FeedMode, campusId: String?): Result<Unit> {
+    override suspend fun requestToJoin(roomId: String,role: String,status:Boolean, feedMode: FeedMode, campusId: String?): Result<Int> {
 
         return try {
 
@@ -136,22 +131,26 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 "GlobalSociety"
             }
 
-            val data = mapOf(
+            val uid = generateDigitRandom()
+
+            val data= mapOf(
                 "requestId" to auth.currentUser?.uid,
-                "status" to status,
                 "role" to role,
-                "isMicrophone" to false,
-                "isSpeaking" to false,
+                "status" to status,
+                "uid" to uid,
+                "microphone" to true,
+                "speaking" to false,
+                "raiseHand" to false
             )
+
             fireStore.collection(path).document(roomId)
                 .collection("JoinRequests")
                 .document(auth.currentUser?.uid ?: "")
                 .set(data)
                 .await()
-            Result.success(Unit)
+            Result.success(uid)
 
         }catch (e:Exception){
-            Log.d("JOIN_REQUEST_ERROR",e.message.toString())
             Result.failure(e)
         }
 
@@ -177,31 +176,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
         }
     }
 
-    override suspend fun startCall(user: User,context: Context): Result<Call> {
-        return try {
-
-            val apiKey = "mmhfdzb5evj2"
-            val userToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0lHXzg4IiwidXNlcl9pZCI6IklHXzg4IiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NTA3ODI0MDQsImV4cCI6MTc1MTM4NzIwNH0.NmnpBx2LtjI_iuJkhqx_RQ3rFvUGNpxSJ043PwY0m24"
-            val callId = "UgGc3W4fgzSR"
-
-            val client = StreamVideoBuilder(
-                context = context,
-                apiKey = apiKey,
-                geo = GEO.GlobalEdgeNetwork,
-                user = user,
-                token = userToken,
-            ).build()
-
-            val call = client.call("audio_room", callId)
-
-            Result.success(call)
-
-        }catch (e: Exception){
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun listenForApproval(roomId: String, feedMode: FeedMode, campusId: String?): Flow<List<JoinRequests>> = callbackFlow {
+    override suspend fun listenForApproval(roomId: String, feedMode: FeedMode, campusId: String?): Flow<List<GetJoinRequestDTO>> = callbackFlow {
 
         val path = resolveRoomPath(feedMode, campusId)
 
@@ -214,33 +189,32 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 // Launch a coroutine inside the flow scope
                 launch {
                     val requests = value.documents.mapNotNull { doc ->
-                        val requestId = doc["requestId"] as? String ?: return@mapNotNull null
-                        val role = doc["role"] as? String ?: return@mapNotNull null
-                        val status = doc["status"] as? Boolean ?: return@mapNotNull null
-                        val isMicrophone = doc["isMicrophone"] as? Boolean ?: return@mapNotNull null
-                        val isSpeaking = doc["isSpeaking"] as? Boolean ?: return@mapNotNull null
+
+                        val data = doc.toObject(SetJoinRequestDTO::class.java) ?: return@mapNotNull null
 
                         try {
                             val userSnapshot = fireStore.collection(
                                 "Users")
-                                .document(requestId)
+                                .document(data.requestId)
                                 .get()
                                 .await()
 
                             val user = userSnapshot.toObject(UserDetail::class.java)
                                 ?: return@mapNotNull null
 
-                            JoinRequests(
-                                requestId = requestId,
+                            GetJoinRequestDTO(
+                                requestId = data.requestId,
                                 userName = user.userName,
                                 userImage = user.userImage,
-                                role = role,
-                                status = status,
-                                isMicrophone = isMicrophone,
-                                isSpeaking = isSpeaking
+                                role = data.role,
+                                status = data.status,
+                                speaking = data.microphone,
+                                microphone = data.speaking,
+                                raiseHand = data.raiseHand,
+                                uid = data.uid
                             )
                         } catch (e: Exception) {
-
+                            Log.d("JOINING_REQUESTS",e.message.toString())
                             null
                         }
                     }
@@ -248,6 +222,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                     trySend(requests).isSuccess
                 }
             }
+
 
         awaitClose { listener.remove() }
     }
@@ -283,8 +258,8 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
             fireStore.collection(path)
                 .document(roomId)
                 .collection("JoinRequests")
-                .document(requestId)
-                .update("isMicrophone", isMicrophone)
+                .document(auth.currentUser?.uid ?: "")
+                .update("microphone", isMicrophone)
                 .await()
 
             Result.success(Unit)
@@ -305,7 +280,27 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 .document(roomId)
                 .collection("JoinRequests")
                 .document(requestId)
-                .update("isSpeaking", isSpeaking)
+                .update("speaking", isSpeaking)
+                .await()
+
+            Result.success(Unit)
+
+        } catch (e: Exception) {
+            Log.e("Firestore", "Stage up failed", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun askToSpeak(roomId: String, isRaiseHand: Boolean, requestId: String, feedMode: FeedMode, campusId: String?): Result<Unit> {
+        return try {
+
+            val path = resolveRoomPath(feedMode, campusId)
+
+            fireStore.collection(path)
+                .document(roomId)
+                .collection("JoinRequests")
+                .document(requestId)
+                .update("raiseHand", isRaiseHand)
                 .await()
 
             Result.success(Unit)

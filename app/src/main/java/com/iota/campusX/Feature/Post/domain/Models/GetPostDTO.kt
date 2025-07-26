@@ -9,7 +9,7 @@ data class GetPostDTO(
     val createdAt: Long = 0L,
     val creatorDetail: CreatorDetail,
     val feedMode: FeedMode = FeedMode.GLOBAL,
-    val reference: Reference,
+    val reference: Reference?=null,
     val visibilityMode: PostVisibilityMode,
     val campusId: String?=null,
     val postContent: PostContent,
