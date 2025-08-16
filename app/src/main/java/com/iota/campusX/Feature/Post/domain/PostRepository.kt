@@ -6,15 +6,13 @@ import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
+import com.iota.campusX.Feature.Post.domain.Models.UserReplyDTO
 import com.iota.campusX.Feature.Post.presentation.UploadState
 import kotlinx.coroutines.flow.Flow
 
 interface PostRepository {
 
-    suspend fun createPost(
-        dto: CreatePostDTO,
-        imageUri: Uri?
-    ): Flow<UploadState>
+    suspend fun createPost(dto: CreatePostDTO, imageUri: Uri?): Flow<UploadState>
 
     suspend fun deletePost(postId: String, campusId: String?,feedMode: FeedMode): Result<Unit>
 
@@ -26,20 +24,14 @@ interface PostRepository {
 
     suspend fun getPostsById(userId: String, campusId: String?,feedMode: FeedMode): Result<List<GetPostDTO>>
 
-    suspend fun createReply(replyId: String, postId: String, content: String, postCreatorId: String, visibilityMode: PostVisibilityMode, mode: FeedMode, campusId: String?): Result<Unit>
-
-    suspend fun getReplies(postId: String,campusId: String?,feedMode: FeedMode): Result<List<GetRepliesDTO>>
-
     suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean,campusId: String?, feedMode: FeedMode): Result<Unit>
-
-    suspend fun likeReply(repliedById: String, postId: String, replyId: String, isLiked: Boolean,campusId: String?, feedMode: FeedMode): Result<Unit>
-
-    suspend fun deleteReply(postId: String, replyId: String, campusId: String?,feedMode: FeedMode): Result<Unit>
-
-    suspend fun editReply(postId: String,replyId: String, content: String, campusId: String?, feedMode: FeedMode): Result<Unit>
 
     suspend fun createPoll(post: CreatePostDTO): Result<Unit>
 
     suspend fun voteOnPoll(postId: String, optionId: String,campusId: String?,feedMode: FeedMode): Result<Unit>
+
+
+
+
 
 }

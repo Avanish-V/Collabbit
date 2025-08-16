@@ -15,6 +15,7 @@ import com.iota.campusX.Feature.Post.domain.UseCases.GetCampusPostsUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetPostByIdUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetPostsUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.VotePollUseCase
+import com.iota.campusX.Screens.Profile.UserType
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,8 +83,8 @@ class PostFeedViewModel(
         }
     }
 
-    fun fetchPostById(userId: String, campusId: String?,feedMode: FeedMode) {
-
+    fun fetchPostById(userId: String, campusId: String?,feedMode: FeedMode,userType: UserType) {
+        if (_postById.value is UiState.Success && (_postById.value as UiState.Success).data.isNotEmpty() && userType == UserType.Owner) return
         viewModelScope.launch {
             _postById.value = UiState.Loading
             val result = postByIdUseCase(userId, campusId,feedMode)
@@ -159,9 +160,6 @@ class PostFeedViewModel(
                 }
                 FeedMode.GLOBAL -> {
                     _globalPosts
-                }
-                FeedMode.USER -> {
-                    _postById
                 }
 
             }
@@ -239,12 +237,20 @@ class PostFeedViewModel(
         }
     }
 
+    fun refreshGlobalPosts(feedMode: FeedMode, campusId: String?) {
+        viewModelScope.launch {
+            isRefreshing.value = true
+            fetchCampusPosts(feedMode, campusId)
+            isRefreshing.value = false
+        }
+    }
+
     suspend fun updatePostLocally(getPostDTO: GetPostDTO) {
 
         val currentState = when (getPostDTO.feedMode) {
             FeedMode.GLOBAL -> _globalPosts
             FeedMode.CAMPUS -> _campusPosts
-            FeedMode.USER -> { _postById }
+            else  -> { _postById }
         }
 
         val current = currentState.value
@@ -259,7 +265,6 @@ class PostFeedViewModel(
 
         currentState.emit(UiState.Success(updatedList))
     }
-
     suspend fun clearState(){
          delay(1000)
         _deletePostState.value  = UiState.Idle

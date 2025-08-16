@@ -10,7 +10,9 @@ import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostActions
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.Post.domain.Models.UserReplyDTO
 import com.iota.campusX.Feature.Post.domain.PostRepository
+import com.iota.campusX.Feature.Post.domain.ReplyRepository
 import com.iota.campusX.Feature.Post.domain.UseCases.CreateReplyUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetRepliesUseCase
 import com.iota.campusX.Utils.UiState
@@ -23,11 +25,14 @@ import kotlinx.coroutines.launch
 class ReplyViewModel(
     private val getRepliesUseCase: GetRepliesUseCase,
     private val createReplyUseCase: CreateReplyUseCase,
-    private val postRepository: PostRepository
+    private val replyRepository: ReplyRepository
 ) : ViewModel() {
 
     private val _repliesState = MutableStateFlow<UiState<List<GetRepliesDTO>>>(UiState.Idle)
     val repliesState: StateFlow<UiState<List<GetRepliesDTO>>> = _repliesState.asStateFlow()
+
+    private val _userRepliesState = MutableStateFlow<UiState<List<UserReplyDTO>>>(UiState.Idle)
+    val userRepliesState: StateFlow<UiState<List<UserReplyDTO>>> = _userRepliesState.asStateFlow()
 
     private val _createReplyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val createReplyState: StateFlow<UiState<Unit>> get() = _createReplyState
@@ -41,11 +46,25 @@ class ReplyViewModel(
     private val _likeReplyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val likeReplyState: StateFlow<UiState<Unit>> get() = _likeReplyState
 
+
+
     fun getReplies(postId: String,campusId:String?,feedMode: FeedMode) {
         viewModelScope.launch {
             _repliesState.value = UiState.Loading
             val result = getRepliesUseCase(postId,campusId,feedMode)
             _repliesState.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message ?: "Failed to fetch replies") }
+            )
+        }
+    }
+
+    fun getUserReplies(userId: String) {
+        if (_userRepliesState.value is UiState.Success && (_userRepliesState.value as UiState.Success).data.isNotEmpty()) return
+        viewModelScope.launch {
+            _userRepliesState.value = UiState.Loading
+            val result = replyRepository.fetchUserReplies(userId)
+            _userRepliesState.value = result.fold(
                 onSuccess = { UiState.Success(it) },
                 onFailure = { UiState.Error(it.message ?: "Failed to fetch replies") }
             )
@@ -61,7 +80,8 @@ class ReplyViewModel(
 
                     val visibility = visibilityMode(
                         visibilityMode,
-                        user
+                        user.userName,
+                        user.userImage
                     )
 
                     addNewReplyOnCreate(
@@ -69,7 +89,7 @@ class ReplyViewModel(
                             postId = postId,
                             content = content,
                             replyId = replyId,
-                            visibilityMode = visibilityMode,
+                            visibility = visibilityMode,
                             creatorDetail = CreatorDetail(
                                 profile = UserDetail(
                                     userName = visibility.first,
@@ -124,7 +144,7 @@ class ReplyViewModel(
                 }
             }
 
-            postRepository.likeReply(repliedById, postId, replyId, isLiked, campusId, feedMode)
+            replyRepository.likeReply(repliedById, postId, replyId, isLiked, campusId, feedMode)
 
         }
     }
@@ -132,7 +152,7 @@ class ReplyViewModel(
     fun deleteReply(postId: String, replyId: String, campusId: String?,feedMode: FeedMode) {
         viewModelScope.launch {
             _deleteReplyState.value = UiState.Loading
-            val result = postRepository.deleteReply(postId, replyId, campusId,feedMode)
+            val result = replyRepository.deleteReply(postId, replyId, campusId,feedMode)
             _deleteReplyState.value = result.fold(
                 onSuccess = {
                     removeReplyOnDelete(replyId)
@@ -146,7 +166,7 @@ class ReplyViewModel(
     fun editReply(postId: String, replyId: String, content: String, campusId: String?,feedMode: FeedMode) {
         viewModelScope.launch {
             _editReplyState.value = UiState.Loading
-            val result = postRepository.editReply(postId, replyId, content, campusId,feedMode)
+            val result = replyRepository.editReply(postId, replyId, content, campusId,feedMode)
             _editReplyState.value = result.fold(
                 onSuccess = {
                     UiState.Success(Unit).also {

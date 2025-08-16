@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -75,11 +76,7 @@ fun OnBoardingScreen(pagerState: PagerState,onboardingContent:List<OnBoardingCon
                     textAlign = TextAlign.Center
                 )
             }
-
-
         }
-
-
     }
 
 
@@ -108,12 +105,11 @@ fun CustomSegmentedProgressBar(
             HorizontalDivider(
                 modifier = Modifier.width(30.dp).clip(CircleShape),
                 thickness = 4.dp,
-                color = if (progress == index) Color.Black else Color.LightGray
+                color = if (progress == index) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.surface
             )
 
             Spacer(modifier = Modifier.width(10.dp))
 
         }
-
     }
 }

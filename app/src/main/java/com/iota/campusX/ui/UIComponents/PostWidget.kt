@@ -12,9 +12,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +62,8 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import com.iota.campusX.Feature.Post.domain.Models.CreatorDetail
+import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostActions
 import com.iota.campusX.Feature.Post.domain.Models.PostContent
@@ -84,9 +88,9 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PostCard(
     post: GetPostDTO,
-    handlers: PostActionHandlers
+    handlers: PostActionHandlers,
+    isCurrentUser: Boolean? = null
 ) {
-
     Column(
         modifier = Modifier
             .clickable(
@@ -111,15 +115,19 @@ fun PostCard(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 PostHeader(
-                    about = post.creatorDetail.profile?.userBio.orEmpty(),
-                    user = post.creatorDetail.profile,
+                    user = post.creatorDetail,
                     pod = post.reference,
                     postedAt = getTimeAgo(post.createdAt),
+                    isCurrentUser = isCurrentUser,
+                    feedMode = post.feedMode,
+                    visibilityMode = post.visibilityMode
                 )
+
+                Spacer(modifier = Modifier.height(6.dp))
 
                 PostBody(
                     postContent = post.postContent,
@@ -131,6 +139,8 @@ fun PostCard(
                         handlers.onPostClick.invoke()
                     }
                 )
+
+                Spacer(modifier = Modifier.height(6.dp))
 
                 PostActionsComponent(
                     postAction = post.postActions,
@@ -145,16 +155,14 @@ fun PostCard(
 }
 
 
-
-
-
 @Composable
 fun PostHeader(
-    about: String = "",
-    user: UserDetail?,
+    user: CreatorDetail,
     pod: Reference? = null,
     postedAt: String? = null,
-    visibilityMode: PostVisibilityMode? = null
+    visibilityMode: PostVisibilityMode? = null,
+    isCurrentUser: Boolean? = null,
+    feedMode: FeedMode? = null
 ) {
 
     Row(
@@ -175,14 +183,23 @@ fun PostHeader(
 
                             }
                         ),
-                    text = user?.userName ?: "",
+                    text = user.profile?.userName ?: "",
                     maxLines = 1,
                     softWrap = false,
                     style = MaterialTheme.typography.headlineMedium,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Text(text = " • ",color = MaterialTheme.colorScheme.surface)
+                if (user.isVerified){
+                    Icon(
+                        modifier = Modifier.size(16.dp),
+                        painter = painterResource(R.drawable.check_circle),
+                        contentDescription = "Verified",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Text(text = " ● ",color = MaterialTheme.colorScheme.surface)
 
                 Text(
                     modifier = Modifier,
@@ -197,18 +214,29 @@ fun PostHeader(
 
             if (visibilityMode == PostVisibilityMode.USER){
 
-                if (about.isEmpty()) return@Column
+                user.profile?.userBio?.let {
 
-                Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                Text(
-                    text = about,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                }
             }
+        }
+
+        if (isCurrentUser != null){
+            Text(
+                modifier = Modifier
+                    .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(5.dp))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                text = if (feedMode == FeedMode.GLOBAL) "Global" else "Campus",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.labelMedium
+            )
         }
 
         if (pod != null) {
@@ -234,7 +262,7 @@ fun PostActionsComponent(
     onDotMenuClick: (() -> Unit)? = null,
 ) {
 
-    var interactionSource = remember { MutableInteractionSource() }
+    val interactionSource = remember { MutableInteractionSource() }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -259,7 +287,7 @@ fun PostActionsComponent(
             ) {
                 Text(
                     text = postAction.replyCount.toString(),
-                    style = typography.labelMedium
+                    style = MaterialTheme.typography.bodyMedium
                 )
                 Icon(
                     modifier = Modifier
@@ -278,15 +306,15 @@ fun PostActionsComponent(
 
         Icon(
             modifier = Modifier
-                .rotate(90f)
+                .size(22.dp)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = { onDotMenuClick?.invoke() }
                 ),
-            painter = painterResource(R.drawable.dots_menu),
+            painter = painterResource(R.drawable.baseline_more_vert_24),
             contentDescription = "Dots",
-            tint =  MaterialTheme.colorScheme.onSurface
+            tint =  MaterialTheme.colorScheme.onSurfaceVariant
         )
 
 
@@ -309,21 +337,22 @@ fun AnimatedLikeButton(onLike:()-> Unit,likesCount: Int,isLiked: Boolean) {
         ) { likeCount ->
             Text(
                 text = likeCount.toString(),
-                style = typography.labelMedium
+                style = MaterialTheme.typography.bodyMedium
             )
         }
 
+
         Icon(
             modifier = Modifier
-                .size(22.dp)
+                .size(16.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { onLike.invoke() }
                 ),
-            painter = painterResource(if (isLiked) R.drawable.heart_sharp else R.drawable.heart_outline),
+            painter = painterResource(if (isLiked) R.drawable.up_solid else R.drawable.up_regular),
             contentDescription = "Like",
-            tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onBackground
+            tint = if (isLiked) if (isSystemInDarkTheme()) Color.White else Color.Black else MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -443,7 +472,7 @@ fun PostBody(
     onBodyClick:()-> Unit
 ) {
 
-    Column(modifier = Modifier.padding(vertical = 12.dp).clickable(
+    Column(modifier = Modifier.clickable(
         onClick = {onBodyClick.invoke()},
         indication = null,
         interactionSource = remember { MutableInteractionSource() }
@@ -522,86 +551,74 @@ fun PollOptionsUI(
         )
 
 
-        options?.forEach { option ->
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-            val isSelected = selectedOptionId == option.optionId
+            options?.forEach { option ->
 
-            val percentage = if (totalVotes > 0) (option.votes.count() * 100 / totalVotes) else 0
+                val isSelected = selectedOptionId == option.optionId
 
-            val backgroundColor = if (isSelected) {
-                Color.Transparent
-            } else {
-                MaterialTheme.colorScheme.surface // <-- COMPOSABLE SAFE
-            }
+                val percentage = if (totalVotes > 0) (option.votes.count() * 100 / totalVotes) else 0
 
+                val backgroundColor = if (isSelected) {
+                    Color.Transparent
+                } else {
+                    MaterialTheme.colorScheme.surface // <-- COMPOSABLE SAFE
+                }
 
-            Box(
-                modifier = Modifier
-                    .drawBehind {
-                        if (showResults) {
-                            val fillWidth = size.width * (percentage / 100f)
-                            drawRoundRect(
-                                color = backgroundColor, // ✅ use the extracted color
-                                size = Size(
-                                    width = fillWidth,
-                                    height = size.height
-                                ),
-                                cornerRadius = CornerRadius(12f, 12f)
-                            )
-                        }
-                    }
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .border(
-                            width = 0.5.dp,
-                            color=MaterialTheme.colorScheme.outline,
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .clip(RoundedCornerShape(6.dp))
-                        .drawBehind {
-                            if (showResults) {
-                                val fillWidth = size.width * (percentage / 100f)
-                                drawRoundRect(
-                                    color = backgroundColor,
-                                    size = Size(
-                                        width = fillWidth,
-                                        height = size.height
-                                    ),
-                                    cornerRadius = CornerRadius(12f, 12f)
-                                )
-                            }
-                        }
-                        .clickable {
-                            if (hasVoted) return@clickable
-                            onOptionSelected(option.optionId)
-                        }
-                        .padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        modifier = Modifier.weight(1f),
-                        text = option.text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1
-                    )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .border(
+                                width = 0.5.dp,
+                                color=MaterialTheme.colorScheme.outline,
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .clip(RoundedCornerShape(6.dp))
+                            .drawBehind {
+                                if (showResults) {
+                                    val fillWidth = size.width * (percentage / 100f)
+                                    drawRoundRect(
+                                        color = backgroundColor,
+                                        size = Size(
+                                            width = fillWidth,
+                                            height = size.height
+                                        ),
+                                        cornerRadius = CornerRadius(12f, 12f)
+                                    )
+                                }
+                            }
+                            .clickable {
+                                if (hasVoted) return@clickable
+                                onOptionSelected(option.optionId)
+                            }
+                            .padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            modifier = Modifier.weight(1f),
+                            text = option.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1
+                        )
 
-                    Text(text = "$percentage%",style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(text = "$percentage%",style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
+
         }
+
 
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -648,7 +665,7 @@ fun ImageWithDynamicRatio(
             null -> 200.dp // fallback
             else -> {
                 val (width, height) = size
-                if (width > height) 180.dp else 250.dp
+                if (width > height) 180.dp else 400.dp
             }
         }
     }
@@ -659,7 +676,7 @@ fun ImageWithDynamicRatio(
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(5.dp)
+                shape = RoundedCornerShape(16.dp)
             )
             .clickable(
                 onClick = {
@@ -668,7 +685,7 @@ fun ImageWithDynamicRatio(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .clip(RoundedCornerShape(5.dp)),
+            .clip(RoundedCornerShape(16.dp)),
         model = imageUrl,
         placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
         contentDescription = "Post Image",

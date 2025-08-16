@@ -6,6 +6,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -124,13 +126,13 @@ fun SignInScreen(navHostController: NavHostController) {
 
 
 
-    Column ( modifier = Modifier.fillMaxSize().background(color = White)) {
+    Column ( modifier = Modifier.fillMaxSize().background(color = MaterialTheme.colorScheme.background)) {
 
 
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center){
             Image(
-                modifier = Modifier.height(80.dp).width(200.dp),
-                painter = painterResource(R.drawable.frame_6),
+                modifier = Modifier.height(80.dp).width(120.dp),
+                painter = painterResource(if (isSystemInDarkTheme()) R.drawable.logo_dark else R.drawable.logo_light),
                 contentDescription = null,
             )
         }
@@ -152,7 +154,7 @@ fun SignInScreen(navHostController: NavHostController) {
         Box(){
 
             Button(
-                modifier = Modifier.padding(horizontal = 40.dp, vertical = 40.dp).fillMaxWidth().height(52.dp),
+                modifier = Modifier.padding(horizontal = 40.dp, vertical = 40.dp).fillMaxWidth().height(48.dp),
                 onClick = {
                     if (pagerState.currentPage != onboardingList.count()-1){
                         pagerState.requestScrollToPage(pagerState.currentPage+1)

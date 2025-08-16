@@ -3,6 +3,7 @@ package com.iota.campusX.Feature.Search.Presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.iota.campusX.Feature.Search.Domain.Models.UserSearchDTO
 import com.iota.campusX.Feature.Search.Domain.SearchRepository
 import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Utils.UiState
@@ -15,14 +16,15 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 class SearchViewModel(private val repo: SearchRepository) : ViewModel() {
 
 
-    private val _searchResults = MutableStateFlow<UiState<List<BasicProfileDTO>>>(UiState.Idle)
-    val searchResults: StateFlow<UiState<List<BasicProfileDTO>>> = _searchResults.asStateFlow()
+    private val _searchResults = MutableStateFlow<UiState<List<UserSearchDTO>>>(UiState.Idle)
+    val searchResults: StateFlow<UiState<List<UserSearchDTO>>> = _searchResults.asStateFlow()
 
     private val searchQuery = MutableStateFlow("")
 
@@ -51,7 +53,9 @@ class SearchViewModel(private val repo: SearchRepository) : ViewModel() {
                         _searchResults.value = UiState.Loading
 
                         // Fetch from repository
-                        repo.userSearch(query).collect { result ->
+                        repo.userSearch(query)
+                            .stateIn(viewModelScope)
+                            .collect { result ->
                             _searchResults.value = result.fold(
                                 onSuccess = {
                                     UiState.Success(it)

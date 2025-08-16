@@ -11,12 +11,13 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
+import com.iota.campusX.Feature.Notification.domain.ConnectionRequestPayload
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationType
+import com.iota.campusX.Feature.Notification.domain.toTypedObject
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
-import com.iota.campusX.Utils.ServerTimeFetcher
 import com.iota.campusX.Utils.UiState
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -40,7 +41,6 @@ class UserProfileImpl(
     private val auth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,
     private val httpClient: HttpClient,
-    private val serverTimeFetcher: ServerTimeFetcher
 ) : UserProfileRepo {
 
 
@@ -248,13 +248,11 @@ class UserProfileImpl(
                 if (requestUserId != auth.currentUser!!.uid) {
                     val notification = CreateNotificationDTO(
                         notificationId = userId+requestUserId,
-                        type = NotificationType.REQUEST,
-                        visibilityMode = PostVisibilityMode.USER,
-                        replyId = null,
-                        postId = null,
-                        creatorId = requestUserId,
-                        actionBy = auth.currentUser!!.uid,
-                        createdAt = System.currentTimeMillis()
+                        type = NotificationType.CONNECTION_REQUEST,
+                        createdAt = FieldValue.serverTimestamp(),
+                        payload = ConnectionRequestPayload(
+                            actionBy = userId
+                        ).toTypedObject()
                     )
 
                     firestore.collection("Users")
@@ -336,6 +334,7 @@ class UserProfileImpl(
 
     override suspend fun getConnectionsCount(userId: String): Result<Int> {
         return try {
+            Log.d("PROFILE_DEBUG", "getProfileIdByPost: $userId")
             val snapshot = firestore.collection("Users").document(auth.currentUser!!.uid)
                 .collection("Connections")
                 .whereEqualTo("status", true)

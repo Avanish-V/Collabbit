@@ -1,24 +1,31 @@
 package com.iota.campusX.Feature.Notification.data
 
 import android.util.Log
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.gson.Gson
 import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.Feature.Chats.data.ID
+import com.iota.campusX.Feature.Notification.domain.CommentPayload
+import com.iota.campusX.Feature.Notification.domain.ConnectionRequestPayload
 import com.iota.campusX.Feature.Notification.domain.Content
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
+import com.iota.campusX.Feature.Notification.domain.LikePayload
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.CreateReplyDTO
+import com.iota.campusX.Feature.Post.domain.Models.PostContent
+import com.iota.campusX.Feature.Post.domain.Models.PostData
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.awaitClose
@@ -35,136 +42,171 @@ class NotificationImpl(
 ) :
     NotificationRepository {
 
-    override fun fetchNotification(): Flow<ResultState<List<NotificationDTO>>> {
+    override fun fetchNotification(): Flow<ResultState<List<NotificationDTO>>> = flow {
+        emit(ResultState.Loading)
 
-        return flow {
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            emit(ResultState.Error("User not logged in"))
+            return@flow
+        }
 
-            emit(ResultState.Loading)
+        try {
+            val notificationSnapshot = firestore.collection("Users")
+                .document(userId)
+                .collection("Notifications")
+                .get()
+                .await()
 
-            try {
+            val notificationList = coroutineScope {
+                notificationSnapshot.map { data ->
+                    async {
+                        val notificationData = data.toObject(CreateNotificationDTO::class.java)
+                        val type = notificationData.type
+                        val path = if (notificationData.feedMode == FeedMode.GLOBAL) "GlobalPosts" else "CampusPosts"
 
-                val notificationSnapshot =
-                    firestore.collection("Users").document(auth.currentUser!!.uid)
-                        .collection("Notifications")
-                        .get()
-                        .await()
+                        // 1. Parse the payload dynamically
+                        val likePayload = notificationData.getTypedPayload<LikePayload>()
+                        val commentPayload = notificationData.getTypedPayload<CommentPayload>()
+                        val connPayload = notificationData.getTypedPayload<ConnectionRequestPayload>()
 
-                val notificationList = coroutineScope {
+                        // 2. Get actionBy (user who triggered the notification)
+                        val actionById = likePayload?.actionBy ?: commentPayload?.actionBy ?: connPayload?.actionBy
 
-                    notificationSnapshot.map { data ->
-
-                        async {
-
-                            val notificationData = data.toObject(CreateNotificationDTO::class.java)
-                            val path = if (notificationData.feedMode == FeedMode.GLOBAL) "GlobalPosts" else "CampusPosts"
-
-
-                            val actionByDeferred = async {
-                                firestore.collection("Users")
-                                    .document(notificationData.actionBy)
-                                    .get()
-                                    .await()
-                                    .toObject(UserDetail::class.java)
+                        val actionByDeferred = async {
+                            actionById?.let {
+                                try {
+                                    firestore.collection("Users")
+                                        .document(it)
+                                        .get()
+                                        .await()
+                                        .toObject(UserDetail::class.java)
+                                } catch (e: Exception) {
+                                    Log.e("NotificationImpl", "Failed to fetch actionBy: ${e.message}")
+                                    null
+                                }
                             }
+                        }
 
-                            val getReplyDeferred = async {
-                                if (!notificationData.replyId.isNullOrEmpty()) {
-                                    firestore.collection(path)
-                                        .document(notificationData.postId.toString())
+                        // 3. Get comment reply (if it's a COMMENT notification)
+                        val replyDeferred = async {
+                            if (type == NotificationType.COMMENT && commentPayload != null) {
+                                try {
+                                    firestore.collection("Posts")
+                                        .document(commentPayload.postId)
                                         .collection("Replies")
-                                        .document(notificationData.replyId.toString())
+                                        .document(commentPayload.commentId)
                                         .get()
                                         .await()
                                         .toObject(CreateReplyDTO::class.java)
-                                } else {
+                                } catch (e: Exception) {
+                                    Log.e("NotificationImpl", "Failed to fetch reply: ${e.message}")
                                     null
                                 }
-                            }
-
-
-                            val getLikedPostDeferred = async {
-                                if (notificationData.postId != null) {
-                                    val snapshot = firestore.collection(path)
-                                        .document(notificationData.postId)
-                                        .get()
-                                        .await()
-                                    snapshot.toObject(GetPostDTO::class.java)
-                                } else {
-                                    null
-                                }
-                            }
-
-                            val getReply = getReplyDeferred.await()
-                            val actionedBy = actionByDeferred.await()
-                            val post = getLikedPostDeferred.await()
-
-
-
-                            val content: Content = when (notificationData.type) {
-                                NotificationType.LIKE_POST  -> Content(
-                                    text = post?.postContent?.postData?.postText ?: "",
-                                    image = post?.postContent?.postData?.postImage ?: ""
-                                )
-
-                                NotificationType.LIKE_REPLY  -> Content(
-                                    text = getReply?.content ?: ""
-                                )
-
-                                NotificationType.COMMENTED  -> Content(
-                                    text = getReply?.content ?: ""
-                                )
-
-                                NotificationType.REQUEST -> Content(text = "")
-                            }
-
-                            val userType: Pair<String, String> =
-
-                                if (notificationData.visibilityMode == PostVisibilityMode.USER) Pair(
-                                    actionedBy?.userName ?: "",
-                                    actionedBy?.userImage ?: ""
-                                )
-                                else Pair(
-                                    "Anonymous",
-                                    "https://res.cloudinary.com/dni4h8jjy/image/upload/v1746629954/wyuwxwa8qwx0hu0i6flk.png"
-                                )
-
-
-                            val createdAt = notificationData.createdAt
-
-
-                            NotificationDTO(
-                                notificationId = notificationData.notificationId,
-                                creatorId = notificationData.creatorId,
-                                createdAt = createdAt,
-                                postId = notificationData.postId.toString(),
-                                actionBy = UserDetail(
-                                    userName = userType.first,
-                                    id = actionedBy?.id ?: "",
-                                    userImage = userType.second
-                                ),
-                                content = content,
-                                type = notificationData.type,
-                                visibilityMode = notificationData.visibilityMode,
-                                feedMode = notificationData.feedMode
-                            )
-
+                            } else null
                         }
 
-                    }.map { it.await() }
+                        // 4. Get liked post content (if it's a LIKE notification)
+                        val postDeferred = async {
+                            if (type == NotificationType.LIKE && likePayload != null) {
+                                try {
+                                    val snapshot = firestore.collection("Posts")
+                                        .document(likePayload.postId)
+                                        .get()
+                                        .await()
 
-                }
+                                    val postContentMap = snapshot.get("postContent") as? Map<*, *> ?: return@async null
+                                    val postTypeStr = postContentMap["postType"] as? String ?: "TEXT"
+                                    val postType = runCatching { PostOptions.valueOf(postTypeStr) }.getOrDefault(PostOptions.TEXT)
 
-                emit(ResultState.Success(notificationList))
+                                    val postDataMap = postContentMap["postData"] as? Map<*, *> ?: emptyMap<Any, Any>()
+                                    val postText = postDataMap["postText"] as? String ?: ""
+                                    val postImage = postDataMap["postImage"] as? String
+
+                                    PostContent(
+                                        postType = postType,
+                                        postData = PostData(
+                                            postText = postText,
+                                            postImage = postImage,
+                                            poll = null
+                                        )
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e("NotificationImpl", "Failed to fetch liked post: ${e.message}")
+                                    null
+                                }
+                            } else null
+                        }
+
+                        val actionedBy = actionByDeferred.await()
+                        val reply = replyDeferred.await()
+                        val post = postDeferred.await()
+
+                        // Determine username + image (anonymous or not)
+                        val userType = if (commentPayload?.visibilityMode == PostVisibilityMode.USER) {
+                            Pair(actionedBy?.userName ?: "", actionedBy?.userImage ?: "")
+                        } else {
+                            Pair("Anonymous", "https://res.cloudinary.com/dni4h8jjy/image/upload/v1746629954/wyuwxwa8qwx0hu0i6flk.png")
+                        }
+
+                        val content: Content = when (type) {
+                            NotificationType.COMMENT -> {
+                                Content(
+                                    text = reply?.content,
+                                    image = null // or use post/reply image if applicable
+                                )
+                            }
+
+                            NotificationType.LIKE -> {
+                                Content(
+                                    text = post?.postData?.postText,
+                                    image = post?.postData?.postImage
+                                )
+                            }
+
+                            NotificationType.CONNECTION_REQUEST -> {
+                                Content(
+                                    text = "sent you a connection request",
+                                    image = null
+                                )
+                            }
+
+                            else -> {
+                                Content(
+                                    text = "You have a new notification",
+                                    image = null
+                                )
+                            }
+                        }
 
 
-            } catch (e: Exception) {
-                emit(ResultState.Error(e.message.toString()))
-                Log.d("NotificationImpl", "fetchNotification: ${e.message}")
+                        NotificationDTO(
+                            notificationId = notificationData.notificationId,
+                            createdAt = notificationData.createdAt as? Timestamp,
+                            userDetail = UserDetail(
+                                userName = userType.first,
+                                id = actionedBy?.id.orEmpty(),
+                                userImage = userType.second
+                            ),
+                            type = notificationData.type,
+                            feedMode = notificationData.feedMode,
+                            content = content,
+                            payload = notificationData.payload
+                            // Optionally include: post, reply, payload if needed
+                        )
+                    }
+                }.map { it.await() }
             }
 
-        }
+            emit(ResultState.Success(notificationList))
 
+        } catch (e: Exception) {
+            emit(ResultState.Error("Failed to fetch notifications: ${e.message}"))
+            Log.e("NotificationImpl", "Error in fetchNotification: ${e.message}", e)
+        }
     }
+
+
 
     override fun markNotificationAsRead() {
 

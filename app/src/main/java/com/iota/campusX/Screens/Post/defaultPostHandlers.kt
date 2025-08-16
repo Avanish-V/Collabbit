@@ -5,18 +5,17 @@ import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Navigation.Routes
-import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
+import com.iota.campusX.Screens.Home.BottomSheet.SharedBottomSheetViewModel
 import com.iota.campusX.Screens.Home.BottomSheet.Content
 import com.iota.campusX.Screens.Home.BottomSheet.ContentType
 import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Utils.vibrate
-import okhttp3.Route
 
 fun defaultPostHandlers(
     context: Context,
     post: GetPostDTO,
     feedViewModel: PostFeedViewModel,
-    bottomSheetSharedViewModel: BottomSheetSharedViewModel,
+    bottomSheetSharedViewModel: SharedBottomSheetViewModel,
     navController: NavHostController,
 ): PostActionHandlers {
     return PostActionHandlers(

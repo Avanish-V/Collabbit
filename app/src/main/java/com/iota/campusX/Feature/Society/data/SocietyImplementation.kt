@@ -11,6 +11,7 @@ import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
 import com.iota.campusX.Feature.Society.domain.models.SetJoinRequestDTO
+import com.iota.campusX.Feature.Society.domain.models.Status
 import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -117,7 +118,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
         }
     }
 
-    override suspend fun requestToJoin(roomId: String,role: String,status:Boolean, feedMode: FeedMode, campusId: String?): Result<Int> {
+    override suspend fun requestToJoin(roomId: String, role: String, status: Status, feedMode: FeedMode, campusId: String?): Result<Int> {
 
         return try {
 
@@ -138,7 +139,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 "role" to role,
                 "status" to status,
                 "uid" to uid,
-                "microphone" to true,
+                "microphone" to false,
                 "speaking" to false,
                 "raiseHand" to false
             )
@@ -193,14 +194,14 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                         val data = doc.toObject(SetJoinRequestDTO::class.java) ?: return@mapNotNull null
 
                         try {
+
                             val userSnapshot = fireStore.collection(
                                 "Users")
                                 .document(data.requestId)
                                 .get()
                                 .await()
 
-                            val user = userSnapshot.toObject(UserDetail::class.java)
-                                ?: return@mapNotNull null
+                            val user = userSnapshot.toObject(UserDetail::class.java) ?: return@mapNotNull null
 
                             GetJoinRequestDTO(
                                 requestId = data.requestId,
@@ -208,17 +209,18 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                                 userImage = user.userImage,
                                 role = data.role,
                                 status = data.status,
-                                speaking = data.microphone,
-                                microphone = data.speaking,
+                                speaking = data.speaking,
+                                microphone = data.microphone,
                                 raiseHand = data.raiseHand,
                                 uid = data.uid
                             )
+
                         } catch (e: Exception) {
                             Log.d("JOINING_REQUESTS",e.message.toString())
                             null
                         }
                     }
-
+                    Log.d("JOINING_REQUESTS",requests.toString())
                     trySend(requests).isSuccess
                 }
             }
@@ -227,12 +229,10 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
         awaitClose { listener.remove() }
     }
 
-    override suspend fun stageUpParticipant(roomId: String, status: Boolean, requestId: String, feedMode: FeedMode, campusId: String?): Result<String> {
+    override suspend fun stageUpParticipant(roomId: String, status: Status, requestId: String, feedMode: FeedMode, campusId: String?): Result<String> {
         return try {
 
             val path = resolveRoomPath(feedMode, campusId)
-
-            Log.d("STAGE_UP", "$roomId, $status, $requestId, $feedMode, $campusId $path")
 
             fireStore.collection(path)
                 .document(roomId)

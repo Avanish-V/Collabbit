@@ -62,9 +62,7 @@ import kotlin.random.Random
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Society(navHostController: NavHostController) {
-
-    val societyViewModel = koinInject<SocietyViewModel>()
+fun Society(navHostController: NavHostController,societyViewModel: SocietyViewModel) {
 
     val state = societyViewModel.getSocietyState.collectAsStateWithLifecycle()
 
@@ -79,7 +77,7 @@ fun Society(navHostController: NavHostController) {
         topBar = {
             TopAppBar(
                 title ={
-                    Text(text = "Society")
+                    Text(text = "Society", style = MaterialTheme.typography.headlineLarge)
                 },
                 actions = {
                     Row(modifier = Modifier.padding(end = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -183,7 +181,7 @@ fun SocietyCard(onCardClick: () -> Unit,getSocietyDTO: GetSocietyDTO) {
                 Column (verticalArrangement = Arrangement.spacedBy(6.dp)){
                     Text(
                         text = getSocietyDTO.societyName,
-                        style = MaterialTheme.typography.headlineLarge
+                        style = MaterialTheme.typography.headlineMedium
                     )
 
                     Text(
@@ -205,7 +203,7 @@ fun SocietyCard(onCardClick: () -> Unit,getSocietyDTO: GetSocietyDTO) {
                             modifier = Modifier.size(28.dp),
                             onClick = {}
                         )
-                        Text(text = getSocietyDTO.createdBy.userName,style = MaterialTheme.typography.headlineMedium)
+                        Text(text = getSocietyDTO.createdBy.userName,style = MaterialTheme.typography.bodyMedium)
                     }
 
                 }
@@ -216,43 +214,4 @@ fun SocietyCard(onCardClick: () -> Unit,getSocietyDTO: GetSocietyDTO) {
 
     }
 
-
-}
-
-
-
-
-
-
-
-@Composable
-fun ScatteredImage(
-    count: Int = 5,
-    modifier: Modifier
-) {
-
-
-    val random = remember { Random(5) }
-
-    Box(modifier = modifier) {
-        repeat(count) {
-            val randomX = random.nextInt(0, 50).dp
-            val randomY = random.nextInt(0, 80).dp
-            val size = random.nextInt(24, 30).dp
-
-            Image(
-                painter = painterResource(R.drawable.man),
-                contentDescription = "Scattered part",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(size)
-                    .graphicsLayer {
-                        translationX = randomX.toPx()
-                        translationY = randomY.toPx()
-                        rotationZ = random.nextFloat() * 30f - 15f // slight rotation
-                    }
-                    .clip(CircleShape)
-            )
-        }
-    }
 }

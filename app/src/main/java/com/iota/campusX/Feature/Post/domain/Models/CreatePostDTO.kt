@@ -4,26 +4,28 @@ import com.iota.campusX.Screens.Post.Poll
 import com.iota.campusX.Screens.Post.PostOptions
 import kotlinx.serialization.Serializable
 
+import com.google.firebase.Timestamp
+import kotlinx.serialization.Contextual
+
 @Serializable
 data class CreatePostDTO(
     val postId: String = "",
     val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
-    val createdAt: Long = 0L,
+    @Contextual
+    val createdAt: Timestamp = Timestamp.now(), // ✅ This line fixes the issue
     val creatorId: String = "",
     val reference: Reference? = null,
     val campusId: String? = null,
     val feedMode: FeedMode = FeedMode.GLOBAL,
     val postContent: PostContent = PostContent(),
-    val postActions: PostActions = PostActions()
 )
+
 
 data class Campus(
     val campusId: String = "",
     val campusName: String = "",
     val campusImage: String = ""
 )
-
-
 
 @Serializable
 data class PostData(
@@ -40,7 +42,6 @@ data class PostContent(
     val postData: PostData = PostData()
 )
 
-
 @Serializable
 data class PostActions(
     var isLiked: Boolean = false,
@@ -48,8 +49,6 @@ data class PostActions(
     val replies: List<String> = emptyList(),
     val replyCount: Int = 0
 )
-
-
 
 @Serializable
 data class Reference(

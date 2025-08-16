@@ -33,7 +33,7 @@ class ChatImpl(
     private val firestore: FirebaseFirestore
 ) : ChatRepository {
 
-    override fun sendMessage(message: String, messageId: String, timestamp: Long, receiverId: String, roomId: String): Flow<ResultState<Boolean>> {
+    override fun sendMessage(message: String, messageId: String, timestamp: Any, receiverId: String, roomId: String): Flow<ResultState<Boolean>> {
         return callbackFlow {
 
             trySend(ResultState.Loading)
@@ -88,7 +88,7 @@ class ChatImpl(
                                             "messageId" to messageId,
                                             "senderId" to senderId,
                                             "text" to message,
-                                            "timestamp" to ServerValue.TIMESTAMP,
+                                            "timestamp" to timestamp,
                                             "read" to false
                                         )
 

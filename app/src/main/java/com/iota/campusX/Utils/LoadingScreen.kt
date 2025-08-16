@@ -53,17 +53,17 @@ fun StatusScreen(isActive:Boolean,text:String,image:Int?= null) {
         ){
             Column (
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ){
                 if (image != null){
                     Image(
-                        modifier = Modifier.size(150.dp),
+                        modifier = Modifier.size(120.dp),
                         painter = painterResource(image),
                         contentDescription = null
                     )
                 }
 
-                Text(text = text, style = MaterialTheme.typography.titleMedium)
+                Text(text = text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             }
 

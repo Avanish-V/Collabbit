@@ -38,32 +38,26 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -76,7 +70,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,14 +79,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -113,18 +104,10 @@ import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.CourseDuration
 import com.iota.campusX.ui.UIComponents.CustomDatePicker
 import com.iota.campusX.ui.UIComponents.SubmitButton
-import com.iota.campusX.ui.theme.LightBlack
-import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.LightTheme_Black
 import com.iota.campusX.ui.theme.White
-import com.iota.campusX.ui.theme.LightTheme_White
 import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.secondary
-import com.iota.campusX.ui.theme.typography
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -334,7 +317,7 @@ fun EditProfileScreen(
 
                                 }) {
                                     Icon(
-                                        painter = painterResource(R.drawable.camera),
+                                        painter = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
                                         contentDescription = null,
                                         tint = White
                                     )
@@ -637,18 +620,17 @@ fun EditProfileScreen(
 
                 CustomTextField(
                     modifier = Modifier.fillMaxWidth(),
-                    value = editProfileViewModel.campus.value.collegeName,
+                    value = editProfileViewModel.campus.value.collegeName?:"",
                     onValueChange = { editProfileViewModel.editCollege(it.toString()) },
                     label = "College",
                     placeHolder = "Enter your college",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
-                Log.d("Selected Study", editProfileViewModel.campus.value.university.toString())
 
                 AutoCompleteFieldOfStudyDropdown(
                     fieldOptions = fieldsOfStudy,
-                    selectedField = editProfileViewModel.campus.value.fieldOfStudy,
+                    selectedField = editProfileViewModel.campus.value.fieldOfStudy?:"",
                     onFieldChange = {
                         editProfileViewModel.editFieldOfStudy(it.toString())
                     },
@@ -712,7 +694,8 @@ fun EditProfileScreen(
                                 isCalenderVisible = !isCalenderVisible
                             }) {
                                 Icon(
-                                    painter = painterResource(R.drawable.calendar_1),
+                                    modifier = Modifier.size(22.dp),
+                                    painter = painterResource(R.drawable.calendar),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -751,7 +734,8 @@ fun EditProfileScreen(
                                 isCalenderVisible = !isCalenderVisible
                             }) {
                                 Icon(
-                                    painter = painterResource(R.drawable.calendar_1),
+                                    modifier = Modifier.size(22.dp),
+                                    painter = painterResource(R.drawable.calendar),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -991,7 +975,7 @@ fun ProfileComponent(
 
 ) {
 
-    Column (modifier = Modifier.padding(12.dp)){
+    Column (modifier = Modifier.padding(horizontal = 12.dp, vertical = 24.dp)){
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

@@ -38,7 +38,8 @@ fun ErrorScreen(text: String, image: Int? = null, onReTry: () -> Unit, buttonTex
 
             Text(
                 text = text,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
@@ -49,7 +50,11 @@ fun ErrorScreen(text: String, image: Int? = null, onReTry: () -> Unit, buttonTex
                     width = 1.dp
                 )
             ) {
-                Text(buttonText)
+                Text(
+                    buttonText,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
 

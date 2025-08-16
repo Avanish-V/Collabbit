@@ -45,9 +45,12 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Search.Domain.Models.UserSearchDTO
 import com.iota.campusX.Feature.Search.Presentation.SearchViewModel
+import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.LightTheme_Black
 import org.koin.androidx.compose.koinViewModel
@@ -68,10 +71,11 @@ fun SearchScreen(navHostController: NavHostController) {
     Scaffold(
         topBar = {
             TextField(
-                modifier = Modifier.padding(horizontal = 10.dp).fillMaxWidth(),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp).fillMaxWidth(),
                 value = searchValue,
                 onValueChange = {
-                    searchValue = it
+                    searchValue = it.replaceFirstChar { it.uppercase()
+                    }
                     searchViewModel.onSearchQuery(it)
                 },
                 placeholder = {
@@ -113,17 +117,20 @@ fun SearchScreen(navHostController: NavHostController) {
                     LoadingUI(isLoading = true)
                 }
                 is UiState.Success -> {
+
                     val result = (searchResults as UiState.Success<*>).data
 
-                    Log.d("SearchScreen", "SearchScreen: $result")
                     LazyColumn{
                         items(result as List<UserSearchDTO>){
                             MentorSingleCard(
                                 user = it,
                                 onClick = {
-
+                                    navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID",it.id)
+                                    }
                                 }
                             )
+                            Divider()
                         }
                     }
                 }
@@ -156,7 +163,7 @@ fun MentorSingleCard(user: UserSearchDTO, onClick: () -> Unit) {
         ) {
             AsyncImage(
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(40.dp)
                     .clip(CircleShape),
                 model = user.userImage,
                 contentDescription = null,
@@ -168,17 +175,18 @@ fun MentorSingleCard(user: UserSearchDTO, onClick: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    user.userName,
-                    color = LightTheme_Black,
+                    text = user.userName,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.headlineMedium
 
                 )
                 Text(
                     user.userBio,
-                    color = LightTheme_Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 

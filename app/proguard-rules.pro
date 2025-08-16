@@ -1,6 +1,9 @@
 # === Firebase and Firestore DTO Rules ===
 
 
+
+-keep class com.example.** { *; }
+
 -keep class io.agora.** { *; }
 -dontwarn io.agora.**
 
@@ -10,7 +13,7 @@
 -keep class com.iota.campusX.Feature.Post.domain.Models.PostData { *; }
 
 # Referenced User model
--keep class com.iota.campusX.Feature.Post.domain.Models.User { *; }
+#-keep class com.iota.campusX.Feature.Post.domain.Models.User { *; }
 
 # Post-related DTOs (already mostly present)
 -keep class com.iota.campusX.Feature.Post.domain.** { *; }
@@ -49,3 +52,6 @@
 -dontwarn org.codehaus.janino.ClassBodyEvaluator
 -dontwarn org.codehaus.janino.ScriptEvaluator
 -dontwarn sun.reflect.Reflection
+
+-dontwarn io.getstream.video.android.mock.StreamPreviewDataUtils
+-dontwarn io.getstream.video.android.mock.StreamPreviewDataUtilsKt

@@ -16,8 +16,8 @@ android {
         applicationId = "com.iota.campusX"
         minSdk = 24
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.1.1"
+        versionCode = 12
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -109,5 +109,8 @@ dependencies {
 
     implementation("io.agora.rtc:voice-sdk:4.5.0")
     implementation("commons-codec:commons-codec:1.9")
+    implementation ("com.airbnb.android:lottie-compose:6.6.6")
+
+    implementation("com.google.android.play:app-update:2.1.0")
 
 }

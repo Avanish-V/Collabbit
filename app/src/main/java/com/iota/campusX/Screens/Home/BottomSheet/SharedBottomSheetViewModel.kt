@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class BottomSheetSharedViewModel: ViewModel(){
+class SharedBottomSheetViewModel: ViewModel(){
 
     private val _bottomSheetState : MutableStateFlow<PassBottomSheetData> = MutableStateFlow(PassBottomSheetData())
     val bottomSheetState: StateFlow<PassBottomSheetData> = _bottomSheetState.asStateFlow()

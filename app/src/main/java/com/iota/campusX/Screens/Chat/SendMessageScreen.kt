@@ -12,6 +12,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.BadgedBox
@@ -36,6 +38,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -57,7 +60,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -78,11 +84,11 @@ import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.ServerValue
 import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.Utils.ServerTimeStampViewModel
 import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.Divider
@@ -111,7 +117,6 @@ import java.util.Locale
 fun SendMessageScreen(
     navHostController: NavHostController,
     chatsViewModel: ChatsViewModel = koinViewModel(),
-    serverTimeViewModel: ServerTimeStampViewModel = koinInject()
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
@@ -130,8 +135,6 @@ fun SendMessageScreen(
     val chats by chatsViewModel.chats.collectAsStateWithLifecycle()
     val isActive by chatsViewModel.isActive.collectAsStateWithLifecycle()
     val isUserTyping by chatsViewModel.isUserTyping.collectAsStateWithLifecycle()
-    val serverTime by serverTimeViewModel.timeStamp.collectAsState()
-
 
     var messageText by remember { mutableStateOf("") }
     var isTyping by remember { mutableStateOf(false) }
@@ -217,14 +220,25 @@ fun SendMessageScreen(
                         onClick = {
                             if (messageText.isBlank()) return@IconButton
                             val messageId = generateUID()
+                            val serverTime = ServerValue.TIMESTAMP
+                            val localTime = System.currentTimeMillis()
                             val message = messageText
                             messageText = ""
+
+//                            chatsViewModel.updateChatRoomData(
+//                                ChatMessage(
+//                                    messageId = messageId,
+//                                    text = message,
+//                                    timestamp = localTime,
+//                                    senderId = currentUser,
+//                                )
+//                            )
                             scope.launch {
                                 chatsViewModel.sendMessages(
                                     message = message,
                                     messageId = messageId,
                                     roomId = roomId,
-                                    timestamp = 0L,
+                                    timestamp = serverTime,
                                     receiverId = userUUID
                                 ).collect {
                                     when(it){
@@ -236,14 +250,18 @@ fun SendMessageScreen(
                                     }
                                 }
                             }
+
                         },
                         enabled = messageText.isNotBlank()
                     ) {
-                        Icon(painter = painterResource(R.drawable.send_2), contentDescription = null, tint = LightTheme_Blue)
+                        Icon(
+                            modifier = Modifier.size(24.dp),
+                            painter = painterResource(R.drawable.send_solid),
+                            contentDescription = null, tint = LightTheme_Blue
+                        )
                     }
                 }
             }
-
         },
     ) { padding ->
         ChatList(
@@ -303,27 +321,39 @@ fun ChatTopBar(name: String, image: String, isActive: Boolean, navHostController
 
 @Composable
 fun MessageInputBar(modifier :Modifier = Modifier, messageText: String, onMessageChange: (String) -> Unit, onSendClick: () -> Unit) {
-    OutlinedTextField(
+    BasicTextField(
         value = messageText,
-        onValueChange = onMessageChange,
+        onValueChange = { onMessageChange.invoke(it) },
         modifier = modifier
+            .height(intrinsicSize = IntrinsicSize.Min)
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(6.dp)
             )
-            .imePadding(),
-        placeholder = { Text("Write a text...") },
-        trailingIcon = {
-
-        },
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.Transparent,
-            unfocusedContainerColor = Color.Transparent,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
+            .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(6.dp))
+            .imePadding()
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        textStyle = LocalTextStyle.current.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 16.sp
         ),
-        shape = CircleShape
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        decorationBox = { innerTextField ->
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (messageText.isEmpty()) {
+                    Text(
+                        text = "Write.....",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 16.sp
+                    )
+                }
+                innerTextField()
+            }
+        }
     )
 }
 
@@ -380,7 +410,7 @@ fun HeaderLabel(text: String) {
     ) {
         Divider(modifier = Modifier.weight(1f))
         Box(Modifier
-            .background(MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))
             .padding(horizontal = 16.dp, vertical = 4.dp)) {
             Text(text,color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium)
         }
@@ -453,7 +483,7 @@ fun ChatBubbleItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         convertTimestampToTime(chat.timestamp),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -476,20 +506,24 @@ fun ChatBubbleItem(
                 containerColor = MaterialTheme.colorScheme.surface,
             ) {
 
-                DropDownItem {
-                    showMenu = false
-                    scope.launch {
-                        delay(150) // Give time for the menu to dismiss
-                        onDelete()
-                    }
-                }
+                DropDownItem(
+                    onDelete = {
+                        showMenu = false
+                        scope.launch {
+                            delay(150) // Give time for the menu to dismiss
+                            onDelete()
+                        }
+                    },
+                    title = "Delete",
+                    icon = R.drawable.trash
+                )
             }
         }
     }
 }
 
 @Composable
-fun DropDownItem(onDelete: () -> Unit) {
+fun DropDownItem(onDelete: () -> Unit,title: String,icon: Int) {
 
    Column {
 
@@ -507,11 +541,12 @@ fun DropDownItem(onDelete: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ){
                 Icon(
-                    painter = painterResource(R.drawable.trash),
+                    modifier = Modifier.size(20.dp),
+                    painter = painterResource(icon),
                     contentDescription = null,
                     tint = Color.Red
                 )
-                Text("Delete", style = MaterialTheme.typography.bodyMedium)
+                Text(title, style = MaterialTheme.typography.bodyMedium)
             }
 
 

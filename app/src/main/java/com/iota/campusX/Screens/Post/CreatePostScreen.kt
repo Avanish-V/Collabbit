@@ -4,7 +4,6 @@ import ConsentAgreeViewModel
 import ConsentBottomSheet
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,9 +13,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,7 +26,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,11 +39,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -57,8 +49,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -93,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.google.firebase.Timestamp
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
 import com.iota.campusX.Feature.Post.domain.Models.CreatePostDTO
 import com.iota.campusX.Feature.Post.domain.Models.CreatorDetail
@@ -114,22 +105,17 @@ import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.vibrate
-import com.iota.campusX.ui.UIComponents.AutoCompleteFieldOfStudyDropdown
 import com.iota.campusX.ui.UIComponents.IconButtonWidget
-import com.iota.campusX.ui.UIComponents.PrimaryButton
 import com.iota.campusX.ui.UIComponents.SimpleDropDown
 import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.LightTheme_Black
-import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White
-import com.iota.campusX.ui.theme.LightTheme_White
 import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.secondary
 import io.ktor.util.date.getTimeMillis
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -275,6 +261,10 @@ fun CreatePostScreen(
             is UploadState.Started -> {
                 // Handle if needed
             }
+
+            is UploadState.ImageUploadFailed -> {
+
+            }
         }
     }
 
@@ -375,12 +365,11 @@ fun CreatePostScreen(
                                     }
                                 }
 
-
                                 postCreationViewModel.createPoll(
                                     CreatePostDTO(
                                         postId = generateUID(),
                                         visibilityMode = PostVisibilityMode.USER,
-                                        createdAt = getTimeMillis(),
+                                        createdAt = Timestamp.now(),
                                         creatorId = authViewModel.userId(),
                                         reference = null,
                                         postContent = PostContent(
@@ -390,12 +379,6 @@ fun CreatePostScreen(
                                             )
                                         ),
                                         campusId = null,
-                                        postActions = PostActions(
-                                            isLiked = false,
-                                            likesCount = 0,
-                                            replies = emptyList(),
-                                            replyCount = 0,
-                                        )
                                     )
                                 )
                             }
@@ -417,7 +400,7 @@ fun CreatePostScreen(
                                     dto = CreatePostDTO(
                                         postId = postId,
                                         visibilityMode = visibility,
-                                        createdAt = getTimeMillis(),
+                                        createdAt = Timestamp.now(),
                                         creatorId = userProfile.data.id,
                                         reference = selectedPod,
                                         postContent = PostContent(
@@ -459,10 +442,6 @@ fun CreatePostScreen(
                             horizontalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
                             Text(text = "Post")
-                            Icon(
-                                painter = painterResource(R.drawable.send_2),
-                                contentDescription = "Select image"
-                            )
                         }
                     }
                 }
@@ -869,6 +848,7 @@ fun CreatePostScreen(
                 consentAgreeViewModel.saveSwitchState(
                     true
                 )
+                isBottomSheetVisible = false
             }
         )
 
@@ -901,7 +881,6 @@ val podListItems = listOf<Reference>(
 
 enum class PostVisibilityMode { USER, ANONYMOUS }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun VisibilityModeChanger(
     modifier: Modifier = Modifier,
@@ -909,44 +888,44 @@ fun VisibilityModeChanger(
     onVisibilityModeChange: (PostVisibilityMode) -> Unit,
     userImage: String
 ) {
-    var visibility by remember { mutableStateOf(PostVisibilityMode.USER) }
     val context = LocalContext.current
     val offsetX = remember { Animatable(0f) }
     val threshold = 200f
     val coroutineScope = rememberCoroutineScope()
 
+    // Reset animation when visibility changes
     LaunchedEffect(selectedVisibility) {
-        visibility = selectedVisibility
+        offsetX.snapTo(0f)
     }
 
-    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(
-            modifier = modifier
+            modifier = Modifier
+                .size(42.dp)
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                 .clip(CircleShape)
                 .background(Color.Gray)
-                .pointerInput(Unit) {
+                .pointerInput(selectedVisibility) { // Add selectedVisibility as key
                     detectHorizontalDragGestures(
                         onHorizontalDrag = { _, dragAmount ->
-                            if (dragAmount > 0) {
-                                coroutineScope.launch {
-                                    offsetX.snapTo(offsetX.value + dragAmount)
-                                }
+                            coroutineScope.launch {
+                                offsetX.snapTo(offsetX.value + dragAmount)
                             }
                         },
                         onDragEnd = {
                             coroutineScope.launch {
-                                if (offsetX.value > threshold) {
-
-                                    visibility = if (visibility == PostVisibilityMode.USER) {
-                                        PostVisibilityMode.ANONYMOUS
-                                    } else {
-                                        PostVisibilityMode.USER
+                                if (abs(offsetX.value) > threshold) {
+                                    // Always toggle to opposite state
+                                    val newMode = when (selectedVisibility) {
+                                        PostVisibilityMode.USER -> PostVisibilityMode.ANONYMOUS
+                                        PostVisibilityMode.ANONYMOUS -> PostVisibilityMode.USER
                                     }
-
-                                    onVisibilityModeChange(visibility)
-
+                                    onVisibilityModeChange(newMode)
                                     context.vibrate()
+
                                 }
                                 offsetX.animateTo(0f, animationSpec = spring())
                             }
@@ -957,10 +936,11 @@ fun VisibilityModeChanger(
         ) {
             AsyncImage(
                 modifier = Modifier.fillMaxSize(),
-                model = if (visibility == PostVisibilityMode.USER) userImage else R.drawable.incognoto,
+                model = if (selectedVisibility == PostVisibilityMode.USER) userImage else R.drawable.incognoto,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
             )
         }
     }
 }
+

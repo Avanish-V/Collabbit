@@ -1,3 +1,4 @@
+
 package com.iota.campusX.Feature.UserProfile.data
 
 import androidx.annotation.Keep
@@ -30,7 +31,8 @@ data class BasicProfileDTO(
 @Keep
 @Serializable
 data class MetaData(
-    @SerialName("isFirstUser") val isFirstUser: Boolean = false,
+    @SerialName("firstUser") val firstUser: Boolean = false,
+    @SerialName("verified") val verified: Boolean = false,
     @SerialName("createdAt") val createdAt: Long? = null, // Use timestamp (e.g., from Firebase)
     @SerialName("updatedAt") val updatedAt: Long? = null
 )
@@ -42,12 +44,13 @@ data class MetaData(
 @Serializable
 data class Campus(
     @SerialName("university") val university: University? = null,
-    @SerialName("collegeName") val collegeName: String = "",
+    @SerialName("collegeName") val collegeName: String? = null,
     @SerialName("campusCode") val campusCode: String? = null,
     @SerialName("degree") val degree: String? = null,
-    @SerialName("fieldOfStudy") val fieldOfStudy: String = "",
+    @SerialName("fieldOfStudy") val fieldOfStudy: String? = null,
     @SerialName("courseStart") val courseStart: CourseDuration? = null,
-    @SerialName("courseEnd") val courseEnd: CourseDuration? = null
+    @SerialName("courseEnd") val courseEnd: CourseDuration? = null,
+    @SerialName("alumni") val alumni: Boolean? = null
 )
 
 /**

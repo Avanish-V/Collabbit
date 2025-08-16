@@ -34,6 +34,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
+import com.iota.campusX.ui.theme.White
 
 
 @Composable
@@ -69,7 +70,8 @@ fun BottomAppBar(
                                         Text(
                                             badgeCount.toString(),
                                             fontSize = 8.sp,
-                                            lineHeight = 10.sp
+                                            lineHeight = 10.sp,
+                                            color = White
                                         )
                                     }
 

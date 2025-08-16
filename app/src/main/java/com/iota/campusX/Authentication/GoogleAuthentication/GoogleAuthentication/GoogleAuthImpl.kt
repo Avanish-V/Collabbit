@@ -125,7 +125,7 @@ class GoogleAuthUiClient(
                                     userImage = firebaseAuth.currentUser!!.photoUrl.toString(),
                                     userEmail = firebaseAuth.currentUser!!.email.toString(),
                                     metaData = MetaData(
-                                        isFirstUser = true,
+                                        firstUser = true,
                                         createdAt = System.currentTimeMillis(),
                                     ),
                                 )

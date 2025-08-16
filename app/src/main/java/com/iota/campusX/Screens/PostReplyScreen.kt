@@ -8,7 +8,6 @@ import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -16,7 +15,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,20 +32,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -64,7 +60,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -73,10 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -95,7 +87,7 @@ import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
+import com.iota.campusX.Screens.Home.BottomSheet.SharedBottomSheetViewModel
 import com.iota.campusX.Screens.Home.BottomSheet.Content
 import com.iota.campusX.Screens.Home.BottomSheet.ContentType
 import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
@@ -119,7 +111,6 @@ import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.UIComponents.PostHeader
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.secondary
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -169,7 +160,7 @@ fun PostReplyScreen(
     var visibilityMode by remember { mutableStateOf(PostVisibilityMode.USER) }
     val snackBarHostState = remember { SnackbarHostState() }
 
-    val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
+    val bottomSheetViewModel: SharedBottomSheetViewModel = viewModel()
     val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
     val modificationRequest = bottomSheetViewModel.modificationRequest.collectAsState().value
     val isAlertDialogVisible = remember { mutableStateOf(false) }
@@ -179,7 +170,7 @@ fun PostReplyScreen(
     var postData by remember { mutableStateOf<GetPostDTO?>(null) }
 
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(postData) {
         postData?.let {
             replyViewModel.getReplies(
                 postId = it.postId,
@@ -330,7 +321,10 @@ fun PostReplyScreen(
                     },
                     isLoading = isLoading,
                     userImage = userProfile?.userImage ?: "",
+                    selectedVisibility = visibilityMode,
                     onVisibilityChange = {
+
+                        visibilityMode = it
                         when(isConsentAgree){
                             is UiState.Success -> {
                                 if (it == PostVisibilityMode.ANONYMOUS){
@@ -377,6 +371,7 @@ fun PostReplyScreen(
                 else -> {}
 
             }
+
             when(campusPostState){
                 is UiState.Success -> {
                     items(campusPostState.data.filter { it.postId == postId }) {
@@ -396,7 +391,6 @@ fun PostReplyScreen(
                 else -> {}
 
             }
-
             // Replies Header
             item {
                 Column(
@@ -406,7 +400,7 @@ fun PostReplyScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Divider()
-                    Text(text = "Replies", style = MaterialTheme.typography.headlineLarge)
+                    Text(text = "Replies", style = MaterialTheme.typography.headlineMedium)
                     Divider()
                 }
             }
@@ -562,6 +556,7 @@ fun PostReplyScreen(
                 consentAgreeViewModel.saveSwitchState(
                     true
                 )
+                consentBottomSheet.value = false
             }
         )
 
@@ -633,7 +628,7 @@ fun DragTopButton(
     ) {
         // 11. Dragging indicator (invisible handle or layout box)
         Image(
-            painter = painterResource(R.drawable.man),
+            painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = "Drag up",
             modifier = Modifier
                 .offset { IntOffset(0, offsetY.value.roundToInt()) }
@@ -674,7 +669,7 @@ fun ReplyWidget(
                     .size(42.dp)
                     .clip(CircleShape),
                 onClick = {
-                    if (repliesDTO.visibilityMode == PostVisibilityMode.USER) {
+                    if (repliesDTO.visibility == PostVisibilityMode.USER) {
                         navHostController.navigate(Routes.Main.ProfileByID.routes)
                             .apply {
                                 navHostController.currentBackStackEntry?.savedStateHandle?.set(
@@ -689,7 +684,7 @@ fun ReplyWidget(
             Column {
 
                 PostHeader(
-                    user = repliesDTO.creatorDetail.profile,
+                    user = repliesDTO.creatorDetail,
                     postedAt = getTimeAgo(repliesDTO.repliedAt)
                 )
 
@@ -707,6 +702,8 @@ fun ReplyWidget(
                     },
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -721,14 +718,14 @@ fun ReplyWidget(
 
                     Row (verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)){
 
-                        Log.d("IS_EDITED",repliesDTO.isEdited.toString())
-                        if (repliesDTO.isEdited){
+                        Log.d("IS_EDITED",repliesDTO.edited.toString())
+                        if (repliesDTO.edited){
                             Text("Edited", color = Black300, fontSize = 12.sp)
                         }
 
                         Icon(
                             modifier = Modifier
-                                .rotate(90f)
+                                .rotate(180f)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null,
@@ -736,15 +733,13 @@ fun ReplyWidget(
                                         onDotsClick.invoke()
                                     }
                                 ),
-                            painter = painterResource(R.drawable.dots_menu),
+                            painter = painterResource(R.drawable.baseline_more_vert_24),
                             contentDescription = "Dots",
-                            tint =  MaterialTheme.colorScheme.onSurface
+                            tint =  MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-
                 }
-
             }
         }
     }
@@ -756,6 +751,7 @@ fun BottomTextInput(
     focusRequester: FocusRequester,
     onFocusChange:(FocusState)->Unit,
     onTextChange:(String)-> Unit,
+    selectedVisibility: PostVisibilityMode,
     onVisibilityChange:(PostVisibilityMode)-> Unit,
     text: String,
     onSubmitClick:()-> Unit,
@@ -763,9 +759,7 @@ fun BottomTextInput(
     userImage: String
 ) {
 
-    Box(modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
 
         Row (verticalAlignment = Alignment.CenterVertically){
 
@@ -774,7 +768,7 @@ fun BottomTextInput(
                 onValueChange = { onTextChange.invoke(it) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp) // Ensures consistent height
+                    .height(IntrinsicSize.Min)
                     .padding(start = 52.dp) // Adjusted padding
                     .border(
                         width = 1.dp,
@@ -784,7 +778,7 @@ fun BottomTextInput(
                     .imePadding()
                     .focusRequester(focusRequester)
                     .onFocusChanged { onFocusChange.invoke(it) }
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
                 textStyle = LocalTextStyle.current.copy(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp
@@ -817,7 +811,8 @@ fun BottomTextInput(
                     CircularLoading()
                 } else {
                     Icon(
-                        painterResource(R.drawable.send_2),
+                        modifier = Modifier.size(22.dp),
+                        painter = painterResource(R.drawable.send_solid),
                         contentDescription = "Send",
                     )
                 }
@@ -827,13 +822,14 @@ fun BottomTextInput(
 
 
         VisibilityModeChanger(
-            selectedVisibility = PostVisibilityMode.USER,
+            selectedVisibility = selectedVisibility,
             onVisibilityModeChange = {
-                onVisibilityChange.invoke(it)
+                onVisibilityChange(it)
             },
             modifier = Modifier.size(42.dp),
             userImage = userImage
         )
+
 
 
     }

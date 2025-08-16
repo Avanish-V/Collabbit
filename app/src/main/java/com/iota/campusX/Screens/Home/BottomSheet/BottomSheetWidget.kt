@@ -2,12 +2,14 @@ package com.iota.campusX.Screens.Home.BottomSheet
 
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -16,10 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -47,27 +47,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
+import com.iota.campusX.Feature.Report.presentation.ReportViewModel
 import com.iota.campusX.R
+import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.UIComponents.AnimatedStatus
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.PrimaryButton
-import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.secondary
-import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDotOptionBottomSheet(
     isBottomSheet: Boolean,
-    bottomSheetViewModel: BottomSheetSharedViewModel,
+    bottomSheetViewModel: SharedBottomSheetViewModel,
     postFeedViewModel: PostFeedViewModel,
     replyViewModel: ReplyViewModel,
     onDismiss: () -> Unit,
@@ -78,15 +77,18 @@ fun PostDotOptionBottomSheet(
 ) {
 
 
+    val reportViewModel = koinInject<ReportViewModel>()
     bottomSheetViewModel.modificationRequest.collectAsState().value
     val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
 
     val editPostState = postFeedViewModel.editPostState
     val editReplyState = replyViewModel.editReplyState.collectAsState()
+    val reportPostState = reportViewModel.submitReportState.collectAsState()
 
     val focusRequester = remember { FocusRequester() }
     var replyText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+
 
     val scope = rememberCoroutineScope()
     LocalContext.current
@@ -149,12 +151,12 @@ fun PostDotOptionBottomSheet(
 
 
 
-
     if (isBottomSheet) {
         ModalBottomSheet(
+            modifier = Modifier.padding(horizontal = 8.dp),
             onDismissRequest = { onDismiss() },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = MaterialTheme.colorScheme.background,
         ) {
 
             when (bottomSheetData.sheetType) {
@@ -214,7 +216,7 @@ fun PostDotOptionBottomSheet(
 
                 SheetType.EDIT_POST -> {
                     EditTextSection(
-                        title = "Edit Post",
+                        title = "@Edit Post",
                         replyText = replyText,
                         isLoading = isLoading,
                         onTextChange = { replyText = it },
@@ -263,17 +265,95 @@ fun PostDotOptionBottomSheet(
 
                 SheetType.REPORT -> {
 
-                    ReportContent()
+                    when(reportPostState.value){
+                        is UiState.Idle->{
 
+                            ReportContent(
+                                onSubmitClick = {
+                                    reportViewModel.submitReport(
+                                        reportReason = it,
+                                        postId = bottomSheetData.content.postId,
+                                        campusId = bottomSheetData.campusId
+                                    )
+                                }
+                            )
+
+                        }
+                        is UiState.Loading->{
+
+                            LoadingUI(isLoading = true)
+                        }
+                        is UiState.Success->{
+
+                            Column (modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally){
+
+                                Column (horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)){
+                                    AnimatedStatus(
+                                        modifier = Modifier.size(100  .dp),
+                                        file = R.raw.sent_email,
+                                        description = "Submitted"
+                                    )
+                                    Text("Report Submitted", style = MaterialTheme.typography.headlineLarge)
+
+                                    Text("Thank you for helping keep our community safe", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                                }
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)){
+
+                                    Text("What happens next?", style = MaterialTheme.typography.headlineLarge)
+
+                                    Text(
+                                        text = "● Our moderation team will review your report within 24-48 hours.\n" +
+                                            "● We'll take appropriate action based on our community guidelines.\n" +
+                                            "● You may receive an update on the outcome via notification.",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+
+                                    Box(modifier = Modifier.fillMaxWidth().border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center){
+                                        Text(text = "Report ID: RPT-2024-071-8847", modifier = Modifier.padding(12.dp))
+                                    }
+
+                                    Box(modifier = Modifier.fillMaxWidth().background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp)).border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center){
+                                        Text(text = "Reports are confidential. The user won't know you reported their content unless action is taken.", modifier = Modifier.padding(12.dp), textAlign = TextAlign.Center)
+                                    }
+
+                                }
+
+
+
+
+                            }
+
+
+                        }
+                        is UiState.Error -> {
+
+                            ReportContent(
+                                onSubmitClick = {
+                                    reportViewModel.submitReport(
+                                        reportReason = it,
+                                        postId = bottomSheetData.content.postId,
+                                        campusId = bottomSheetData.campusId
+                                    )
+                                }
+                            )
+
+                        }
+                    }
                 }
-
             }
         }
     }
 }
 
 @Composable
-fun ReportContent(modifier: Modifier = Modifier) {
+fun ReportContent(
+    onSubmitClick:(ReportReason)-> Unit
+) {
+
+    var reportReason by remember { mutableStateOf(ReportReason())}
 
     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
@@ -297,14 +377,22 @@ fun ReportContent(modifier: Modifier = Modifier) {
                 }
             }
             items(reportReasons) {
-                ReportSingleItem(it)
+                ReportSingleItem(
+                    reportReason = it,
+                    selectedReason = reportReason,
+                    onReasonSelect = {
+                        reportReason = it
+                    }
+                )
             }
         }
 
 
         PrimaryButton (
             buttonText = "Submit",
-            onClick = {}
+            onClick = {
+                onSubmitClick.invoke(reportReason)
+            }
         )
 
     }
@@ -313,13 +401,20 @@ fun ReportContent(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ReportSingleItem(reportReason: ReportReason) {
-
+fun ReportSingleItem(
+    reportReason: ReportReason,
+    selectedReason: ReportReason,
+    onReasonSelect:(ReportReason)-> Unit
+) {
+    var isSelected by remember { mutableStateOf(false) }
 
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         RadioButton(
-            selected = false,
-            onClick = {}
+            selected = if (selectedReason == reportReason) true else false,
+            onClick = {
+                isSelected = !isSelected
+                onReasonSelect(reportReason)
+            }
         )
         Text(reportReason.description.toString())
     }
@@ -328,9 +423,9 @@ fun ReportSingleItem(reportReason: ReportReason) {
 
 
 data class ReportReason(
-    val type: ReportType,
-    val title: String,
-    val description: String
+    val type: ReportType = ReportType.NONE,
+    val title: String = "",
+    val description: String = ""
 )
 
 val reportReasons = listOf(
@@ -365,6 +460,7 @@ val reportReasons = listOf(
 
 
 enum class ReportType {
+    NONE,
     SPAM,
     HATE_SPEECH,
     HARASSMENT,
@@ -420,11 +516,14 @@ fun EditTextSection(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            Text(
-                text = title,
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.headlineLarge
-            )
+            Column {
+                Text(
+                    text = title,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.headlineMedium
+                )
+            }
+
         }
 
         Divider()
@@ -457,14 +556,15 @@ fun SendButton(isLoading: Boolean, onClick: () -> Unit) {
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                trackColor = secondary,
-                color = LightTheme_Blue
+                trackColor = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.primary
             )
         } else {
             Icon(
-                painter = painterResource(R.drawable.send_2),
+                modifier = Modifier.size(22.dp),
+                painter = painterResource(R.drawable.send_solid),
                 contentDescription = "Send",
-                tint = LightTheme_Blue
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }

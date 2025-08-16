@@ -45,7 +45,7 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     fun sendMessages(
         message: String,
         messageId: String,
-        timestamp: Long,
+        timestamp: Any,
         receiverId: String,
         roomId: String
     ) = chatRepository.sendMessage(message,messageId,timestamp,receiverId,roomId)

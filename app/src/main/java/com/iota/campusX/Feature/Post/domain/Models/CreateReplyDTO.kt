@@ -9,7 +9,7 @@ data class CreateReplyDTO(
     val repliedBy: String = "",
     val content: String = "",
     val isEdited: Boolean = false,
-    val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
+    val visibility: PostVisibilityMode = PostVisibilityMode.USER,
     val feedMode: FeedMode = FeedMode.GLOBAL,
     val repliedAt: Long = 0L
 )
@@ -18,11 +18,18 @@ data class CreateReplyDTO(
 data class GetRepliesDTO(
     val postId: String = "",
     val replyId: String = "",
-    val isEdited: Boolean = false,
-    val creatorDetail: CreatorDetail,
+    val edited: Boolean = false,
+    val creatorDetail: CreatorDetail = CreatorDetail(),
     val content: String = "",
-    val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
+    val visibility: PostVisibilityMode = PostVisibilityMode.USER,
     val feedMode: FeedMode = FeedMode.GLOBAL,
-    val actions: PostActions,
+    val actions: PostActions = PostActions(),
     val repliedAt: Long = 0L
+)
+
+
+@Serializable
+data class UserReplyDTO(
+    val post: GetPostDTO,
+    val reply: GetRepliesDTO
 )

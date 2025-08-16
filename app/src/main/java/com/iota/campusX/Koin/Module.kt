@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.Preferences
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
@@ -22,7 +23,9 @@ import com.iota.campusX.Feature.Notification.data.NotificationImpl
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.data.PostRepoImpl
+import com.iota.campusX.Feature.Post.data.ReplyRepoImpl
 import com.iota.campusX.Feature.Post.domain.PostRepository
+import com.iota.campusX.Feature.Post.domain.ReplyRepository
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePollUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePostUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.CreateReplyUseCase
@@ -36,6 +39,9 @@ import com.iota.campusX.Feature.Post.domain.UseCases.VotePollUseCase
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
+import com.iota.campusX.Feature.Report.data.ReportRepoImpl
+import com.iota.campusX.Feature.Report.domain.ReportRepository
+import com.iota.campusX.Feature.Report.presentation.ReportViewModel
 import com.iota.campusX.Feature.Search.Data.SearchRepositoryImpl
 import com.iota.campusX.Feature.Search.Domain.SearchRepository
 import com.iota.campusX.Feature.Search.Presentation.SearchViewModel
@@ -52,13 +58,12 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.NetworkCapability.AndroidConnectivityObserver
 import com.iota.campusX.NetworkCapability.ConnectivityObserver
 import com.iota.campusX.NetworkCapability.ConnectivityViewModel
+import com.iota.campusX.Screens.Home.BottomSheet.SharedBottomSheetViewModel
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Home.dataStore
 import com.iota.campusX.Screens.Post.PollViewModel
 import com.iota.campusX.Screens.Post.PostScreenViewModel
 import com.iota.campusX.Screens.Profile.ProfileTypeViewModel
-import com.iota.campusX.Utils.ServerTimeFetcher
-import com.iota.campusX.Utils.ServerTimeStampViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -127,7 +132,6 @@ val appModule = module {
             auth = get(),
             firebaseStorage = get(),
             httpClient = get(),
-            serverTimeFetcher = get()
         )
     }
     single<GoogleAuthRepo> {
@@ -136,15 +140,18 @@ val appModule = module {
     single<PostRepository> { PostRepoImpl(get(), get(), get()) }
     single<ChatRepository> { ChatImpl(get(), get(), get(), get()) }
     single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
-    single { ServerTimeFetcher(get()) }
     single <SocietyRepository>{ SocietyImplementation(get(),get()) }
     single <StreamRepository>{ StreamImplementation() }
     single <SearchRepository>{ SearchRepositoryImpl(get()) }
     single <ConnectivityObserver>{ AndroidConnectivityObserver(get()) }
+    single <ReportRepository>{ ReportRepoImpl(get(),get()) }
+    single <ReplyRepository>{ ReplyRepoImpl(get(), get(), get()) }
 
     single<DataStore<Preferences>> {
         androidContext().dataStore
     }
+
+   // single { disableOfflineSync(get()) }
 
     // -------------------------------
     // Push Notification
@@ -175,7 +182,7 @@ val appModule = module {
         ReplyViewModel(
             getRepliesUseCase = get(),
             createReplyUseCase = get(),
-            postRepository = get()
+            replyRepository = get()
         )
     }
     viewModel {
@@ -194,7 +201,8 @@ val appModule = module {
         PostCreationViewModel(
             createPostUseCase = get(),
             createPollUseCase = get(),
-            feedViewModel = get()
+            feedViewModel = get(),
+            connectivityObserver = get()
         )
     }
 
@@ -204,7 +212,6 @@ val appModule = module {
     viewModel { NavigationViewModel() }
     viewModel { NotificationViewModel(get()) }
     viewModel { HomeViewModel(get()) }
-    viewModel { ServerTimeStampViewModel(get()) }
     viewModel { PollViewModel() }
     viewModel { PostScreenViewModel() }
     viewModel { ConsentAgreeViewModel(get()) }
@@ -213,6 +220,8 @@ val appModule = module {
     viewModel { StreamViewModel(get()) }
     viewModel { ConnectivityViewModel(get()) }
     viewModel { SearchViewModel(get()) }
+    viewModel { ReportViewModel(get()) }
+    viewModel { SharedBottomSheetViewModel() }
 }
 
 
@@ -232,4 +241,12 @@ fun getFCMToken(onTokenReceived: (String?) -> Unit) {
             onTokenReceived(null)
         }
     }
+}
+
+fun disableOfflineSync(firestore: FirebaseFirestore){
+    firestore.firestoreSettings = FirebaseFirestoreSettings
+        .Builder()
+        .setPersistenceEnabled(false)
+        .build()
+
 }

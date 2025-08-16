@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,7 +29,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -61,16 +60,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
@@ -85,7 +83,7 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.Permissions.NotificationPermissionRequester
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Home.BottomSheet.BottomSheetSharedViewModel
+import com.iota.campusX.Screens.Home.BottomSheet.SharedBottomSheetViewModel
 import com.iota.campusX.Screens.Home.BottomSheet.ContentType
 import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
 import com.iota.campusX.Screens.Post.defaultPostHandlers
@@ -96,7 +94,6 @@ import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.PostCard
-import com.iota.campusX.ui.theme.LightTheme_White
 import com.iota.campusX.ui.theme.LightTheme_Blue
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -112,39 +109,24 @@ fun MainScreen(
     homeViewModel: HomeViewModel,
     notificationViewModel: NotificationViewModel
 ) {
+
     NotificationPermissionRequester()
 
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val snackBarHostState = remember { SnackbarHostState() }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    val userProfileState = profileViewModel.userBaseProfile.collectAsState().value
     val switchState = homeViewModel.mode.collectAsState().value
     val chatBadgeCount by notificationViewModel.chatCount.collectAsState()
 
-    val tabs = listOf("Global", "Campus")
+    val tabs by remember { mutableStateOf(listOf("Global", "Campus")) }
 
     LaunchedEffect(Unit) {
-        profileViewModel.getUserProfile()
         notificationViewModel.getChatCount()
     }
 
-    val userProfile = (userProfileState as? UiState.Success)?.data
     val feedMode = (switchState as? UiState.Success<FeedMode>)?.data
-
-    // Only fetch posts when both userProfile and switchState are loaded
-    LaunchedEffect(userProfile, feedMode) {
-        if (userProfile != null && feedMode != null) {
-            if (feedMode == FeedMode.CAMPUS) {
-                postViewModel.fetchCampusPosts(
-                    feedMode = FeedMode.CAMPUS,
-                    campusId = userProfile.campus?.campusCode.orEmpty()
-                )
-            } else {
-                postViewModel.fetchGlobalPosts()
-            }
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -162,12 +144,16 @@ fun MainScreen(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(24.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(end = 12.dp)
                     ) {
                         BadgedBox(
                             badge = {
                                 if (chatBadgeCount != 0) {
-                                    Box(modifier = Modifier.size(14.dp).background(Color.Red, CircleShape),contentAlignment = Alignment.Center){
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .background(Color.Red, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
                                         Text(
                                             chatBadgeCount.toString(),
                                             color = Color.White,
@@ -184,7 +170,11 @@ fun MainScreen(
                                 colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.messages_normal),
+
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .rotate(-45f),
+                                    painter = painterResource(R.drawable.send_solid),
                                     contentDescription = "Message"
                                 )
                             }
@@ -201,28 +191,18 @@ fun MainScreen(
         snackbarHost = {
             SnackbarHost(
                 modifier = Modifier.padding(bottom = 100.dp),
-                hostState = snackbarHostState
+                hostState = snackBarHostState
             )
         },
     ) { innerPadding ->
 
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)) {
+
             when {
-                userProfileState is UiState.Loading || userProfileState is UiState.Idle || switchState is UiState.Loading || switchState is UiState.Idle -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
+                feedMode != null -> {
 
-                userProfileState is UiState.Error -> {
-                    Text("Error loading user profile: ${userProfileState.message}")
-                }
-
-                switchState is UiState.Error -> {
-                    Text("Error loading switch state: ${switchState.message}")
-                }
-
-                userProfile != null && feedMode != null -> {
                     val currentPage = if (feedMode == FeedMode.GLOBAL) 0 else 1
 
                     val pagerState = rememberPagerState(
@@ -231,7 +211,8 @@ fun MainScreen(
                     )
 
                     LaunchedEffect(pagerState.currentPage) {
-                        val selectedMode = if (pagerState.currentPage == 0) FeedMode.GLOBAL else FeedMode.CAMPUS
+                        val selectedMode =
+                            if (pagerState.currentPage == 0) FeedMode.GLOBAL else FeedMode.CAMPUS
                         homeViewModel.saveSwitchState(selectedMode)
                     }
 
@@ -251,20 +232,22 @@ fun MainScreen(
                         tabs.forEachIndexed { index, title ->
                             Tab(
                                 text = {
-                                    Text(
-                                        text = title,
-                                        style = MaterialTheme.typography.headlineMedium
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            modifier = Modifier.size(20.dp),
+                                            painter = painterResource(
+                                                if (index == 0) R.drawable.globe else R.drawable.school__1_
+                                            ),
+                                            contentDescription = null
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = title,
+                                            style = MaterialTheme.typography.headlineMedium
+                                        )
+                                    }
+
                                 },
-//                                icon = {
-//                                    Icon(
-//                                        modifier = Modifier.size(20.dp),
-//                                        painter = painterResource(
-//                                            if (index == 0) R.drawable.globe else R.drawable.school
-//                                        ),
-//                                        contentDescription = null
-//                                    )
-//                                },
                                 selected = pagerState.currentPage == index,
                                 onClick = {
                                     scope.launch {
@@ -278,11 +261,10 @@ fun MainScreen(
                     }
 
                     HorizontalPager(state = pagerState) { page ->
-                        GlobalPosts(
+                        FeedComponent(
                             navHostController = navHostController,
                             postFeedViewModel = postViewModel,
                             navigationViewModel = navigationViewModel,
-                            profileImage = userProfile.userImage,
                             scrollBehavior = scrollBehavior,
                             pageIndex = page,
                             userProfileViewModel = profileViewModel,
@@ -296,15 +278,13 @@ fun MainScreen(
 }
 
 
-
 @RequiresApi(Build.VERSION_CODES.O)
-fun LazyListScope.writePost(
+fun LazyListScope.writePostComponent(
     navHostController: NavHostController,
     context: Context,
     profileImage: String
 ) {
     item {
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -320,7 +300,6 @@ fun LazyListScope.writePost(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-
             AsyncImage(
                 modifier = Modifier
                     .size(40.dp)
@@ -329,7 +308,6 @@ fun LazyListScope.writePost(
                 contentDescription = null,
                 contentScale = ContentScale.Crop
             )
-
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "What's on your mind?",
@@ -340,6 +318,7 @@ fun LazyListScope.writePost(
                 Icon(
                     painter = painterResource(R.drawable.write),
                     contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -351,15 +330,14 @@ fun LazyListScope.postsLazyColumn(
     postData: List<GetPostDTO>,
     navHostController: NavHostController,
     postFeedViewModel: PostFeedViewModel,
-    bottomSheetSharedViewModel: BottomSheetSharedViewModel,
+    bottomSheetSharedViewModel: SharedBottomSheetViewModel,
 ) {
 
     if (postData.isNotEmpty()) {
 
         val sortedPost = postData.sortedByDescending { it.createdAt }
 
-        items(sortedPost, key = {it.postId}) {
-
+        items(sortedPost, key = { it.postId }) {
             PostCard(
                 post = it,
                 handlers = defaultPostHandlers(
@@ -383,46 +361,55 @@ fun LazyListScope.postsLazyColumn(
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GlobalPosts(
+fun FeedComponent(
     navHostController: NavHostController,
     postFeedViewModel: PostFeedViewModel,
     navigationViewModel: NavigationViewModel,
-    profileImage: String,
     scrollBehavior: TopAppBarScrollBehavior,
     pageIndex: Int,
     userProfileViewModel: UserProfileViewModel,
     feedMode: FeedMode
 ) {
-    val replyViewModel = koinInject<ReplyViewModel>()
-    val bottomSheetViewModel: BottomSheetSharedViewModel = viewModel()
-    val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
-
-    val deletePostState = postFeedViewModel.deletePostState.collectAsState()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val pullToRefreshState = rememberPullToRefreshState()
+    val lazyState = rememberLazyListState()
 
+    HideBottomBar(navigationViewModel, lazyState)
+
+    val replyViewModel = koinInject<ReplyViewModel>()
+    val bottomSheetViewModel = koinInject<SharedBottomSheetViewModel>()
+
+
+    val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
+    val deletePostState = postFeedViewModel.deletePostState.collectAsState()
     val globalPostState = postFeedViewModel.globalPosts.collectAsStateWithLifecycle().value
     val campusPostState = postFeedViewModel.campusPosts.collectAsState().value
-    val profile = userProfileViewModel.userBaseProfile.collectAsState().value
+    val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
 
-    val campusId = when(profile){
-        is UiState.Success->{
-            profile.data.campus?.campusCode
-        }else -> {
-            null
+    val profileData = (profileState as? UiState.Success)?.data
+
+    var isLoading by remember { mutableStateOf(false) }
+    var isAlertDialogVisible by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
+
+
+    LaunchedEffect(feedMode) {
+        when (feedMode) {
+            FeedMode.GLOBAL -> {
+                postFeedViewModel.fetchGlobalPosts()
+            }
+
+            FeedMode.CAMPUS -> {
+                postFeedViewModel.fetchCampusPosts(
+                    feedMode = feedMode,
+                    campusId = profileData?.campus?.campusCode
+                )
+            }
         }
     }
 
-    val pullToRefreshState = rememberPullToRefreshState()
-    val lazyState = rememberLazyListState()
-    var isLoading by remember { mutableStateOf(false) }
-    var isAlertDialogVisible by remember { mutableStateOf(false) }
-
-
-    var isRefreshing by remember { mutableStateOf(false) }
-
-    HideBottomBar(navigationViewModel, lazyState)
 
     LaunchedEffect(deletePostState.value) {
         when (deletePostState.value) {
@@ -436,24 +423,22 @@ fun GlobalPosts(
             }
 
             is UiState.Error -> {
-                false
+                isLoading = false
                 isAlertDialogVisible = false
             }
 
             else -> {
-                false
+                isLoading = false
                 isAlertDialogVisible = false
             }
         }
     }
 
-
     RefreshBox(
         pullToRefreshState = pullToRefreshState,
         onRefresh = {
-
             context.vibrate()
-
+            postFeedViewModel.fetchGlobalPosts()
             scope.launch {
                 isRefreshing = true
                 lazyState.animateScrollToItem(0)
@@ -467,15 +452,17 @@ fun GlobalPosts(
 
             when (pageIndex) {
                 0 -> {
-
                     when (globalPostState) {
+
                         is UiState.Loading -> {
                             LoadingUI(isLoading = true)
                         }
 
                         is UiState.Error -> {
                             ErrorScreen(
-                                text = globalPostState.message, image = null, onReTry = {
+                                text = globalPostState.message,
+                                image = null,
+                                onReTry = {
                                     postFeedViewModel.fetchGlobalPosts()
                                 },
                                 buttonText = "Retry"
@@ -484,18 +471,18 @@ fun GlobalPosts(
 
                         is UiState.Success -> {
 
-                            val sortedPosts = globalPostState.data.sortedByDescending { it.createdAt }
+                            val sortedPosts =
+                                globalPostState.data.sortedByDescending { it.createdAt }
 
                             PostFeedList(
                                 postData = sortedPosts,
                                 navHostController = navHostController,
-                                profileImage = profileImage,
                                 postFeedViewModel = postFeedViewModel,
-                                bottomSheetSharedViewModel = bottomSheetViewModel,
+                                sharedBottomSheetViewModel = bottomSheetViewModel,
                                 context = context,
                                 scrollBehavior = scrollBehavior,
                                 lazyState = lazyState,
-                                userProfileViewModel = userProfileViewModel
+                                userProfileImage = profileData?.userImage ?: ""
                             )
                         }
 
@@ -503,8 +490,6 @@ fun GlobalPosts(
                             // Optional: show empty state or nothing
                         }
                     }
-
-
                 }
 
                 1 -> {
@@ -518,7 +503,7 @@ fun GlobalPosts(
                             if (campusPostState.message == Error.CAMPUS_NOT_FOUND.name) {
                                 ErrorScreen(
                                     text = "It seems you have not updated your campus details.",
-                                    image = null,
+                                    image =null,
                                     onReTry = {
                                         navHostController.navigate(Routes.Main.Profile.routes)
                                     },
@@ -531,7 +516,7 @@ fun GlobalPosts(
                                     onReTry = {
                                         postFeedViewModel.fetchCampusPosts(
                                             feedMode = feedMode,
-                                            campusId = campusId
+                                            campusId = ""
                                         )
                                     },
                                     buttonText = "Retry"
@@ -541,18 +526,18 @@ fun GlobalPosts(
 
                         is UiState.Success -> {
 
-                            val sortedPosts = campusPostState.data.sortedByDescending { it.createdAt }
+                            val sortedPosts =
+                                campusPostState.data.sortedByDescending { it.createdAt }
 
                             PostFeedList(
                                 postData = sortedPosts,
                                 navHostController = navHostController,
-                                profileImage = profileImage,
                                 postFeedViewModel = postFeedViewModel,
-                                bottomSheetSharedViewModel = bottomSheetViewModel,
+                                sharedBottomSheetViewModel = bottomSheetViewModel,
                                 context = context,
                                 scrollBehavior = scrollBehavior,
                                 lazyState = lazyState,
-                                userProfileViewModel = userProfileViewModel
+                                userProfileImage = profileData?.userImage ?: ""
                             )
                         }
 
@@ -560,7 +545,6 @@ fun GlobalPosts(
                             // Optional: Add a placeholder or keep empty
                         }
                     }
-
                 }
             }
         }
@@ -667,13 +651,12 @@ fun StatusScreen(isActive: Boolean, text: String) {
 fun PostFeedList(
     postData: List<GetPostDTO>,
     navHostController: NavHostController,
-    profileImage: String,
-    userProfileViewModel: UserProfileViewModel,
     postFeedViewModel: PostFeedViewModel,
-    bottomSheetSharedViewModel: BottomSheetSharedViewModel,
+    sharedBottomSheetViewModel: SharedBottomSheetViewModel,
     context: Context,
     scrollBehavior: TopAppBarScrollBehavior,
     lazyState: LazyListState,
+    userProfileImage: String
 ) {
     LazyColumn(
         state = lazyState,
@@ -683,7 +666,7 @@ fun PostFeedList(
         // verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
-        writePost(navHostController, context, profileImage)
+        writePostComponent(navHostController, context, userProfileImage)
 
         item {
             HorizontalDivider(
@@ -692,12 +675,12 @@ fun PostFeedList(
 
             )
         }
-        
+
         postsLazyColumn(
             postData = postData,
             navHostController = navHostController,
             postFeedViewModel = postFeedViewModel,
-            bottomSheetSharedViewModel = bottomSheetSharedViewModel,
+            bottomSheetSharedViewModel = sharedBottomSheetViewModel,
         )
     }
 }

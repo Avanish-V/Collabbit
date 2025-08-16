@@ -7,6 +7,7 @@ import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
+import com.iota.campusX.Feature.Society.domain.models.Status
 import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +37,10 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
     private val _askToSpeak = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val askToSpeak : StateFlow<UiState<Unit>> = _askToSpeak.asStateFlow()
 
+    private val _microphone = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val microphone : StateFlow<UiState<Unit>> = _microphone.asStateFlow()
+
+
     fun createSociety(societyName: String, description: String,mode: FeedMode){
 
         val createSocietyDTO = CreateSocietyDTO(
@@ -57,6 +62,9 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
     }
 
     fun fetchSocieties(feedMode: FeedMode,campusId: String?){
+
+        val isEmpty = (_getSocietyState.value as? UiState.Success)?.data
+        if (isEmpty?.isNotEmpty() ?: false) return
 
         _getSocietyState.value = UiState.Loading
 
@@ -89,7 +97,7 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
         }
     }
 
-    fun sendJoinRequest(roomId: String, role:String,status:Boolean,feedMode: FeedMode, campusId: String?) {
+    fun sendJoinRequest(roomId: String, role:String, status: Status, feedMode: FeedMode, campusId: String?) {
         viewModelScope.launch {
             _joinRequestState.value = UiState.Loading
              val result = societyRepository.requestToJoin(roomId,role, status,feedMode, campusId)
@@ -107,7 +115,7 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
         }
     }
 
-    fun stageUp(roomId: String,status: Boolean,requestId:String, feedMode: FeedMode, campusId: String?) {
+    fun stageUp(roomId: String,status: Status,requestId:String, feedMode: FeedMode, campusId: String?) {
         viewModelScope.launch {
             _stageUpState.value = UiState.Loading
             val result = societyRepository.stageUpParticipant(roomId, status,requestId,feedMode, campusId)
@@ -121,6 +129,10 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
     fun isMicrophone(roomId: String,isMicrophone: Boolean,requestId:String, feedMode: FeedMode, campusId: String?) {
         viewModelScope.launch {
             val result = societyRepository.isMicrophoneEnabled(roomId, isMicrophone,requestId,feedMode, campusId)
+            _microphone.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message.toString())}
+            )
         }
     }
     fun isSpeaking(roomId: String,isSpeaking: Boolean,requestId:String, feedMode: FeedMode, campusId: String?) {

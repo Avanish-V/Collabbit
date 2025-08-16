@@ -62,7 +62,6 @@ fun ConnectionsScreen(navHostController: NavHostController) {
     val user = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
 
     LaunchedEffect(Unit) {
-        Log.d("USER_ID",user.toString())
         user?.let { profileViewModel.getConnections(it) }
     }
 
@@ -91,7 +90,7 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = White
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 navigationIcon = {
                     IconButton(onClick = { navHostController.popBackStack() }) {
@@ -104,7 +103,6 @@ fun ConnectionsScreen(navHostController: NavHostController) {
 
             )
         },
-        containerColor = secondary
     ) { padding ->
 
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {

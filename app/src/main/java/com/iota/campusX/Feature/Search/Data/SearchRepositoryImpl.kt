@@ -15,7 +15,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class SearchRepositoryImpl(private val firestore: FirebaseFirestore): SearchRepository {
 
-    override fun userSearch(query: String): Flow<Result<List<BasicProfileDTO>>> = callbackFlow {
+    override fun userSearch(query: String): Flow<Result<List<UserSearchDTO>>> = callbackFlow {
         if (query.isBlank()) {
             trySend(Result.success(emptyList()))
             close()
@@ -33,7 +33,7 @@ class SearchRepositoryImpl(private val firestore: FirebaseFirestore): SearchRepo
                 .get()
                 .addOnSuccessListener {snapshot ->
                     val users = snapshot.documents.mapNotNull { doc ->
-                        val user = doc.toObject(BasicProfileDTO::class.java)
+                        val user = doc.toObject(UserSearchDTO::class.java)
                         Log.d("SearchRepositoryImpl", "Fetched user: $user")
                         user
                     }

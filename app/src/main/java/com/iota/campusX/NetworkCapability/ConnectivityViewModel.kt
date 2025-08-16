@@ -12,6 +12,6 @@ class ConnectivityViewModel(private val connectivityObserver: ConnectivityObserv
         .stateIn(
             viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
-            initialValue = false
+            initialValue = null
         )
 }

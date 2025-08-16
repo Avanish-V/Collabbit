@@ -11,7 +11,7 @@ interface ChatRepository {
     fun sendMessage(
         message: String,
         messageId: String,
-        timestamp: Long,
+        timestamp: Any,
         receiverId: String,
         roomId: String
     ):Flow<ResultState<Boolean>>

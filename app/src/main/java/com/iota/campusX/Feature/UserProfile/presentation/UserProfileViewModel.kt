@@ -4,6 +4,8 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
+import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
@@ -34,6 +36,13 @@ import kotlinx.coroutines.flow.update
 class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
+
+    private val _currentUserProfile = MutableStateFlow<UiState<CurrentUserProfileDTO>>(UiState.Idle)
+    val currentUserProfile: StateFlow<UiState<CurrentUserProfileDTO>> = _currentUserProfile.asStateFlow()
+
+    private val _profileByUserId = MutableStateFlow<UiState<CurrentUserProfileDTO>>(UiState.Idle)
+    val profileByUserId: StateFlow<UiState<CurrentUserProfileDTO>> = _profileByUserId.asStateFlow()
+
 
     private val _userBaseProfile = MutableStateFlow<UiState<BasicProfileDTO>>(UiState.Idle)
     val userBaseProfile: StateFlow<UiState<BasicProfileDTO>> = _userBaseProfile.asStateFlow()
@@ -68,17 +77,45 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     private val _modifyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val modifyState: StateFlow<UiState<Unit>> = _modifyState.asStateFlow()
 
+
+    fun loadCurrentUserProfile(){
+
+
+
+    }
+
+    fun loadUserByIdProfile(){
+
+
+
+    }
+
+    data class CurrentUserProfileDTO(
+        val basicProfileDTO: BasicProfileDTO,
+        val connectionCount: Int,
+        val connections: List<ConnectionsDTO>,
+        val posts: List<GetPostDTO>?,
+        val replies: List<GetRepliesDTO>?,
+        val userType: UserType
+    )
+
+
+
+
+
     fun getProfileIdByPost(
         userIdByFeed: String,
         loggedInUserId: String,
         currentDestination : String
     ){
+        Log.d("PROFILE_DEBUG", "getProfileIdByPost: $userIdByFeed")
         if (currentDestination == Routes.Main.Profile.routes){
             _userType.value = UserType.Owner
             getConnectionCount(loggedInUserId)
         }else if(currentDestination == Routes.Main.ProfileByID.routes && userIdByFeed == loggedInUserId){
             _userType.value = UserType.Owner
             getConnectionCount(loggedInUserId)
+
         }else{
             _userType.value = UserType.User
              getUserById(userIdByFeed)
@@ -92,7 +129,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
     fun getUserProfile() {
 
-        if (userBaseProfile.value is UiState.Success && (userBaseProfile.value as UiState.Success).data.id.isNotEmpty()) return
+      //  if (userBaseProfile.value is UiState.Success && (userBaseProfile.value as UiState.Success).data.id.isNotEmpty()) return
 
         viewModelScope.launch {
 
@@ -100,8 +137,11 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
             val result = userProfileRepo.getBaseProfile()
 
-            _userBaseProfile.value = result.fold(
-                onSuccess = { UiState.Success(it) },
+           _userBaseProfile.value = result.fold(
+                onSuccess = {profileData->
+                    UiState.Success(profileData)
+                    //_currentUserProfile.value = UiState.Success((currentUserProfile.value as UiState.Success).data.copy(basicProfileDTO = profileData))
+                },
                 onFailure = { UiState.Error(it.message ?: "Something went wrong") }
             )
 
@@ -116,8 +156,11 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
             val result = userProfileRepo.getUserProfileById(userId)
 
-            _profileById.value = result.fold(
-                onSuccess = { UiState.Success(it) },
+           _profileById.value =  result.fold(
+                onSuccess = {
+                    UiState.Success(it)
+                   // _profileByUserId.value = UiState.Success((profileByUserId.value as UiState.Success).data.copy(basicProfileDTO = it))
+                },
                 onFailure = { UiState.Error(it.message ?: "Something went wrong") }
             )
 
@@ -125,6 +168,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     }
 
     fun getConnections(userId: String) {
+        if (userType.value == UserType.Owner) return
         viewModelScope.launch {
             _connections.value = UiState.Loading
             val result = userProfileRepo.getConnections(userId)
@@ -136,6 +180,9 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     }
 
     fun getConnectionCount(userId: String) {
+
+        //if (userType.value == UserType.Owner && (connectionCount.value as UiState.Success).data != 0) return
+
         viewModelScope.launch {
 
             _connectionCount.value = UiState.Loading

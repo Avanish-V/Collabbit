@@ -27,9 +27,15 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
     private val _deleteNotificationState: MutableStateFlow<UiState<Unit>> = MutableStateFlow(UiState.Idle)
     val deleteNotificationState: StateFlow<UiState<Unit>> = _deleteNotificationState.asStateFlow()
 
-    fun fetchNotifications() {
-        viewModelScope.launch {
 
+    init {
+
+        fetchNotifications()
+
+    }
+    fun fetchNotifications() {
+
+        viewModelScope.launch {
             notificationRepository.fetchNotification().collect {
 
                 when (it) {

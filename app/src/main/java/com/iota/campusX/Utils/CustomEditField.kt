@@ -12,11 +12,8 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.iota.campusX.ui.theme.secondary
 
 @Composable
@@ -24,9 +21,9 @@ fun CustomTextField(
     modifier: Modifier,
     value: String,
     onValueChange: (Any) -> Unit,
-    label:String,
-    enabled:Boolean? = null,
-    placeHolder:String,
+    label: String,
+    enabled: Boolean? = null,
+    placeHolder: String,
     trailingIcon: @Composable (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions =  KeyboardOptions.Default.copy(
         imeAction = ImeAction.Done // Ensure "Done" action is set
