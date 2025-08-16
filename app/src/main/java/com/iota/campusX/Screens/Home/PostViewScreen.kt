@@ -34,7 +34,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.iota.campusX.ui.theme.DarkTheme_Black
+//import com.iota.campusX.ui.theme.DarkTheme_Black
 import io.ktor.websocket.Frame.Text
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,14 +61,14 @@ fun PostViewScreen(navHostController: NavHostController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkTheme_Black
+//                    containerColor = DarkTheme_Black
                 )
             )
         },
         bottomBar = {
 
         },
-        containerColor = DarkTheme_Black
+//        containerColor = DarkTheme_Black
     ) { padding->
 
         Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center){

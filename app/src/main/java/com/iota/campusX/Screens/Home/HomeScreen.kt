@@ -59,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -92,6 +93,7 @@ import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
+import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.theme.LightTheme_Blue
@@ -129,6 +131,7 @@ fun MainScreen(
     val feedMode = (switchState as? UiState.Success<FeedMode>)?.data
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface ,
         topBar = {
             TopAppBar(
                 title = {
@@ -218,7 +221,7 @@ fun MainScreen(
 
                     PrimaryTabRow(
                         selectedTabIndex = pagerState.currentPage,
-                        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outline) },
+                        divider = { Divider() },
                         containerColor = MaterialTheme.colorScheme.background,
                         indicator = {
                             TabRowDefaults.PrimaryIndicator(
@@ -312,7 +315,7 @@ fun LazyListScope.writePostComponent(
                 Text(
                     text = "What's on your mind?",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.headlineMedium
+                    style = MaterialTheme.typography.titleMedium
                 )
 
                 Icon(
@@ -349,10 +352,7 @@ fun LazyListScope.postsLazyColumn(
                 )
             )
 
-            HorizontalDivider(
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outline
-            )
+            Divider()
         }
     }
 }
@@ -671,8 +671,7 @@ fun PostFeedList(
         item {
             HorizontalDivider(
                 thickness = 12.dp,
-                color = MaterialTheme.colorScheme.surface
-
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
             )
         }
 

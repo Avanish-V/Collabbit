@@ -4,8 +4,6 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -15,28 +13,22 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -52,7 +44,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
@@ -67,23 +58,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
 import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
@@ -92,7 +76,6 @@ import com.iota.campusX.Feature.Post.domain.Models.UserReplyDTO
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
@@ -101,28 +84,26 @@ import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.BottomSheet.SharedBottomSheetViewModel
 import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
 import com.iota.campusX.Screens.Post.defaultPostHandlers
+import com.iota.campusX.Screens.ReplyWidget
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
-import com.iota.campusX.Utils.timeMillsToString
 import com.iota.campusX.Utils.vibrate
-import com.iota.campusX.ui.UIComponents.CircularLoading
+import com.iota.campusX.ui.UIComponents.CampusWidget
 import com.iota.campusX.ui.UIComponents.Divider
+import com.iota.campusX.ui.UIComponents.EmptyState
 import com.iota.campusX.ui.UIComponents.ErrorScreen
-import com.iota.campusX.ui.UIComponents.ImageWithDynamicRatio
 import com.iota.campusX.ui.UIComponents.PostCard
-import com.iota.campusX.ui.theme.LightBlack
+import com.iota.campusX.ui.UIComponents.ProfileHeader
 import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.launch
 
-// ProfileScreen.kt
+// AppUserProfile.kt
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun ProfileScreen(
+fun AppUserProfile(
     navHostController: NavHostController,
     postViewModel: PostFeedViewModel,
     profileViewModel: UserProfileViewModel,
@@ -380,7 +361,10 @@ fun ProfileScreen(
                                     userId = profileData?.id ?: "",
                                     replyViewModel = replyViewModel,
                                     repliesState = replyState,
-                                    onRetryClick = { }
+                                    onRetryClick = { },
+                                    navHostController = navHostController,
+                                    postViewModel = postViewModel,
+                                    sharedBottomSheetViewModel = bottomSheetViewModel,
                                 )
                             }
 
@@ -469,6 +453,9 @@ fun LazyListScope.repliesComponent(
     userId: String,
     repliesState: UiState<List<UserReplyDTO>>,
     replyViewModel: ReplyViewModel,
+    postViewModel: PostFeedViewModel,
+    navHostController: NavHostController,
+    sharedBottomSheetViewModel: SharedBottomSheetViewModel,
     onRetryClick: () -> Unit
 ) {
     item {
@@ -498,101 +485,31 @@ fun LazyListScope.repliesComponent(
             }
 
             items(data) {
+
+
                 Column {
+                    PostCard(
+                        post = it.post,
+                        handlers = defaultPostHandlers(
+                            context = LocalContext.current,
+                            post = it.post,
+                            feedViewModel = postViewModel,
+                            bottomSheetSharedViewModel = sharedBottomSheetViewModel,
+                            navController = navHostController,
+                        ),
+                        isCurrentUser = it.post.creatorDetail.isCurrentUser,
+                    )
 
-                    Row(modifier = Modifier.fillMaxWidth()) {
+                    ReplyWidget(
+                        repliesDTO = it.reply,
+                        navHostController = navHostController,
+                        onLikeClick = {
 
-                        AsyncImage(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape),
-                            model = it.post.creatorDetail.profile?.userImage,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
+                        },
+                        onDotsClick = {
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    it.post.creatorDetail.profile?.userName.orEmpty(),
-                                    style = MaterialTheme.typography.headlineMedium
-                                )
-                                Text(
-                                    timeMillsToString(it.post.createdAt),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                it.post.postContent.postData.postText,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            ImageWithDynamicRatio(it.post.postContent.postData.postImage.toString()) {
-
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp)
-                            ) {
-                                VerticalDivider(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .width(1.dp)
-                                        .padding(vertical = 12.dp)
-                                )
-                                AsyncImage(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape),
-                                    model = it.reply.creatorDetail.profile?.userImage,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Text(
-                                            it.reply.creatorDetail.profile?.userName.orEmpty(),
-                                            style = MaterialTheme.typography.headlineMedium
-                                        )
-                                        Text(
-                                            timeMillsToString(it.reply.repliedAt),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        it.reply.content,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-//                                        PostActionsComponent(
-//                                            postAction = it.reply.actions,
-//                                            user = it.reply.creatorDetail.profile,
-//                                            onLikeClick = {},
-//                                            onReplyClick = {},
-//                                            onDotMenuClick = {}
-//                                        )
-                                }
-                            }
-                        }
-                    }
-
+                        },
+                    )
                 }
                 Divider(modifier = Modifier.padding(vertical = 12.dp))
             }
@@ -618,189 +535,6 @@ fun LazyListScope.repliesComponent(
 }
 
 
-@Composable
-fun ProfileHeader(
-    snackbarHostState: SnackbarHostState,
-    modifier: Modifier,
-    headerHeight: (Dp) -> Unit,
-    navHostController: NavHostController,
-    user: UserDetail,
-    userType: UserType,
-    onLinkUpRequestClick: (() -> Unit)? = null,
-    onMessageClick: (() -> Unit)? = null,
-    connectionsCount: Int = 0,
-    hasConnection: UiState<Boolean?>,
-) {
-
-    val density = LocalDensity.current
-    var headerHeightDp by remember { mutableStateOf(0.dp) }
-
-
-    Column(
-        modifier = modifier
-            .onGloballyPositioned {
-                val heightPx = it.size.height
-                headerHeightDp = with(density) { heightPx.toDp() }
-                headerHeight(headerHeightDp)
-            }
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-
-            Box(
-                modifier = Modifier,
-                contentAlignment = Alignment.BottomEnd
-            ) {
-
-                AsyncImage(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape
-                        ),
-                    model = user.userImage,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop
-                )
-
-                if (userType == UserType.Owner) {
-
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.background,
-                                shape = CircleShape
-                            )
-                            .background(color = MaterialTheme.colorScheme.surface)
-                            .clickable(
-                                onClick = {
-                                    navHostController.navigate(Routes.Main.EditProfile.routes)
-                                        .apply {
-                                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                                "PROFILE_EDIT",
-                                                ProfileEdit.PROFILE_SCREEN
-                                            )
-                                        }
-                                },
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            modifier = Modifier.size(18.dp),
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Back",
-//                            tint = LightTheme_Blue
-                        )
-                    }
-                }
-            }
-
-
-            Text(
-                text = user.userName,
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-
-        TextButton(
-            onClick = {
-                navHostController.navigate(Routes.Main.Connections.routes).apply {
-                    navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                        "USER_ID",
-                        user.id
-                    )
-                }
-            },
-        ) {
-            Text(
-                text = "$connectionsCount Connections",
-            )
-        }
-
-        if (userType == UserType.User) {
-            Row {
-                Button(
-                    onClick = { onLinkUpRequestClick?.invoke() },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    when (hasConnection) {
-
-                        is UiState.Success -> {
-
-                            val connectionText = when (hasConnection.data) {
-                                null -> "Connect"
-                                true -> "Remove"
-                                false -> "Requested"
-                            }
-
-
-                            Text(
-                                text = connectionText,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (hasConnection.data == null || hasConnection.data == true) White else LightTheme_Gray
-                            )
-                        }
-
-                        is UiState.Loading -> {
-                            CircularLoading()
-                        }
-
-                        is UiState.Error -> {
-                            LaunchedEffect(Unit) {
-                                snackbarHostState.showSnackbar(hasConnection.message)
-                            }
-                        }
-
-                        else -> {}
-                    }
-                }
-                Spacer(
-                    modifier = Modifier.width(12.dp)
-                )
-                Button(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp)
-                        .align(Alignment.CenterVertically),
-                    onClick = { onMessageClick?.invoke() },
-                    shape = RoundedCornerShape(6.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                    )
-                ) {
-                    Text(
-                        text = "Message",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-
-        }
-
-    }
-
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 fun LazyListScope.userAbout(
     userBasicProfileDTO: BaseProfileDTO,
@@ -822,18 +556,37 @@ fun LazyListScope.userAbout(
                 },
                 body = {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = userBasicProfileDTO.userBio,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    if (userBasicProfileDTO.userBio.isNotEmpty()) {
+                        // Show Bio Text
+                        Text(
+                            text = userBasicProfileDTO.userBio,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        // Show dotted placeholder box
+                        EmptyState(
+                            onClick = {
+                                if (!isCurrentUser)return@EmptyState
+                                navHostController.navigate(Routes.Main.EditProfile.routes)
+                                    .apply {
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                            "PROFILE_EDIT",
+                                            ProfileEdit.EDIT_ABOUT_SCREEN
+                                        )
+                                    }
+                            },
+                            title = "Add bio",
+                            isCurrentUser = isCurrentUser
+                        )
+                    }
                 },
                 contentDescription = "Bio",
                 isCurrentUser = isCurrentUser,
                 isContentExist = userBasicProfileDTO.userBio.isNotEmpty()
             )
 
-
             Divider()
+
             ProfileComponent(
                 title = "Interests",
                 onEditClick = {
@@ -845,40 +598,56 @@ fun LazyListScope.userAbout(
                     }
                 },
                 body = {
-                    if (userBasicProfileDTO.interests.isEmpty()) return@ProfileComponent
-                    Spacer(modifier = Modifier.height(12.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        userBasicProfileDTO.interests.forEach {
-                            AssistChip(
-                                onClick = {
-                                    null
-                                },
-                                label = {
-                                    Text(
-                                        it,
-                                        modifier = Modifier.padding(10.dp),
-                                        color = MaterialTheme.colorScheme.onBackground,
-                                        style = MaterialTheme.typography.bodyMedium
+
+                    if (userBasicProfileDTO.interests.isEmpty()) {
+
+                        EmptyState(
+                            onClick = {
+                                if (!isCurrentUser)return@EmptyState
+                                navHostController.navigate(Routes.Main.EditProfile.routes).apply {
+                                    navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                        "PROFILE_EDIT",
+                                        ProfileEdit.EDIT_INTERESTS
                                     )
-                                },
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline
-                                ),
-                            )
+                                }
+                            },
+                            title = "Add Interests",
+                            isCurrentUser = isCurrentUser
+                        )
+
+                    } else {
+                        // Normal case: show chips
+                        Spacer(modifier = Modifier.height(12.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            userBasicProfileDTO.interests.forEach {
+                                AssistChip(
+                                    onClick = { /* could trigger something later */ },
+                                    label = {
+                                        Text(
+                                            text = it,
+                                            modifier = Modifier.padding(10.dp),
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    },
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    ),
+                                )
+                            }
                         }
                     }
                 },
                 contentDescription = "INTERESTS",
                 isCurrentUser = isCurrentUser,
-                isContentExist = userBasicProfileDTO.interests.isEmpty()
+                isContentExist = userBasicProfileDTO.interests.isNotEmpty() // ✅ fixed
             )
 
             Divider()
-
             ProfileComponent(
                 title = "Campus Detail",
                 onEditClick = {
@@ -890,91 +659,40 @@ fun LazyListScope.userAbout(
                     }
                 },
                 body = {
+                    if (userBasicProfileDTO.campus == null) {
 
-                    if (userBasicProfileDTO.campus == null) return@ProfileComponent
-                    Spacer(modifier = Modifier.height(12.dp))
-                    CampusWidget(
-                        campus = userBasicProfileDTO.campus
-                    )
+                        EmptyState(
+                            onClick = {
+                                if (!isCurrentUser)return@EmptyState
+                                navHostController.navigate(Routes.Main.EditProfile.routes)
+                                    .apply {
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                            "PROFILE_EDIT",
+                                            ProfileEdit.EDIT_CAMPUS
+                                        )
+                                    }
+                            },
+                            title = if (isCurrentUser) "Tap to add campus details" else "Not yet updated.",
+                            isCurrentUser = isCurrentUser
+                        )
+
+                    } else {
+                        // Normal campus widget
+                        Spacer(modifier = Modifier.height(12.dp))
+                        CampusWidget(
+                            campus = userBasicProfileDTO.campus
+                        )
+                    }
                 },
                 contentDescription = "CAMPUS",
                 isCurrentUser = isCurrentUser,
-                isContentExist = userBasicProfileDTO.campus == null
+                isContentExist = userBasicProfileDTO.campus != null // ✅ fixed
             )
-        }
+
+       }
     }
 }
 
-@Composable
-fun CampusWidget(campus: Campus?) {
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
-        if (campus == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp), contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Update Campus",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = LightBlack
-                )
-            }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AsyncImage(
-                    model = campus.university?.logo ?: "",
-                    contentDescription = null,
-                    placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(5.dp)),
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = campus.university?.university ?: "",
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    campus.collegeName?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1
-                        )
-                    }
-                    campus.fieldOfStudy?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-
-
-                    if (campus.courseStart != null && campus.courseEnd != null) {
-                        Text(
-                            text = "${campus.courseStart.month + campus.courseStart.year} - ${campus.courseEnd.month + campus.courseEnd.year}",
-                            style = MaterialTheme.typography.bodyMedium
-
-                        )
-                    }
-
-                    campus.campusCode?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-        }
-
-    }
-}
 
 fun LazyListScope.postScreenComponent(
     navHostController: NavHostController,

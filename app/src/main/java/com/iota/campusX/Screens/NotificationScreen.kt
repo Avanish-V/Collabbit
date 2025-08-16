@@ -43,6 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -111,7 +112,7 @@ fun NotificationScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(text="Notification", style = MaterialTheme.typography.headlineLarge)
+                    Text(text="Notification", style = MaterialTheme.typography.titleLarge)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
@@ -348,15 +349,17 @@ fun NotificationItem(
                 Text(
                     text = notificationDTO.userDetail.userName,
                     maxLines = 1,
-                    style = MaterialTheme.typography.headlineMedium
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Text(
+                    modifier = Modifier.alpha(0.6f),
                     text = " ● ",
                     maxLines = 1,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
+                    modifier = Modifier.alpha(0.6f),
                     text = text,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -365,7 +368,9 @@ fun NotificationItem(
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
+
             Text(
+                modifier = Modifier.alpha(0.6f),
                 text = getTimeAgo(notificationDTO.createdAt?.toDate()?.time ?: 0L),
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,

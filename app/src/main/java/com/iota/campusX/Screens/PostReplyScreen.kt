@@ -400,7 +400,7 @@ fun PostReplyScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Divider()
-                    Text(text = "Replies", style = MaterialTheme.typography.headlineMedium)
+                    Text(text = "Replies", style = MaterialTheme.typography.titleLarge)
                     Divider()
                 }
             }
@@ -772,7 +772,7 @@ fun BottomTextInput(
                     .padding(start = 52.dp) // Adjusted padding
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(6.dp)
                     )
                     .imePadding()

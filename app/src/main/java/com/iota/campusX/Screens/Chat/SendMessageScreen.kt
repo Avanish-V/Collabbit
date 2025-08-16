@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -208,7 +209,7 @@ fun SendMessageScreen(
         bottomBar = {
             Column(modifier = Modifier, verticalArrangement = Arrangement.SpaceBetween){
                 Divider()
-                Row(modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically){
+                Row(modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom){
                     MessageInputBar(
                         modifier = Modifier.weight(1f),
                         messageText = messageText,
@@ -217,9 +218,11 @@ fun SendMessageScreen(
 
                         }
                     )
-                    IconButton(
+                    FilledIconButton(
                         onClick = {
-                            if (messageText.isBlank()) return@IconButton
+
+                            if (messageText.isBlank()) return@FilledIconButton
+
                             val messageId = generateUID()
                             val serverTime = ServerValue.TIMESTAMP
                             val localTime = System.currentTimeMillis()
@@ -251,14 +254,13 @@ fun SendMessageScreen(
                                     }
                                 }
                             }
-
                         },
                         enabled = messageText.isNotBlank()
                     ) {
                         Icon(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(18.dp).padding(start = 2.dp),
                             painter = painterResource(R.drawable.send_solid),
-                            contentDescription = null, tint = LightTheme_Blue
+                            contentDescription = null,
                         )
                     }
                 }
@@ -308,7 +310,7 @@ fun ChatTopBar(name: String, image: String, isActive: Boolean, navHostController
                             .clip(CircleShape)
                     )
                 }
-                Column { Text(name, style = MaterialTheme.typography.headlineMedium) }
+                Column { Text(name) }
             }
         },
         navigationIcon = {
@@ -329,16 +331,13 @@ fun MessageInputBar(modifier :Modifier = Modifier, messageText: String, onMessag
             .height(intrinsicSize = IntrinsicSize.Min)
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outline,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(6.dp)
             )
             .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(6.dp))
             .imePadding()
             .padding(horizontal = 12.dp, vertical = 12.dp),
-        textStyle = LocalTextStyle.current.copy(
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 16.sp
-        ),
+        textStyle = MaterialTheme.typography.bodyMedium,
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         decorationBox = { innerTextField ->
             Box(
@@ -354,7 +353,8 @@ fun MessageInputBar(modifier :Modifier = Modifier, messageText: String, onMessag
                 }
                 innerTextField()
             }
-        }
+        },
+        maxLines = 5
     )
 }
 
@@ -411,9 +411,9 @@ fun HeaderLabel(text: String) {
     ) {
         Divider(modifier = Modifier.weight(1f))
         Box(Modifier
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
             .padding(horizontal = 16.dp, vertical = 4.dp)) {
-            Text(text,color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium)
+            Text(text,color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelMedium)
         }
         Divider(modifier = Modifier.weight(1f))
     }
@@ -428,11 +428,11 @@ fun ReceivedMessageBubble(chat: ChatMessage) {
         horizontalAlignment = Alignment.Start
     ) {
         Box(
-            Modifier.background(MaterialTheme.colorScheme.outline, RoundedCornerShape(0.dp, 12.dp, 12.dp, 12.dp))
+            Modifier.background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(0.dp, 12.dp, 12.dp, 12.dp))
         ) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(chat.text, style = MaterialTheme.typography.bodyMedium)
-                Text(convertTimestampToTime(chat.timestamp), style = MaterialTheme.typography.labelMedium)
+                Text(chat.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Text(convertTimestampToTime(chat.timestamp), style = MaterialTheme.typography.labelMedium,color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
         }
     }

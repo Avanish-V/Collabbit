@@ -48,6 +48,7 @@ import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.LightBlack
@@ -178,16 +179,14 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                 ) {
                     Text(
                         text = chatItem.userName,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
 
                     )
 
-                    Text(
-                        text = convertTimestampToTime(chatItem.lastMessage.timeStamp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium
+                    AppLabelText(
+                        text = convertTimestampToTime(chatItem.lastMessage.timeStamp)
                     )
 
                 }
@@ -214,7 +213,7 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                             text = chatItem.lastMessage.lastMessage,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

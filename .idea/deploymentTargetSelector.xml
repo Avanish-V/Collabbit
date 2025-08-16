@@ -6,7 +6,7 @@
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
       <SelectionState runConfigName="CampusX.app">
-        <option name="selectionMode" value="DIALOG" />
+        <option name="selectionMode" value="DROPDOWN" />
         <DropdownSelection timestamp="2025-08-16T04:35:46.064756600Z">
           <Target type="DEFAULT_BOOT">
             <handle>

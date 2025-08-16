@@ -77,7 +77,7 @@ fun Society(navHostController: NavHostController,societyViewModel: SocietyViewMo
         topBar = {
             TopAppBar(
                 title ={
-                    Text(text = "Society", style = MaterialTheme.typography.headlineLarge)
+                    Text(text = "Society", style = MaterialTheme.typography.titleLarge)
                 },
                 actions = {
                     Row(modifier = Modifier.padding(end = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -181,7 +181,7 @@ fun SocietyCard(onCardClick: () -> Unit,getSocietyDTO: GetSocietyDTO) {
                 Column (verticalArrangement = Arrangement.spacedBy(6.dp)){
                     Text(
                         text = getSocietyDTO.societyName,
-                        style = MaterialTheme.typography.headlineMedium
+                        style = MaterialTheme.typography.titleMedium
                     )
 
                     Text(
@@ -193,7 +193,7 @@ fun SocietyCard(onCardClick: () -> Unit,getSocietyDTO: GetSocietyDTO) {
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Hosted by",style = MaterialTheme.typography.headlineMedium)
+                    Text("Hosted by",style = MaterialTheme.typography.titleMedium)
                     Row (
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)

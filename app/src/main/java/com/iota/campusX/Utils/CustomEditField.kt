@@ -42,7 +42,7 @@ fun CustomTextField(
         if (label.isNotEmpty()){
             Text(
                 text = label,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleMedium,
             )
         }
 
@@ -55,8 +55,10 @@ fun CustomTextField(
             placeholder = {
                 Text(
                     text = placeHolder,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             },
+            textStyle = MaterialTheme.typography.bodyMedium,
             enabled = enabled ?:true,
             trailingIcon = {
                 trailingIcon?.invoke()
@@ -108,7 +110,7 @@ fun CustomTextFieldWithLeadingIcon(
         if (label.isNotEmpty()){
             Text(
                 text = label,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleMedium,
             )
         }
         OutlinedTextField(
@@ -120,6 +122,7 @@ fun CustomTextFieldWithLeadingIcon(
             placeholder = {
                 Text(
                     text = placeHolder,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             },
             enabled = enabled ?:true,
@@ -137,7 +140,7 @@ fun CustomTextFieldWithLeadingIcon(
 //                disabledContainerColor = secondary
             ),
             shape = RoundedCornerShape(8.dp),
-            textStyle = MaterialTheme.typography.headlineMedium,
+            textStyle = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions

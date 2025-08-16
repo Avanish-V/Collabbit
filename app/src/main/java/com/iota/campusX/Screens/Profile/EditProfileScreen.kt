@@ -636,7 +636,6 @@ fun EditProfileScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
-
                 AutoCompleteFieldOfStudyDropdown(
                     fieldOptions = fieldsOfStudy,
                     selectedField = editProfileViewModel.campus.value.fieldOfStudy?:"",
@@ -672,7 +671,7 @@ fun EditProfileScreen(
 
                     Text(
                         text = "Duration",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleMedium,
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -691,10 +690,15 @@ fun EditProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (editProfileViewModel.campus.value.courseStart?.month.isNullOrEmpty() ){
-                                Text("Start", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text = "Start",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }else{
                                 Text(
-                                    text = "${editProfileViewModel.campus.value.courseStart?.month} ${editProfileViewModel.campus.value.courseStart?.year}"
+                                    text = "${editProfileViewModel.campus.value.courseStart?.month} ${editProfileViewModel.campus.value.courseStart?.year}",
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
                             }
 
@@ -706,7 +710,7 @@ fun EditProfileScreen(
                                     modifier = Modifier.size(22.dp),
                                     painter = painterResource(R.drawable.calendar),
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                 )
                             }
                         }
@@ -731,10 +735,15 @@ fun EditProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (editProfileViewModel.campus.value.courseEnd?.month.isNullOrEmpty()){
-                                Text("End", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text="End",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }else{
                                 Text(
-                                    text = "${editProfileViewModel.campus.value.courseEnd?.month} ${editProfileViewModel.campus.value.courseEnd?.year}"
+                                    text = "${editProfileViewModel.campus.value.courseEnd?.month} ${editProfileViewModel.campus.value.courseEnd?.year}",
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
                             }
 
@@ -746,14 +755,13 @@ fun EditProfileScreen(
                                     modifier = Modifier.size(22.dp),
                                     painter = painterResource(R.drawable.calendar),
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                 )
                             }
                         }
 
                     }
                 }
-
 
                 CustomDatePicker(
                     isVisible = isCalenderVisible,
@@ -771,8 +779,6 @@ fun EditProfileScreen(
                     }
 
                 )
-
-
 
             }
 
@@ -885,7 +891,7 @@ fun UniversityDropdown(
                                 userProfileViewModel.resetUniversityData()
                             },
                             text = {
-                                Text(text = selectionOption.name)
+                                Text(text = selectionOption.name, style = MaterialTheme.typography.bodyMedium)
                             },
                             leadingIcon = {
                                 AsyncImage(
@@ -987,22 +993,22 @@ fun ProfileComponent(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
+        // Header row (title + edit button)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Title with Material3 text hierarchy
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium
             )
 
             if (isCurrentUser) {
-                TextButton(onClick = onEditClick) {
-                    Text(
-                        text = "Edit",
-                        style = MaterialTheme.typography.labelLarge
+                IconButton (onClick = onEditClick) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = contentDescription
                     )
                 }
             }
@@ -1010,19 +1016,10 @@ fun ProfileComponent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (isContentExist) {
-            body()
-        } else {
-            Text(
-                text = "No $contentDescription available",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        body()
+
     }
 }
-
-
 
 @Composable
 fun GenderSelector(

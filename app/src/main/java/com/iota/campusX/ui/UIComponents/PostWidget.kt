@@ -42,9 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -55,7 +55,6 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
@@ -76,9 +75,6 @@ import com.iota.campusX.Screens.Post.PostActionHandlers
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
 import com.iota.campusX.Utils.getTimeAgo
-import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.LightTheme_LightGray
-import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White
 //import com.iota.campusX.ui.theme.secondary
 //import com.iota.campusX.ui.theme.typography
@@ -94,7 +90,7 @@ fun PostCard(
     Column(
         modifier = Modifier
             .clickable(
-                onClick = {handlers.onPostClick.invoke()},
+                onClick = { handlers.onPostClick.invoke() },
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
@@ -164,33 +160,33 @@ fun PostHeader(
     isCurrentUser: Boolean? = null,
     feedMode: FeedMode? = null
 ) {
-
     Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-
         Column(modifier = Modifier.weight(1f)) {
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Username
                 Text(
-                    modifier = Modifier
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {
-
-                            }
-                        ),
+                    modifier = Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { /* TODO: navigate to profile */ }
+                    ),
                     text = user.profile?.userName ?: "",
                     maxLines = 1,
                     softWrap = false,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.titleMedium, // ✅ username: section title weight
+                    color = MaterialTheme.colorScheme.onSurface,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (user.isVerified){
+                // Verified badge
+                if (user.isVerified) {
                     Icon(
                         modifier = Modifier.size(16.dp),
                         painter = painterResource(R.drawable.check_circle),
@@ -199,56 +195,57 @@ fun PostHeader(
                     )
                 }
 
-                Text(text = " ● ",color = MaterialTheme.colorScheme.surface)
+                // Posted time
+                if (!postedAt.isNullOrEmpty()) {
+                    Text(
+                        text = "• $postedAt",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
 
-                Text(
-                    modifier = Modifier,
-                    text = postedAt.toString(),
-                    maxLines = 1,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium
-                )
-
-
+                        )
+                }
             }
 
-            if (visibilityMode == PostVisibilityMode.USER){
-
-                user.profile?.userBio?.let {
-
+            // Bio or additional info
+            if (visibilityMode == PostVisibilityMode.USER) {
+                user.profile?.userBio?.takeIf { it.isNotEmpty() }?.let { bio ->
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = it,
-                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.alpha(0.7f),
+                        text = bio,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-
                 }
             }
         }
 
-        if (isCurrentUser != null){
+        // Feed label (Global / Campus)
+        if (isCurrentUser != null) {
             Text(
                 modifier = Modifier
-                    .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(5.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 text = if (feedMode == FeedMode.GLOBAL) "Global" else "Campus",
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.labelMedium
             )
         }
 
+        // Pod icon
         if (pod != null) {
             AsyncImage(
                 modifier = Modifier.size(32.dp),
                 model = pod.icon,
-                contentDescription = ""
+                contentDescription = "Pod icon"
             )
         }
-
     }
-
 }
 
 
@@ -578,7 +575,7 @@ fun PollOptionsUI(
                             .height(48.dp)
                             .border(
                                 width = 0.5.dp,
-                                color=MaterialTheme.colorScheme.outline,
+                                color = MaterialTheme.colorScheme.outline,
                                 shape = RoundedCornerShape(6.dp)
                             )
                             .clip(RoundedCornerShape(6.dp))

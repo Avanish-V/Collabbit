@@ -3,7 +3,6 @@ package com.iota.campusX
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
@@ -34,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -66,7 +64,6 @@ import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.messaging.FirebaseMessaging
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
@@ -91,8 +88,7 @@ import com.iota.campusX.Screens.NotificationScreen
 import com.iota.campusX.Screens.Post.CreatePostScreen
 import com.iota.campusX.Screens.PostReplyScreen
 import com.iota.campusX.Screens.Profile.EditProfileScreen
-import com.iota.campusX.Screens.Profile.ProfileScreen
-import com.iota.campusX.Screens.Profile.ProfileTypeViewModel
+import com.iota.campusX.Screens.Profile.AppUserProfile
 import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Feature.Society.presentation.Screens.CreateSociety
@@ -101,19 +97,17 @@ import com.iota.campusX.Feature.Society.presentation.Screens.Society
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Koin.firebaseModule
 import com.iota.campusX.NetworkCapability.ConnectivityViewModel
+import com.iota.campusX.Screens.Profile.ViewProfile
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.initCloudinary
 import com.iota.campusX.ui.theme.AppTheme
 //import com.iota.campusX.ui.theme.Black800
 //import com.iota.campusX.ui.theme.CampusXTheme
-import com.iota.campusX.ui.theme.White
-import com.iota.campusX.ui.theme.LightTheme_Blue
 //import com.iota.campusX.ui.theme.secondary
 //import com.iota.campusX.ui.theme.typography
 import com.voxcii.voxcii.Screens.SearchFlow.SearchScreen
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.compose.koinInject
 import org.koin.core.context.GlobalContext.startKoin
@@ -272,7 +266,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                         composable(route = Routes.Main.ProfileByID.routes) {
 
-                                            ProfileScreen(
+                                            ViewProfile(
                                                 navHostController,
                                                 postViewModel = postFeedViewModel,
                                                 profileViewModel = userProfileViewModel,
@@ -338,7 +332,7 @@ class MainActivity : ComponentActivity() {
 
                                         composable(route = Routes.Main.Profile.routes) {
 
-                                            ProfileScreen(
+                                            AppUserProfile(
                                                 navHostController,
                                                 postViewModel = postFeedViewModel,
                                                 profileViewModel = userProfileViewModel,
@@ -346,7 +340,7 @@ class MainActivity : ComponentActivity() {
                                                 navigationViewModel = navigationViewModel,
                                                 replyViewModel = replyViewModel,
 
-                                                )
+                                            )
                                         }
 
                                         navScreen(Routes.Main.EditProfile.routes) {

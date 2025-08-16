@@ -125,7 +125,7 @@ val errorDark = Color(0xFFFFB4AB)
 val onErrorDark = Color(0xFF690005)
 val errorContainerDark = Color(0xFF93000A)
 val onErrorContainerDark = Color(0xFFFFDAD6)
-val backgroundDark = Color(0xFF12131A)
+val backgroundDark = Color(0xFF181A20)
 val onBackgroundDark = Color(0xFFE3E1EB)
 val surfaceDark = Color(0xFF12131A)
 val onSurfaceDark = Color(0xFFE3E1EB)
@@ -217,7 +217,7 @@ val surfaceContainerDarkHighContrast = Color(0xFF2F3037)
 val surfaceContainerHighDarkHighContrast = Color(0xFF3A3B42)
 val surfaceContainerHighestDarkHighContrast = Color(0xFF46464E)
 
-val DarkTheme_Black = Color(0xFF181A20) // Used for text/Icon color
+//val DarkTheme_Black = Color(0xFF181A20) // Used for text/Icon color
 val DarkTheme_LightBlack = Color(0xFF1F222A)
 
 val DarkTheme_Gray = Color(0xCC838B98)

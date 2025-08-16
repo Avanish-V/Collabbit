@@ -68,7 +68,7 @@ fun AutoCompleteFieldOfStudyDropdown(
 
         Text(
             text = label,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleMedium,
         )
 
         OutlinedTextField(
@@ -85,6 +85,7 @@ fun AutoCompleteFieldOfStudyDropdown(
                     )
                 }
             },
+            textStyle = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
@@ -95,7 +96,10 @@ fun AutoCompleteFieldOfStudyDropdown(
                 }
             ),
             placeholder = {
-                Text("Ex-Computer Science & Engineering", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = "Ex-Computer Science & Engineering",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             },
             colors = TextFieldDefaults.colors(
                 unfocusedContainerColor = Color.Transparent,

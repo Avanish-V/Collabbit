@@ -7,6 +7,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.iota.campusX.ui.theme.LightTheme_Blue
@@ -15,8 +16,9 @@ import com.iota.campusX.ui.theme.LightTheme_Blue
 fun Divider(modifier: Modifier = Modifier) {
 
     HorizontalDivider(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.outline,
+        modifier = modifier.fillMaxWidth()
+            .alpha(0.5f),
+        color = MaterialTheme.colorScheme.outlineVariant,
         thickness = 0.5.dp
     )
 
