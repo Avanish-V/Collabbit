@@ -9,12 +9,11 @@ import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.Screens.Profile.UserType
-import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -29,7 +28,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.update
 
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -44,11 +42,11 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     val profileByUserId: StateFlow<UiState<CurrentUserProfileDTO>> = _profileByUserId.asStateFlow()
 
 
-    private val _userBaseProfile = MutableStateFlow<UiState<BasicProfileDTO>>(UiState.Idle)
-    val userBaseProfile: StateFlow<UiState<BasicProfileDTO>> = _userBaseProfile.asStateFlow()
+    private val _userBaseProfile = MutableStateFlow<UiState<BaseProfileDTO>>(UiState.Idle)
+    val userBaseProfile: StateFlow<UiState<BaseProfileDTO>> = _userBaseProfile.asStateFlow()
 
-    private val _profileById = MutableStateFlow<UiState<BasicProfileDTO>>(UiState.Idle)
-    val profileById: StateFlow<UiState<BasicProfileDTO>> = _profileById.asStateFlow()
+    private val _profileById = MutableStateFlow<UiState<BaseProfileDTO>>(UiState.Idle)
+    val profileById: StateFlow<UiState<BaseProfileDTO>> = _profileById.asStateFlow()
 
     private val _universityData = MutableStateFlow<UiState<List<UniversityDTO>>>(UiState.Idle)
     val universityData: StateFlow<UiState<List<UniversityDTO>>> = _universityData.asStateFlow()
@@ -91,7 +89,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     }
 
     data class CurrentUserProfileDTO(
-        val basicProfileDTO: BasicProfileDTO,
+        val basicProfileDTO: BaseProfileDTO,
         val connectionCount: Int,
         val connections: List<ConnectionsDTO>,
         val posts: List<GetPostDTO>?,

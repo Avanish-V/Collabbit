@@ -1,6 +1,5 @@
 package com.voxcii.voxcii.Screens.SearchFlow
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,14 +44,11 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Search.Domain.Models.UserSearchDTO
 import com.iota.campusX.Feature.Search.Presentation.SearchViewModel
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.Divider
-import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.LightTheme_Black
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class,)

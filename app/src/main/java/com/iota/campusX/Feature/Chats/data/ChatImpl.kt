@@ -10,11 +10,9 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.DatabaseReference.CompletionListener
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -156,7 +154,7 @@ class ChatImpl(
                         return@async null
                     }
 
-                    val userData = userSnapshot.toObject(BasicProfileDTO::class.java) ?: return@async null
+                    val userData = userSnapshot.toObject(BaseProfileDTO::class.java) ?: return@async null
 
                     val snapshot = try {
                         Tasks.await(database.getReference("ChatRoom").child(roomId).child("messages").get())

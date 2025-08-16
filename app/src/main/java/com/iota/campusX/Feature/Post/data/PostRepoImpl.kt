@@ -11,6 +11,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.iota.campusX.Feature.Notification.domain.ContentType
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
@@ -26,7 +27,7 @@ import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.presentation.UploadState
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Utils.anonymousImage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -141,14 +142,23 @@ class PostRepoImpl(
     }
 
     override suspend fun getPosts(): Result<List<GetPostDTO>> {
-        return try {
+        val query = firestore.collection("Posts")
+            .whereEqualTo("feedMode", FeedMode.GLOBAL)
+        return fetchPosts(query)
+    }
 
+    override suspend fun fetchCampusPosts(feedMode: FeedMode, campusId: String?): Result<List<GetPostDTO>> {
+        if (campusId.isNullOrEmpty()) return Result.failure(Exception(Error.CAMPUS_NOT_FOUND.name))
+        val query = firestore.collection("Posts")
+            .whereEqualTo("campusId", campusId)
+            .whereEqualTo("feedMode", feedMode)
+        return fetchPosts(query)
+    }
+    private suspend fun fetchPosts(query: Query): Result<List<GetPostDTO>> {
+        return try {
             if (auth.currentUser == null) return Result.failure(Exception("User not logged in"))
 
-            //val baseCollection = getBaseCollection(feedMode = FeedMode.GLOBAL, campusId = null, firestore = firestore)
-            val baseCollection = firestore.collection("Posts")
-            val postsSnapshot = baseCollection
-                .whereEqualTo("feedMode", FeedMode.GLOBAL).get().await()
+            val postsSnapshot = query.get().await()
 
             val postList = coroutineScope {
                 postsSnapshot.documents.map { doc ->
@@ -160,11 +170,12 @@ class PostRepoImpl(
                                 .document(post.creatorId)
                                 .get()
                                 .await()
-                                .toObject(BasicProfileDTO::class.java)
+                                .toObject(BaseProfileDTO::class.java)
                         }
 
                         val likesDeferred = async {
-                            baseCollection.document(post.postId)
+                            firestore.collection("Posts")
+                                .document(post.postId)
                                 .collection("Likes")
                                 .document(post.postId)
                                 .get()
@@ -173,7 +184,8 @@ class PostRepoImpl(
                         }
 
                         val repliesCountDeferred = async {
-                            baseCollection.document(post.postId)
+                            firestore.collection("Posts")
+                                .document(post.postId)
                                 .collection("Replies")
                                 .get()
                                 .await()
@@ -187,10 +199,11 @@ class PostRepoImpl(
 
                         val isLiked = auth.currentUser?.uid in likes
                         val isCurrentUser = auth.currentUser?.uid == post.creatorId
-                        val profile = visibilityMode(post.visibilityMode, userName = user?.userName
-                            ?: "", userImage = user?.userImage ?: ""
+                        val profile = visibilityMode(
+                            post.visibilityMode,
+                            userName = user?.userName ?: "",
+                            userImage = user?.userImage ?: ""
                         )
-
 
                         GetPostDTO(
                             postId = post.postId,
@@ -198,7 +211,7 @@ class PostRepoImpl(
                             creatorDetail = CreatorDetail(
                                 isCurrentUser = isCurrentUser,
                                 isVerified = user?.metaData?.verified ?: false,
-                                isPremium = user?.metaData?.verified ?: false,
+                                isPremium = user?.metaData?.premium ?: false,
                                 profile = UserDetail(
                                     id = post.creatorId,
                                     userName = profile.first,
@@ -231,102 +244,10 @@ class PostRepoImpl(
         }
     }
 
-    override suspend fun fetchCampusPosts(feedMode: FeedMode, campusId: String?): Result<List<GetPostDTO>> {
-        return try {
-
-
-            if (auth.currentUser == null) return Result.failure(Exception("User not logged in"))
-
-            if (campusId.isNullOrEmpty()) return Result.failure(Exception(Error.CAMPUS_NOT_FOUND.name))
-
-            //val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
-
-            val baseCollection = firestore.collection("Posts")
-
-            val postsSnapshot = baseCollection
-                .whereEqualTo("campusId", campusId)
-                .whereEqualTo("feedMode", feedMode)
-                .get()
-                .await()
-
-            val postList = coroutineScope {
-                postsSnapshot.documents.map { doc ->
-                    async {
-                        val post = doc.toObject(CreatePostDTO::class.java) ?: return@async null
-
-                        val userDeferred = async {
-                            firestore.collection("Users")
-                                .document(post.creatorId)
-                                .get()
-                                .await()
-                                .toObject(BasicProfileDTO::class.java)
-                        }
-
-                        val likesDeferred = async {
-                            baseCollection.document(post.postId)
-                                .collection("Likes")
-                                .document(post.postId)
-                                .get()
-                                .await()
-                                .get("likes") as? List<String> ?: emptyList()
-                        }
-
-                        val repliesCountDeferred = async {
-                            baseCollection.document(post.postId)
-                                .collection("Replies")
-                                .get()
-                                .await()
-                                .size()
-                        }
-
-                        val user = userDeferred.await()
-                        val likes = likesDeferred.await()
-                        val repliesCount = repliesCountDeferred.await()
-                        val date: Date = post.createdAt.toDate()
-
-                        val isLiked = auth.currentUser?.uid in likes
-                        val isCurrentUser = auth.currentUser?.uid == post.creatorId
-                        val profile = visibilityMode(post.visibilityMode, userName = user?.userName
-                            ?: "", userImage = user?.userImage ?: ""
-                        )
-
-                        GetPostDTO(
-                            postId = post.postId,
-                            createdAt = date.time,
-                            creatorDetail = CreatorDetail(
-                                isCurrentUser = isCurrentUser,
-                                isVerified = false,
-                                isPremium = false,
-                                profile = UserDetail(
-                                    id = post.creatorId,
-                                    userName = profile.first,
-                                    userImage = profile.second,
-                                    userBio = user?.userBio ?: ""
-                                )
-                            ),
-                            feedMode = post.feedMode,
-                            campusId = post.campusId,
-                            reference = post.reference,
-                            visibilityMode = post.visibilityMode,
-                            postContent = post.postContent,
-                            postActions = PostActions(
-                                isLiked = isLiked,
-                                likesCount = likes.size,
-                                replies = emptyList(),
-                                replyCount = repliesCount
-                            )
-                        )
-                    }
-                }.mapNotNull { it.await() }
-            }
-
-            Result.success(postList)
-
-        } catch (e: FirebaseNetworkException) {
-            Result.failure(Exception("No internet connection"))
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    override suspend fun getPostsById(userId: String, campusId: String?, feedMode: FeedMode): Result<List<GetPostDTO>> {
+        val query = firestore.collection("Posts")
+            .whereEqualTo("creatorId", userId)
+        return fetchPosts(query)
     }
 
     override suspend fun editPost(postId: String, editedText: String, campusId: String?, feedMode: FeedMode): Result<Unit> {
@@ -349,98 +270,6 @@ class PostRepoImpl(
                     e.localizedMessage ?: "Something went wrong while editing the post."
                 )
             )
-        }
-    }
-
-    override suspend fun getPostsById(userId: String, campusId: String?,feedMode: FeedMode): Result<List<GetPostDTO>> {
-        return try {
-
-            if (auth.currentUser == null) return Result.failure(Exception("User not logged in"))
-
-            //val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
-
-            val baseCollection = firestore.collection("Posts")
-
-            val postsSnapshot = baseCollection
-                .whereEqualTo("creatorId", userId)
-                .get()
-                .await()
-
-            val postList = coroutineScope {
-                postsSnapshot.documents.map { doc ->
-                    async {
-                        val post = doc.toObject(CreatePostDTO::class.java) ?: return@async null
-
-                        val userDeferred = async {
-                            firestore.collection("Users")
-                                .document(post.creatorId)
-                                .get()
-                                .await()
-                                .toObject(UserDetail::class.java)
-                        }
-
-                        val likesDeferred = async {
-                            baseCollection.document(post.postId)
-                                .collection("Likes")
-                                .document(post.postId)
-                                .get()
-                                .await()
-                                .get("likes") as? List<String> ?: emptyList()
-                        }
-
-                        val repliesCountDeferred = async {
-                            baseCollection.document(post.postId)
-                                .collection("Replies")
-                                .get()
-                                .await()
-                                .size()
-                        }
-
-                        val user = userDeferred.await()
-                        val likes = likesDeferred.await()
-                        val repliesCount = repliesCountDeferred.await()
-                        val date: Date = post.createdAt.toDate()
-
-                        val isLiked = auth.currentUser?.uid in likes
-                        val isCurrentUser = auth.currentUser?.uid == post.creatorId
-                        val profile = visibilityMode(post.visibilityMode, userName = user?.userName ?: "", userImage = user?.userImage ?: "")
-
-                        GetPostDTO(
-                            postId = post.postId,
-                            createdAt = date.time,
-                            creatorDetail = CreatorDetail(
-                                isCurrentUser = isCurrentUser,
-                                isVerified = false,
-                                isPremium = false,
-                                profile = UserDetail(
-                                    id = post.creatorId,
-                                    userName = profile.first,
-                                    userImage = profile.second,
-                                    userBio = user?.userBio ?: ""
-                                )
-                            ),
-                            campusId = post.campusId,
-                            feedMode = post.feedMode,
-                            reference = post.reference,
-                            visibilityMode = post.visibilityMode,
-                            postContent = post.postContent,
-                            postActions = PostActions(
-                                isLiked = isLiked,
-                                likesCount = likes.size,
-                                replies = emptyList(),
-                                replyCount = repliesCount
-                            )
-                        )
-                    }
-                }.mapNotNull { it.await() }
-            }
-
-            Result.success(postList)
-
-        } catch (e: FirebaseNetworkException) {
-            Result.failure(Exception("No internet connection"))
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 
@@ -531,7 +360,6 @@ class PostRepoImpl(
             postRef.update(updateMap).await()
         }
     }
-
 
 }
 

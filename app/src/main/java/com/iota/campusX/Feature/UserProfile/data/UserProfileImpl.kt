@@ -15,7 +15,6 @@ import com.iota.campusX.Feature.Notification.domain.ConnectionRequestPayload
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Notification.domain.toTypedObject
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Utils.UiState
@@ -44,14 +43,14 @@ class UserProfileImpl(
 ) : UserProfileRepo {
 
 
-    override suspend fun getBaseProfile(): Result<BasicProfileDTO> {
+    override suspend fun getBaseProfile(): Result<BaseProfileDTO> {
         return try {
             val snapshot = firestore.collection("Users")
                 .document(auth.currentUser!!.uid)
                 .get()
                 .await()
 
-            val profile = snapshot.toObject(BasicProfileDTO::class.java)
+            val profile = snapshot.toObject(BaseProfileDTO::class.java)
 
             if (profile != null) Result.success(profile)
             else Result.failure(Exception("Profile not found"))
@@ -61,7 +60,7 @@ class UserProfileImpl(
         }
     }
 
-    override suspend fun getUserProfileById(userId: String): Result<BasicProfileDTO> {
+    override suspend fun getUserProfileById(userId: String): Result<BaseProfileDTO> {
         if (userId.isBlank()) return Result.failure(Exception("Invalid user ID"))
 
         return try {
@@ -71,13 +70,13 @@ class UserProfileImpl(
                         .document(userId)
                         .get()
                         .await()
-                        .toObject(BasicProfileDTO::class.java)
+                        .toObject(BaseProfileDTO::class.java)
                 }
 
                 val userData = userDeferred.await()
 
                 if (userData == null) {
-                    Result.failure<BasicProfileDTO>(Exception("User not found"))
+                    Result.failure<BaseProfileDTO>(Exception("User not found"))
                 } else {
 
                     Result.success(userData)
@@ -360,7 +359,7 @@ class UserProfileImpl(
 
                 request?.let {
                     val userSnapshot = firestore.collection("Users").document(it.senderId).get().await()
-                    val userData = userSnapshot.toObject(BasicProfileDTO::class.java)
+                    val userData = userSnapshot.toObject(BaseProfileDTO::class.java)
                     userData?.let { data ->
                         ConnectionsDTO(
                             user = UserDetail(

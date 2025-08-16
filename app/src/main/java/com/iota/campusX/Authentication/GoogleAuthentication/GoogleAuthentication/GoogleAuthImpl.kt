@@ -12,7 +12,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.UserProfile.data.MetaData
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -118,13 +118,14 @@ class GoogleAuthUiClient(
                         firestore.collection("Users").document(userId)
                             .set(
 
-                                BasicProfileDTO(
+                                BaseProfileDTO(
                                     id = firebaseAuth.currentUser!!.uid,
                                     token = userToken,
                                     userName = firebaseAuth.currentUser!!.displayName.toString().replaceFirstChar { it.uppercase() },
                                     userImage = firebaseAuth.currentUser!!.photoUrl.toString(),
                                     userEmail = firebaseAuth.currentUser!!.email.toString(),
                                     metaData = MetaData(
+                                        premium = false,
                                         firstUser = true,
                                         createdAt = System.currentTimeMillis(),
                                     ),

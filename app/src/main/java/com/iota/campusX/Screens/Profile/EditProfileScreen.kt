@@ -73,10 +73,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -975,7 +982,30 @@ fun ProfileComponent(
 
 ) {
 
-    Column (modifier = Modifier.padding(horizontal = 12.dp, vertical = 24.dp)){
+    val outlineColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+    Column (
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 24.dp).drawBehind(
+            onDraw = {
+
+                val strokeWidth = 1.dp.toPx()
+                val dashOn = 12f
+                val dashOff = 8f
+                val pe = PathEffect.dashPathEffect(floatArrayOf(dashOn, dashOff), 0f)
+                val inset = strokeWidth / 2
+
+                drawRoundRect(
+                    color = outlineColor,
+                    topLeft = Offset(inset, inset),
+                    size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                    style = Stroke(
+                        width = strokeWidth, pathEffect = pe),
+                    cornerRadius = CornerRadius(12.dp.toPx()) // optional: rounded corners
+                )
+
+            }
+        )
+    ){
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1003,9 +1033,9 @@ fun ProfileComponent(
         }
         body.invoke()
     }
-
-
 }
+
+
 
 @Composable
 fun GenderSelector(

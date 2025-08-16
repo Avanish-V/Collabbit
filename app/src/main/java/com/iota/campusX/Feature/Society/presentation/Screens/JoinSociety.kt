@@ -2,7 +2,6 @@ package com.iota.campusX.Feature.Society.presentation.Screens
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,7 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -78,7 +76,7 @@ import com.iota.campusX.Feature.Society.domain.models.State
 import com.iota.campusX.Feature.Society.domain.models.Status
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Chat.DropDownItem
@@ -86,7 +84,6 @@ import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.theme.Yellow
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -267,7 +264,7 @@ fun JoinSocietyScreen(
 @Composable
 fun JoinSocietyContent(
     navController: NavHostController,
-    userData: BasicProfileDTO?,
+    userData: BaseProfileDTO?,
     joiningRequests: List<GetJoinRequestDTO>,
     isMicrophoneEnabled: Boolean,
     snackbarHostState: SnackbarHostState,

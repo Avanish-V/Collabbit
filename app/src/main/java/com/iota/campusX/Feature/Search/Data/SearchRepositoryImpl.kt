@@ -4,13 +4,9 @@ import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.Search.Domain.Models.UserSearchDTO
 import com.iota.campusX.Feature.Search.Domain.SearchRepository
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.cancellation.CancellationException
 
 class SearchRepositoryImpl(private val firestore: FirebaseFirestore): SearchRepository {

@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
  */
 @Keep
 @Serializable
-data class BasicProfileDTO(
+data class BaseProfileDTO(
     @SerialName("id") val id: String = "",
     @SerialName("token") val token: String = "",
     @SerialName("userName") var userName: String = "",
@@ -33,6 +33,7 @@ data class BasicProfileDTO(
 data class MetaData(
     @SerialName("firstUser") val firstUser: Boolean = false,
     @SerialName("verified") val verified: Boolean = false,
+    @SerialName("premium") val premium: Boolean = false,
     @SerialName("createdAt") val createdAt: Long? = null, // Use timestamp (e.g., from Firebase)
     @SerialName("updatedAt") val updatedAt: Long? = null
 )

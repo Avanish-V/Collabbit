@@ -23,7 +23,6 @@ import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
 import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.domain.Models.UserReplyDTO
 import com.iota.campusX.Feature.Post.domain.ReplyRepository
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Utils.anonymousImage
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope

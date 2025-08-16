@@ -4,17 +4,16 @@ import android.net.Uri
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
-import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.Flow
 
 interface UserProfileRepo {
 
-    suspend fun getBaseProfile(): Result<BasicProfileDTO>
+    suspend fun getBaseProfile(): Result<BaseProfileDTO>
 
-    suspend fun getUserProfileById(userId:String): Result<BasicProfileDTO>
+    suspend fun getUserProfileById(userId:String): Result<BaseProfileDTO>
 
     suspend fun deleteAccount(): Result<Boolean>
 

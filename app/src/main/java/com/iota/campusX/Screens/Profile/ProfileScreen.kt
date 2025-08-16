@@ -91,7 +91,7 @@ import com.iota.campusX.Feature.Post.domain.Models.UserDetail
 import com.iota.campusX.Feature.Post.domain.Models.UserReplyDTO
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
@@ -790,7 +790,7 @@ fun ProfileHeader(
 
 @OptIn(ExperimentalLayoutApi::class)
 fun LazyListScope.userAbout(
-    userBasicProfileDTO: BasicProfileDTO,
+    userBasicProfileDTO: BaseProfileDTO,
     navHostController: NavHostController,
     isCurrentUser: Boolean
 ) {

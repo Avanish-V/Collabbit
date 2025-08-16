@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Search.Domain.Models.UserSearchDTO
 import com.iota.campusX.Feature.Search.Domain.SearchRepository
-import com.iota.campusX.Feature.UserProfile.data.BasicProfileDTO
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
