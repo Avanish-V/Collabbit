@@ -132,7 +132,8 @@ fun ProfileScreen(
 ) {
 
 
-    val useridByFeed = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
+    val useridByFeed =
+        navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
     val currentDestination = navHostController.currentDestination?.route
 
 
@@ -150,7 +151,6 @@ fun ProfileScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackBarHostState = remember { SnackbarHostState() }
-
 
 
     // ✅ Use shared ViewModel properly
@@ -172,15 +172,17 @@ fun ProfileScreen(
 
 
     LaunchedEffect(linkupRequestState) {
-        when(linkupRequestState){
-            is UiState.Loading->{}
-            is UiState.Success->{
+        when (linkupRequestState) {
+            is UiState.Loading -> {}
+            is UiState.Success -> {
                 useridByFeed?.let { profileViewModel.hasConnection(it) }
             }
-            is UiState.Error-> {
+
+            is UiState.Error -> {
                 snackBarHostState.showSnackbar((linkupRequestState as UiState.Error).message)
                 profileViewModel.resetModifyState()
             }
+
             else -> {}
         }
     }
@@ -235,7 +237,7 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Profile", style = MaterialTheme.typography.headlineLarge) },
+                title = { Text(text = "Profile") },
                 actions = {
                     if (userType == UserType.Owner) {
                         IconButton(
@@ -268,7 +270,9 @@ fun ProfileScreen(
     ) { innerPadding ->
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             state = postLazyColumnState
         ) {
 
@@ -321,22 +325,22 @@ fun ProfileScreen(
                                 selectedTabIndex = pagerState.currentPage,
                                 matchContentSize = false
                             ),
-                            width = 48.dp,
-                            color = MaterialTheme.colorScheme.primary,
+//                            width = 48.dp,
+//                            color = MaterialTheme.colorScheme.primary,
                             shape = RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
                         )
                     },
-                    containerColor = MaterialTheme.colorScheme.background
+//                    containerColor = MaterialTheme.colorScheme.background
                 ) {
                     listOf("Profile", "Posts", "Replies").forEachIndexed { index, title ->
                         Tab(
                             text = {
-                                Text(text = title, style = MaterialTheme.typography.headlineMedium)
+                                Text(text = title)
                             },
                             selected = pagerState.currentPage == index,
                             onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            selectedContentColor = MaterialTheme.colorScheme.onSurface
+//                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+//                            selectedContentColor = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -361,24 +365,24 @@ fun ProfileScreen(
                                 )
                             }
 
-                        1 -> postScreenComponent(
-                            navHostController = navHostController,
-                            postViewModel = postViewModel,
-                            postState = postState,
-                            bottomSheetSharedViewModel = bottomSheetViewModel,
-                            currentUser = profileData?.id ?: "",
-                            campusId = profileData?.campus?.campusCode,
-                            userType = userType,
-                        )
-
-                        2 -> {
-                            repliesComponent(
-                                userId = profileData?.id ?: "",
-                                replyViewModel = replyViewModel,
-                                repliesState = replyState,
-                                onRetryClick = { }
+                            1 -> postScreenComponent(
+                                navHostController = navHostController,
+                                postViewModel = postViewModel,
+                                postState = postState,
+                                bottomSheetSharedViewModel = bottomSheetViewModel,
+                                currentUser = profileData?.id ?: "",
+                                campusId = profileData?.campus?.campusCode,
+                                userType = userType,
                             )
-                        }
+
+                            2 -> {
+                                repliesComponent(
+                                    userId = profileData?.id ?: "",
+                                    replyViewModel = replyViewModel,
+                                    repliesState = replyState,
+                                    onRetryClick = { }
+                                )
+                            }
 
                         }
                     }
@@ -404,8 +408,16 @@ fun ProfileScreen(
             ) {
                 Surface(shape = RoundedCornerShape(6.dp)) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Delete Post", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                        Text("Are you sure you want to delete this post?", textAlign = TextAlign.Center, modifier = Modifier.padding(12.dp))
+                        Text(
+                            "Delete Post",
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
+                        Text(
+                            "Are you sure you want to delete this post?",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(12.dp)
+                        )
                         HorizontalDivider()
                         Row(Modifier.fillMaxWidth()) {
                             Box(
@@ -435,7 +447,10 @@ fun ProfileScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isLoading.value)
-                                    CircularProgressIndicator(color = LightTheme_Blue, modifier = Modifier.size(24.dp))
+                                    CircularProgressIndicator(
+                                        color = LightTheme_Blue,
+                                        modifier = Modifier.size(24.dp)
+                                    )
                                 else
                                     Text("Delete", color = MaterialTheme.colorScheme.primary)
                             }
@@ -457,7 +472,7 @@ fun LazyListScope.repliesComponent(
     onRetryClick: () -> Unit
 ) {
     item {
-        LaunchedEffect(Unit) { replyViewModel.getUserReplies(userId)}
+        LaunchedEffect(Unit) { replyViewModel.getUserReplies(userId) }
     }
 
     when (repliesState) {
@@ -607,14 +622,14 @@ fun LazyListScope.repliesComponent(
 fun ProfileHeader(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier,
-    headerHeight:(Dp)-> Unit,
+    headerHeight: (Dp) -> Unit,
     navHostController: NavHostController,
     user: UserDetail,
     userType: UserType,
     onLinkUpRequestClick: (() -> Unit)? = null,
     onMessageClick: (() -> Unit)? = null,
     connectionsCount: Int = 0,
-    hasConnection:UiState<Boolean?>,
+    hasConnection: UiState<Boolean?>,
 ) {
 
     val density = LocalDensity.current
@@ -688,7 +703,7 @@ fun ProfileHeader(
                             modifier = Modifier.size(18.dp),
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Back",
-                            tint = LightTheme_Blue
+//                            tint = LightTheme_Blue
                         )
                     }
                 }
@@ -697,7 +712,7 @@ fun ProfileHeader(
 
             Text(
                 text = user.userName,
-                style = MaterialTheme.typography.headlineMedium
+                style = MaterialTheme.typography.bodyLarge
             )
         }
 
@@ -710,14 +725,9 @@ fun ProfileHeader(
                     )
                 }
             },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
         ) {
             Text(
                 text = "$connectionsCount Connections",
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.headlineMedium
             )
         }
 
@@ -730,7 +740,7 @@ fun ProfileHeader(
                         .height(40.dp),
                     shape = RoundedCornerShape(6.dp)
                 ) {
-                    when(hasConnection){
+                    when (hasConnection) {
 
                         is UiState.Success -> {
 
@@ -740,21 +750,24 @@ fun ProfileHeader(
                                 false -> "Requested"
                             }
 
-                            
+
                             Text(
                                 text = connectionText,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (hasConnection.data == null || hasConnection.data == true) White else LightTheme_Gray
                             )
                         }
-                        is UiState.Loading->{
+
+                        is UiState.Loading -> {
                             CircularLoading()
                         }
-                        is UiState.Error->{
+
+                        is UiState.Error -> {
                             LaunchedEffect(Unit) {
                                 snackbarHostState.showSnackbar(hasConnection.message)
                             }
                         }
+
                         else -> {}
                     }
                 }
@@ -797,7 +810,6 @@ fun LazyListScope.userAbout(
 
     item {
         Column() {
-
             ProfileComponent(
                 title = "About",
                 onEditClick = {
@@ -809,21 +821,19 @@ fun LazyListScope.userAbout(
                     }
                 },
                 body = {
-                    if (userBasicProfileDTO.userBio.isEmpty()) return@ProfileComponent
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = userBasicProfileDTO.userBio,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyLarge
                     )
-
                 },
-                contentDescription = "BIO",
+                contentDescription = "Bio",
                 isCurrentUser = isCurrentUser,
-                isContentExist = userBasicProfileDTO.userBio.isEmpty()
+                isContentExist = userBasicProfileDTO.userBio.isNotEmpty()
             )
 
-            Divider()
 
+            Divider()
             ProfileComponent(
                 title = "Interests",
                 onEditClick = {
@@ -900,13 +910,19 @@ fun CampusWidget(campus: Campus?) {
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-        if (campus == null){
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp), contentAlignment = Alignment.Center) {
-                Text(text = "Update Campus", modifier = Modifier.align(Alignment.Center), color = LightBlack)
+        if (campus == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp), contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Update Campus",
+                    modifier = Modifier.align(Alignment.Center),
+                    color = LightBlack
+                )
             }
-        }else{
+        } else {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AsyncImage(
                     model = campus.university?.logo ?: "",

@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.Black800
+//import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_White

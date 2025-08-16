@@ -55,7 +55,7 @@ import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.LightTheme_Black
 import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.typography
+//import com.iota.campusX.ui.theme.typography
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -230,7 +230,7 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                             Text(
                                 text = chatItem.lastMessage.unreadCount.toString(),
                                 color = White,
-                                style = typography.labelMedium
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }

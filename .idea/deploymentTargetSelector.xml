@@ -6,11 +6,11 @@
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
       <SelectionState runConfigName="CampusX.app">
-        <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-08-11T14:04:43.472821700Z">
+        <option name="selectionMode" value="DIALOG" />
+        <DropdownSelection timestamp="2025-08-16T04:35:46.064756600Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=ZD2228T8BT" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=cd763363" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -18,12 +18,12 @@
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=ZD2228T8BT" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=cd763363" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=RZ8R909NA4K" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=ZD2228T8BT" />
               </handle>
             </Target>
           </targets>

@@ -47,7 +47,7 @@ import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.Setting
-import com.iota.campusX.ui.theme.Black800
+//import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.LightTheme_Black
 import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.White
@@ -143,7 +143,7 @@ fun SettingScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                contentColor = Black800,
+//                                contentColor = Black800,
                                 containerColor = Color.Transparent
                             )
                         ) {

@@ -30,7 +30,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.ui.theme.secondary
+//import com.iota.campusX.ui.theme.secondary
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -102,7 +102,7 @@ fun AutoCompleteFieldOfStudyDropdown(
                 focusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = MaterialTheme.colorScheme.outline,
                 unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                disabledContainerColor = secondary
+//                disabledContainerColor = MaterialTheme.colorScheme.secondary
             ),
         )
 
@@ -185,7 +185,7 @@ fun  SimpleDropDown(
                 focusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = MaterialTheme.colorScheme.outline,
                 unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                disabledContainerColor = secondary
+                disabledContainerColor = MaterialTheme.colorScheme.secondary
             ),
         )
 

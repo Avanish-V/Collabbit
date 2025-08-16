@@ -55,7 +55,7 @@ import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.Black800
+//import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.White400
 import org.koin.compose.koinInject
 import kotlin.random.Random

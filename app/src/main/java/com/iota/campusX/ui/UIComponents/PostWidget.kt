@@ -80,8 +80,8 @@ import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.LightTheme_LightGray
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.White
-import com.iota.campusX.ui.theme.secondary
-import com.iota.campusX.ui.theme.typography
+//import com.iota.campusX.ui.theme.secondary
+//import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

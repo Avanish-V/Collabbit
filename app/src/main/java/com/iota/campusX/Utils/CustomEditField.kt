@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.ui.theme.secondary
+//import com.iota.campusX.ui.theme.secondary
 
 @Composable
 fun CustomTextField(
@@ -66,7 +66,7 @@ fun CustomTextField(
                 focusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = MaterialTheme.colorScheme.outline,
                 unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                disabledContainerColor = secondary
+//                disabledContainerColor = secondary
             ),
             shape = RoundedCornerShape(8.dp),
             keyboardOptions = keyboardOptions,
@@ -134,7 +134,7 @@ fun CustomTextFieldWithLeadingIcon(
                 focusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = MaterialTheme.colorScheme.outline,
                 unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                disabledContainerColor = secondary
+//                disabledContainerColor = secondary
             ),
             shape = RoundedCornerShape(8.dp),
             textStyle = MaterialTheme.typography.headlineMedium,

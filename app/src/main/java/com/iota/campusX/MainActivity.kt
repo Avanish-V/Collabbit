@@ -104,12 +104,13 @@ import com.iota.campusX.NetworkCapability.ConnectivityViewModel
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.initCloudinary
-import com.iota.campusX.ui.theme.Black800
-import com.iota.campusX.ui.theme.CampusXTheme
+import com.iota.campusX.ui.theme.AppTheme
+//import com.iota.campusX.ui.theme.Black800
+//import com.iota.campusX.ui.theme.CampusXTheme
 import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.secondary
-import com.iota.campusX.ui.theme.typography
+//import com.iota.campusX.ui.theme.secondary
+//import com.iota.campusX.ui.theme.typography
 import com.voxcii.voxcii.Screens.SearchFlow.SearchScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -210,7 +211,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            CampusXTheme {
+            AppTheme {
 
                 Surface() {
 

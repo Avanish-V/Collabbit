@@ -20,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialTheme.typography
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,8 +45,8 @@ import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.White
-import com.iota.campusX.ui.theme.secondary
-import com.iota.campusX.ui.theme.typography
+//import com.iota.campusX.ui.theme.secondary
+//import com.iota.campusX.ui.theme.typography
 
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -195,7 +196,7 @@ fun ConnectionsItemView(
             )
 
             Column(modifier = Modifier.weight(1f),) {
-                Text(text = connectionData.user.userName, style = typography.headingMedium)
+                Text(text = connectionData.user.userName, style = typography.headlineMedium)
                 if (connectionData.user.userBio.isNotEmpty()) {
                     Text(
                         text = connectionData.user.userBio,

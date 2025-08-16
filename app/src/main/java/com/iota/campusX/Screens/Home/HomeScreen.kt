@@ -243,7 +243,7 @@ fun MainScreen(
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = title,
-                                            style = MaterialTheme.typography.headlineMedium
+//                                            style = MaterialTheme.typography.displayMedium
                                         )
                                     }
 

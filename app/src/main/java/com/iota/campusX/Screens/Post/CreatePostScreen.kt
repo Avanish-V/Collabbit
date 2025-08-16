@@ -110,7 +110,7 @@ import com.iota.campusX.ui.UIComponents.SimpleDropDown
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.secondary
+//import com.iota.campusX.ui.theme.secondary
 import io.ktor.util.date.getTimeMillis
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -813,7 +813,7 @@ fun CreatePostScreen(
                                                                 )
                                                             },
                                                             colors = IconButtonDefaults.iconButtonColors(
-                                                                containerColor = secondary
+//                                                                containerColor = secondary
                                                             )
                                                         ) {
                                                             Icon(

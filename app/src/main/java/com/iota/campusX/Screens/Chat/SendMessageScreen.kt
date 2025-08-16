@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.Green
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -93,11 +94,11 @@ import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.Green
+//import com.iota.campusX.ui.theme.Green
 import com.iota.campusX.ui.theme.White400
 import com.iota.campusX.ui.theme.LightTheme_Blue
 import com.iota.campusX.ui.theme.White
-import com.iota.campusX.ui.theme.secondary
+//import com.iota.campusX.ui.theme.secondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch

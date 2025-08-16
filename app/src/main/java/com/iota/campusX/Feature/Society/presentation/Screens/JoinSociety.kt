@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -83,7 +84,6 @@ import com.iota.campusX.Screens.Chat.DropDownItem
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
-import com.iota.campusX.ui.theme.Yellow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -466,7 +466,7 @@ fun StageDownParticipantItem(
                     .padding(end = 12.dp)
                     .size(20.dp),
                 painter = painterResource(R.drawable.hand_paper__1_),
-                tint = Yellow,
+//                tint = Yellow,
                 contentDescription = "Raised Hand"
             )
         }

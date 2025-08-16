@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -58,6 +59,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -979,59 +981,44 @@ fun ProfileComponent(
     contentDescription: String,
     isCurrentUser: Boolean,
     isContentExist: Boolean
-
 ) {
-
-    val outlineColor = MaterialTheme.colorScheme.onSurfaceVariant
-
-    Column (
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 24.dp).drawBehind(
-            onDraw = {
-
-                val strokeWidth = 1.dp.toPx()
-                val dashOn = 12f
-                val dashOff = 8f
-                val pe = PathEffect.dashPathEffect(floatArrayOf(dashOn, dashOff), 0f)
-                val inset = strokeWidth / 2
-
-                drawRoundRect(
-                    color = outlineColor,
-                    topLeft = Offset(inset, inset),
-                    size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                    style = Stroke(
-                        width = strokeWidth, pathEffect = pe),
-                    cornerRadius = CornerRadius(12.dp.toPx()) // optional: rounded corners
-                )
-
-            }
-        )
-    ){
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-
+            // Title with Material3 text hierarchy
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineMedium
+                style = MaterialTheme.typography.titleMedium
             )
 
             if (isCurrentUser) {
-                Image(
-                    modifier = Modifier.clickable(
-                        onClick = { onEditClick.invoke() },
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ),
-                    imageVector = if (isContentExist) Icons.Default.Add else Icons.Default.Edit,
-                    contentDescription = "Back",
-                    colorFilter = ColorFilter.tint(LightTheme_Blue)
-                )
+                TextButton(onClick = onEditClick) {
+                    Text(
+                        text = "Edit",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             }
-
         }
-        body.invoke()
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (isContentExist) {
+            body()
+        } else {
+            Text(
+                text = "No $contentDescription available",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
