@@ -16,8 +16,8 @@ android {
         applicationId = "com.iota.campusX"
         minSdk = 24
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.1.2"
+        versionCode = 14
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -105,7 +105,6 @@ dependencies {
 
     implementation("com.google.auth:google-auth-library-oauth2-http:1.2.2")
 
-    implementation("io.getstream:stream-video-android-ui-compose:1.8.0")
 
     implementation("io.agora.rtc:voice-sdk:4.5.0")
     implementation("commons-codec:commons-codec:1.9")
@@ -113,4 +112,7 @@ dependencies {
 
     implementation("com.google.android.play:app-update:2.1.0")
 
+    implementation("io.github.mr0xf00:easycrop:0.1.1")
+
+    implementation("androidx.paging:paging-runtime:3.3.6")
 }

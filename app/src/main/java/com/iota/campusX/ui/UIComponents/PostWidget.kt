@@ -61,36 +61,34 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
-import com.iota.campusX.Feature.Post.domain.Models.CreatorDetail
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
-import com.iota.campusX.Feature.Post.domain.Models.PostActions
-import com.iota.campusX.Feature.Post.domain.Models.PostContent
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.Reference
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.Post.data.model.CreatorDetail
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.GetPostDTO
+import com.iota.campusX.Feature.Post.data.model.PostActions
+import com.iota.campusX.Feature.Post.data.model.PostContent
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.Post.data.model.Reference
+import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.R
+import com.iota.campusX.Screens.Post.DataModel.ContentId
 import com.iota.campusX.Screens.Post.PollOption
-import com.iota.campusX.Screens.Post.PostActionHandlers
+import com.iota.campusX.Screens.Post.PostActions.PostAction
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
-import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.theme.White
-//import com.iota.campusX.ui.theme.secondary
-//import com.iota.campusX.ui.theme.typography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
 fun PostCard(
     post: GetPostDTO,
-    handlers: PostActionHandlers,
-    isCurrentUser: Boolean? = null
+    handlers: (PostAction) -> Unit,
+    onDotMenuClick: ((GetPostDTO) -> Unit)?
 ) {
     Column(
         modifier = Modifier
             .clickable(
-                onClick = { handlers.onPostClick.invoke() },
+                onClick = { handlers.invoke(PostAction.OpenPostDetail(postId = post.postId)) },
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
@@ -102,9 +100,13 @@ fun PostCard(
                 CircleImage(
                     image = post.creatorDetail.profile?.userImage.orEmpty(),
                     modifier = Modifier.size(42.dp),
+                    visibility = post.visibilityMode,
                     onClick = {
-                        if (post.visibilityMode == PostVisibilityMode.USER) {
-                            post.creatorDetail.profile?.id?.let(handlers.onProfileClick)
+                        if (post.visibilityMode == VisibilityMode.USER) {
+                            handlers.invoke(PostAction.OpenUserProfile(
+                                userId = post.creatorDetail.profile?.id ?: "",
+                                isCurrentUser = post.creatorDetail.isCurrentUser
+                            ))
                         }
                     }
                 )
@@ -117,8 +119,8 @@ fun PostCard(
                 PostHeader(
                     user = post.creatorDetail,
                     pod = post.reference,
-                    postedAt = getTimeAgo(post.createdAt),
-                    isCurrentUser = isCurrentUser,
+                    postedAt = post.createdAt.toString(),
+                    isCurrentUser = post.creatorDetail.isCurrentUser,
                     feedMode = post.feedMode,
                     visibilityMode = post.visibilityMode
                 )
@@ -127,12 +129,14 @@ fun PostCard(
 
                 PostBody(
                     postContent = post.postContent,
-                    onPollSelect = handlers.onPollSelect,
+                    onPollSelect = {
+                        handlers.invoke(PostAction.VotePoll(postId = post.postId))
+                    },
                     onPostImageClick = {
-                        handlers.onPostImageClick.invoke(post.postContent.postData.postImage.toString())
+                        handlers.invoke(PostAction.OpenPostDetail(postId = post.postId))
                     },
                     onBodyClick = {
-                        handlers.onPostClick.invoke()
+                        handlers.invoke(PostAction.OpenPostDetail(postId = post.postId))
                     }
                 )
 
@@ -141,9 +145,21 @@ fun PostCard(
                 PostActionsComponent(
                     postAction = post.postActions,
                     user = post.creatorDetail.profile,
-                    onLikeClick = handlers.onLikeClick,
-                    onReplyClick = handlers.onReplyClick,
-                    onDotMenuClick = handlers.onDotMenuClick
+                    onLikeClick = {
+                        handlers.invoke(
+                            PostAction.Like(
+                                contentId = ContentId.Post(postId = post.postId),
+                                isLiked = post.postActions.isLiked,
+                                userId = post.creatorDetail.profile?.id ?: ""
+                            )
+                        )
+                    },
+                    onReplyClick = {
+                        handlers.invoke(PostAction.OpenPostDetail(postId = post.postId))
+                    },
+                    onDotMenuClick = {
+                        onDotMenuClick?.invoke(post)
+                    }
                 )
             }
         }
@@ -156,7 +172,7 @@ fun PostHeader(
     user: CreatorDetail,
     pod: Reference? = null,
     postedAt: String? = null,
-    visibilityMode: PostVisibilityMode? = null,
+    visibilityMode: VisibilityMode? = null,
     isCurrentUser: Boolean? = null,
     feedMode: FeedMode? = null
 ) {
@@ -180,7 +196,7 @@ fun PostHeader(
                     text = user.profile?.userName ?: "",
                     maxLines = 1,
                     softWrap = false,
-                    style = MaterialTheme.typography.titleMedium, // ✅ username: section title weight
+                    style = MaterialTheme.typography.titleSmall, // ✅ username: section title weight
                     color = MaterialTheme.colorScheme.onSurface,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -198,16 +214,15 @@ fun PostHeader(
                 // Posted time
                 if (!postedAt.isNullOrEmpty()) {
                     Text(
+                        modifier = Modifier.alpha(0.7f),
                         text = "• $postedAt",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-
-                        )
+                    )
                 }
             }
 
-            // Bio or additional info
-            if (visibilityMode == PostVisibilityMode.USER) {
+            if (visibilityMode == VisibilityMode.USER) {
                 user.profile?.userBio?.takeIf { it.isNotEmpty() }?.let { bio ->
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -223,19 +238,24 @@ fun PostHeader(
         }
 
         // Feed label (Global / Campus)
-        if (isCurrentUser != null) {
-            Text(
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(6.dp)
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                text = if (feedMode == FeedMode.GLOBAL) "Global" else "Campus",
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelMedium
-            )
+        isCurrentUser?.let {
+
+            if (isCurrentUser) {
+                Text(
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    text = if (feedMode == FeedMode.GLOBAL) "Global" else "Campus",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+
         }
+    }
 
         // Pod icon
         if (pod != null) {
@@ -246,7 +266,6 @@ fun PostHeader(
             )
         }
     }
-}
 
 
 

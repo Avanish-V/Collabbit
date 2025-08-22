@@ -16,8 +16,6 @@ class NavigationViewModel: ViewModel() {
 
     fun isBottomBarVisible(isVisible: Boolean) {
         _isBottomBarVisible.value = isVisible
-
-
     }
 
 }

@@ -9,6 +9,7 @@ import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.CollectionReference
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -18,13 +19,13 @@ import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Notification.domain.LikePayload
 import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Notification.domain.toTypedObject
-import com.iota.campusX.Feature.Post.domain.Models.CreatePostDTO
-import com.iota.campusX.Feature.Post.domain.Models.CreatorDetail
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
-import com.iota.campusX.Feature.Post.domain.Models.PostActions
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.Post.data.model.CreatePostDTO
+import com.iota.campusX.Feature.Post.data.model.CreatorDetail
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.GetPostDTO
+import com.iota.campusX.Feature.Post.data.model.PostActions
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.presentation.UploadState
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
@@ -42,11 +43,15 @@ import java.util.Date
 import kotlin.collections.mapOf
 import kotlin.coroutines.resume
 
-class PostRepoImpl(
+class PostRemoteDataSource(
     private val sendPushNotification: SendPushNotification,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
 ):PostRepository {
+
+    val PAGE_SIZE = 8
+    var lastVisibleDoc: DocumentSnapshot? = null
+    var latestPostTimestamp: com.google.firebase.Timestamp? = null
 
     override suspend fun createPost(dto: CreatePostDTO, imageUri: Uri?): Flow<UploadState> = callbackFlow {
 
@@ -142,9 +147,55 @@ class PostRepoImpl(
     }
 
     override suspend fun getPosts(): Result<List<GetPostDTO>> {
+
         val query = firestore.collection("Posts")
             .whereEqualTo("feedMode", FeedMode.GLOBAL)
-        return fetchPosts(query)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(PAGE_SIZE.toLong())
+
+
+        return fetchPosts(query).onSuccess { posts ->
+            lastVisibleDoc = query.get().await().documents.lastOrNull()
+            latestPostTimestamp = posts.lastOrNull()?.createdAt
+        }
+
+    }
+
+    suspend fun getMorePosts(): Result<List<GetPostDTO>> {
+        val lastDoc = lastVisibleDoc ?: return Result.success(emptyList())
+
+        val query = firestore.collection("Posts")
+            .whereEqualTo("feedMode", FeedMode.GLOBAL)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .startAfter(lastDoc)
+            .limit(PAGE_SIZE.toLong())
+
+        return fetchPosts(query).onSuccess { posts ->
+            lastVisibleDoc = query.get().await().documents.lastOrNull()
+        }
+    }
+
+    suspend fun refreshPosts(): Result<List<GetPostDTO>> {
+        val latestTs = latestPostTimestamp ?: return Result.success(emptyList())
+
+        val query = firestore.collection("Posts")
+            .whereEqualTo("feedMode", FeedMode.GLOBAL)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .whereGreaterThan("createdAt", latestTs)
+            .limit(PAGE_SIZE.toLong())
+
+        return fetchPosts(query).onSuccess { posts ->
+            latestPostTimestamp = posts.firstOrNull()?.createdAt ?: latestTs
+        }
+    }
+
+    override suspend fun fetchSinglePost(postId: String): Result<GetPostDTO> {
+        val query = firestore.collection("Posts")
+            .whereEqualTo("postId", postId)
+
+        return fetchPosts(query).mapCatching { posts ->
+            posts.firstOrNull() ?: throw NoSuchElementException("Post not found for id=$postId")
+        }
     }
 
     override suspend fun fetchCampusPosts(feedMode: FeedMode, campusId: String?): Result<List<GetPostDTO>> {
@@ -154,6 +205,7 @@ class PostRepoImpl(
             .whereEqualTo("feedMode", feedMode)
         return fetchPosts(query)
     }
+
     private suspend fun fetchPosts(query: Query): Result<List<GetPostDTO>> {
         return try {
             if (auth.currentUser == null) return Result.failure(Exception("User not logged in"))
@@ -207,7 +259,7 @@ class PostRepoImpl(
 
                         GetPostDTO(
                             postId = post.postId,
-                            createdAt = date.time,
+                            createdAt = post.createdAt,
                             creatorDetail = CreatorDetail(
                                 isCurrentUser = isCurrentUser,
                                 isVerified = user?.metaData?.verified ?: false,
@@ -244,7 +296,8 @@ class PostRepoImpl(
         }
     }
 
-    override suspend fun getPostsById(userId: String, campusId: String?, feedMode: FeedMode): Result<List<GetPostDTO>> {
+    override suspend fun getPostsById(userId: String): Result<List<GetPostDTO>> {
+
         val query = firestore.collection("Posts")
             .whereEqualTo("creatorId", userId)
         return fetchPosts(query)
@@ -252,6 +305,8 @@ class PostRepoImpl(
 
     override suspend fun editPost(postId: String, editedText: String, campusId: String?, feedMode: FeedMode): Result<Unit> {
         return try {
+
+            Log.d("PostRepoImpl", "editPost: $postId $editedText $campusId $feedMode")
 
             if (postId.isBlank()) return Result.failure(IllegalArgumentException("Invalid post ID"))
             if (editedText.isBlank()) return Result.failure(IllegalArgumentException("Edited text cannot be empty"))
@@ -274,7 +329,7 @@ class PostRepoImpl(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean, campusId: String?, feedMode: FeedMode): Result<Unit> = suspendCancellableCoroutine { cont ->
+    override suspend fun toggleLike(userId: String, postId: String, isLiked: Boolean): Result<Unit> = suspendCancellableCoroutine { cont ->
 
        // val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
         val baseCollection = firestore.collection("Posts")
@@ -295,7 +350,6 @@ class PostRepoImpl(
                         createdAt = FieldValue.serverTimestamp(),
                         type = NotificationType.LIKE,
                         isRead = false,
-                        feedMode = feedMode,
                         payload = LikePayload(
                             postId = postId,
                             actionBy = auth.currentUser?.uid.toString(),
@@ -368,10 +422,10 @@ enum class Error {
     CAMPUS_NOT_FOUND
 }
 
-fun visibilityMode(visibilityMode: PostVisibilityMode,userName: String,userImage: String): Pair<String, String> {
+fun visibilityMode(visibilityMode: VisibilityMode, userName: String, userImage: String): Pair<String, String> {
     return when (visibilityMode) {
-        PostVisibilityMode.ANONYMOUS -> Pair("Anonymous", anonymousImage)
-        PostVisibilityMode.USER -> Pair(userName.toString(), userImage.toString())
+        VisibilityMode.ANONYMOUS -> Pair("Anonymous", anonymousImage)
+        VisibilityMode.USER -> Pair(userName.toString(), userImage.toString())
     }
 }
 

@@ -107,7 +107,7 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ){
                 item {
-                    Text("Communication guidelines", style = MaterialTheme.typography.headlineLarge)
+                    Text("Community guidelines", style = MaterialTheme.typography.titleLarge)
                 }
 
                 item {
@@ -147,7 +147,7 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
 fun ConsentSingleMessage(title: String,description: String) {
 
     Column (verticalArrangement = Arrangement.spacedBy(6.dp)){
-        Text(title, style = MaterialTheme.typography.headlineMedium)
+        Text(title, style = MaterialTheme.typography.titleMedium)
         Text(description, style = MaterialTheme.typography.bodyMedium)
     }
 

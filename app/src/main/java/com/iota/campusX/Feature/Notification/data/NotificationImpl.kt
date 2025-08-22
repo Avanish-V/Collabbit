@@ -8,7 +8,6 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.gson.Gson
 import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.Feature.Chats.data.ID
 import com.iota.campusX.Feature.Notification.domain.CommentPayload
@@ -19,12 +18,12 @@ import com.iota.campusX.Feature.Notification.domain.LikePayload
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.domain.NotificationType
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.CreateReplyDTO
-import com.iota.campusX.Feature.Post.domain.Models.PostContent
-import com.iota.campusX.Feature.Post.domain.Models.PostData
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.Post.data.model.CreateReplyDTO
+import com.iota.campusX.Feature.Post.data.model.PostContent
+import com.iota.campusX.Feature.Post.data.model.PostData
+import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.async
@@ -143,7 +142,7 @@ class NotificationImpl(
                         val post = postDeferred.await()
 
                         // Determine username + image (anonymous or not)
-                        val userType = if (commentPayload?.visibilityMode == PostVisibilityMode.USER) {
+                        val userType = if (commentPayload?.visibilityMode == VisibilityMode.USER) {
                             Pair(actionedBy?.userName ?: "", actionedBy?.userImage ?: "")
                         } else {
                             Pair("Anonymous", "https://res.cloudinary.com/dni4h8jjy/image/upload/v1746629954/wyuwxwa8qwx0hu0i6flk.png")
@@ -179,7 +178,6 @@ class NotificationImpl(
                             }
                         }
 
-
                         NotificationDTO(
                             notificationId = notificationData.notificationId,
                             createdAt = notificationData.createdAt as? Timestamp,
@@ -202,7 +200,6 @@ class NotificationImpl(
 
         } catch (e: Exception) {
             emit(ResultState.Error("Failed to fetch notifications: ${e.message}"))
-            Log.e("NotificationImpl", "Error in fetchNotification: ${e.message}", e)
         }
     }
 

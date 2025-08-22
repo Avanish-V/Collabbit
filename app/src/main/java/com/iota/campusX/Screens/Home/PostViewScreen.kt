@@ -40,10 +40,7 @@ import io.ktor.websocket.Frame.Text
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostViewScreen(navHostController: NavHostController) {
-
     val postImage = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("POST_IMAGE")
-
-
 
     Scaffold(
         topBar = {

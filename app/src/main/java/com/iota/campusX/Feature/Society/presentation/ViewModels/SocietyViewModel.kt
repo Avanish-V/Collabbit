@@ -3,7 +3,7 @@ package com.iota.campusX.Feature.Society.presentation.ViewModels
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
@@ -24,6 +24,10 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
     private val _getSocietyState = MutableStateFlow<UiState<List<GetSocietyDTO>>>(UiState.Idle)
     val getSocietyState : StateFlow<UiState<List<GetSocietyDTO>>> = _getSocietyState.asStateFlow()
 
+
+    private val _userSocietyState = MutableStateFlow<UiState<List<GetSocietyDTO>>>(UiState.Idle)
+    val userSocietyState : StateFlow<UiState<List<GetSocietyDTO>>> = _userSocietyState.asStateFlow()
+
     private val _joinRequests = MutableStateFlow<List<GetJoinRequestDTO>>(emptyList())
     val joinRequests: StateFlow<List<GetJoinRequestDTO>> = _joinRequests.asStateFlow()
 
@@ -40,14 +44,11 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
     private val _microphone = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val microphone : StateFlow<UiState<Unit>> = _microphone.asStateFlow()
 
+    private val _deleteSocietyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val deleteSocietyState : StateFlow<UiState<Unit>> = _deleteSocietyState.asStateFlow()
 
-    fun createSociety(societyName: String, description: String,mode: FeedMode){
 
-        val createSocietyDTO = CreateSocietyDTO(
-            societyName = societyName,
-            description = description,
-            mode = mode
-        )
+    fun createSociety(createSocietyDTO: CreateSocietyDTO){
 
         _createSocietyState.value = UiState.Loading
 
@@ -61,9 +62,23 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
 
     }
 
+    fun deleteSociety(societyId: String){
+        viewModelScope.launch {
+            val result = societyRepository.deleteRoom(societyId)
+            _deleteSocietyState.value = result.fold(
+                onSuccess = {
+                    removeSocietyLocally(roomId = societyId)
+                    UiState.Success(it)
+                },
+                onFailure = { UiState.Error(it.message.toString()) }
+            )
+        }
+    }
+
     fun fetchSocieties(feedMode: FeedMode,campusId: String?){
 
         val isEmpty = (_getSocietyState.value as? UiState.Success)?.data
+
         if (isEmpty?.isNotEmpty() ?: false) return
 
         _getSocietyState.value = UiState.Loading
@@ -80,6 +95,17 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
         }
     }
 
+    fun fetchUserSocieties(userId: String){
+        if (_userSocietyState.value is UiState.Success) return
+        viewModelScope.launch {
+            _userSocietyState.value = UiState.Loading
+            val result = societyRepository.fetchUserSocieties(userId)
+            _userSocietyState.value = result.fold(
+                onSuccess = { UiState.Success(it) },
+                onFailure = { UiState.Error(it.message.toString()) }
+            )
+        }
+    }
 
     fun updateRoom(roomId: String,isActive:Boolean,feedMode: FeedMode,campusId: String?){
         viewModelScope.launch {
@@ -153,6 +179,20 @@ class SocietyViewModel(private val societyRepository: SocietyRepository): ViewMo
     }
 
 
+    //-----------------------------------------UPDATE DATA LOCALLY--------------------------------------------------
+
+    fun removeSocietyLocally(roomId: String){
+        val currentList = (_userSocietyState.value as? UiState.Success)?.data
+        val societyList = (_getSocietyState.value as? UiState.Success)?.data
+        if (currentList != null) {
+            val newList = currentList.filter { it.roomId != roomId }
+            _userSocietyState.value = UiState.Success(newList)
+        }
+        if (societyList != null) {
+            val newList = societyList.filter { it.roomId != roomId }
+            _getSocietyState.value = UiState.Success(newList)
+        }
+    }
 
 
 }

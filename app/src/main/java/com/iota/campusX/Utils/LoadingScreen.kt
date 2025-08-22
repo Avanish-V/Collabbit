@@ -22,53 +22,44 @@ import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_Blue
 
 @Composable
-fun LoadingUI(isLoading:Boolean,modifier: Modifier = Modifier) {
+fun LoadingUI(isLoading:Boolean?=null,modifier: Modifier = Modifier) {
 
-    if (isLoading){
-
-        Box(modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ){
-            CircularProgressIndicator(
-                modifier = Modifier.size(32.dp),
-                strokeWidth = 2.dp,
-                strokeCap = StrokeCap.Round,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
+    Box(modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ){
+        CircularProgressIndicator(
+            modifier = Modifier.size(32.dp),
+            strokeWidth = 2.dp,
+            strokeCap = StrokeCap.Round,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 
 }
 
 
 @Composable
-fun StatusScreen(isActive:Boolean,text:String,image:Int?= null) {
+fun StatusScreen(text:String,image:Int?= null,modifier: Modifier = Modifier) {
 
-    if (isActive){
-
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ){
+        Column (
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ){
-            Column (
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ){
-                if (image != null){
-                    Image(
-                        modifier = Modifier.size(120.dp),
-                        painter = painterResource(image),
-                        contentDescription = null
-                    )
-                }
-
-                Text(text = text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
+            if (image != null){
+                Image(
+                    modifier = Modifier.size(120.dp),
+                    painter = painterResource(image),
+                    contentDescription = null
+                )
             }
 
-        }
+            Text(text = text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
+        }
 
     }
 

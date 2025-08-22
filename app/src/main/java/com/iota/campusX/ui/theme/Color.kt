@@ -1,7 +1,8 @@
 package com.iota.campusX.ui.theme
 import androidx.compose.ui.graphics.Color
 
-val primaryLight = Color(0xFF304EBB)
+val primaryLight = Color(0xFF4C68D5)
+//val primaryLight = Color(0xFF304EBB)
 val onPrimaryLight = Color(0xFFFFFFFF)
 val primaryContainerLight = Color(0xFF4C68D5)
 val onPrimaryContainerLight = Color(0xFFF5F4FF)

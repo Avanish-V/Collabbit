@@ -24,23 +24,34 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
+import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.UiState
+import com.iota.campusX.Utils.generateUID
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateSociety(navHostController: NavHostController) {
+fun CreateSociety(
+    navHostController: NavHostController,
+    userProfileViewModel: UserProfileViewModel = koinInject()
+) {
 
     //ViewModels
     val societyViewModel = koinInject<SocietyViewModel>()
+
+    val userDetail = userProfileViewModel.userBaseProfile.collectAsState()
+    val profile = (userDetail.value as?  UiState.Success)?.data
 
     //States
 
@@ -51,6 +62,8 @@ fun CreateSociety(navHostController: NavHostController) {
     var isLoading by remember { mutableStateOf(false) }
 
     val snackBarHostState = SnackbarHostState()
+
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(createSocietyState) {
         when(createSocietyState){
@@ -84,7 +97,43 @@ fun CreateSociety(navHostController: NavHostController) {
                     }
                 },
                 actions = {
-                    TextButton(onClick = { societyViewModel.createSociety(societyName,description,FeedMode.GLOBAL) }) {
+                    TextButton(onClick = {
+
+                        if (profile?.campus?.campusCode.isNullOrEmpty()){
+                            scope.launch {
+                                snackBarHostState.showSnackbar("Update Campus ID")
+                            }
+                            return@TextButton
+                        }
+
+                        if (societyName.isEmpty()){
+                            scope.launch {
+                                snackBarHostState.showSnackbar("Enter Society Name")
+                            }
+                            return@TextButton
+                        }
+                        if (description.isEmpty()){
+                            scope.launch {
+                                snackBarHostState.showSnackbar("Enter Description")
+                            }
+                            return@TextButton
+                        }
+
+                        societyViewModel.createSociety(
+                            CreateSocietyDTO(
+                                societyName = societyName,
+                                description = description,
+                                createdBy = profile.id,
+                                roomId = generateUID(),
+                                joined = emptyList(),
+                                mode = FeedMode.CAMPUS,
+                                campusId = profile.campus.campusCode,
+                                isActive = false
+                            )
+                        )
+
+                    }
+                    ) {
                         if (isLoading){
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp)
@@ -125,10 +174,6 @@ fun CreateSociety(navHostController: NavHostController) {
                 trailingIcon = null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
             )
-
-
         }
-
     }
-
 }

@@ -1,16 +1,26 @@
 package com.iota.campusX.Screens.Register
 
+import android.R.attr.offset
 import android.app.Activity.RESULT_OK
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -34,8 +45,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -126,13 +146,13 @@ fun SignInScreen(navHostController: NavHostController) {
 
 
 
-    Column ( modifier = Modifier.fillMaxSize().background(color = MaterialTheme.colorScheme.background)) {
+    Column ( modifier = Modifier.fillMaxSize().background(color = MaterialTheme.colorScheme.background),verticalArrangement = Arrangement.SpaceBetween) {
 
 
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center){
             Image(
                 modifier = Modifier.height(80.dp).width(120.dp),
-                painter = painterResource(if (isSystemInDarkTheme()) R.drawable.logo_dark else R.drawable.logo_light),
+                painter = painterResource(if (isSystemInDarkTheme()) R.drawable.logo_dark else R.drawable.campora_logo),
                 contentDescription = null,
             )
         }
@@ -151,10 +171,14 @@ fun SignInScreen(navHostController: NavHostController) {
             onboardingList = onboardingList
         )
 
-        Box(){
+        Column(
+            modifier = Modifier.height(200.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ){
 
             Button(
-                modifier = Modifier.padding(horizontal = 40.dp, vertical = 40.dp).fillMaxWidth().height(48.dp),
+                modifier = Modifier.padding(horizontal = 40.dp).fillMaxWidth().height(48.dp),
                 onClick = {
                     if (pagerState.currentPage != onboardingList.count()-1){
                         pagerState.requestScrollToPage(pagerState.currentPage+1)
@@ -174,11 +198,11 @@ fun SignInScreen(navHostController: NavHostController) {
                     contentColor = Color.White,
                     containerColor = LightTheme_Blue
                 )
-
             ) {
                 if (pagerState.currentPage != onboardingList.count()-1){
                         Text("Next")
                 }else{
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -196,6 +220,93 @@ fun SignInScreen(navHostController: NavHostController) {
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Column(modifier = Modifier.height(40.dp)) {
+                if (pagerState.currentPage == onboardingList.count()-1){
+                    val uriHandler = LocalUriHandler.current
+                    TermsAndPrivacyText(
+                        modifier = Modifier.padding(horizontal = 60.dp),
+                        onTermsClick = {
+                            uriHandler.openUri("https://example.com/terms")
+                        },
+                        onPrivacyClick = {
+                            // Handle privacy click
+                        }
+                    )
+
+                }
+            }
+
+
         }
     }
+}
+
+@Composable
+fun TermsAndPrivacyText(
+    modifier: Modifier = Modifier,
+    onTermsClick: () -> Unit = {},
+    onPrivacyClick: () -> Unit = {},
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val bodyStyle = MaterialTheme.typography.bodySmall.copy(
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center
+    )
+
+    // Build annotated text
+    val annotated = buildAnnotatedString {
+        append("By continuing, you agree to our\n")
+
+        pushStringAnnotation(tag = "TERMS", annotation = "terms")
+        withStyle(
+            SpanStyle(
+                color = primary,
+                fontWeight = FontWeight.Medium,
+                textDecoration = TextDecoration.Underline
+            )
+        ) { append("Terms & Conditions") }
+        pop()
+
+        append(" and ")
+
+        pushStringAnnotation(tag = "PRIVACY", annotation = "privacy")
+        withStyle(
+            SpanStyle(
+                color = primary,
+                fontWeight = FontWeight.Medium,
+                textDecoration = TextDecoration.Underline
+            )
+        ) { append("Privacy Policy") }
+        pop()
+
+        append(".")
+    }
+
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    Text(
+        modifier = modifier.pointerInput(Unit) {
+            detectTapGestures { offsetPosition ->
+                textLayoutResult?.let { layoutResult ->
+                    val offset = layoutResult.getOffsetForPosition(offsetPosition)
+                    annotated.getStringAnnotations(offset, offset)
+                        .firstOrNull()?.let { annotation ->
+                            when (annotation.tag) {
+                                "TERMS" -> onTermsClick()
+                                "PRIVACY" -> onPrivacyClick()
+                            }
+                        }
+                }
+            }
+        },
+        text = annotated,
+        style = bodyStyle,
+        textAlign = TextAlign.Center,
+        softWrap = true,
+        overflow = TextOverflow.Clip,
+        onTextLayout = { textLayoutResult = it }
+    )
 }

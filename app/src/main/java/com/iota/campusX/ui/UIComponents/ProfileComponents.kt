@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,9 +25,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,12 +39,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -49,31 +58,24 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
-import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Profile.UserType
-import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.theme.LightBlack
 import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.White
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileHeader(
-    snackbarHostState: SnackbarHostState,
     modifier: Modifier,
     headerHeight: (Dp) -> Unit,
-    navHostController: NavHostController,
-    user: UserDetail,
-    userType: UserType,
-    onLinkUpRequestClick: (() -> Unit)? = null,
-    onMessageClick: (() -> Unit)? = null,
-    connectionsCount: Int = 0,
-    hasConnection: UiState<Boolean?>,
+    user: BaseProfileDTO?,
+    connectionsCountState: UiState<Int>,
+    onConnectionClick: () -> Unit = {},
+    editProfile: @Composable () -> Unit = {},
 ) {
 
     val density = LocalDensity.current
@@ -94,153 +96,191 @@ fun ProfileHeader(
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Row (
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ){
 
-            Box(
-                modifier = Modifier,
-                contentAlignment = Alignment.BottomEnd
-            ) {
+                Column (modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)){
 
-                AsyncImage(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape
-                        ),
-                    model = user.userImage,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop
-                )
+                    Box(contentAlignment = Alignment.TopEnd){
 
-                if (userType == UserType.Owner) {
+                        AsyncImage(
+                            modifier = Modifier
+                                .size(80.dp)
 
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.background,
-                                shape = CircleShape
-                            )
-                            .background(color = MaterialTheme.colorScheme.surface)
-                            .clickable(
-                                onClick = {
-                                    navHostController.navigate(Routes.Main.EditProfile.routes)
-                                        .apply {
-                                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                                "PROFILE_EDIT",
-                                                ProfileEdit.PROFILE_SCREEN
-                                            )
-                                        }
-                                },
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            modifier = Modifier.size(18.dp),
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Back",
-//                            tint = LightTheme_Blue
+                                .border(
+                                    width = 6.dp,
+                                    color = Color.White,
+                                    shape = MaterialTheme.shapes.small
+                                ).shadow(
+                                    elevation = 6.dp,
+                                    shape = MaterialTheme.shapes.small
+                                )
+                                .clip(
+                                    MaterialTheme.shapes.large
+                                ),
+                            model = user?.userImage,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            fallback = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
+
                         )
+
+                        user?.let {
+                            if (it.metaData.verified){
+                                Icon(
+                                    modifier = Modifier.size(20.dp)
+                                        .offset(x = 8.dp,y = -4.dp),
+                                    painter = painterResource(R.drawable.check_circle),
+                                    contentDescription = "verified",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
+
+                    Text(
+                        text = user?.userName ?: "",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
                 }
+
+                editProfile.invoke()
+
             }
 
-
-            Text(
-                text = user.userName,
-                style = MaterialTheme.typography.titleMedium
-            )
         }
 
         TextButton(
             onClick = {
-                navHostController.navigate(Routes.Main.Connections.routes).apply {
-                    navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                        "USER_ID",
-                        user.id
-                    )
-                }
+                onConnectionClick.invoke()
             },
         ) {
-            Text(
-                text = "$connectionsCount Connections",
-            )
-        }
-
-        if (userType == UserType.User) {
-            Row {
-                Button(
-                    onClick = { onLinkUpRequestClick?.invoke() },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    when (hasConnection) {
-
-                        is UiState.Success -> {
-
-                            val connectionText = when (hasConnection.data) {
-                                null -> "Connect"
-                                true -> "Remove"
-                                false -> "Requested"
-                            }
-
-
-                            Text(
-                                text = connectionText,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (hasConnection.data == null || hasConnection.data == true) White else LightTheme_Gray
-                            )
-                        }
-
-                        is UiState.Loading -> {
-                            CircularLoading()
-                        }
-
-                        is UiState.Error -> {
-                            LaunchedEffect(Unit) {
-                                snackbarHostState.showSnackbar(hasConnection.message)
-                            }
-                        }
-
-                        else -> {}
-                    }
+            when(connectionsCountState){
+                is UiState.Loading->{
+                    CircularLoading()
                 }
-                Spacer(
-                    modifier = Modifier.width(12.dp)
-                )
-                Button(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp)
-                        .align(Alignment.CenterVertically),
-                    onClick = { onMessageClick?.invoke() },
-                    shape = RoundedCornerShape(6.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                    )
-                ) {
+                is UiState.Success -> {
+                    val connectionsCount = connectionsCountState.data
                     Text(
-                        text = "Message",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "$connectionsCount Connections",
+                        style = MaterialTheme.typography.titleSmall
                     )
+                }
+                else -> {
+
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-
         }
+    }
 
+}
+
+@Composable
+fun ProfileAction(
+    onLinkUpRequestClick: (() -> Unit)? = null,
+    onMessageClick: (() -> Unit)? = null,
+    hasConnectionState: UiState<Boolean?>,
+    snackBarHostState: SnackbarHostState
+) {
+
+    Row (modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)){
+        Button(
+            onClick = { onLinkUpRequestClick?.invoke() },
+            modifier = Modifier
+                .weight(1f)
+                .height(40.dp),
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            when (hasConnectionState) {
+
+                is UiState.Success -> {
+
+                    val connectionText = when (hasConnectionState.data) {
+                        null -> "Connect"
+                        true -> "Remove"
+                        false -> "Requested"
+                    }
+
+
+                    Text(
+                        text = connectionText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if ( hasConnectionState.data == true) White else LightTheme_Gray
+                    )
+                }
+
+                is UiState.Loading -> {
+                    CircularLoading()
+                }
+
+                is UiState.Error -> {
+                    LaunchedEffect(Unit) {
+                        snackBarHostState.showSnackbar(hasConnectionState.message)
+                    }
+                }
+
+                else -> {}
+            }
+        }
+        Spacer(
+            modifier = Modifier.width(12.dp)
+        )
+        Button(
+            modifier = Modifier
+                .weight(1f)
+                .height(40.dp)
+                .align(Alignment.CenterVertically),
+            onClick = { onMessageClick?.invoke() },
+            shape = RoundedCornerShape(6.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+            )
+        ) {
+            Text(
+                text = "Message",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+
+
+}
+
+
+@Composable
+fun EditProfileIconButton(onClick: () -> Unit) {
+
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.background,
+                shape = CircleShape
+            )
+            .background(color = MaterialTheme.colorScheme.surface)
+            .clickable(
+                onClick = {
+                    onClick.invoke()
+                },
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            modifier = Modifier.size(18.dp),
+            imageVector = Icons.Default.Edit,
+            contentDescription = "Back",
+        )
     }
 
 }
@@ -248,9 +288,9 @@ fun ProfileHeader(
 
 @Composable
 fun EmptyState(
-    onClick:()-> Unit,
+    onClick:()-> Unit = {},
     title: String,
-    isCurrentUser: Boolean
+    isAppUser: Boolean
 ) {
 
     val color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
@@ -295,13 +335,15 @@ fun EmptyState(
         contentAlignment = Alignment.Center
     ) {
         Row (verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.spacedBy(4.dp)){
-            if (isCurrentUser){
+
+            if (isAppUser){
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
                     tint = color
                 )
             }
+
             Text(
                 modifier = Modifier.alpha(0.5f),
                 text = title,
@@ -339,33 +381,36 @@ fun CampusWidget(
                 AsyncImage(
                     model = campus.university?.logo ?: "",
                     contentDescription = null,
-                    placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
+                    error = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(5.dp)),
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = campus.university?.university ?: "",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+
+                    campus.university?.let {
+                        Text(
+                            text = campus.university.university,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
 
                     campus.collegeName?.let {
                         Text(
                             text = it,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 1
                         )
                     }
+
                     campus.fieldOfStudy?.let {
                         Text(
                             text = it,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
-
 
                     if (campus.courseStart != null && campus.courseEnd != null) {
                         Text(
@@ -384,6 +429,56 @@ fun CampusWidget(
                 }
             }
         }
+    }
+}
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppTabRow(pagerState: PagerState,tabList: List<String> = emptyList()) {
+
+    val scope = rememberCoroutineScope()
+
+    PrimaryTabRow(
+        modifier = Modifier,
+        selectedTabIndex = pagerState.currentPage,
+        divider = { Divider() },
+        indicator = {
+            TabRowDefaults.PrimaryIndicator(
+                modifier = Modifier.tabIndicatorOffset(
+                    selectedTabIndex = pagerState.currentPage,
+                    matchContentSize = false
+                ),
+                width = 48.dp,
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
+            )
+        },
+    ) {
+       tabList.forEachIndexed { index, title ->
+            Tab(
+                text = {
+                    Text(text = title)
+                },
+                selected = pagerState.currentPage == index,
+                onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+            )
+        }
+    }
+
+
+}
+
+
+@Composable
+fun ProfileContents(
+    pagerState: PagerState,
+    screenHeight: Dp,
+    headerPinned: Boolean,
+    content: @Composable (Int) -> Unit
+    ) {
+
+    HorizontalPager(state = pagerState) { page ->
+        content.invoke(page)
     }
 }

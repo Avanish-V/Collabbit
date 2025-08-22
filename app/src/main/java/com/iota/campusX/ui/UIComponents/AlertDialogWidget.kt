@@ -32,8 +32,7 @@ import com.iota.campusX.ui.theme.LightTheme_Blue
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertDialogWidget(
-    isVisible: Boolean,
-    onDismiss: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
     title: String,
     description: String,
     positiveButtonText: String,
@@ -42,72 +41,67 @@ fun AlertDialogWidget(
     showLoading: Boolean,
 ) {
 
-    AnimatedVisibility(visible = isVisible) {
-
-        Box(contentAlignment = Alignment.Center){
-
-            BasicAlertDialog(
-                onDismissRequest = {onDismiss(false)},
+        BasicAlertDialog(
+            onDismissRequest = {onDismiss},
+        ) {
+            Surface(
+                shape = RoundedCornerShape(6.dp)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(6.dp)
-                ) {
+                Column {
+
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(title,fontWeight = FontWeight.Bold)
+                        Text(description, textAlign = TextAlign.Center)
+                    }
+
                     Column {
+                        HorizontalDivider()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
 
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(title,fontWeight = FontWeight.Bold)
-                            Text(description, textAlign = TextAlign.Center)
-                        }
 
-                        Column {
-                            HorizontalDivider()
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth(),
+                            Box(Modifier
+                                .weight(1f)
+                                .clickable(
+                                    onClick = { onDismiss },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
+                                Text(negativeButtonText, modifier = Modifier.padding(16.dp))
+                            }
 
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            VerticalDivider(
+                                modifier = Modifier.height(48.dp)
 
-                                Box(Modifier
+                            )
+
+                            Box(
+                                Modifier
                                     .weight(1f)
                                     .clickable(
-                                        onClick = { onDismiss(false) },
+                                        onClick = {
+                                            onPositiveClick.invoke()
+                                        },
                                         indication = null,
-                                        interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
-                                    Text(negativeButtonText, modifier = Modifier.padding(16.dp))
-                                }
-
-                                VerticalDivider(
-                                    modifier = Modifier.height(48.dp)
-
-                                )
-
-                                Box(
-                                    Modifier
-                                        .weight(1f)
-                                        .clickable(
-                                            onClick = {
-                                                onPositiveClick.invoke()
-                                            },
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() }
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ){
-                                    if (showLoading)
-                                        CircularProgressIndicator(color = LightTheme_Blue, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
-                                    else
-                                        Text(positiveButtonText, modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
-                                }
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ){
+                                if (showLoading)
+                                    CircularProgressIndicator(color = LightTheme_Blue, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                                else
+                                    Text(positiveButtonText, modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
                 }
             }
         }
-    }
+
 }

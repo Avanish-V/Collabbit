@@ -7,8 +7,7 @@ import kotlinx.coroutines.flow.stateIn
 
 class ConnectivityViewModel(private val connectivityObserver: ConnectivityObserver):ViewModel() {
 
-    val isConnected = connectivityObserver
-        .isConnected
+    val isConnected = connectivityObserver.isConnected
         .stateIn(
             viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),

@@ -4,10 +4,8 @@ import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -38,20 +37,19 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -59,9 +57,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -75,17 +73,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -97,6 +89,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.University
@@ -113,11 +106,16 @@ import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.CourseDuration
 import com.iota.campusX.ui.UIComponents.CustomDatePicker
 import com.iota.campusX.ui.UIComponents.SubmitButton
-import com.iota.campusX.ui.theme.LightTheme_Black
-import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_Blue
-import kotlinx.coroutines.delay
+import com.mr0xf00.easycrop.CropError
+import com.mr0xf00.easycrop.CropResult
+import com.mr0xf00.easycrop.CropperStyle
+import com.mr0xf00.easycrop.crop
+import com.mr0xf00.easycrop.rememberImageCropper
+import com.mr0xf00.easycrop.rememberImagePicker
+import com.mr0xf00.easycrop.ui.ImageCropperDialog
 import kotlinx.coroutines.launch
+import saveBitmapToCache
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -127,6 +125,7 @@ fun EditProfileScreen(
 ) {
 
     val editProfileViewModel: EditProfileViewModel = viewModel()
+    val editType = editProfileViewModel.editType.collectAsState()
     val context = LocalContext.current
     val userProfileState = userProfileViewModel.userBaseProfile.collectAsState().value
     val universityListState = userProfileViewModel.universityData.collectAsState().value
@@ -134,13 +133,12 @@ fun EditProfileScreen(
     val profileEditValue = navController.currentBackStackEntry?.savedStateHandle?.get<ProfileEdit>("PROFILE_EDIT")
 
     val userProfile = (userProfileState as? UiState.Success)?.data
-    val universityList = (universityListState as? UiState.Success)?.data
-
 
     val snackBarHostState = remember { SnackbarHostState() }
 
     val scope = rememberCoroutineScope()
     var isLoading by rememberSaveable { mutableStateOf(false) }
+    var cropImageLoading by rememberSaveable { mutableStateOf(false) }
     val focusManager = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -155,6 +153,24 @@ fun EditProfileScreen(
             }
     }
 
+    val imageCropper = rememberImageCropper()
+    
+    val imagePicker = rememberImagePicker(onImage = { uri ->
+        scope.launch {
+            val result = imageCropper.crop(uri, context)
+            when (result) {
+                CropError.LoadingError -> {
+                    snackBarHostState.showSnackbar("Error")
+                }
+                CropError.SavingError -> {
+                    snackBarHostState.showSnackbar("Error")
+                }
+                CropResult.Cancelled -> {
+                }
+                is CropResult.Success -> pickedImage.value = saveBitmapToCache(context,result.bitmap.asAndroidBitmap())
+            }
+        }
+    })
     LaunchedEffect(pickedImage.value) {
         if (pickedImage.value != null) {
             editComponent = "UPDATE_IMAGE"
@@ -170,12 +186,9 @@ fun EditProfileScreen(
                 navController.popBackStack()
             }
             is UiState.Error -> {
-                scope.launch {
-                    snackBarHostState.showSnackbar(
-                        message = modifyState.message,
-                        withDismissAction = true
-                    )
-                }
+                snackBarHostState.showSnackbar(
+                    message = modifyState.message,
+                )
                 isLoading = false
             }
             else -> {
@@ -184,10 +197,36 @@ fun EditProfileScreen(
         }
     }
 
+    LaunchedEffect(userProfile) {
+        if (userProfile != null) {
+            editProfileViewModel.getProfileData(
+                ProfileData(
+                    name = userProfile.userName,
+                    gender = userProfile.userGender
+                )
+            )
+        }
+    }
+
+    LaunchedEffect(editProfileViewModel.name,editProfileViewModel.gender) {
+        editProfileViewModel.editType()
+    }
+
+
+
 
     when (profileEditValue) {
 
         ProfileEdit.PROFILE_SCREEN -> {
+
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            var showSheet by remember { mutableStateOf(false) }
+
+            LaunchedEffect(pickedImage.value) {
+                if (pickedImage.value != null) {
+                    showSheet = true
+                }
+            }
 
             Scaffold(
                 topBar = {
@@ -210,58 +249,39 @@ fun EditProfileScreen(
                         actions = {
                             Row(modifier = Modifier.padding(end = 12.dp)) {
 
-                                if (editComponent.isNotEmpty()) {
+                                if (editType.value == EditProfileType.NONE) return@Row
 
-                                    if (isLoading) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            color = LightTheme_Blue,
-                                            strokeWidth = 2.dp
-                                        )
-                                    } else {
-                                        IconButton(onClick = {
-                                            scope.launch {
+                                IconButton(onClick = {
+                                    scope.launch {
 
-                                                when (editComponent) {
+                                        when(editType.value){
 
-                                                    "EDIT_NAME" -> {
+                                            EditProfileType.NAME -> {
 
-                                                        if (userProfile?.userName == editProfileViewModel.name.value) return@launch
+                                                if (userProfile?.userName == editProfileViewModel.name.value) return@launch
 
-                                                        userProfileViewModel.modifyName(
-                                                            editProfileViewModel.name.value
-                                                        )
-
-                                                    }
-
-                                                    "EDIT_GENDER" -> {
-
-                                                        userProfileViewModel.modifyGender(
-                                                            editProfileViewModel.gender.value
-                                                        )
-                                                    }
-
-                                                    "UPDATE_IMAGE" -> {
-
-                                                        if (pickedImage.value == null) return@launch
-
-                                                        userProfileViewModel.modifyProfileImage(
-                                                            pickedImage.value!!
-                                                        )
-                                                    }
-
-                                                }
-
+                                                userProfileViewModel.modifyName(
+                                                    editProfileViewModel.name.value
+                                                )
 
                                             }
-                                        }) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null
-                                            )
+                                            EditProfileType.GENDER -> {
+
+                                                userProfileViewModel.modifyGender(
+                                                    editProfileViewModel.gender.value
+                                                )
+
+                                            }
+                                            else -> {}
                                         }
                                     }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null
+                                    )
                                 }
+
                             }
                         }
                     )
@@ -271,8 +291,11 @@ fun EditProfileScreen(
                 },
             ) { innerPadding ->
 
-                LaunchedEffect(Unit) {
+                LaunchedEffect(userProfile?.userName) {
                     editProfileViewModel.editName(userProfile?.userName ?: "")
+                }
+                LaunchedEffect(Unit) {
+                    editProfileViewModel.editGender(userProfile?.userGender ?: Gender.UNSPECIFIED )
                 }
 
                 Column(
@@ -281,188 +304,122 @@ fun EditProfileScreen(
                         .padding(innerPadding)
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Box(contentAlignment = Alignment.BottomEnd){
 
-                        Card(
-                            Modifier
-                                .size(100.dp)
+                        AsyncImage(
+                            modifier = Modifier
+                                .size(120.dp)
+
                                 .border(
-                                    width = 2.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = CircleShape
-                                ),
-                            shape = CircleShape,
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color.Transparent
-                            )
-
-                        ) {
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(6.dp)
-                                    .clip(CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                AsyncImage(
-                                    modifier = Modifier.fillMaxSize(),
-                                    model = if (pickedImage.value != null) pickedImage.value else userProfile?.userImage,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop
+                                    width = 6.dp,
+                                    color = Color.White,
+                                    shape = MaterialTheme.shapes.small
+                                ).shadow(
+                                    elevation = 6.dp,
+                                    shape = MaterialTheme.shapes.small
                                 )
+                                .clip(
+                                    MaterialTheme.shapes.small
+                                ),
+                            model = if (pickedImage.value == null) userProfile?.userImage else pickedImage.value,
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            fallback = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
 
-                                IconButton(onClick = {
-                                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            )
 
-                                }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-                                        contentDescription = null,
-                                        tint = White
-                                    )
-                                }
-
-                            }
+                        IconButton(
+                            onClick = {
+                                //pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                imagePicker.pick(
+                                    mimetype =  "image/*"
+                                )
+                            },
+                            modifier = Modifier.offset(x = 8.dp,y = 8.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ){
+                            Icon(
+                                painter = painterResource(R.drawable.outline_camera_alt_24),
+                                contentDescription = null,
+                                tint = Color.White
+                            )
                         }
-
-//                        IconButton(
-//                            onClick = { /*TODO*/ },
-//                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent)
-//                        ) {
-//                            Icon(
-//                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-//                                contentDescription = null,
-//                                tint = primary
-//                            )
-//                        }
-//
-//                        Card(
-//                            Modifier
-//                                .size(100.dp)
-//                                .border(
-//                                    width = 2.dp,
-//                                    color = secondary,
-//                                    shape = CircleShape
-//                                ),
-//                            shape = CircleShape,
-//                            colors = CardDefaults.cardColors(
-//                                containerColor = Color.Transparent
-//                            )
-//
-//                        ) {
-//
-//                            Box(
-//                                modifier = Modifier
-//                                    .fillMaxSize()
-//                                    .padding(6.dp)
-//                                    .clip(CircleShape),
-//                                contentAlignment = Alignment.BottomEnd
-//                            ) {
-//                                Image(
-//                                    modifier = Modifier.fillMaxSize(),
-//                                    painter = painterResource(R.drawable.man),
-//                                    contentDescription = null,
-//                                    contentScale = ContentScale.Crop
-//                                )
-//
-//                            }
-//                        }
-
-
                     }
+
+                    CustomTextField(
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusManager),
+                        value = editProfileViewModel.name.value,
+                        onValueChange = { editProfileViewModel.editName(it.toString()) },
+                        label = "Name",
+                        placeHolder = "Enter your name",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    )
+
+
 
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-
-                            Text(text = "Name", fontWeight = FontWeight.Bold)
-
-                            Image(
-                                modifier = Modifier.clickable(
-                                    onClick = {
-                                        editComponent = "EDIT_NAME"
-                                        scope.launch {
-                                            delay(1000)
-                                        }
-                                        focusManager.requestFocus()
-                                        keyboardController?.show()
-                                    },
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ),
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Back",
-                                colorFilter = ColorFilter.tint(LightTheme_Blue)
-                            )
-
-                        }
-
-                        CustomTextField(
-                            modifier = Modifier.fillMaxWidth().focusRequester(focusManager),
-                            value = editProfileViewModel.name.value,
-                            onValueChange = { editProfileViewModel.editName(it.toString()) },
-                            label = "",
-                            placeHolder = "Enter your name",
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                            enabled = editComponent == "EDIT_NAME"
-                        )
-
-
-                    }
-
-                    LaunchedEffect(Unit) {
-                        editProfileViewModel.editGender(userProfile?.userGender ?: Gender.UNSPECIFIED )
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-
-                            Text(text = "Gender", fontWeight = FontWeight.Bold)
-
-                            Image(
-                                modifier = Modifier.clickable(
-                                    onClick = {
-                                        editComponent = "EDIT_GENDER"
-                                    },
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ),
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Back",
-                                colorFilter = ColorFilter.tint(LightTheme_Blue)
-                            )
-
-                        }
+                        Text(text = "Gender", fontWeight = FontWeight.Bold)
 
                         GenderSelector(
                             selectedGender = editProfileViewModel.gender.value,
                             onSelect = {
                                 editProfileViewModel.editGender(it)
                             },
-                            enabled = editComponent == "EDIT_GENDER"
+                            enabled = true
                         )
 
                     }
 
+                }
+
+                val cropState = imageCropper.cropState
+
+                cropState?.let {
+                    ImageCropperDialog(
+                        state = it,
+                        style = CropperStyle(
+                            overlay = MaterialTheme.colorScheme.background,
+                            rectColor = MaterialTheme.colorScheme.onBackground,
+                            autoZoom = false,
+                            guidelines = null,
+                        ),
+                        topBar = {
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        scope.launch {
+                                            it.done(false)
+                                        }
+
+                                    }
+                                ) {
+                                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null)
+                                }
+                                Text(text = "Crop")
+                                IconButton(onClick = {
+                                    scope.launch {
+                                        it.done(true)
+                                    }
+                                }) {
+                                    Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                                }
+                            }
+
+
+                        }
+                    )
                 }
 
 
@@ -789,8 +746,6 @@ fun EditProfileScreen(
 
         }
     }
-
-
 }
 
 val fieldsOfStudy = listOf(
@@ -840,14 +795,15 @@ fun UniversityDropdown(
             onValueChange = {
                 onFieldChange(it.toString())
             },
-            label = "Search",
+            label = "University",
             enabled = true,
-            placeHolder = "Search",
+            placeHolder = "University",
             leadingIcon = {
                 CircleImage(
                     image = selectedUniversity?.logo ?: "",
                     modifier = Modifier.size(34.dp),
-                    onClick = {}
+                    onClick = {},
+                    visibility = VisibilityMode.USER
                 )
             },
             trailingIcon = {
@@ -982,11 +938,10 @@ fun EditPage(
 @Composable
 fun ProfileComponent(
     title: String,
-    onEditClick: () -> Unit,
+    onEditClick: () -> Unit = {},
     body: @Composable () -> Unit,
     contentDescription: String,
-    isCurrentUser: Boolean,
-    isContentExist: Boolean
+    editIconVisible: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -1004,7 +959,7 @@ fun ProfileComponent(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            if (isCurrentUser) {
+            if (!editIconVisible){
                 IconButton (onClick = onEditClick) {
                     Icon(
                         imageVector = Icons.Default.Edit,
@@ -1012,6 +967,7 @@ fun ProfileComponent(
                     )
                 }
             }
+
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1030,17 +986,22 @@ fun GenderSelector(
 
     val genders = listOf(Gender.MALE, Gender.FEMALE)
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         genders.forEach {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(52.dp)
+                    .background(
+                        color =  MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                        shape = MaterialTheme.shapes.small
+                    )
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(6.dp)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp)
                     )
+
                 ,
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -1050,11 +1011,11 @@ fun GenderSelector(
                     selected = selectedGender == it,
                     onClick = { onSelect(it) },
                     colors = RadioButtonDefaults.colors(
-                        selectedColor = LightTheme_Blue,
-                        unselectedColor = LightTheme_Black
+                        selectedColor = MaterialTheme.colorScheme.primary,
+                        unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                 )
-                Text(text = it.name.lowercase()[0].uppercase())
+                Text(text = it.name.lowercase().replaceFirstChar { it.uppercase() })
             }
         }
     }

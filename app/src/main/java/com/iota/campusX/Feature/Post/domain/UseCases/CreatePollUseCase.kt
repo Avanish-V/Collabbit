@@ -1,6 +1,6 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
-import com.iota.campusX.Feature.Post.domain.Models.CreatePostDTO
+import com.iota.campusX.Feature.Post.data.model.CreatePostDTO
 import com.iota.campusX.Feature.Post.domain.PostRepository
 
 class CreatePollUseCase(

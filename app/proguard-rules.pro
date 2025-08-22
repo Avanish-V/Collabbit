@@ -10,7 +10,7 @@
 # Notification-related DTOs
 -keep class com.iota.campusX.Feature.Notification.domain.NotificationDTO { *; }
 -keep class com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO { *; }
--keep class com.iota.campusX.Feature.Post.domain.Models.PostData { *; }
+-keep class com.iota.campusX.Feature.Post.data.model.PostData { *; }
 
 # Referenced User model
 #-keep class com.iota.campusX.Feature.Post.domain.Models.User { *; }

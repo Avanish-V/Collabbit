@@ -1,8 +1,7 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
-import com.iota.campusX.Feature.Post.domain.PostRepository
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
 import com.iota.campusX.Feature.Post.domain.ReplyRepository
 
 class GetRepliesUseCase(private val repository: ReplyRepository) {

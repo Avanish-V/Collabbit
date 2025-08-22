@@ -11,11 +11,6 @@ import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
-import io.getstream.video.android.core.Call
-import io.getstream.video.android.core.GEO
-import io.getstream.video.android.core.StreamVideo
-import io.getstream.video.android.core.StreamVideoBuilder
-import io.getstream.video.android.model.User
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -143,32 +138,6 @@ class StreamImplementation : StreamRepository {
         mRtcEngine?.leaveChannel()
         if (mRtcEngine != null){
             mRtcEngine = null
-        }
-    }
-
-    override suspend fun startCall(user: User,context: Context): Result<Call> {
-        return try {
-
-            StreamVideo.removeClient()
-
-            val apiKey = "mmhfdzb5evj2"
-            val userToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0lHXzg4IiwidXNlcl9pZCI6IklHXzg4IiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NTA3ODI0MDQsImV4cCI6MTc1MTM4NzIwNH0.NmnpBx2LtjI_iuJkhqx_RQ3rFvUGNpxSJ043PwY0m24"
-            val callId = "UgGc3W4fgzSR"
-
-            val client = StreamVideoBuilder(
-                context = context,
-                apiKey = apiKey,
-                geo = GEO.GlobalEdgeNetwork,
-                user = user,
-                token = userToken,
-            ).build()
-
-            val call = client.call("audio_room", callId)
-
-            Result.success(call)
-
-        }catch (e: Exception){
-            Result.failure(e)
         }
     }
 

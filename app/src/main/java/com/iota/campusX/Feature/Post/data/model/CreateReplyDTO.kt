@@ -1,4 +1,4 @@
-package com.iota.campusX.Feature.Post.domain.Models
+package com.iota.campusX.Feature.Post.data.model
 
 import kotlinx.serialization.Serializable
 
@@ -9,7 +9,7 @@ data class CreateReplyDTO(
     val repliedBy: String = "",
     val content: String = "",
     val isEdited: Boolean = false,
-    val visibility: PostVisibilityMode = PostVisibilityMode.USER,
+    val visibility: VisibilityMode = VisibilityMode.USER,
     val feedMode: FeedMode = FeedMode.GLOBAL,
     val repliedAt: Long = 0L
 )
@@ -21,7 +21,7 @@ data class GetRepliesDTO(
     val edited: Boolean = false,
     val creatorDetail: CreatorDetail = CreatorDetail(),
     val content: String = "",
-    val visibility: PostVisibilityMode = PostVisibilityMode.USER,
+    val visibility: VisibilityMode = VisibilityMode.USER,
     val feedMode: FeedMode = FeedMode.GLOBAL,
     val actions: PostActions = PostActions(),
     val repliedAt: Long = 0L

@@ -29,7 +29,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Feature.Post.data.model.FeedMode
 //import com.iota.campusX.ui.theme.secondary
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
@@ -187,10 +187,11 @@ fun  SimpleDropDown(
             colors = TextFieldDefaults.colors(
                 unfocusedContainerColor = Color.Transparent,
                 focusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
                 disabledContainerColor = MaterialTheme.colorScheme.secondary
             ),
+            shape = MaterialTheme.shapes.small,
         )
 
         DropdownMenu(

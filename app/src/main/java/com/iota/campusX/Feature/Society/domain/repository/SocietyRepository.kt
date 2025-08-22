@@ -1,6 +1,6 @@
 package com.iota.campusX.Feature.Society.domain.repository
 
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
@@ -12,6 +12,8 @@ interface SocietyRepository {
     suspend fun createSociety(createSocietyDTO: CreateSocietyDTO): Result<Unit>
 
     suspend fun fetchSocieties(feedMode: FeedMode,campusId: String?): Result<List<GetSocietyDTO>>
+
+    suspend fun fetchUserSocieties(userId: String): Result<List<GetSocietyDTO>>
 
     suspend fun updateRoom( roomId: String,isActive:Boolean,feedMode: FeedMode,campusId: String?) : Result<Unit>
 
@@ -28,6 +30,8 @@ interface SocietyRepository {
     suspend fun isSpeaking(roomId: String, isSpeaking: Boolean,requestId:String,feedMode: FeedMode, campusId: String?): Result<Unit>
 
     suspend fun askToSpeak(roomId: String, isRaiseHand: Boolean,requestId:String,feedMode: FeedMode, campusId: String?): Result<Unit>
+
+    suspend fun deleteRoom(roomId: String): Result<Unit>
 
 
 

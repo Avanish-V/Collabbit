@@ -4,8 +4,8 @@ import android.util.Log
 import com.google.api.client.util.Data.mapOf
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Feature.Society.AgoraTokenBuilder.generateDigitRandom
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
@@ -18,37 +18,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 
 class SocietyImplementation(private val fireStore: FirebaseFirestore,private val auth: FirebaseAuth):SocietyRepository{
 
     override suspend fun createSociety(createSocietyDTO: CreateSocietyDTO): Result<Unit> {
+
         val currentUser = auth.currentUser ?: return Result.failure(Exception("User not authenticated"))
 
-        if (createSocietyDTO.mode == FeedMode.CAMPUS && createSocietyDTO.campusId == null) {
-            return Result.failure(Exception("Campus not found!"))
-        }
-
-        val path = if (createSocietyDTO.mode == FeedMode.CAMPUS) {
-            "CampusSociety"
-        } else {
-            "GlobalSociety"
-        }
-
         return try {
-            val roomId = UUID.randomUUID().toString()
 
-            val data = mapOf(
-                "societyName" to createSocietyDTO.societyName,
-                "description" to createSocietyDTO.description,
-                "createdBy" to currentUser.uid, // ✅ Safer
-                "joined" to createSocietyDTO.joined,
-                "mode" to createSocietyDTO.mode.name, // 🔁 Serialize enum properly
-                "roomId" to roomId,
-                "isActive" to false
-            )
-
-            fireStore.collection(path).document(roomId).set(data).await()
+            fireStore.collection("Society").document(createSocietyDTO.roomId).set(createSocietyDTO).await()
 
             Result.success(Unit)
 
@@ -66,13 +45,17 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 "GlobalSociety"
             }
 
-            val data = fireStore.collection(path).get().await()
+            val data = fireStore.collection("Society")
+                .whereEqualTo("campusId",campusId)
+                .get()
+                .await()
 
             val societyList = data.documents.mapNotNull {doc->
 
                 val society = doc.toObject(CreateSocietyDTO::class.java) ?: return@mapNotNull null
 
                 val createdById = society.createdBy
+                val isCurrentUser = createdById == auth.currentUser?.uid
 
                 val createdBy = fireStore
                     .collection("Users")
@@ -81,13 +64,59 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                     .await()
                     .toObject(UserDetail::class.java)?: UserDetail()
 
+
+
                 GetSocietyDTO(
                     societyName = society.societyName,
                     description = society.description,
                     createdBy = createdBy,
                     joined = society.joined,
                     mode = society.mode,
-                    roomId = society.roomId
+                    roomId = society.roomId,
+                    isCurrentUser = isCurrentUser
+                )
+
+            }
+
+            Result.success(societyList)
+
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun fetchUserSocieties(userId: String): Result<List<GetSocietyDTO>> {
+        return try {
+
+            val data = fireStore.collection("Society")
+                .whereEqualTo("createdBy",userId)
+                .get()
+                .await()
+
+            val societyList = data.documents.mapNotNull {doc->
+
+                val society = doc.toObject(CreateSocietyDTO::class.java) ?: return@mapNotNull null
+
+                val createdById = society.createdBy
+                val isCurrentUser = createdById == auth.currentUser?.uid
+
+                val createdBy = fireStore
+                    .collection("Users")
+                    .document(createdById)
+                    .get()
+                    .await()
+                    .toObject(UserDetail::class.java)?: UserDetail()
+
+
+
+                GetSocietyDTO(
+                    societyName = society.societyName,
+                    description = society.description,
+                    createdBy = createdBy,
+                    joined = society.joined,
+                    mode = society.mode,
+                    roomId = society.roomId,
+                    isCurrentUser = isCurrentUser
                 )
 
             }
@@ -111,7 +140,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
             val data = mapOf(
                 "isActive" to isActive
             )
-            fireStore.collection(path).document(roomId).update(data).await()
+            fireStore.collection("Society").document(roomId).update(data).await()
             Result.success(Unit)
         }catch (e: Exception){
             Result.failure(e)
@@ -144,7 +173,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 "raiseHand" to false
             )
 
-            fireStore.collection(path).document(roomId)
+            fireStore.collection("Society").document(roomId)
                 .collection("JoinRequests")
                 .document(auth.currentUser?.uid ?: "")
                 .set(data)
@@ -165,7 +194,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
             }else{
                 "GlobalSociety"
             }
-            fireStore.collection(path).document(roomId)
+            fireStore.collection("Society").document(roomId)
                 .collection("JoinRequests")
                 .document(auth.currentUser?.uid ?: "")
                 .delete()
@@ -181,7 +210,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
 
         val path = resolveRoomPath(feedMode, campusId)
 
-        val listener = fireStore.collection(path)
+        val listener = fireStore.collection("Society")
             .document(roomId)
             .collection("JoinRequests")
             .addSnapshotListener { value, error ->
@@ -234,7 +263,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
 
             val path = resolveRoomPath(feedMode, campusId)
 
-            fireStore.collection(path)
+            fireStore.collection("Society")
                 .document(roomId)
                 .collection("JoinRequests")
                 .document(requestId)
@@ -255,7 +284,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
             val path = resolveRoomPath(feedMode, campusId)
 
 
-            fireStore.collection(path)
+            fireStore.collection("Society")
                 .document(roomId)
                 .collection("JoinRequests")
                 .document(auth.currentUser?.uid ?: "")
@@ -276,7 +305,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
             val path = resolveRoomPath(feedMode, campusId)
 
 
-            fireStore.collection(path)
+            fireStore.collection("Society")
                 .document(roomId)
                 .collection("JoinRequests")
                 .document(requestId)
@@ -296,7 +325,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
 
             val path = resolveRoomPath(feedMode, campusId)
 
-            fireStore.collection(path)
+            fireStore.collection("Society")
                 .document(roomId)
                 .collection("JoinRequests")
                 .document(requestId)
@@ -311,6 +340,19 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
         }
     }
 
+    override suspend fun deleteRoom(roomId: String): Result<Unit> {
+
+        return try {
+
+            fireStore.collection("Society")
+                .document(roomId)
+                .delete()
+                .await()
+            Result.success(Unit)
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+    }
 
 }
 

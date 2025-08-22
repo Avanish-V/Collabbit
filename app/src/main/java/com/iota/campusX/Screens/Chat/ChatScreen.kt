@@ -100,7 +100,6 @@ fun ChatScreen(
 
                 if (usersChat.isEmpty()) {
                     StatusScreen(
-                        isActive = true,
                         text = "No Messages!",
                         image = R.drawable.undraw_chatting_2b1g,
                     )

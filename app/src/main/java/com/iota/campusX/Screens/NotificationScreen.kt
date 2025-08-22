@@ -1,6 +1,5 @@
 package com.iota.campusX.Screens
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -57,7 +56,7 @@ import com.iota.campusX.Feature.Notification.domain.ContentType
 import com.iota.campusX.Feature.Notification.domain.NotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
@@ -160,9 +159,6 @@ fun NotificationScreen(
                     ) {
                         items(postByOrder) {
 
-                            if (it.userDetail.userName.isEmpty() || it.userDetail.userImage.isEmpty()) return@items
-                           // if (it.postId.isEmpty()) return@items
-
                             NotificationItem(
                                 notificationDTO = it,
                                 scope = scope,
@@ -177,7 +173,7 @@ fun NotificationScreen(
                                     }
                                 },
                                 geToUserProfile = {
-                                    if (it.payload?.get("visibilityMode") == PostVisibilityMode.ANONYMOUS.name) return@NotificationItem
+                                    if (it.payload?.get("visibilityMode") == VisibilityMode.ANONYMOUS.name) return@NotificationItem
                                     navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
                                         navHostController.currentBackStackEntry?.savedStateHandle?.set<String>(
                                             "USER_ID",
@@ -186,7 +182,6 @@ fun NotificationScreen(
                                     }
                                 },
                                 snackbarHostState = snackBarHostState
-
                             )
 
                             Divider(modifier = Modifier.padding(vertical = 12.dp))
@@ -198,7 +193,6 @@ fun NotificationScreen(
 
                 state.data.isEmpty()->{
                     StatusScreen(
-                        isActive = true,
                         text = "No Notification!",
                         image = R.drawable.undraw_my_notifications_fy5v
                     )
@@ -231,6 +225,7 @@ fun NotificationItem(
 
 ) {
 
+
     val acceptState by userProfileViewModel.acceptState.collectAsState()
     val rejectState by userProfileViewModel.rejectState.collectAsState()
     val deleteState by notificationViewModel.deleteNotificationState.collectAsState()
@@ -252,6 +247,7 @@ fun NotificationItem(
     }
 
     var isAccepted by remember { mutableStateOf(true) }
+
 
     val text = notificationDTO.payload.let {
         if (it?.get("contentType") == ContentType.LIKE_POST.name)
@@ -290,7 +286,9 @@ fun NotificationItem(
                     .clip(CircleShape),
                 onClick = {
                     geToUserProfile.invoke()
-                }
+                },
+                visibility =  VisibilityMode.USER
+
             )
 
             Box(
@@ -303,6 +301,7 @@ fun NotificationItem(
 
                     .background(MaterialTheme.colorScheme.background,shape = CircleShape)
             ){
+
                 val icon = when(notificationDTO.type){
                     NotificationType.LIKE -> {
                         Icon(

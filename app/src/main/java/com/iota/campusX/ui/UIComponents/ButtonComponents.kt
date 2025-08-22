@@ -94,7 +94,7 @@ fun PrimaryButton(modifier: Modifier = Modifier,onClick: () -> Unit,buttonText: 
             contentColor = MaterialTheme.colorScheme.onPrimary
         )
     ) {
-        Text(text = buttonText, style = MaterialTheme.typography.headlineMedium)
+        Text(text = buttonText, style = MaterialTheme.typography.bodyMedium)
     }
 
 

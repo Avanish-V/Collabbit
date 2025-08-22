@@ -36,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,7 +46,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,12 +69,11 @@ import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
-import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
-import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
 import com.iota.campusX.Feature.Post.presentation.UploadState
+import com.iota.campusX.Feature.Post.presentation.ViewUserPostViewModel
+import com.iota.campusX.Feature.Post.presentation.ViewUserReplyViewModel
 import com.iota.campusX.Feature.PushNotification.PushNotificationService
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
-import com.iota.campusX.Koin.appModule
 import com.iota.campusX.Navigation.BottomAppBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
@@ -93,22 +92,42 @@ import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Feature.Society.presentation.Screens.CreateSociety
 import com.iota.campusX.Feature.Society.presentation.Screens.JoinSocietyScreen
-import com.iota.campusX.Feature.Society.presentation.Screens.Society
+import com.iota.campusX.Feature.Society.presentation.Screens.SocietyScreen
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
+import com.iota.campusX.Feature.UserProfile.presentation.ViewProfileViewModel
+import com.iota.campusX.Koin.authModule
+import com.iota.campusX.Koin.chatModule
+import com.iota.campusX.Koin.coreModule
 import com.iota.campusX.Koin.firebaseModule
+import com.iota.campusX.Koin.navigationModule
+import com.iota.campusX.Koin.notificationModule
+import com.iota.campusX.Koin.postModule
+import com.iota.campusX.Koin.profileModule
+import com.iota.campusX.Koin.replyModule
+import com.iota.campusX.Koin.reportModule
+import com.iota.campusX.Koin.searchModule
+import com.iota.campusX.Koin.societyModule
 import com.iota.campusX.NetworkCapability.ConnectivityViewModel
+import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuSheet
+import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
+import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuViewModel
+import com.iota.campusX.Screens.Post.PostManupulation.PostFeedViewModel
 import com.iota.campusX.Screens.Profile.ViewProfile
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.initCloudinary
 import com.iota.campusX.ui.theme.AppTheme
+import com.jetpack.observeliveconnectivity.ConnectionState
+import com.jetpack.observeliveconnectivity.connectivityState
 //import com.iota.campusX.ui.theme.Black800
 //import com.iota.campusX.ui.theme.CampusXTheme
 //import com.iota.campusX.ui.theme.secondary
 //import com.iota.campusX.ui.theme.typography
 import com.voxcii.voxcii.Screens.SearchFlow.SearchScreen
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.android.ext.koin.androidContext
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.context.GlobalContext.startKoin
 import org.koin.core.context.stopKoin
@@ -117,6 +136,7 @@ class MainActivity : ComponentActivity() {
 
     private val REQUEST_CODE_UPDATE = 100
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -128,7 +148,20 @@ class MainActivity : ComponentActivity() {
 
         startKoin {
             androidContext(this@MainActivity)
-            modules(appModule, firebaseModule)
+            modules(
+                coreModule,
+                authModule,
+                postModule,
+                firebaseModule,
+                chatModule,
+                notificationModule,
+                profileModule,
+                societyModule,
+                searchModule,
+                reportModule,
+                navigationModule,
+                replyModule
+            )
         }
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
@@ -144,25 +177,24 @@ class MainActivity : ComponentActivity() {
 
         setContent {
 
-            val scope = rememberCoroutineScope()
+            val  postMenuState: PostMenuState = koinInject()
 
+            val snackbarHostState = remember { SnackbarHostState() }
 
             val navHostController = rememberNavController()
             val userProfileViewModel = koinInject<UserProfileViewModel>()
             val googleAuthViewModel = koinInject<AuthViewModel>()
             val postCreationViewModel = koinInject<PostCreationViewModel>()
             val postFeedViewModel = koinInject<PostFeedViewModel>()
-            val navigationViewModel = koinInject<NavigationViewModel>()
+            val navigationViewModel : NavigationViewModel = koinViewModel()
             val homeViewModel = koinInject<HomeViewModel>()
             val notificationViewModel = koinInject<NotificationViewModel>()
-            val replyViewModel = koinInject<ReplyViewModel>()
             val connectivityViewModel = koinInject<ConnectivityViewModel>()
 
             LaunchedEffect(Unit) {
                 userProfileViewModel.getUserProfile()
             }
-
-
+            
             val navBackStackEntry by navHostController.currentBackStackEntryAsState()
             val destination = navBackStackEntry?.destination?.route
             val isBottomBarVisible = navigationViewModel.isBottomBarVisible.collectAsState()
@@ -170,6 +202,13 @@ class MainActivity : ComponentActivity() {
             val uploadProgress = postCreationViewModel.uploadingProgress.collectAsState().value
             val mode = homeViewModel.mode.collectAsState().value
 
+            val connectivityState = connectivityState()
+
+            LaunchedEffect(connectivityState.value) {
+                if (connectivityState.value == ConnectionState.Unavailable) {
+                    snackbarHostState.showSnackbar("No Internet Connection",actionLabel = "OK",withDismissAction = true)
+                    }
+            }
 
             when(mode){
                 is UiState.Loading -> installSplashScreen().setKeepOnScreenCondition { false }
@@ -220,7 +259,7 @@ class MainActivity : ComponentActivity() {
 
                         Scaffold (
                             snackbarHost = {
-                                androidx.compose.material3.SnackbarHost(
+                                SnackbarHost(
                                     hostState = snackHostState
                                 )
 
@@ -256,7 +295,6 @@ class MainActivity : ComponentActivity() {
 
                                             MainScreen(
                                                 navHostController,
-                                                postViewModel = postFeedViewModel,
                                                 navigationViewModel = navigationViewModel,
                                                 profileViewModel = userProfileViewModel,
                                                 homeViewModel = homeViewModel,
@@ -265,14 +303,16 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                         composable(route = Routes.Main.ProfileByID.routes) {
-
+                                            val viewProfileViewModel = koinInject<ViewProfileViewModel>()
+                                            val viewUserPostViewModel = koinInject<ViewUserPostViewModel>()
+                                            val viewUserReplyViewModel = koinInject<ViewUserReplyViewModel>()
                                             ViewProfile(
                                                 navHostController,
-                                                postViewModel = postFeedViewModel,
-                                                profileViewModel = userProfileViewModel,
+                                                viewUserPostViewModel = viewUserPostViewModel,
+                                                viewProfileViewModel = viewProfileViewModel,
                                                 googleSignInViewModel = googleAuthViewModel,
                                                 navigationViewModel = navigationViewModel,
-                                                replyViewModel = replyViewModel,
+                                                viewUserReplyViewModel = viewUserReplyViewModel,
                                             )
 
                                         }
@@ -289,10 +329,8 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                         composable (route = Routes.Main.Society.routes){
-                                            val societyViewModel = koinInject<SocietyViewModel>()
-                                            Society(
+                                            SocietyScreen(
                                                 navHostController = navHostController,
-                                                societyViewModel=societyViewModel
                                             )
                                         }
                                         composable (route = Routes.Main.CreateSociety.routes){
@@ -331,15 +369,10 @@ class MainActivity : ComponentActivity() {
                                         }
 
                                         composable(route = Routes.Main.Profile.routes) {
-
                                             AppUserProfile(
                                                 navHostController,
-                                                postViewModel = postFeedViewModel,
                                                 profileViewModel = userProfileViewModel,
-                                                googleSignInViewModel = googleAuthViewModel,
                                                 navigationViewModel = navigationViewModel,
-                                                replyViewModel = replyViewModel,
-
                                             )
                                         }
 
@@ -351,10 +384,6 @@ class MainActivity : ComponentActivity() {
                                         }
 
                                         navScreen(Routes.Main.Setting.routes) {
-
-                                            val userProfileViewModel =
-                                                koinInject<UserProfileViewModel>()
-
                                             SettingScreen(
                                                 navController = navHostController,
                                                 userProfileViewModel = userProfileViewModel
@@ -382,7 +411,6 @@ class MainActivity : ComponentActivity() {
                                                 userProfileViewModel,
                                                 postFeedViewModel,
                                                 homeViewModel,
-                                                replyViewModel
                                             )
                                         }
 
@@ -416,16 +444,22 @@ class MainActivity : ComponentActivity() {
 
                             }
 
+                            if (postMenuState.showSheet) {
+                                postMenuState.currentContent?.let {
+                                    PostMenuSheet(
+                                        viewModel = koinInject<PostMenuViewModel>(),
+                                        content = it,
+                                        onDismiss = { postMenuState.close() },
+                                        snackBarHostState = snackbarHostState,
+                                    )
+                                }
+                            }
+
                         }
-
-
                     }
-
-
                 }
             }
         }
-
     }
 
     override fun onDestroy() {

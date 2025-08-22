@@ -15,7 +15,7 @@ import com.iota.campusX.Feature.Notification.domain.ConnectionRequestPayload
 import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
 import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Notification.domain.toTypedObject
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Utils.UiState
 import io.ktor.client.HttpClient
@@ -198,7 +198,15 @@ class UserProfileImpl(
     }
 
     override suspend fun updateCampus(campus: Campus): Result<Boolean> {
+
+        if (campus.campusCode.isNullOrEmpty()) return Result.failure(Exception("Campus code is empty."))
+        if (campus.collegeName.isNullOrEmpty()) return Result.failure(Exception("College name is empty."))
+        if (campus.fieldOfStudy.isNullOrEmpty()) return Result.failure(Exception("Field of study  is empty."))
+        if (campus.degree.isNullOrEmpty()) return Result.failure(Exception("Degree is empty."))
+        if (campus.courseEnd == null) return Result.failure(Exception("Course End is empty."))
+        if (campus.courseStart == null) return Result.failure(Exception("Course Start is empty."))
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
+
         return try {
             firestore.collection("Users").document(userId).update("campus", campus).await()
             Result.success(true)
@@ -333,8 +341,7 @@ class UserProfileImpl(
 
     override suspend fun getConnectionsCount(userId: String): Result<Int> {
         return try {
-            Log.d("PROFILE_DEBUG", "getProfileIdByPost: $userId")
-            val snapshot = firestore.collection("Users").document(auth.currentUser!!.uid)
+            val snapshot = firestore.collection("Users").document(userId)
                 .collection("Connections")
                 .whereEqualTo("status", true)
                 .count()

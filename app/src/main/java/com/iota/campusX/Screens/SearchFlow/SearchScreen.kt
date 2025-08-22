@@ -84,9 +84,8 @@ fun SearchScreen(navHostController: NavHostController) {
                     fontWeight = FontWeight.Bold,
                 ),
                 colors = TextFieldDefaults.colors(
-
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent
                 ),
@@ -98,7 +97,8 @@ fun SearchScreen(navHostController: NavHostController) {
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 },
-                shape = RoundedCornerShape(32.dp)
+                shape = RoundedCornerShape(32.dp),
+                maxLines = 1
             )
         },
         snackbarHost = {
@@ -174,7 +174,7 @@ fun MentorSingleCard(user: UserSearchDTO, onClick: () -> Unit) {
                     text = user.userName,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.headlineMedium
+                    style = MaterialTheme.typography.titleMedium
 
                 )
                 Text(

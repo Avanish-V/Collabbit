@@ -1,6 +1,6 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.domain.PostRepository
 
 class EditPostUseCase(private val repository: PostRepository) {

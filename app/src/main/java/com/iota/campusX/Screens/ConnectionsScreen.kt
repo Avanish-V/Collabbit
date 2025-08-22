@@ -1,6 +1,5 @@
 package com.iota.campusX.Screens
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,10 +30,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.Routes
@@ -43,8 +42,8 @@ import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.ErrorScreen
-import com.iota.campusX.ui.theme.White
 //import com.iota.campusX.ui.theme.secondary
 //import com.iota.campusX.ui.theme.typography
 
@@ -87,7 +86,6 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                 title = {
                     Text(
                        text =  "Connections",
-                       fontWeight = FontWeight.Bold,
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -120,7 +118,6 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                     if (connectionList.isEmpty()){
 
                         StatusScreen(
-                            isActive = true,
                             text = "No Connections",
                             image = null
                         )
@@ -129,6 +126,7 @@ fun ConnectionsScreen(navHostController: NavHostController) {
 
                     LazyColumn() {
                         items(connectionList) { connections ->
+                            Divider()
                             ConnectionsItemView(
                                 onItemClick = {
                                     navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
@@ -140,6 +138,7 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                                     profileViewModel.rejectLinkUpRequest(connections.user.id)
                                 }
                             )
+
                         }
                     }
 
@@ -175,7 +174,7 @@ fun ConnectionsItemView(
             onItemClick.invoke()
         },
         colors = CardDefaults.cardColors(
-            containerColor = White
+            containerColor = MaterialTheme.colorScheme.background
         ),
         shape = RoundedCornerShape(0.dp)
     ) {
@@ -190,13 +189,16 @@ fun ConnectionsItemView(
             CircleImage(
                 image = connectionData.user.userImage,
                 modifier = Modifier.size(48.dp),
-                onClick = {
-
-                }
+                onClick = {},
+                visibility = VisibilityMode.USER
             )
 
             Column(modifier = Modifier.weight(1f),) {
-                Text(text = connectionData.user.userName, style = typography.headlineMedium)
+                Text(
+                    text = connectionData.user.userName,
+                    style = typography.titleMedium,
+                    maxLines = 1
+                )
                 if (connectionData.user.userBio.isNotEmpty()) {
                     Text(
                         text = connectionData.user.userBio,

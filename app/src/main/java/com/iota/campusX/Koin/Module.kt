@@ -2,9 +2,7 @@ package com.iota.campusX.Koin
 
 import ConsentAgreeViewModel
 import SendPushNotification
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.google.firebase.auth.FirebaseAuth
@@ -22,7 +20,7 @@ import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Feature.Notification.data.NotificationImpl
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
-import com.iota.campusX.Feature.Post.data.PostRepoImpl
+import com.iota.campusX.Feature.Post.data.PostRemoteDataSource
 import com.iota.campusX.Feature.Post.data.ReplyRepoImpl
 import com.iota.campusX.Feature.Post.domain.PostRepository
 import com.iota.campusX.Feature.Post.domain.ReplyRepository
@@ -35,10 +33,13 @@ import com.iota.campusX.Feature.Post.domain.UseCases.GetCampusPostsUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetPostByIdUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetPostsUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetRepliesUseCase
+import com.iota.campusX.Feature.Post.domain.UseCases.ToggleLikeUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.VotePollUseCase
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
-import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
-import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
+import com.iota.campusX.Feature.Post.presentation.ViewUserPostViewModel
+import com.iota.campusX.Feature.Post.presentation.ViewUserReplyViewModel
+import com.iota.campusX.Feature.Reply.AppUserReplyViewModel
+import com.iota.campusX.Feature.Reply.ReplyViewModel
 import com.iota.campusX.Feature.Report.data.ReportRepoImpl
 import com.iota.campusX.Feature.Report.domain.ReportRepository
 import com.iota.campusX.Feature.Report.presentation.ReportViewModel
@@ -54,16 +55,24 @@ import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
 import com.iota.campusX.Feature.UserProfile.data.UserProfileImpl
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.UserProfile.presentation.ViewProfileViewModel
+import com.iota.campusX.Navigation.AppNavigator
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.NetworkCapability.AndroidConnectivityObserver
 import com.iota.campusX.NetworkCapability.ConnectivityObserver
 import com.iota.campusX.NetworkCapability.ConnectivityViewModel
-import com.iota.campusX.Screens.Home.BottomSheet.SharedBottomSheetViewModel
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Home.dataStore
 import com.iota.campusX.Screens.Post.PollViewModel
+import com.iota.campusX.Screens.Post.PostActions.PostActionHandler
+import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
+import com.iota.campusX.Screens.Post.PostManupulation.AppUserPostViewModel
+import com.iota.campusX.Screens.Post.PostManupulation.PostFeedViewModel
+import com.iota.campusX.Screens.Post.PostMenuActions.FakePostMenuRepository
+import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuRepository
+import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
+import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuViewModel
 import com.iota.campusX.Screens.Post.PostScreenViewModel
-import com.iota.campusX.Screens.Profile.ProfileTypeViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -79,17 +88,14 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
-@RequiresApi(Build.VERSION_CODES.O)
-val appModule = module {
 
-    // -------------------------------
-    // HttpClient Setup
-    // -------------------------------
+val coreModule = module {
+    // Http client
     single {
         HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(Json {
-                    prettyPrint = true
+                    prettyPrint = false
                     isLenient = true
                     ignoreUnknownKeys = true
                 })
@@ -109,58 +115,36 @@ val appModule = module {
             }
             defaultRequest {
                 headers.append(HttpHeaders.Accept, "application/json")
-                // Base URL can go here if needed
             }
         }
     }
 
-    // -------------------------------
-    // Firebase Services
-    // -------------------------------
+    // Firebase services
     single { FirebaseFirestore.getInstance() }
     single { FirebaseDatabase.getInstance() }
     single { FirebaseAuth.getInstance() }
     single { FirebaseStorage.getInstance() }
 
-    // -------------------------------
+    // DataStore
+    single<DataStore<Preferences>> { androidContext().dataStore }
+
+    // Connectivity
+    single<ConnectivityObserver> { AndroidConnectivityObserver(get()) }
+}
+
+val authModule = module {
+    single<GoogleAuthRepo> { GoogleAuthUiClient(androidContext(), get(), get()) }
+    viewModel { AuthViewModel(get()) }
+    viewModel { ConsentAgreeViewModel(get()) }
+}
+
+val postModule = module {
     // Repositories
-    // -------------------------------
-    single<UserProfileRepo> {
-        UserProfileImpl(
-            sendPushNotification = get(),
-            firestore = get(),
-            auth = get(),
-            firebaseStorage = get(),
-            httpClient = get(),
-        )
-    }
-    single<GoogleAuthRepo> {
-        GoogleAuthUiClient(androidContext(), get(), get())
-    }
-    single<PostRepository> { PostRepoImpl(get(), get(), get()) }
-    single<ChatRepository> { ChatImpl(get(), get(), get(), get()) }
-    single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
-    single <SocietyRepository>{ SocietyImplementation(get(),get()) }
-    single <StreamRepository>{ StreamImplementation() }
-    single <SearchRepository>{ SearchRepositoryImpl(get()) }
-    single <ConnectivityObserver>{ AndroidConnectivityObserver(get()) }
-    single <ReportRepository>{ ReportRepoImpl(get(),get()) }
-    single <ReplyRepository>{ ReplyRepoImpl(get(), get(), get()) }
+    single<PostRepository> { PostRemoteDataSource(get(), get(), get()) }
+    single<ReplyRepository> { ReplyRepoImpl(get(), get(), get()) }
+    single { com.iota.campusX.Screens.Post.PostManupulation.PostRepository(get(), get(), get(), get(), get(), get(),get()) }
 
-    single<DataStore<Preferences>> {
-        androidContext().dataStore
-    }
-
-   // single { disableOfflineSync(get()) }
-
-    // -------------------------------
-    // Push Notification
-    // -------------------------------
-    single { SendPushNotification(get(), get()) }
-
-    // -------------------------------
-    // UseCases for Post Feature
-    // -------------------------------
+    // Use cases
     single { CreatePollUseCase(get()) }
     single { CreatePostUseCase(get()) }
     single { CreateReplyUseCase(get()) }
@@ -169,60 +153,85 @@ val appModule = module {
     single { GetPostByIdUseCase(get()) }
     single { GetRepliesUseCase(get()) }
     single { VotePollUseCase(get()) }
-
-    // GetPostsUseCase was missing
+    single { ToggleLikeUseCase(get()) }
     single { GetPostsUseCase(get()) }
     single { GetCampusPostsUseCase(get()) }
 
-    // -------------------------------
     // ViewModels
-    // -------------------------------
-
-    viewModel {
-        ReplyViewModel(
-            getRepliesUseCase = get(),
-            createReplyUseCase = get(),
-            replyRepository = get()
-        )
-    }
-    viewModel {
-        PostFeedViewModel(
-            postRepository = get(),
-            deletePostUseCase = get(),
-            getPostsUseCase = get(),
-            editPostUseCase = get(),
-            getCampusPostsUseCase = get(),
-            votePollUseCase = get(),
-            postByIdUseCase = get()
-        )
-    }
-
-    viewModel {
-        PostCreationViewModel(
-            createPostUseCase = get(),
-            createPollUseCase = get(),
-            feedViewModel = get(),
-            connectivityObserver = get()
-        )
-    }
-
-    viewModel { AuthViewModel(get()) }
-    viewModel { UserProfileViewModel(get()) }
-    viewModel { ChatsViewModel(get()) }
-    viewModel { NavigationViewModel() }
-    viewModel { NotificationViewModel(get()) }
-    viewModel { HomeViewModel(get()) }
+    viewModel { PostCreationViewModel(get(), get(), get()) }
+    viewModel { ReplyViewModel(get()) }
+    viewModel { ViewUserPostViewModel(get()) }
+    viewModel { ViewUserReplyViewModel(get(), get(), get()) }
     viewModel { PollViewModel() }
     viewModel { PostScreenViewModel() }
-    viewModel { ConsentAgreeViewModel(get()) }
-    viewModel { ProfileTypeViewModel() }
+
+    // Stateful "shared" viewmodels (use `single` carefully!)
+    single { AppUserPostViewModel(get()) }
+    single { PostFeedViewModel(get()) }
+
+    factory { (appNavigator: AppNavigator) ->
+        PostActionHandler(postRepository = get(), context = get(), navHostController = appNavigator, replyRepository = get())
+    }
+
+    viewModel { (appNavigator: AppNavigator) ->
+        PostActionViewModel(PostActionHandler(postRepository = get(), context = get(), navHostController = appNavigator, replyRepository = get()))
+    }
+
+   // factory { PostActionHandler(get(), get()) }
+   // viewModel { PostActionViewModel(get()) }
+
+    // Post menu
+    single<PostMenuRepository> { FakePostMenuRepository(get(),get(),get()) }
+    single { PostMenuState() }
+    single { PostMenuViewModel(get()) }
+}
+
+val replyModule = module {
+    single { com.iota.campusX.Feature.Reply.ReplyRepository(get(), get(), get()) }
+    viewModel { ReplyViewModel(get()) }
+    single { AppUserReplyViewModel(get()) }
+}
+
+val chatModule = module {
+    single<ChatRepository> { ChatImpl(get(), get(), get(), get()) }
+    viewModel { ChatsViewModel(get()) }
+}
+
+val notificationModule = module {
+    single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
+    viewModel { NotificationViewModel(get()) }
+    single { SendPushNotification(get(), get()) }
+}
+
+val profileModule = module {
+    single<UserProfileRepo> { UserProfileImpl(get(), get(), get(), get(), get()) }
+    single { UserProfileViewModel(get()) }
+    viewModel { ViewProfileViewModel(get()) }
+}
+
+val societyModule = module {
+    single<SocietyRepository> { SocietyImplementation(get(), get()) }
+    single<StreamRepository> { StreamImplementation() }
     viewModel { SocietyViewModel(get()) }
     viewModel { StreamViewModel(get()) }
-    viewModel { ConnectivityViewModel(get()) }
-    viewModel { SearchViewModel(get()) }
-    viewModel { ReportViewModel(get()) }
-    viewModel { SharedBottomSheetViewModel() }
 }
+
+val searchModule = module {
+    single<SearchRepository> { SearchRepositoryImpl(get()) }
+    viewModel { SearchViewModel(get()) }
+}
+
+val reportModule = module {
+    single<ReportRepository> { ReportRepoImpl(get(), get()) }
+    single { ReportViewModel(get()) }
+}
+
+val navigationModule = module {
+    viewModel { NavigationViewModel() }
+    viewModel { HomeViewModel(get()) }
+    viewModel { ConnectivityViewModel(get()) }
+}
+
 
 
 // Prefer using suspend or callback to avoid blocking

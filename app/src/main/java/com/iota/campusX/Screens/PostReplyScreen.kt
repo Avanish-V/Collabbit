@@ -1,9 +1,9 @@
 package com.iota.campusX.Screens
 
+
 import ConsentAgreeViewModel
 import ConsentBottomSheet
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -68,51 +68,50 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
-import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
-import com.iota.campusX.Feature.Post.domain.Models.PostContent
-import com.iota.campusX.Feature.Post.domain.Models.PostData
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
-import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
-import com.iota.campusX.Feature.Post.presentation.ReplyViewModel
+import com.iota.campusX.Feature.Post.data.model.CreatorDetail
+import com.iota.campusX.Feature.Post.data.model.GetPostDTO
+import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
+import com.iota.campusX.Feature.Post.data.model.PostContent
+import com.iota.campusX.Feature.Post.data.model.PostData
+import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.Reply.ReplyViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
-import com.iota.campusX.Navigation.Routes
+import com.iota.campusX.Navigation.AppNavigator
+import com.iota.campusX.Navigation.AppNavigatorImpl
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Home.BottomSheet.SharedBottomSheetViewModel
-import com.iota.campusX.Screens.Home.BottomSheet.Content
-import com.iota.campusX.Screens.Home.BottomSheet.ContentType
-import com.iota.campusX.Screens.Home.BottomSheet.PostDotOptionBottomSheet
-import com.iota.campusX.Screens.Home.BottomSheet.SheetType
 import com.iota.campusX.Screens.Home.HomeViewModel
+import com.iota.campusX.Screens.Post.DataModel.ContentId
+import com.iota.campusX.Screens.Post.DataModel.ContentType
+import com.iota.campusX.Screens.Post.DataModel.FeedContent
+import com.iota.campusX.Screens.Post.PostActions.PostAction
+import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
+import com.iota.campusX.Screens.Post.PostManupulation.PostFeedViewModel
+import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Screens.Post.VisibilityModeChanger
-import com.iota.campusX.Screens.Post.defaultPostHandlers
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
-import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.UIComponents.AnimatedLikeButton
+import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.PostBody
 import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.UIComponents.PostHeader
-import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.LightTheme_Blue
 import kotlinx.coroutines.launch
+import org.koin.compose.getKoin
 import org.koin.compose.koinInject
+import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -121,25 +120,35 @@ import kotlin.math.roundToInt
 fun PostReplyScreen(
     navHostController: NavHostController,
     profileViewModel: UserProfileViewModel,
-    postViewModel: PostFeedViewModel,
+    postViewModel: PostFeedViewModel = koinInject(),
     homeViewModel: HomeViewModel,
-    replyViewModel: ReplyViewModel
+    replyViewModel: ReplyViewModel = koinInject()
 ) {
+
+    val appNavigator: AppNavigator = remember { AppNavigatorImpl(navHostController) }
+    //-----------------Pass parameter from outside------------
+    val postActionsViewModel: PostActionViewModel = getKoin().get { parametersOf(appNavigator) }
+
+
+    val postMenuState: PostMenuState = koinInject()
 
     val consentAgreeViewModel = koinInject<ConsentAgreeViewModel>()
     val isConsentAgree by consentAgreeViewModel.isAgree.collectAsState()
-    var consentBottomSheet = remember { mutableStateOf(false) }
+    val consentBottomSheet = remember { mutableStateOf(false) }
+
 
     val userProfileState = profileViewModel.userBaseProfile.collectAsState().value
-    val repliesState = replyViewModel.repliesState.collectAsState().value
+    val postRepliesState = replyViewModel.postReplies.collectAsState().value
 
-    val editPostState = postViewModel.editPostState
-    val deleteReplyState = replyViewModel.deleteReplyState.collectAsState()
-    val createReplyState = replyViewModel.createReplyState.collectAsState()
-    val deletePostState = postViewModel.deletePostState.collectAsState()
 
-    val globalPostState = postViewModel.globalPosts.collectAsState().value
-    val campusPostState = postViewModel.campusPosts.collectAsState().value
+
+   // val editPostState = postViewModel.editPostState
+//    val deleteReplyState = replyViewModel.deleteReplyState.collectAsState()
+     val createReplyState = replyViewModel.createReplyState.collectAsState()
+  //  val deletePostState = postViewModel.deletePostState.collectAsState()
+
+
+    val singlePost = postViewModel.singlePost.collectAsState().value
 
     val mode = homeViewModel.mode.collectAsState().value
 
@@ -157,71 +166,61 @@ fun PostReplyScreen(
     var replyText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
-    var visibilityMode by remember { mutableStateOf(PostVisibilityMode.USER) }
+    var visibilityMode by remember { mutableStateOf(VisibilityMode.USER) }
     val snackBarHostState = remember { SnackbarHostState() }
 
-    val bottomSheetViewModel: SharedBottomSheetViewModel = viewModel()
-    val bottomSheetData = bottomSheetViewModel.bottomSheetState.collectAsState().value
-    val modificationRequest = bottomSheetViewModel.modificationRequest.collectAsState().value
-    val isAlertDialogVisible = remember { mutableStateOf(false) }
 
     val postId = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("POST_ID")
-
     var postData by remember { mutableStateOf<GetPostDTO?>(null) }
 
-
-    LaunchedEffect(postData) {
-        postData?.let {
-            replyViewModel.getReplies(
-                postId = it.postId,
-                campusId = it.campusId,
-                feedMode = it.feedMode
-            )
+    LaunchedEffect(postId) {
+        postId.let {
+            postViewModel.fetchSinglePost(it ?: "")
         }
     }
 
-    LaunchedEffect(editPostState) {
-        when (editPostState) {
-            is UiState.Loading -> {
-                isLoading = true
-            }
+//    LaunchedEffect(editPostState) {
+//        when (editPostState) {
+//            is UiState.Loading -> {
+//                isLoading = true
+//            }
+//
+//            is UiState.Success -> {
+//                replyText = ""
+//                isLoading = false
+//                snackBarHostState.showSnackbar("Done!")
+//            }
+//
+//            is UiState.Error -> {
+//                snackBarHostState.showSnackbar("Something went wrong!")
+//                isLoading = false
+//            }
+//
+//            else -> {}
+//        }
+//    }
 
-            is UiState.Success -> {
-                replyText = ""
-                isLoading = false
-                snackBarHostState.showSnackbar("Done!")
-            }
-
-            is UiState.Error -> {
-                snackBarHostState.showSnackbar("Something went wrong!")
-                isLoading = false
-            }
-
-            else -> {}
-        }
-    }
-
-    LaunchedEffect(deleteReplyState.value) {
-        when (deleteReplyState.value) {
-            is UiState.Loading -> {
-               bottomSheetViewModel.isLoading(true)
-            }
-
-            is UiState.Success -> {
-                bottomSheetViewModel.isLoading(false)
-                isAlertDialogVisible.value = false
-                replyViewModel.removeReplyOnDelete(replyId = bottomSheetData.content.replyId)
-            }
-
-            is UiState.Error -> {
-                bottomSheetViewModel.isLoading(false)
-                snackBarHostState.showSnackbar("Something went wrong!")
-            }
-
-            else -> {}
-        }
-    }
-
+//    LaunchedEffect(deleteReplyState.value) {
+//        when (deleteReplyState.value) {
+//            is UiState.Loading -> {
+//               bottomSheetViewModel.isLoading(true)
+//            }
+//
+//            is UiState.Success -> {
+//                bottomSheetViewModel.isLoading(false)
+//                isAlertDialogVisible.value = false
+//                replyViewModel.removeReplyOnDelete(replyId = bottomSheetData.content.replyId)
+//            }
+//
+//            is UiState.Error -> {
+//                bottomSheetViewModel.isLoading(false)
+//                snackBarHostState.showSnackbar("Something went wrong!")
+//            }
+//
+//            else -> {}
+//        }
+//    }
+//
     LaunchedEffect(createReplyState.value) {
 
         when (createReplyState.value) {
@@ -244,25 +243,25 @@ fun PostReplyScreen(
         }
     }
 
-    LaunchedEffect(deletePostState.value) {
-        when (deletePostState.value) {
-
-            is UiState.Loading -> {
-                bottomSheetViewModel.isLoading(true)
-            }
-            is UiState.Success -> {
-                bottomSheetViewModel.isLoading(false)
-                isAlertDialogVisible.value = false
-                navHostController.popBackStack()
-            }
-            is UiState.Error -> {
-                bottomSheetViewModel.isLoading(false)
-                snackBarHostState.showSnackbar("Something went wrong!")
-            }
-            else -> {}
-        }
-
-    }
+//    LaunchedEffect(deletePostState.value) {
+//        when (deletePostState.value) {
+//
+//            is UiState.Loading -> {
+//                bottomSheetViewModel.isLoading(true)
+//            }
+//            is UiState.Success -> {
+//                bottomSheetViewModel.isLoading(false)
+//                isAlertDialogVisible.value = false
+//                navHostController.popBackStack()
+//            }
+//            is UiState.Error -> {
+//                bottomSheetViewModel.isLoading(false)
+//                snackBarHostState.showSnackbar("Something went wrong!")
+//            }
+//            else -> {}
+//        }
+//
+//    }
 
     Scaffold(
         topBar = {
@@ -278,13 +277,6 @@ fun PostReplyScreen(
         },
         bottomBar = {
             Column {
-                if (modificationRequest == "EDIT") {
-                    Box(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Text("Edit reply", color = LightTheme_Blue, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Divider()
 
                 BottomTextInput(
                     focusRequester = focusRequester,
@@ -297,9 +289,13 @@ fun PostReplyScreen(
                     },
                     onSubmitClick = {
                         if (replyText.isNotEmpty()) {
+
                             val docID = generateUID()
+
                             scope.launch {
+
                                 keyboard?.hide()
+
                                 postData?.let {
                                     replyViewModel.createReply(
                                         replyId = docID,
@@ -307,15 +303,21 @@ fun PostReplyScreen(
                                         content = replyText,
                                         postCreatorId = it.creatorDetail.profile?.id ?: "",
                                         visibilityMode = visibilityMode,
-                                        user = UserDetail(
-                                            id = userProfile?.id ?: "",
-                                            userImage = userProfile?.userImage ?: "",
-                                            userName = userProfile?.userName ?: "",
+                                        creatorDetail = CreatorDetail(
+                                            profile = UserDetail(
+                                                userName = userProfile?.userName ?: "",
+                                                id = userProfile?.id ?: "",
+                                                userImage = userProfile?.userImage ?: "",
+                                                userBio = userProfile?.userBio ?: "",
+                                                designation = ""
+                                            ),
+                                            isCurrentUser = true,
+                                            isVerified = userProfile?.metaData?.verified ?: false
                                         ),
-                                        mode = it.feedMode,
-                                        campusId = it.campusId
+                                        postDTO = it
                                     )
                                 }
+
                             }
                         }
                     },
@@ -323,16 +325,15 @@ fun PostReplyScreen(
                     userImage = userProfile?.userImage ?: "",
                     selectedVisibility = visibilityMode,
                     onVisibilityChange = {
-
                         visibilityMode = it
                         when(isConsentAgree){
                             is UiState.Success -> {
-                                if (it == PostVisibilityMode.ANONYMOUS){
+                                if (it == VisibilityMode.ANONYMOUS){
                                     if ((isConsentAgree as UiState.Success<Boolean>).data){
                                         visibilityMode = it
                                     }else{
                                         consentBottomSheet.value = true
-                                        visibilityMode = PostVisibilityMode.USER
+                                        visibilityMode = VisibilityMode.USER
                                     }
                                 }else{
                                     visibilityMode = it
@@ -347,210 +348,157 @@ fun PostReplyScreen(
         snackbarHost = { SnackbarHost(snackBarHostState) },
     ) { innerPadding ->
 
-        LazyColumn(
-            modifier = Modifier.padding(innerPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        when(singlePost){
 
-            when(globalPostState){
-                is UiState.Success -> {
-                    items(globalPostState.data.filter { it.postId == postId }) {
-                        PostCard(
-                            post = it,
-                            handlers = defaultPostHandlers(
-                                context = context,
-                                post = it,
-                                feedViewModel = postViewModel,
-                                bottomSheetSharedViewModel = bottomSheetViewModel,
-                                navController = navHostController,
-                            )
+            is UiState.Success -> {
+
+                postData = singlePost.data
+
+                LaunchedEffect(Unit) {
+                    postData?.let {
+                        replyViewModel.fetchPostReplies(
+                            postId = it.postId,
                         )
-                        postData = it
                     }
                 }
-                else -> {}
 
-            }
-
-            when(campusPostState){
-                is UiState.Success -> {
-                    items(campusPostState.data.filter { it.postId == postId }) {
-                        PostCard(
-                            post = it,
-                            handlers = defaultPostHandlers(
-                                context = context,
-                                post = it,
-                                feedViewModel = postViewModel,
-                                bottomSheetSharedViewModel = bottomSheetViewModel,
-                                navController = navHostController,
-                            )
-                        )
-                        postData = it
-                    }
-                }
-                else -> {}
-
-            }
-            // Replies Header
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp),
+                LazyColumn(
+                    modifier = Modifier.padding(innerPadding),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Divider()
-                    Text(text = "Replies", style = MaterialTheme.typography.titleLarge)
-                    Divider()
-                }
-            }
 
-            // Replies State Handling
-            when (repliesState) {
-                is UiState.Loading -> {
-                    item {
-                        LoadingUI(true)
-                    }
-                }
-
-                is UiState.Error -> {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Failed to load replies.")
-                        }
-
-                        LaunchedEffect(repliesState.message) {
-                            scope.launch {
-                                snackBarHostState.showSnackbar(
-                                    repliesState.message
-                                )
-                            }
-                        }
-                    }
-                }
-
-                is UiState.Success -> {
-
-                    val orderedReplies = repliesState.data.sortedByDescending { it.repliedAt }
-
-                    if (orderedReplies.isEmpty()) {
-
+                    postData?.let {
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("No replies yet.")
-                            }
-                        }
-
-                    } else {
-
-                        items(orderedReplies) { reply ->
-                            ReplyWidget(
-                                repliesDTO = reply,
-                                navHostController = navHostController,
-                                onLikeClick = {
-                                    replyViewModel.likeReply(
-                                        repliedById = reply.creatorDetail.profile?.id ?: "",
-                                        postId = reply.postId,
-                                        replyId = reply.replyId,
-                                        isLiked = reply.actions.isLiked,
-                                        campusId = postData?.campusId,
-                                        feedMode = postData?.feedMode ?: FeedMode.GLOBAL
-                                    )
+                            PostCard(
+                                post = postData ?: GetPostDTO(),
+                                handlers = {
+                                    postActionsViewModel.onAction(it)
                                 },
-                                onDotsClick = {
-                                    postData?.let {
-                                        bottomSheetViewModel.setBottomSheetState(
-                                            state = true,
-                                            isCurrentUser = reply.creatorDetail.isCurrentUser,
-                                            content = Content(
-                                                postId = reply.postId,
-                                                text = reply.content,
-                                                replyId = reply.replyId,
-                                            ),
-                                            contentType = ContentType.REPLY,
-                                            sheetType = SheetType.MENU_LIST,
-                                            feedMode = it.feedMode,
-                                            campusId = it.campusId
+                                onDotMenuClick = {
+                                    postData?.let {data->
+                                        postMenuState.open(
+                                            FeedContent(
+                                                id = ContentId.Post(postId = data.postId),
+                                                text = data.postContent.postData.postText,
+                                                isOwner = data.creatorDetail.isCurrentUser,
+                                                type = ContentType.POST
+                                            )
                                         )
                                     }
                                 }
                             )
                         }
                     }
-                }
 
-                UiState.Idle -> {
-                    // Optional: No UI for idle
+                    // Replies Header
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Divider()
+                            Text(text = "Replies", style = MaterialTheme.typography.titleLarge)
+                            Divider()
+                        }
+                    }
+
+                    // Replies State Handling
+                    when (postRepliesState) {
+                        is UiState.Loading -> {
+                            item {
+                                LoadingUI(true)
+                            }
+                        }
+
+                        is UiState.Error -> {
+                            item {
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Failed to load replies.")
+                                }
+
+                                LaunchedEffect(postRepliesState.message) {
+                                    scope.launch {
+                                        snackBarHostState.showSnackbar(
+                                            postRepliesState.message
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        is UiState.Success -> {
+
+                            val orderedReplies = postRepliesState.data.sortedByDescending { it.repliedAt }
+
+                            if (orderedReplies.isEmpty()) {
+
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("No replies yet.")
+                                    }
+                                }
+
+                            } else {
+
+                                items(orderedReplies) {reply->
+                                    ReplyWidget(
+                                        repliesDTO = reply,
+                                        onDotsClick = {
+                                            postMenuState.open(
+                                                FeedContent(
+                                                    id = ContentId.Reply(postId = reply.postId,replyId = reply.replyId),
+                                                    text = reply.content,
+                                                    isOwner = reply.creatorDetail.isCurrentUser,
+                                                    type = ContentType.REPLY
+                                                )
+                                            )
+                                        },
+                                        handler = { action ->
+                                            postActionsViewModel.onAction(action)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        UiState.Idle -> {
+                            // Optional: No UI for idle
+                        }
+                    }
                 }
             }
-
-
+            is UiState.Error -> {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp), contentAlignment = Alignment.Center){
+                    AppLabelText(
+                        text = "Content no longer available"
+                    )
+                }
+            }
+            else -> {}
         }
 
 
-        PostDotOptionBottomSheet(
-            isBottomSheet = bottomSheetData.isBottomSheet,
-            bottomSheetViewModel = bottomSheetViewModel,
-            replyViewModel = replyViewModel,
-            postFeedViewModel = postViewModel,
-            onDismiss = {
-                bottomSheetViewModel.dismissBottomSheet()
-            },
-            isCurrentUser = bottomSheetData.isCurrentUser,
-            onDeleteClick = {
-                bottomSheetViewModel.dismissBottomSheet()
-                isAlertDialogVisible.value = true
-            },
-            onEditClick = {},
-            onHideBottomSheet = {}
-        )
-
-        AlertDialogWidget(
-            isVisible = isAlertDialogVisible.value,
-            onDismiss = { isAlertDialogVisible.value = false },
-            title = "Delete Post",
-            description = "Are you sure you want to delete this post?",
-            positiveButtonText = "Delete",
-            negativeButtonText = "Cancel",
-            onPositiveClick = {
-
-                if (bottomSheetData.contentType == ContentType.POST) {
-                    postViewModel.deletePost(
-                        postId = bottomSheetData.content.postId,
-                        isCampus = bottomSheetData.campusId,
-                        feedMode = bottomSheetData.feedMode
-                    )
-                }
-
-                if (bottomSheetData.contentType == ContentType.REPLY) {
-                    replyViewModel.deleteReply(
-                        postId = bottomSheetData.content.postId,
-                        replyId = bottomSheetData.content.replyId,
-                        campusId = bottomSheetData.campusId,
-                        feedMode = bottomSheetData.feedMode
-                    )
-                }
-                context.vibrate()
-
-            },
-            showLoading = bottomSheetViewModel.isLoading.collectAsState().value
-        )
 
         ConsentBottomSheet(
             isVisible = consentBottomSheet.value,
             onDismiss = {
                 consentBottomSheet.value = false
-                visibilityMode = PostVisibilityMode.USER
+                visibilityMode = VisibilityMode.USER
             },
             onAgree = {
                 consentAgreeViewModel.saveSwitchState(
@@ -647,8 +595,7 @@ enum class PostType { USER, ANONYMOUS }
 @Composable
 fun ReplyWidget(
     repliesDTO: GetRepliesDTO,
-    navHostController: NavHostController,
-    onLikeClick:()-> Unit,
+    handler:(PostAction)-> Unit,
     onDotsClick:()-> Unit
 ) {
 
@@ -669,16 +616,11 @@ fun ReplyWidget(
                     .size(42.dp)
                     .clip(CircleShape),
                 onClick = {
-                    if (repliesDTO.visibility == PostVisibilityMode.USER) {
-                        navHostController.navigate(Routes.Main.ProfileByID.routes)
-                            .apply {
-                                navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                    "USER_ID",
-                                    repliesDTO.creatorDetail.profile?.id
-                                )
-                            }
+                    if (repliesDTO.visibility == VisibilityMode.USER) {
+                       handler.invoke(PostAction.OpenUserProfile(userId = repliesDTO.creatorDetail.profile?.id ?: "", isCurrentUser = repliesDTO.creatorDetail.isCurrentUser))
                     }
-                }
+                },
+                visibility = repliesDTO.visibility
             )
 
             Column {
@@ -711,16 +653,23 @@ fun ReplyWidget(
                 ) {
 
                     AnimatedLikeButton(
-                        onLike = {onLikeClick.invoke()},
+                        onLike = {
+                            handler.invoke(
+                                PostAction.Like(
+                                    isLiked = repliesDTO.actions.isLiked,
+                                    contentId = ContentId.Reply(replyId = repliesDTO.replyId, postId = repliesDTO.postId),
+                                    userId = repliesDTO.creatorDetail.profile?.id ?: ""
+                                )
+                            )
+                        },
                         likesCount = repliesDTO.actions.likesCount,
                         isLiked = repliesDTO.actions.isLiked
                     )
 
                     Row (verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)){
 
-                        Log.d("IS_EDITED",repliesDTO.edited.toString())
                         if (repliesDTO.edited){
-                            Text("Edited", color = Black300, fontSize = 12.sp)
+                            AppLabelText("Edited")
                         }
 
                         Icon(
@@ -751,15 +700,17 @@ fun BottomTextInput(
     focusRequester: FocusRequester,
     onFocusChange:(FocusState)->Unit,
     onTextChange:(String)-> Unit,
-    selectedVisibility: PostVisibilityMode,
-    onVisibilityChange:(PostVisibilityMode)-> Unit,
+    selectedVisibility: VisibilityMode,
+    onVisibilityChange:(VisibilityMode)-> Unit,
     text: String,
     onSubmitClick:()-> Unit,
     isLoading: Boolean,
     userImage: String
 ) {
 
-    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
 
         Row (verticalAlignment = Alignment.CenterVertically){
 

@@ -1,8 +1,6 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.PostRepository
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.domain.ReplyRepository
 
 class CreateReplyUseCase(private val repository: ReplyRepository) {
@@ -11,9 +9,7 @@ class CreateReplyUseCase(private val repository: ReplyRepository) {
         postId: String,
         content: String,
         postCreatorId: String,
-        visibilityMode: PostVisibilityMode,
-        mode: FeedMode,
-        campusId: String?
+        visibilityMode: VisibilityMode,
     ): Result<Unit> {
         return repository.createReply(
             replyId = replyId,
@@ -21,8 +17,6 @@ class CreateReplyUseCase(private val repository: ReplyRepository) {
             content = content,
             postCreatorId = postCreatorId,
             visibilityMode = visibilityMode,
-            mode = mode,
-            campusId
         )
     }
 }

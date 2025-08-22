@@ -1,4 +1,4 @@
-package com.iota.campusX.Feature.Post.domain.Models
+package com.iota.campusX.Feature.Post.data.model
 
 import com.iota.campusX.Screens.Post.Poll
 import com.iota.campusX.Screens.Post.PostOptions
@@ -10,7 +10,7 @@ import kotlinx.serialization.Contextual
 @Serializable
 data class CreatePostDTO(
     val postId: String = "",
-    val visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
+    val visibilityMode: VisibilityMode = VisibilityMode.USER,
     @Contextual
     val createdAt: Timestamp = Timestamp.now(), // ✅ This line fixes the issue
     val creatorId: String = "",
@@ -56,7 +56,7 @@ data class Reference(
     val title: String = ""
 )
 
-enum class PostVisibilityMode {
+enum class VisibilityMode {
     USER, ANONYMOUS
 }
 

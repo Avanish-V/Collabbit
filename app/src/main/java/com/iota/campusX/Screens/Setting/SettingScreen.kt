@@ -1,5 +1,6 @@
 package com.iota.campusX.Screens.Setting
 
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,6 +50,8 @@ import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.Setting
+import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.UIComponents.AppLabelText
 //import com.iota.campusX.ui.theme.Black800
 import com.iota.campusX.ui.theme.LightTheme_Black
 import com.iota.campusX.ui.theme.LightTheme_Blue
@@ -59,10 +64,16 @@ fun SettingScreen(
     navController: NavController,
     userProfileViewModel: UserProfileViewModel,
 ) {
-
+    val userDataState by userProfileViewModel.userBaseProfile.collectAsState()
     var screenValue by rememberSaveable { mutableStateOf(Setting.SETTING_SCREEN) }
     val scope = rememberCoroutineScope()
     var isLoading by rememberSaveable { mutableStateOf(false) }
+
+    val userData = userDataState as? UiState.Success
+
+    LaunchedEffect(Unit) {
+        Log.d("PROFILE_DEBUG", "SettingScreen: ${userData?.data}")
+    }
 
     when (screenValue) {
 
@@ -71,7 +82,7 @@ fun SettingScreen(
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = { Text("Setting", color = MaterialTheme.colorScheme.onSurface) },
+                        title = { Text("Settings") },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.background,
                             titleContentColor = LightTheme_Black
@@ -121,7 +132,7 @@ fun SettingScreen(
                                     )
                                     Text(
                                         text = it.title,
-                                        style = MaterialTheme.typography.headlineMedium,
+                                        style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
@@ -130,31 +141,27 @@ fun SettingScreen(
                     }
 
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        Column (horizontalAlignment = Alignment.CenterHorizontally,verticalArrangement = Arrangement.spacedBy(12.dp)){
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        userProfileViewModel.deleteUserProfile()
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    modifier = Modifier.size(22.dp),
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Delete account")
+                            }
 
-                        TextButton(
-                            onClick = {
-                                scope.launch {
-                                    userProfileViewModel.deleteUserProfile()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-//                                contentColor = Black800,
-                                containerColor = Color.Transparent
-                            )
-                        ) {
-                            Icon(
-                                modifier = Modifier.size(22.dp),
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = LightTheme_Blue
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text("Delete account")
+                            userData?.data?.let { AppLabelText(text = it.userEmail) }
                         }
                     }
                 }

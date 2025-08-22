@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CampusX"
+rootProject.name = "MateVerse"
 include(":app")
  

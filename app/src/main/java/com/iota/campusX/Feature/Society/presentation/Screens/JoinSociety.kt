@@ -11,70 +11,29 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.*
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Society.AgoraTokenBuilder.generateDynamicToken
-import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
-import com.iota.campusX.Feature.Society.domain.models.State
-import com.iota.campusX.Feature.Society.domain.models.Status
+import com.iota.campusX.Feature.Society.domain.models.*
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
@@ -82,20 +41,14 @@ import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Chat.DropDownItem
 import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-// Summary of required improvements made:
-// - ViewModels should not be injected in Composable bodies
-// - Separated business logic into ViewModels
-// - Moved side effects to better lifecycle scopes
-// - Used rememberUpdatedState to avoid stale captures
-// - Extracted large UI logic into smaller components (partial)
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JoinSocietyScreen(
     navController: NavHostController,
@@ -106,9 +59,10 @@ fun JoinSocietyScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val userProfileState by userProfileViewModel.userBaseProfile.collectAsState()
-    val joiningRequests by societyViewModel.joinRequests.collectAsState()
-    val audioRoomState by streamViewModel.audioRoomState.collectAsState()
+    // States
+    val userProfileState by userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle()
+    val joiningRequests by societyViewModel.joinRequests.collectAsStateWithLifecycle()
+    val audioRoomState by streamViewModel.audioRoomState.collectAsStateWithLifecycle()
     val askToSpeak by societyViewModel.askToSpeak.collectAsStateWithLifecycle()
     val microphone by societyViewModel.microphone.collectAsStateWithLifecycle()
 
@@ -123,8 +77,8 @@ fun JoinSocietyScreen(
         }
     }
 
+    // 🔑 Microphone Permission
     LaunchMicrophonePermission {
-
         if (userData != null && !createdBy.isNullOrEmpty() && !roomId.isNullOrEmpty()) {
             societyViewModel.sendJoinRequest(
                 roomId = roomId,
@@ -134,67 +88,48 @@ fun JoinSocietyScreen(
                 campusId = null
             )
         }
-
     }
 
-// -------- Initialization --------
+    // Agora Init
     LaunchedEffect(Unit) {
         streamViewModel.initializeAgora(context)
     }
 
-    // -------- Send Join Request --------
-    LaunchedEffect(userData?.id, createdBy, roomId) {
-
-    }
-
-    LaunchedEffect(joinRequest?.status) {
-        if (joinRequest?.status == Status.STAGE_DOWN){
-            streamViewModel.leaveChannel()
-        }
-    }
-
-    // -------- Start Listening for Requests --------
-    LaunchedEffect(roomId) {
-        roomId?.let {
-            societyViewModel.startListeningJoinRequests(
-                roomId = it,
-                feedMode = FeedMode.GLOBAL,
-                campusId = null
-            )
-        }
-    }
-
-    // -------- Join Agora Channel --------
+    // Handle Stage Status
     LaunchedEffect(joinRequest?.status, roomId, joinRequest?.uid) {
-        if (joinRequest?.status == Status.STAGE_UP) {
-            streamViewModel.joinChannel(
-                channelId = roomId.toString(),
-                token = generateDynamicToken(roomId.toString(), joinRequest!!.uid),
-                uid = joinRequest!!.uid,
-                role = if (isHost) "host" else "user"
-            )
-        }
-        if (joinRequest?.status == Status.STAGE_DOWN){
-            streamViewModel.leaveChannel()
+        when (joinRequest?.status) {
+            Status.STAGE_UP -> {
+                roomId?.let {
+                    joinRequest?.uid?.let { uid ->
+                        streamViewModel.joinChannel(
+                            channelId = it,
+                            token = generateDynamicToken(it, uid),
+                            uid = uid,
+                            role = if (isHost) "host" else "user"
+                        )
+                    }
+                }
+            }
+            Status.STAGE_DOWN -> streamViewModel.leaveChannel()
+            else -> Unit
         }
     }
 
-    // -------- Handle Microphone Change --------
+    // Microphone toggle from backend state
     LaunchedEffect(joinRequest?.microphone) {
-        if (joinRequest?.status == Status.STAGE_UP){
-            streamViewModel.muteLocalAudioStream(!joinRequest!!.microphone) // true to mute, false to unmute
+        if (joinRequest?.status == Status.STAGE_UP) {
+            streamViewModel.muteLocalAudioStream(!(joinRequest?.microphone ?: false))
         }
-
     }
 
-    // -------- Handle Microphone Errors --------
+    // Microphone error handling
     LaunchedEffect(microphone) {
         if (microphone is UiState.Error) {
             snackbarHostState.showSnackbar((microphone as UiState.Error).message)
         }
     }
 
-    // -------- Handle Audio Room Events --------
+    // Agora events handling
     LaunchedEffect(audioRoomState) {
         when (val state = audioRoomState) {
             is State.isSpeaking -> {
@@ -208,18 +143,12 @@ fun JoinSocietyScreen(
                     )
                 }
             }
-            is State.ChannelLeave -> {
-                navController.popBackStack()
-            }
-            is State.Room_Joined,
-            is State.isMicrophone -> {
-                // Optional handling
-            }
+            is State.ChannelLeave -> navController.popBackStack()
             else -> Unit
         }
     }
 
-    // -------- Cleanup on Exit --------
+    // Cleanup when leaving
     DisposableEffect(roomId, createdBy) {
         onDispose {
             roomId?.let {
@@ -231,19 +160,21 @@ fun JoinSocietyScreen(
             }
         }
     }
+
+    // Default: reset raised hand
     LaunchedEffect(roomId) {
         if (!roomId.isNullOrBlank()) {
             societyViewModel.askToSpeak(
                 roomId = roomId,
                 isRaiseHand = false,
-                requestId = userData?.id ?: "",
+                requestId = userData?.id.orEmpty(),
                 feedMode = FeedMode.GLOBAL,
                 campusId = null
             )
         }
     }
 
-    // -------- UI Content --------
+    // ✅ UI Content
     JoinSocietyContent(
         navController = navController,
         userData = userData,
@@ -256,7 +187,6 @@ fun JoinSocietyScreen(
         streamViewModel = streamViewModel,
         askToSpeakState = askToSpeak
     )
-
 }
 
 @SuppressLint("UnrememberedMutableState")
@@ -284,7 +214,7 @@ fun JoinSocietyContent(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Society Room", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.headlineLarge)
+                    Text("Society Room", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -425,7 +355,7 @@ fun SectionHeader(title: String) {
             .height(48.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, style = MaterialTheme.typography.headlineLarge)
+        Text(title, style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -454,7 +384,8 @@ fun StageDownParticipantItem(
             CircleImage(
                 modifier = Modifier.size(48.dp),
                 image = request.userImage,
-                onClick = {}
+                onClick = {},
+                visibility = VisibilityMode.USER
             )
             Text(request.userName)
         }
@@ -652,7 +583,7 @@ fun ParticipantAvatar(
         Column(
             modifier = modifier
                 .background(
-                    color = MaterialTheme.colorScheme.surface,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = RoundedCornerShape(6.dp)
                 ).fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -666,7 +597,8 @@ fun ParticipantAvatar(
                 CircleImage(
                     modifier = Modifier.size(48.dp),
                     image = participant.userImage,
-                    onClick = {}
+                    onClick = {},
+                    visibility = VisibilityMode.USER
                 )
 
                 if (isSpeaking) {
@@ -703,16 +635,13 @@ fun ParticipantAvatar(
                 text = participant.userName,
                 maxLines = 1,
                 textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Text(
+            AppLabelText(
                 text = participant.role,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelSmall
             )
-
             Spacer(modifier = Modifier.height(8.dp))
 
         }

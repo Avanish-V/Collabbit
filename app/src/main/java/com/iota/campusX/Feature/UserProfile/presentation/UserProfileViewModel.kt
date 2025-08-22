@@ -4,16 +4,12 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
-import com.iota.campusX.Feature.Post.domain.Models.GetRepliesDTO
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
-import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Gender
+import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
-import com.iota.campusX.Navigation.Routes
-import com.iota.campusX.Screens.Profile.UserType
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -22,25 +18,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
-
-    private val _currentUserProfile = MutableStateFlow<UiState<CurrentUserProfileDTO>>(UiState.Idle)
-    val currentUserProfile: StateFlow<UiState<CurrentUserProfileDTO>> = _currentUserProfile.asStateFlow()
-
-    private val _profileByUserId = MutableStateFlow<UiState<CurrentUserProfileDTO>>(UiState.Idle)
-    val profileByUserId: StateFlow<UiState<CurrentUserProfileDTO>> = _profileByUserId.asStateFlow()
-
 
     private val _userBaseProfile = MutableStateFlow<UiState<BaseProfileDTO>>(UiState.Idle)
     val userBaseProfile: StateFlow<UiState<BaseProfileDTO>> = _userBaseProfile.asStateFlow()
@@ -69,60 +58,8 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     private val _acceptState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val acceptState: StateFlow<UiState<Unit>> = _acceptState.asStateFlow()
 
-    private val _userType = MutableStateFlow<UserType>(UserType.Idle)
-    val userType: StateFlow<UserType> = _userType.asStateFlow()
-
     private val _modifyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val modifyState: StateFlow<UiState<Unit>> = _modifyState.asStateFlow()
-
-
-    fun loadCurrentUserProfile(){
-
-
-
-    }
-
-    fun loadUserByIdProfile(){
-
-
-
-    }
-
-    data class CurrentUserProfileDTO(
-        val basicProfileDTO: BaseProfileDTO,
-        val connectionCount: Int,
-        val connections: List<ConnectionsDTO>,
-        val posts: List<GetPostDTO>?,
-        val replies: List<GetRepliesDTO>?,
-        val userType: UserType
-    )
-
-
-
-
-
-    fun getProfileIdByPost(
-        userIdByFeed: String,
-        loggedInUserId: String,
-        currentDestination : String
-    ){
-        Log.d("PROFILE_DEBUG", "getProfileIdByPost: $userIdByFeed")
-        if (currentDestination == Routes.Main.Profile.routes){
-            _userType.value = UserType.Owner
-            getConnectionCount(loggedInUserId)
-        }else if(currentDestination == Routes.Main.ProfileByID.routes && userIdByFeed == loggedInUserId){
-            _userType.value = UserType.Owner
-            getConnectionCount(loggedInUserId)
-
-        }else{
-            _userType.value = UserType.User
-             getUserById(userIdByFeed)
-             getConnectionCount(userIdByFeed)
-             hasConnection(userIdByFeed)
-        }
-
-    }
-
 
 
     fun getUserProfile() {
@@ -166,7 +103,6 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     }
 
     fun getConnections(userId: String) {
-        if (userType.value == UserType.Owner) return
         viewModelScope.launch {
             _connections.value = UiState.Loading
             val result = userProfileRepo.getConnections(userId)
@@ -177,9 +113,10 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         }
     }
 
+
     fun getConnectionCount(userId: String) {
 
-        //if (userType.value == UserType.Owner && (connectionCount.value as UiState.Success).data != 0) return
+        if (connectionCount.value is UiState.Success) return
 
         viewModelScope.launch {
 
@@ -253,7 +190,10 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
 
         _modifyState.value = userProfileRepo.updateCampus(campus).fold(
             onSuccess = { UiState.Success(Unit).also{ updateCampusLocally(campus) } },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+            onFailure = {
+
+                UiState.Error(it.message ?: "Something went wrong")
+            }
         )
 
         resetModifyState()

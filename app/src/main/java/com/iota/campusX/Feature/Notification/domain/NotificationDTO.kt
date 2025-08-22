@@ -2,10 +2,9 @@ package com.iota.campusX.Feature.Notification.domain
 
 import com.google.firebase.Timestamp
 import com.google.gson.Gson
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
-import kotlinx.serialization.Serializable
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.Post.data.model.UserDetail
 
 data class NotificationDTO(
     var notificationId: String = "",
@@ -69,7 +68,7 @@ data class CommentPayload(
     val postId: String = "",
     val commentId: String = "",
     var actionBy: String = "",
-    var visibilityMode: PostVisibilityMode = PostVisibilityMode.USER,
+    var visibilityMode: VisibilityMode = VisibilityMode.USER,
     val contentType: ContentType = ContentType.REPLY_POST
 )
 

@@ -1,6 +1,5 @@
-package com.iota.campusX.Feature.Post.domain.Models
+package com.iota.campusX.Feature.Post.data.model
 
-import androidx.annotation.Keep
 import com.google.firebase.Timestamp
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
@@ -8,11 +7,12 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class GetPostDTO(
     val postId: String = "",
-    val createdAt: Long = 0L, // or Date with Contextual
+    @Contextual
+    val createdAt: Timestamp? = null, // or Date with Contextual
     val creatorDetail: CreatorDetail = CreatorDetail(),
     val feedMode: FeedMode = FeedMode.GLOBAL,
     val reference: Reference?=null,
-    val visibilityMode: PostVisibilityMode,
+    val visibilityMode: VisibilityMode = VisibilityMode.USER,
     val campusId: String?=null,
     val postContent: PostContent = PostContent(),
     val postActions: PostActions = PostActions()

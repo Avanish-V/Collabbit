@@ -3,8 +3,6 @@ package com.iota.campusX.Feature.Society.domain.repository
 import android.content.Context
 import com.iota.campusX.Feature.Society.domain.models.RtcConnectionStatus
 import com.iota.campusX.Feature.Society.domain.models.State
-import io.getstream.video.android.core.Call
-import io.getstream.video.android.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface StreamRepository {
@@ -26,8 +24,5 @@ interface StreamRepository {
     fun muteRemoteUserAudio(uid: Int,muted: Boolean)
 
     fun leaveChannel()
-
-    suspend fun startCall(user:User,context: android.content.Context): Result<Call>
-
 
 }

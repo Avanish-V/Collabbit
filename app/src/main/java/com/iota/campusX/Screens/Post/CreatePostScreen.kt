@@ -1,5 +1,6 @@
 package com.iota.campusX.Screens.Post
 
+//import com.iota.campusX.ui.theme.secondary
 import ConsentAgreeViewModel
 import ConsentBottomSheet
 import android.net.Uri
@@ -66,7 +67,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -85,22 +85,21 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.Timestamp
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
-import com.iota.campusX.Feature.Post.domain.Models.CreatePostDTO
-import com.iota.campusX.Feature.Post.domain.Models.CreatorDetail
-import com.iota.campusX.Feature.Post.domain.Models.FeedMode
-import com.iota.campusX.Feature.Post.domain.Models.GetPostDTO
-import com.iota.campusX.Feature.Post.domain.Models.PostActions
-import com.iota.campusX.Feature.Post.domain.Models.PostContent
-import com.iota.campusX.Feature.Post.domain.Models.PostData
-import com.iota.campusX.Feature.Post.domain.Models.PostVisibilityMode
-import com.iota.campusX.Feature.Post.domain.Models.Reference
-import com.iota.campusX.Feature.Post.domain.Models.UserDetail
+import com.iota.campusX.Feature.Post.data.visibilityMode
+import com.iota.campusX.Feature.Post.data.model.CreatePostDTO
+import com.iota.campusX.Feature.Post.data.model.CreatorDetail
+import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.PostContent
+import com.iota.campusX.Feature.Post.data.model.PostData
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.Post.data.model.Reference
+import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
-import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Post.presentation.UploadState
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.HomeViewModel
+import com.iota.campusX.Screens.Post.PostManupulation.PostFeedViewModel
 import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.generateUID
@@ -108,10 +107,8 @@ import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.IconButtonWidget
 import com.iota.campusX.ui.UIComponents.SimpleDropDown
 import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_Blue
-//import com.iota.campusX.ui.theme.secondary
-import io.ktor.util.date.getTimeMillis
+import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -149,7 +146,7 @@ fun CreatePostScreen(
     var isExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var isBottomSheetVisible by remember { mutableStateOf(false) }
-    var visibility by remember { mutableStateOf(PostVisibilityMode.USER) }
+    var visibility by remember { mutableStateOf(VisibilityMode.USER) }
     var selectedImages by remember { mutableStateOf<Uri?>(null) }
     val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -186,41 +183,41 @@ fun CreatePostScreen(
             is UiState.Success -> {
                 isLoading = false
                 val feedMode = feedMode as UiState.Success<FeedMode>
-                feedViewModel.updatePostLocally(
-                    getPostDTO = GetPostDTO(
-                        postId = generateUID(),
-                        visibilityMode = visibility,
-                        createdAt = getTimeMillis(),
-                        reference = Reference(
-                            title = selectedPod?.title ?: "",
-                            icon = selectedPod?.icon ?: ""
-                        ),
-                        creatorDetail = CreatorDetail(
-                            profile = UserDetail(
-                                userName = userProfile.data.userName,
-                                id = userProfile.data.id,
-                                userImage = userProfile.data.userImage,
-                                userBio = userProfile.data.userBio,
-                            )
-                        ),
-                        postContent = PostContent(
-                            postType = postScreenViewModel.post.value,
-                            postData = PostData(
-                                postText = text,
-                                postImage = selectedImages.toString(),
-                                poll = poll
-                            )
-                        ),
-                        campusId = userProfile.data.campus?.campusCode,
-                        postActions = PostActions(
-                            isLiked = false,
-                            likesCount = 0,
-                            replies = emptyList(),
-                            replyCount = 0,
-                        ),
-                        feedMode = feedMode.data
-                    ),
-                )
+//                feedViewModel.updatePostLocally(
+//                    getPostDTO = GetPostDTO(
+//                        postId = generateUID(),
+//                        visibilityMode = visibility,
+//                        createdAt = getTimeMillis(),
+//                        reference = Reference(
+//                            title = selectedPod?.title ?: "",
+//                            icon = selectedPod?.icon ?: ""
+//                        ),
+//                        creatorDetail = CreatorDetail(
+//                            profile = UserDetail(
+//                                userName = userProfile.data.userName,
+//                                id = userProfile.data.id,
+//                                userImage = userProfile.data.userImage,
+//                                userBio = userProfile.data.userBio,
+//                            )
+//                        ),
+//                        postContent = PostContent(
+//                            postType = postScreenViewModel.post.value,
+//                            postData = PostData(
+//                                postText = text,
+//                                postImage = selectedImages.toString(),
+//                                poll = poll
+//                            )
+//                        ),
+//                        campusId = userProfile.data.campus?.campusCode,
+//                        postActions = PostActions(
+//                            isLiked = false,
+//                            likesCount = 0,
+//                            replies = emptyList(),
+//                            replyCount = 0,
+//                        ),
+//                        feedMode = feedMode.data
+//                    ),
+//                )
                 navHostController.popBackStack()
             }
 
@@ -368,7 +365,7 @@ fun CreatePostScreen(
                                 postCreationViewModel.createPoll(
                                     CreatePostDTO(
                                         postId = generateUID(),
-                                        visibilityMode = PostVisibilityMode.USER,
+                                        visibilityMode = VisibilityMode.USER,
                                         createdAt = Timestamp.now(),
                                         creatorId = authViewModel.userId(),
                                         reference = null,
@@ -396,6 +393,12 @@ fun CreatePostScreen(
 
                                 val postId = generateUID()
 
+                                val visibilityMode = visibilityMode(
+                                    visibilityMode = visibility,
+                                    userName = userProfile.data.userName,
+                                    userImage = userProfile.data.userImage
+                                )
+
                                 postCreationViewModel.createPost(
                                     dto = CreatePostDTO(
                                         postId = postId,
@@ -413,11 +416,16 @@ fun CreatePostScreen(
                                         feedMode = feedMode.data
                                     ),
                                     imageUri = selectedImages,
-                                    user = UserDetail(
-                                        userName = userProfile.data.userName,
-                                        id = userProfile.data.id,
-                                        userImage = userProfile.data.userImage,
-                                        userBio = userProfile.data.userBio,
+                                    user = CreatorDetail(
+                                        profile = UserDetail(
+                                            userName = visibilityMode.first,
+                                            id = userProfile.data.id,
+                                            userImage = visibilityMode.second,
+                                            userBio = userProfile.data.userBio,
+                                        ),
+                                        isVerified = userProfile.data.metaData.verified,
+                                        isPremium = userProfile.data.metaData.premium,
+                                        isCurrentUser = true
                                     ),
                                     navHostController =  navHostController,
                                     postFeedViewModel = feedViewModel
@@ -466,8 +474,12 @@ fun CreatePostScreen(
 
                 Row (verticalAlignment = Alignment.CenterVertically){
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Visibility", style = MaterialTheme.typography.headlineMedium)
-                        Text(text = "This post will be visible to all campuses.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(text = "Visibility", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = if (feedMode.data.name == FeedMode.GLOBAL.name) "This post will be visible to all campuses." else "Only campus users can see.",
+                            style = MaterialTheme.typography.labelMedium,
+
+                        )
                     }
                     SimpleDropDown(
                         modifier = Modifier.weight(1f),
@@ -598,7 +610,6 @@ fun CreatePostScreen(
                                         }
 
                                     },
-                                    cursorBrush = Brush.verticalGradient(listOf(LightTheme_Blue, LightTheme_Blue))
                                 )
                             }
                         }
@@ -611,7 +622,7 @@ fun CreatePostScreen(
                                 .fillMaxWidth()
                                 .border(
                                     width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
                                     shape = RoundedCornerShape(10.dp)
                                 )
                                 .padding(12.dp),
@@ -631,12 +642,12 @@ fun CreatePostScreen(
 
                                         when(isConsentAgree){
                                             is UiState.Success -> {
-                                                if (it == PostVisibilityMode.ANONYMOUS){
+                                                if (it == VisibilityMode.ANONYMOUS){
                                                     if ((isConsentAgree as UiState.Success<Boolean>).data){
                                                         visibility = it
                                                     }else{
                                                         isBottomSheetVisible = true
-                                                        visibility = PostVisibilityMode.USER
+                                                        visibility = VisibilityMode.USER
                                                     }
                                                 }else{
                                                     visibility = it
@@ -758,8 +769,7 @@ fun CreatePostScreen(
                             }
 
                             BasicTextField(
-                                modifier = Modifier
-                                    .fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
                                 value = text,
                                 onValueChange = { text = it },
                                 textStyle = LocalTextStyle.current.copy(
@@ -832,7 +842,6 @@ fun CreatePostScreen(
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             )
                         }
-
                     }
                 }
             }
@@ -842,7 +851,7 @@ fun CreatePostScreen(
             isVisible = isBottomSheetVisible,
             onDismiss = {
                 isBottomSheetVisible = false
-                visibility = PostVisibilityMode.USER
+                visibility = VisibilityMode.USER
             },
             onAgree = {
                 consentAgreeViewModel.saveSwitchState(
@@ -884,8 +893,8 @@ enum class PostVisibilityMode { USER, ANONYMOUS }
 @Composable
 fun VisibilityModeChanger(
     modifier: Modifier = Modifier,
-    selectedVisibility: PostVisibilityMode,
-    onVisibilityModeChange: (PostVisibilityMode) -> Unit,
+    selectedVisibility: VisibilityMode,
+    onVisibilityModeChange: (VisibilityMode) -> Unit,
     userImage: String
 ) {
     val context = LocalContext.current
@@ -920,8 +929,8 @@ fun VisibilityModeChanger(
                                 if (abs(offsetX.value) > threshold) {
                                     // Always toggle to opposite state
                                     val newMode = when (selectedVisibility) {
-                                        PostVisibilityMode.USER -> PostVisibilityMode.ANONYMOUS
-                                        PostVisibilityMode.ANONYMOUS -> PostVisibilityMode.USER
+                                        VisibilityMode.USER -> VisibilityMode.ANONYMOUS
+                                        VisibilityMode.ANONYMOUS -> VisibilityMode.USER
                                     }
                                     onVisibilityModeChange(newMode)
                                     context.vibrate()
@@ -936,7 +945,7 @@ fun VisibilityModeChanger(
         ) {
             AsyncImage(
                 modifier = Modifier.fillMaxSize(),
-                model = if (selectedVisibility == PostVisibilityMode.USER) userImage else R.drawable.incognoto,
+                model = if (selectedVisibility == VisibilityMode.USER) userImage else R.drawable.incognoto,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
             )

@@ -1,0 +1,125 @@
+package com.iota.campusX.Screens.Post.PostMenuActions
+
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.iota.campusX.Feature.Report.presentation.ReportViewModel
+import com.iota.campusX.Screens.Post.DataModel.FeedContent
+import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.UIComponents.ReportContent
+import org.koin.compose.koinInject
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ActionHandler(
+    content: FeedContent,
+    action: MenuAction?,
+    viewModel: PostMenuViewModel,
+    onDismiss: () -> Unit,
+    postMenuState: PostMenuState = koinInject(),
+    reportViewModel: ReportViewModel = koinInject()
+) {
+    when (action) {
+        MenuAction.Delete -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("Delete Post") },
+                text = { Text("Are you sure you want to delete this post?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.onActionSelected(action, content)
+                        onDismiss()
+                        postMenuState.close()
+                    }) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                },
+                shape = MaterialTheme.shapes.small
+            )
+        }
+        MenuAction.Edit -> {
+
+            var text by remember { mutableStateOf("") }
+
+            LaunchedEffect(Unit) {
+                text = content.text
+            }
+
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("Edit Post") },
+                text = {
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        label = { Text("Edit your post") }
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        // you could pass updated text to repo here
+                        viewModel.onActionSelected(action, FeedContent(content.id, text, isOwner = content.isOwner, type = content.type))
+                        onDismiss()
+                        postMenuState.close()
+                    }) { Text("Save") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                },
+                shape = MaterialTheme.shapes.small
+            )
+        }
+        MenuAction.Report -> {
+            ModalBottomSheet(onDismissRequest = onDismiss) {
+                ReportContent {
+                    viewModel.onActionSelected(action, content,reportReason = it)
+                    onDismiss()
+                }
+            }
+            val state by  viewModel.actionResult.collectAsState()
+            when(state){
+                is UiState.Success<*> ->{
+                    Text("Success")
+                }
+                else -> {}
+            }
+        }
+//        MenuAction.BlockUser -> {
+//            AlertDialog(
+//                onDismissRequest = onDismiss,
+//                title = { Text("Block User") },
+//                text = { Text("Are you sure you want to block this user?") },
+//                confirmButton = {
+//                    TextButton(onClick = {
+//                        viewModel.onActionSelected(postId, action)
+//                        onDismiss()
+//                    }) { Text("Block") }
+//                },
+//                dismissButton = {
+//                    TextButton(onClick = onDismiss) { Text("Cancel") }
+//                }
+//            )
+//        }
+//        MenuAction.CopyLink, MenuAction.Share, MenuAction.MuteUser -> {
+//            // Instant actions (no UI needed)
+//            LaunchedEffect(action) {
+//                viewModel.onActionSelected(postId, action!!)
+//                onDismiss()
+//            }
+//        }
+        null -> {} // nothing selected
+    }
+}
+
