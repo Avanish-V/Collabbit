@@ -1,6 +1,7 @@
 package com.iota.campusX.Screens.Profile
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -8,11 +9,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -43,8 +47,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.UserReplyDTO
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Reply.AppUserReplyViewModel
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -54,24 +62,30 @@ import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Screens.Home.LazyColumBottomHeader
 import com.iota.campusX.Screens.Post.DataModel.ContentId
 import com.iota.campusX.Screens.Post.DataModel.ContentType
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
-import com.iota.campusX.Screens.Post.PostManupulation.AppUserPostViewModel
+import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Screens.ReplyWidget
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
+import com.iota.campusX.Utils.timeMillsToString
+import com.iota.campusX.ui.UIComponents.AnonymousImage
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.CampusWidget
+import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.EditProfileIconButton
 import com.iota.campusX.ui.UIComponents.EmptyState
 import com.iota.campusX.ui.UIComponents.ErrorScreen
+import com.iota.campusX.ui.UIComponents.PostBody
 import com.iota.campusX.ui.UIComponents.PostCard
+import com.iota.campusX.ui.UIComponents.PostHeader
 import com.iota.campusX.ui.UIComponents.ProfileContents
 import com.iota.campusX.ui.UIComponents.ProfileHeader
 import org.koin.compose.getKoin
@@ -84,11 +98,12 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun AppUserProfile(
     navHostController: NavHostController,
-    appUserPostViewModel: AppUserPostViewModel = koinInject(),
+    postFeedViewModel: PostFeedViewModel = koinInject(),
     appUserReplyViewModel: AppUserReplyViewModel = koinInject(),
     profileViewModel: UserProfileViewModel,
     navigationViewModel: NavigationViewModel,
 ) {
+
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
@@ -106,16 +121,11 @@ fun AppUserProfile(
 
 
     // ✅ Collect profile states
-    val userBaseProfile by profileViewModel.userBaseProfile.collectAsState()
+    val profile = profileViewModel.userBaseProfile.collectAsState().value
     val connectionsCountState by profileViewModel.connectionCount.collectAsState()
     val appUserReplyState by appUserReplyViewModel.userReplies.collectAsState()
-    val postState by appUserPostViewModel.userPosts.collectAsState()
+    val postState = postFeedViewModel.userPosts.collectAsLazyPagingItems()
 
-
-    val profile = when(userBaseProfile){
-        is UiState.Success -> (userBaseProfile as UiState.Success<BaseProfileDTO>).data
-        else -> null
-    }
 
     LaunchedEffect(Unit) {
         profile?.id?.let {
@@ -219,14 +229,15 @@ fun AppUserProfile(
                                     screenHeight = screenHeight,
                                     pinned = headerPinned,
                                     navHostController = navHostController,
-                                    postState = postState,
+                                    lazyPagingItems = postState,
                                     onPageActive = {
-                                        appUserPostViewModel.fetchUserPosts(
+                                        if (postState.itemCount != 0) return@PostScreenComponent
+                                        postFeedViewModel.fetchUserPost(
                                             userId = profile?.id ?: "",
                                         )
                                     },
                                     onRetryClick = {
-                                        appUserPostViewModel.fetchUserPosts(
+                                        postFeedViewModel.fetchUserPost(
                                             userId = profile?.id ?: "",
                                         )
                                     }
@@ -281,7 +292,8 @@ fun RepliesComponent(
 
     LazyColumn (
         modifier = Modifier.height(height = screenHeight),
-        userScrollEnabled = pinned
+        userScrollEnabled = pinned,
+        contentPadding = PaddingValues(12.dp)
     ){
         when (repliesState) {
 
@@ -308,16 +320,69 @@ fun RepliesComponent(
                 items(data) {
 
                     Column {
-                        PostCard(
-                            post = it.post,
-                            handlers = {
-                                postActionsViewModel.onAction(it)
-                            },
-                            onDotMenuClick = { postData ->
 
-                            },
-                        )
+                        Row {
+
+                            if (it.post.visibilityMode == VisibilityMode.USER){
+                                CircleImage(
+                                    image = it.post.creatorDetail.profile?.userImage ?: "",
+                                    modifier = Modifier.size(42.dp),
+                                    onClick = {
+                                        navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
+                                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                                "USER_ID",
+                                                 userId
+                                            )
+                                        }
+                                    },
+                                    visibility = VisibilityMode.USER
+                                )
+                            }else{
+                                AnonymousImage(
+                                    modifier = Modifier.size(42.dp)
+
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+
+                                PostHeader(
+                                    user = CreatorDetail(
+                                        profile = it.post.creatorDetail.profile,
+                                        isCurrentUser = it.post.creatorDetail.isCurrentUser,
+                                    ),
+                                    postedAt = timeMillsToString(it.post.createdAt?.toDate()?.time ?: 0L),
+                                    visibilityMode = it.post.visibilityMode,
+                                    isCurrentUser = it.post.creatorDetail.isCurrentUser,
+                                    feedMode = it.post.feedMode
+                                )
+
+                                PostBody(
+                                    type = it.post.type,
+                                    mediaType = it.post.mediaType,
+                                    postContent = it.post.postContent,
+                                    onPollSelect = {
+
+                                    },
+                                    onPostImageClick = {
+
+                                    },
+                                    onBodyClick ={
+
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+
+                        }
+
+
+
                         Divider(modifier = Modifier.padding(start = 50.dp))
+
                         Row(
                             modifier = Modifier.padding(start = 50.dp)
 
@@ -414,7 +479,7 @@ fun UserAbout(
                                             )
                                         }
                                 },
-                                title = "Add bio",
+                                title = "Tap to add bio",
                                 isAppUser = true
                             )
                         }
@@ -448,7 +513,7 @@ fun UserAbout(
                                         )
                                     }
                                 },
-                                title = "Add Interests",
+                                title = "Tap to add interests",
                                 isAppUser = true
                             )
 
@@ -534,7 +599,7 @@ fun UserAbout(
 fun PostScreenComponent(
     screenHeight: Dp,
     pinned: Boolean,
-    postState: UiState<List<GetPostDTO>>,
+    lazyPagingItems: LazyPagingItems<GetPostDTO>,
     onPageActive: () -> Unit,
     onRetryClick: () -> Unit = {onPageActive.invoke()},
     postMenuState: PostMenuState = koinInject(),
@@ -549,70 +614,52 @@ fun PostScreenComponent(
         onPageActive.invoke()
     }
 
+
+
+
     LazyColumn (
         modifier = Modifier.height(height = screenHeight),
         userScrollEnabled = pinned
     ){
-        when (postState) {
-            is UiState.Loading -> {
-                item {
-                    LoadingUI(modifier = Modifier.height(screenHeight/2))
-                }
+        item {
+            if (lazyPagingItems.itemCount == 0){
+                StatusScreen(
+                    modifier = Modifier.height(300.dp),
+                    text = "No Posts Yet",
+                    image = null
+                )
             }
-
-            is UiState.Success -> {
-
-                val sortedPost = postState.data.sortedByDescending { it.createdAt }
-
-                item {
-                    if (sortedPost.isEmpty()) {
-                        StatusScreen(
-                            modifier = Modifier.height(300.dp),
-                            text = "No Posts"
-                        )
-                        return@item
-                    }
-                }
-
-                items(sortedPost, key = { it.postId }) {
-                    PostCard(
-                        post = it,
-                        handlers = {
-                            viewModel.onAction(it)
-                        },
-                        onDotMenuClick = {postData->
-                            postMenuState.open(
-                                FeedContent(
-                                    id = ContentId.Post(postId = postData.postId),
-                                    text = postData.postContent.postData.postText,
-                                    isOwner = postData.creatorDetail.isCurrentUser,
-                                    type = ContentType.POST
-                                )
+        }
+        items(lazyPagingItems.itemCount) { post ->
+            val item = lazyPagingItems[post]
+            item?.let {
+                PostCard(
+                    post = item,
+                    handlers = {
+                        viewModel.onAction(it)
+                    },
+                    onDotMenuClick = {
+                        postMenuState.open(
+                            FeedContent(
+                                id = ContentId.Post(postId = item.postId),
+                                text = item.postContent.postText,
+                                isOwner = item.creatorDetail.isCurrentUser,
+                                type = ContentType.POST
                             )
-                        }
-                    )
-                    Divider()
+                        )
+                    }
+                )
+                Divider()
+            }
+        }
+
+        item {
+            LazyColumBottomHeader(
+                items = lazyPagingItems,
+                isRefreshing = {
 
                 }
-
-            }
-
-            is UiState.Error -> {
-
-                item {
-                    ErrorScreen(
-                        text = "Something went wrong",
-                        image = R.drawable.landscape_placeholder_svgrepo_com,
-                        buttonText = "Try again",
-                        onReTry = {
-                            onRetryClick.invoke()
-                        }
-                    )
-                }
-
-            }
-
-            is UiState.Idle -> {}
+            )
         }
     }
 

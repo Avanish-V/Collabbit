@@ -1,5 +1,6 @@
 package com.iota.campusX.ui.UIComponents
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier

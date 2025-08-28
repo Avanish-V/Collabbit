@@ -54,10 +54,9 @@ fun SocietyScreen(
 ) {
     val state = societyViewModel.getSocietyState.collectAsStateWithLifecycle()
     val userSociety = societyViewModel.userSocietyState.collectAsStateWithLifecycle()
-    val profileState = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle()
+    val profile = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
     val context = LocalContext.current
 
-    val profile = profileState.value as? UiState.Success
 
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
     val tabList = listOf("Society", "By You")
@@ -68,7 +67,7 @@ fun SocietyScreen(
 
     // Initial fetch
     LaunchedEffect(Unit) {
-        societyViewModel.fetchSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.data?.campus?.campusCode)
+        societyViewModel.fetchSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.campus?.campusCode)
     }
 
 
@@ -83,7 +82,7 @@ fun SocietyScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Society", style = MaterialTheme.typography.titleLarge) },
+                title = { Text("Society", style = MaterialTheme.typography.headlineMedium) },
                 actions = {
 //                    IconButton(onClick = { /* TODO: Add search */ }) {
 //                        Icon(
@@ -137,7 +136,7 @@ fun SocietyScreen(
                 when (page) {
                     0 -> SocietyList(
                         state = state.value,
-                        campusId = profile?.data?.campus?.campusCode,
+                        campusId = profile?.campus?.campusCode,
                         navHostController = navHostController,
                         onLongClick = { roomId ->
                             showDeleteButton = true
@@ -156,7 +155,7 @@ fun SocietyScreen(
                             context.vibrate()
                         },
                         fetchUserSociety = {
-                            profile?.data?.id?.let {
+                            profile?.id?.let {
                                 societyViewModel.fetchUserSocieties(userId = it)
                             }
                         }
@@ -338,10 +337,10 @@ fun SocietyCard(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = LocalIndication.current
             ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(getSocietyDTO.societyName, style = MaterialTheme.typography.titleMedium)
+            Text(getSocietyDTO.societyName, style = MaterialTheme.typography.bodyLarge)
             Text(getSocietyDTO.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

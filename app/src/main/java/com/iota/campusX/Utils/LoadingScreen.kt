@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.theme.LightTheme_Gray
 import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.LightTheme_Blue
@@ -27,11 +28,8 @@ fun LoadingUI(isLoading:Boolean?=null,modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ){
-        CircularProgressIndicator(
-            modifier = Modifier.size(32.dp),
-            strokeWidth = 2.dp,
-            strokeCap = StrokeCap.Round,
-            color = MaterialTheme.colorScheme.primary
+        CircularLoading(
+            MaterialTheme.colorScheme.primary
         )
     }
 

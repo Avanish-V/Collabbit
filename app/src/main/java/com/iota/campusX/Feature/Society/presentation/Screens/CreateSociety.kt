@@ -35,8 +35,8 @@ import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Utils.CustomTextField
+import com.iota.campusX.Utils.FirestoreIdGenerator
 import com.iota.campusX.Utils.UiState
-import com.iota.campusX.Utils.generateUID
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -50,8 +50,7 @@ fun CreateSociety(
     //ViewModels
     val societyViewModel = koinInject<SocietyViewModel>()
 
-    val userDetail = userProfileViewModel.userBaseProfile.collectAsState()
-    val profile = (userDetail.value as?  UiState.Success)?.data
+    val profile = userProfileViewModel.userBaseProfile.collectAsState().value
 
     //States
 
@@ -124,7 +123,7 @@ fun CreateSociety(
                                 societyName = societyName,
                                 description = description,
                                 createdBy = profile.id,
-                                roomId = generateUID(),
+                                roomId = FirestoreIdGenerator.generate(),
                                 joined = emptyList(),
                                 mode = FeedMode.CAMPUS,
                                 campusId = profile.campus.campusCode,

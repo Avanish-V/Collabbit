@@ -1,12 +1,11 @@
 package com.iota.campusX.Screens.Post.PostMenuActions
 
-import android.util.Log
+import com.iota.campusX.Feature.Post.domain.repository.PostRepository
 import com.iota.campusX.Feature.Reply.ReplyRepository
 import com.iota.campusX.Feature.Report.domain.ReportRepository
 import com.iota.campusX.Screens.Post.DataModel.ContentId
-import com.iota.campusX.Screens.Post.DataModel.ContentType
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
-import com.iota.campusX.Screens.Post.PostManupulation.PostRepository
+import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
 import com.iota.campusX.ui.UIComponents.ReportReason
 import kotlinx.coroutines.delay
 
@@ -18,7 +17,7 @@ interface PostMenuRepository {
 class FakePostMenuRepository (
     private val postRepository: PostRepository,
     private val replyRepository: ReplyRepository,
-    private val reportRepository: ReportRepository
+    private val reportRepository: ReportRepository,
 ): PostMenuRepository {
 
     override suspend fun getMenuOptions(content: FeedContent): List<MenuAction> {
@@ -37,7 +36,7 @@ class FakePostMenuRepository (
 
                   when(val id = content.id){
                       is ContentId.Post -> {
-                          return postRepository.deletePost(postId = id.postId)
+                           postRepository.deletePost(postId = id.postId)
                       }
                       is ContentId.Reply -> {
                           return replyRepository.deleteReply(replyId = id.replyId, postId = id.postId)
@@ -49,7 +48,7 @@ class FakePostMenuRepository (
 
                     when(val id = content.id){
                         is ContentId.Post -> {
-                           return postRepository.editPost(postId = id.postId, newText = content.text)
+                           postRepository.editPost(postId = id.postId, newText = content.text)
                         }
                         is ContentId.Reply -> {
                             return replyRepository.editReply(replyId = id.replyId, postId = id.postId,content = content.text)

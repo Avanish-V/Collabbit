@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,7 +56,7 @@ fun OnBoardingScreen(pagerState: PagerState,onboardingContent:List<OnBoardingCon
             Image(
                 modifier = Modifier.size(300.dp),
                 painter = painterResource(id = onboardingContent[currentPage].image),
-                contentDescription = ""
+                contentDescription = "",
             )
 
 

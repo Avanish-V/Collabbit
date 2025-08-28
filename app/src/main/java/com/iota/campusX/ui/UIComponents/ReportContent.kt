@@ -36,7 +36,7 @@ fun ReportContent(
 
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)){
                         Divider()
-                        Text(text = "CampusX protects your identity",style = MaterialTheme.typography.titleMedium)
+                        Text(text = "CampusCircle protects your identity",style = MaterialTheme.typography.titleMedium)
                         Text(text = "When reporting a post, your identity remains confidential. Your concerns are addressed without revealing your name or information to ensure anonymity" +
                                 "and maintain privacy throughout the process.",
                             style = MaterialTheme.typography.bodyMedium,

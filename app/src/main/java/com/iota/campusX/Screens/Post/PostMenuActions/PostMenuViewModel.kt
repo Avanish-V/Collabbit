@@ -3,8 +3,7 @@ package com.iota.campusX.Screens.Post.PostMenuActions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
-import com.iota.campusX.Screens.Post.PostManupulation.AppUserPostViewModel
-import com.iota.campusX.Screens.Post.PostManupulation.PostFeedViewModel
+import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.ReportReason
 import kotlinx.coroutines.flow.MutableSharedFlow

@@ -1,16 +1,14 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
-import android.net.Uri
-import com.iota.campusX.Feature.Post.data.model.CreatePostDTO
-import com.iota.campusX.Feature.Post.domain.PostRepository
+import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
 import com.iota.campusX.Feature.Post.presentation.UploadState
+import com.iota.campusX.Screens.Post.PostType
 import kotlinx.coroutines.flow.Flow
 
-class CreatePostUseCase(private val repository: PostRepository) {
+class CreatePostUseCase(private val repository: PostRepositoryInterface) {
     suspend operator fun invoke(
-        dto: CreatePostDTO,
-        imageUri: Uri?
+        postType: PostType
     ): Flow<UploadState> {
-        return repository.createPost(dto, imageUri)
+        return repository.createPost(postType)
     }
 }

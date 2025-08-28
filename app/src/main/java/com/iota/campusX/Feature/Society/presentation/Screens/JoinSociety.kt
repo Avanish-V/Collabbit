@@ -2,6 +2,7 @@ package com.iota.campusX.Feature.Society.presentation.Screens
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,10 +18,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.platform.LocalContext
@@ -44,6 +48,8 @@ import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
+import com.iota.campusX.ui.theme.Light_Background_Red
+import com.iota.campusX.ui.theme.Red
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -53,20 +59,20 @@ import org.koin.compose.koinInject
 fun JoinSocietyScreen(
     navController: NavHostController,
     userProfileViewModel: UserProfileViewModel,
-    societyViewModel: SocietyViewModel = koinInject(),
+    societyViewModel: SocietyViewModel,
     streamViewModel: StreamViewModel = koinInject()
 ) {
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackBarHostState = remember { SnackbarHostState() }
 
     // States
-    val userProfileState by userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle()
+    val userData = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
     val joiningRequests by societyViewModel.joinRequests.collectAsStateWithLifecycle()
     val audioRoomState by streamViewModel.audioRoomState.collectAsStateWithLifecycle()
     val askToSpeak by societyViewModel.askToSpeak.collectAsStateWithLifecycle()
     val microphone by societyViewModel.microphone.collectAsStateWithLifecycle()
 
-    val userData = (userProfileState as? UiState.Success)?.data
+
     val roomId = navController.currentBackStackEntry?.savedStateHandle?.get<String>("ROOM_ID")
     val createdBy = navController.currentBackStackEntry?.savedStateHandle?.get<String>("CREATOR_ID")
     val isHost = userData?.id == createdBy
@@ -77,22 +83,27 @@ fun JoinSocietyScreen(
         }
     }
 
+    LaunchedEffect(joiningRequests) {
+        Log.d("JOINING_REQUESTS",joiningRequests.toString())
+    }
+
     // 🔑 Microphone Permission
     LaunchMicrophonePermission {
-        if (userData != null && !createdBy.isNullOrEmpty() && !roomId.isNullOrEmpty()) {
+        streamViewModel.initializeAgora(context)
+        societyViewModel.startListeningJoinRequests(
+            roomId = roomId.orEmpty(),
+            feedMode = FeedMode.GLOBAL,
+            campusId = null
+        )
+        roomId?.let {
             societyViewModel.sendJoinRequest(
-                roomId = roomId,
+                roomId = it,
                 role = if (isHost) "host" else "user",
                 status = if (isHost) Status.STAGE_UP else Status.IDLE,
                 feedMode = FeedMode.GLOBAL,
                 campusId = null
             )
         }
-    }
-
-    // Agora Init
-    LaunchedEffect(Unit) {
-        streamViewModel.initializeAgora(context)
     }
 
     // Handle Stage Status
@@ -118,14 +129,18 @@ fun JoinSocietyScreen(
     // Microphone toggle from backend state
     LaunchedEffect(joinRequest?.microphone) {
         if (joinRequest?.status == Status.STAGE_UP) {
-            streamViewModel.muteLocalAudioStream(!(joinRequest?.microphone ?: false))
+            streamViewModel.muteLocalAudioStream(joinRequest?.microphone?:false)
+        }
+        else{
+            streamViewModel.muteAudio(true)
+            streamViewModel.muteLocalAudioStream(true)
         }
     }
 
     // Microphone error handling
     LaunchedEffect(microphone) {
         if (microphone is UiState.Error) {
-            snackbarHostState.showSnackbar((microphone as UiState.Error).message)
+            snackBarHostState.showSnackbar((microphone as UiState.Error).message)
         }
     }
 
@@ -179,8 +194,9 @@ fun JoinSocietyScreen(
         navController = navController,
         userData = userData,
         joiningRequests = joiningRequests,
+        joiningRequest = joinRequest,
         isMicrophoneEnabled = joinRequest?.microphone ?: false,
-        snackbarHostState = snackbarHostState,
+        snackBarHostState = snackBarHostState,
         roomId = roomId,
         createdBy = createdBy,
         societyViewModel = societyViewModel,
@@ -195,9 +211,10 @@ fun JoinSocietyScreen(
 fun JoinSocietyContent(
     navController: NavHostController,
     userData: BaseProfileDTO?,
+    joiningRequest: GetJoinRequestDTO?,
     joiningRequests: List<GetJoinRequestDTO>,
     isMicrophoneEnabled: Boolean,
-    snackbarHostState: SnackbarHostState,
+    snackBarHostState: SnackbarHostState,
     roomId: String?,
     createdBy: String?,
     societyViewModel: SocietyViewModel,
@@ -240,11 +257,14 @@ fun JoinSocietyContent(
                             )
                         }
                     )
-                } else {
+                }
+                else{
+
                     val status = joiningRequests.find { it.requestId == userData?.id }?.status
                     ParticipantControlUI(
                         isMicrophoneVisible = status == Status.STAGE_UP,
                         isMicrophoneEnabled = isMicrophoneEnabled,
+                        isHandRaise = joiningRequest?.raiseHand ?: false,
                         enableMicrophone = {
                             societyViewModel.isMicrophone(
                                 roomId = roomId.orEmpty(),
@@ -258,7 +278,7 @@ fun JoinSocietyContent(
                             if (!roomId.isNullOrBlank()) {
                                 societyViewModel.askToSpeak(
                                     roomId = roomId,
-                                    isRaiseHand = it,
+                                    isRaiseHand = !it,
                                     requestId = currentUserId,
                                     feedMode = FeedMode.GLOBAL,
                                     campusId = null
@@ -270,10 +290,12 @@ fun JoinSocietyContent(
                         },
                         askToSpeak = askToSpeakState
                     )
+
                 }
+
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackBarHostState) },
     ) { paddingValues ->
         LazyVerticalGrid(
             modifier = Modifier
@@ -369,8 +391,8 @@ fun StageDownParticipantItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(6.dp)
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                shape = MaterialTheme.shapes.small
             )
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -382,12 +404,12 @@ fun StageDownParticipantItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             CircleImage(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(42.dp),
                 image = request.userImage,
                 onClick = {},
                 visibility = VisibilityMode.USER
             )
-            Text(request.userName)
+            Text(request.userName, style = MaterialTheme.typography.titleSmall)
         }
 
 
@@ -397,7 +419,7 @@ fun StageDownParticipantItem(
                     .padding(end = 12.dp)
                     .size(20.dp),
                 painter = painterResource(R.drawable.hand_paper__1_),
-//                tint = Yellow,
+                tint = com.iota.campusX.ui.theme.Yellow,
                 contentDescription = "Raised Hand"
             )
         }
@@ -443,19 +465,32 @@ fun ParticipantControlUI(
     modifier: Modifier = Modifier,
     enableMicrophone: (Boolean) -> Unit,
     isMicrophoneEnabled: Boolean,
+    isHandRaise: Boolean,
     isMicrophoneVisible: Boolean,
     onLeaveClick: () -> Unit,
     onRaiseHandClick: (Boolean) -> Unit,
     askToSpeak: UiState<Unit>
 ) {
-    var isRaiseHand by remember { mutableStateOf(false) }
+
 
     Row(modifier = modifier.fillMaxWidth()) {
 
         // Leave Button
         Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.Center) {
-            TextButton(onClick = onLeaveClick) {
-                Text("Leave", color = Color.Red)
+            TextButton(
+                onClick = onLeaveClick,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Red,
+                    containerColor = Light_Background_Red
+                )
+            ) {
+                Icon(
+                    modifier = Modifier.rotate(180f),
+                    imageVector = Icons.Default.ExitToApp,
+                    contentDescription = "Exit"
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Leave",)
             }
         }
 
@@ -463,28 +498,22 @@ fun ParticipantControlUI(
         Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.Center) {
             Button(
                 onClick = {
-                    isRaiseHand = !isRaiseHand
-                    onRaiseHandClick(isRaiseHand)
+                    onRaiseHandClick(isHandRaise)
                 }
             ) {
-                when (askToSpeak) {
-                    is UiState.Loading -> CircularLoading()
-                    is UiState.Success<*> -> {
-                        Icon(
-                            modifier = Modifier.size(20.dp),
-                            painter = painterResource(R.drawable.hand_paper),
-                            contentDescription = null
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Raise hand",
-                            style = MaterialTheme.typography.bodyMedium,
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1
-                        )
-                    }
-                    else -> Unit
-                }
+                Icon(
+                    modifier = Modifier.size(20.dp),
+                    painter = painterResource(R.drawable.hand_paper),
+                    contentDescription = null,
+
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "Raise",
+                    style = MaterialTheme.typography.bodyMedium,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1
+                )
             }
         }
 
@@ -494,8 +523,7 @@ fun ParticipantControlUI(
                 IconButton(
                     onClick = { enableMicrophone(!isMicrophoneEnabled) },
                     colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (isMicrophoneEnabled) MaterialTheme.colorScheme.primary else Color.Red,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
                     )
                 ) {
                     Icon(
@@ -512,7 +540,6 @@ fun ParticipantControlUI(
         }
     }
 }
-
 
 
 
@@ -583,7 +610,7 @@ fun ParticipantAvatar(
         Column(
             modifier = modifier
                 .background(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
                     shape = RoundedCornerShape(6.dp)
                 ).fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -654,7 +681,7 @@ fun ParticipantAvatar(
                         .size(24.dp)
                         .padding(3.dp),
                     painter = painterResource(id = R.drawable.hand_paper__1_),
-                    tint = Yellow,
+                    tint = Color.Yellow,
                     contentDescription = null
                 )
             }

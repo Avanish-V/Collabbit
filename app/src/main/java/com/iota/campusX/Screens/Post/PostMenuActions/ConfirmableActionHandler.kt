@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.iota.campusX.Feature.Report.presentation.ReportViewModel
+import com.iota.campusX.Screens.Post.DataModel.ContentId
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.ReportContent
@@ -59,17 +60,22 @@ fun ActionHandler(
 
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("Edit Post") },
+                title = {
+                    when(content.id){
+                       is ContentId.Post -> Text("Edit Post")
+                       is ContentId.Reply -> Text("Edit Comment")
+                    }
+                },
                 text = {
                     OutlinedTextField(
                         value = text,
                         onValueChange = { text = it },
-                        label = { Text("Edit your post") }
+                        label = { Text("Edit your post") },
+                        maxLines = 6
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        // you could pass updated text to repo here
                         viewModel.onActionSelected(action, FeedContent(content.id, text, isOwner = content.isOwner, type = content.type))
                         onDismiss()
                         postMenuState.close()
@@ -78,7 +84,8 @@ fun ActionHandler(
                 dismissButton = {
                     TextButton(onClick = onDismiss) { Text("Cancel") }
                 },
-                shape = MaterialTheme.shapes.small
+                shape = MaterialTheme.shapes.small,
+                containerColor = MaterialTheme.colorScheme.surface
             )
         }
         MenuAction.Report -> {

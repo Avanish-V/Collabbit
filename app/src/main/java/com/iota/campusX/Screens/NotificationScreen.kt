@@ -279,6 +279,7 @@ fun NotificationItem(
             contentAlignment = Alignment.BottomEnd
         ){
 
+
             CircleImage(
                 image = notificationDTO.userDetail.userImage,
                 modifier = Modifier
@@ -383,9 +384,10 @@ fun NotificationItem(
                 NotificationType.LIKE -> {
                     Row(
                         modifier = Modifier.background(
-                            color = MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(5.dp)
-                        ).padding(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                            shape = MaterialTheme.shapes.small
+
+                        ).padding(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -393,7 +395,6 @@ fun NotificationItem(
                         if (notificationDTO.content.image.isNullOrEmpty() && notificationDTO.content.text.isNullOrEmpty()){
 
                             Text(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                 text = "Content unavailable",
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
@@ -404,17 +405,17 @@ fun NotificationItem(
                         }
                         else{
 
-                            AsyncImage(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(6.dp)),
-                                model = notificationDTO.content.image,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                            )
+                            notificationDTO.content.image?.let {
+                                AsyncImage(
+                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
+                                    model = notificationDTO.content.image,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
 
                             Text(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp),
                                 text = notificationDTO.content.text.toString(),
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
@@ -432,7 +433,8 @@ fun NotificationItem(
 
                         Text(
                             modifier = Modifier.background(
-                                color = MaterialTheme.colorScheme.surface,
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                                shape = MaterialTheme.shapes.small
                             ).padding(6.dp),
                             text = "Content unavailable",
                             style = MaterialTheme.typography.bodyMedium,
@@ -444,6 +446,7 @@ fun NotificationItem(
                         Text(
                             modifier = Modifier.background(
                                 color = MaterialTheme.colorScheme.surface,
+                                shape = MaterialTheme.shapes.small
                             ).padding(6.dp),
                             text = " ${notificationDTO.content.text}",
                             style = MaterialTheme.typography.bodyMedium
@@ -468,7 +471,9 @@ fun NotificationItem(
                         ) {
                             when(acceptState){
                                 is UiState.Loading -> {
-                                    CircularLoading()
+                                    CircularLoading(
+                                        color = Color.White
+                                    )
                                 }
                                 is UiState.Success->{
                                     Text("Accepted")
@@ -501,7 +506,9 @@ fun NotificationItem(
                         ) {
                             when(rejectState){
                                 is UiState.Loading -> {
-                                    CircularLoading()
+                                    CircularLoading(
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
                                 }
                                 is UiState.Success->{
                                     notificationViewModel.deleteNotification(notificationDTO.notificationId)

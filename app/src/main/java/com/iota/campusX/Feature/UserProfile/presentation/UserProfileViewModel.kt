@@ -10,6 +10,7 @@ import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -27,12 +28,14 @@ import kotlinx.coroutines.launch
 
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewModel() {
+class UserProfileViewModel(
+    private val userProfileRepo: UserProfileRepo,
+    private val userProfileRepository: UserProfileRepository
+):ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
 
-    private val _userBaseProfile = MutableStateFlow<UiState<BaseProfileDTO>>(UiState.Idle)
-    val userBaseProfile: StateFlow<UiState<BaseProfileDTO>> = _userBaseProfile.asStateFlow()
+    val userBaseProfile: StateFlow<BaseProfileDTO?> = userProfileRepository.currentUser
 
     private val _profileById = MutableStateFlow<UiState<BaseProfileDTO>>(UiState.Idle)
     val profileById: StateFlow<UiState<BaseProfileDTO>> = _profileById.asStateFlow()
@@ -62,27 +65,8 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     val modifyState: StateFlow<UiState<Unit>> = _modifyState.asStateFlow()
 
 
-    fun getUserProfile() {
+    fun getUserProfile() = viewModelScope.launch { userProfileRepository.loadCurrentUser() }
 
-      //  if (userBaseProfile.value is UiState.Success && (userBaseProfile.value as UiState.Success).data.id.isNotEmpty()) return
-
-        viewModelScope.launch {
-
-            _userBaseProfile.value = UiState.Loading
-
-            val result = userProfileRepo.getBaseProfile()
-
-           _userBaseProfile.value = result.fold(
-                onSuccess = {profileData->
-                    UiState.Success(profileData)
-                    //_currentUserProfile.value = UiState.Success((currentUserProfile.value as UiState.Success).data.copy(basicProfileDTO = profileData))
-                },
-                onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-            )
-
-        }
-
-    }
 
     fun getUserById(userId: String) {
         viewModelScope.launch {
@@ -137,7 +121,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         _modifyState.value = userProfileRepo.updateUserName(userName).fold(
             onSuccess = {
                 UiState.Success(Unit).also {
-                    updateNameLocally(userName)
+                    userProfileRepository.updateNameLocally(userName)
                 }
             },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
@@ -149,19 +133,22 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     fun modifyAbout(about: String) = viewModelScope.launch {
         _modifyState.value = UiState.Loading
         _modifyState.value = userProfileRepo.updateAbout(about).fold(
-            onSuccess = { UiState.Success(Unit).also { updateAboutLocally(about) } },
+            onSuccess = { UiState.Success(Unit).also {  userProfileRepository.updateAboutLocally(about) } },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
         resetModifyState()
     }
 
     fun modifyGender(gender: Gender) = viewModelScope.launch {
+
         _modifyState.value = UiState.Loading
 
         _modifyState.value = userProfileRepo.updateGender(gender).fold(
-            onSuccess = { UiState.Success(Unit).also { updateGenderLocally(gender) } },
+            onSuccess = { UiState.Success(Unit).also {  userProfileRepository.updateGenderLocally(gender) } },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
+
+        resetModifyState()
     }
 
     fun modifySocialAccount(social: String) = viewModelScope.launch {
@@ -177,7 +164,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         _modifyState.value = UiState.Loading
 
         _modifyState.value = userProfileRepo.updateInterests(interests).fold(
-            onSuccess = { UiState.Success(Unit).also({ updateInterestLocally(interests) }) },
+            onSuccess = { UiState.Success(Unit).also({  userProfileRepository.updateInterestLocally(interests) }) },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
         resetModifyState()
@@ -189,9 +176,11 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         _modifyState.value = UiState.Loading
 
         _modifyState.value = userProfileRepo.updateCampus(campus).fold(
-            onSuccess = { UiState.Success(Unit).also{ updateCampusLocally(campus) } },
+            onSuccess = {
+                userProfileRepository.updateCampusLocally(campus)
+                UiState.Success(Unit)
+            },
             onFailure = {
-
                 UiState.Error(it.message ?: "Something went wrong")
             }
         )
@@ -205,7 +194,7 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         _modifyState.value = userProfileRepo.updateProfileImage(imageUri).fold(
             onSuccess = {
                 UiState.Success(Unit).apply {
-                   updateImageLocally(imageUri)
+                    userProfileRepository.updateImageLocally(imageUri)
                 }
             },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
@@ -249,10 +238,24 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
         resetModifyState()
     }
 
-    suspend fun deleteUserProfile() = userProfileRepo.deleteAccount()
+    suspend fun deleteUserProfile() {
+
+       viewModelScope.launch {
+           _modifyState.value = UiState.Loading
+           val result = userProfileRepo.deleteAccount()
+           _modifyState.value = result.fold(
+               onSuccess = {
+                   Log.d("UserProfileViewModel", "deleteUserProfile() called")
+                   UiState.Success(Unit)
+                },
+               onFailure = { UiState.Error(it.message ?: "Something went wrong") }
+           )
+       }
+
+    }
 
     suspend fun resetModifyState(){
-        delay(500)
+        delay(2000)
         _modifyState.value = UiState.Idle
     }
 
@@ -281,33 +284,10 @@ class UserProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewMod
     }
 
 
-    fun updateNameLocally(name:String) {
-        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(userName = name))
-    }
-
-    fun updateAboutLocally(about:String) {
-        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(userBio = about))
-    }
-
-    fun updateGenderLocally(gender:Gender) {
-        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(userGender = gender))
-    }
-
-    fun updateInterestLocally(interests: List<String>){
-        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(interests = interests))
-    }
-
-    fun updateCampusLocally(campus: Campus){
-        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(campus = campus))
-    }
-
-    fun updateImageLocally(imageUri: Uri){
-        _userBaseProfile.value = UiState.Success((userBaseProfile.value as UiState.Success).data.copy(userImage = imageUri.toString()))
-    }
-
     fun resetUniversityData() {
         _universityData.value = UiState.Idle
     }
+
     fun removeConnectionFromList(userId: String){
         if (connections.value is UiState.Idle || connections.value is UiState.Loading) return
         _connections.value = UiState.Success((connections.value as UiState.Success).data.filter { it.user.id != userId })

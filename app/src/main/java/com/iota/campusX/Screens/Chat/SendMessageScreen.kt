@@ -36,16 +36,11 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -61,15 +56,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Green
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -84,27 +76,20 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
-import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.ServerValue
 import com.iota.campusX.Feature.Chats.data.ChatMessage
+import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Utils.FirestoreIdGenerator
 import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.Divider
-import com.iota.campusX.ui.theme.LightTheme_Gray
-//import com.iota.campusX.ui.theme.Green
-import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.White
-//import com.iota.campusX.ui.theme.secondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -223,7 +208,7 @@ fun SendMessageScreen(
 
                             if (messageText.isBlank()) return@FilledIconButton
 
-                            val messageId = generateUID()
+                            val messageId = FirestoreIdGenerator.generate()
                             val serverTime = ServerValue.TIMESTAMP
                             val localTime = System.currentTimeMillis()
                             val message = messageText

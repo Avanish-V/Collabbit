@@ -126,15 +126,16 @@ fun ProfileHeader(
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             fallback = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
+                            placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
 
                         )
 
                         user?.let {
                             if (it.metaData.verified){
                                 Icon(
-                                    modifier = Modifier.size(20.dp)
-                                        .offset(x = 8.dp,y = -4.dp),
-                                    painter = painterResource(R.drawable.check_circle),
+                                    modifier = Modifier.size(24.dp)
+                                        .offset(x = 12.dp,y = -10.dp),
+                                    painter = painterResource(R.drawable.baseline_verified_24),
                                     contentDescription = "verified",
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -162,7 +163,10 @@ fun ProfileHeader(
         ) {
             when(connectionsCountState){
                 is UiState.Loading->{
-                    CircularLoading()
+                    CircularLoading(
+                        color = Color
+                            .White
+                    )
                 }
                 is UiState.Success -> {
                     val connectionsCount = connectionsCountState.data
@@ -215,7 +219,9 @@ fun ProfileAction(
                 }
 
                 is UiState.Loading -> {
-                    CircularLoading()
+                    CircularLoading(
+                        color = Color.White
+                    )
                 }
 
                 is UiState.Error -> {
@@ -293,7 +299,7 @@ fun EmptyState(
     isAppUser: Boolean
 ) {
 
-    val color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+    val color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
 
 
     Box(
@@ -302,7 +308,7 @@ fun EmptyState(
             .fillMaxWidth()
             .height(56.dp)
             .background(
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                color = MaterialTheme.colorScheme.secondaryContainer,
                 shape = RoundedCornerShape(8.dp)
             )
             .drawBehind(
@@ -450,7 +456,6 @@ fun AppTabRow(pagerState: PagerState,tabList: List<String> = emptyList()) {
                     matchContentSize = false
                 ),
                 width = 48.dp,
-                color = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
             )
         },
@@ -458,7 +463,7 @@ fun AppTabRow(pagerState: PagerState,tabList: List<String> = emptyList()) {
        tabList.forEachIndexed { index, title ->
             Tab(
                 text = {
-                    Text(text = title)
+                    Text(text = title, color = MaterialTheme.colorScheme.onBackground)
                 },
                 selected = pagerState.currentPage == index,
                 onClick = { scope.launch { pagerState.animateScrollToPage(index) } },

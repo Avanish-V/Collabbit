@@ -90,7 +90,9 @@ class UserProfileImpl(
 
     override suspend fun deleteAccount(): Result<Boolean> {
         return try {
+            Log.d("UserProfileViewModel", "deleteUserProfile() init")
             auth.currentUser?.delete()?.await()
+            Log.d("UserProfileViewModel", "deleteUserProfile() init1")
             Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)

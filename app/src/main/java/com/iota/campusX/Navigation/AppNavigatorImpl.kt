@@ -12,6 +12,12 @@ class AppNavigatorImpl(
         }
     }
 
+    override fun navigateToViewPostVisualContent(imageUrl: String?) {
+        navController.navigate(Routes.Main.PostViewScreen.routes).apply {
+            navController.currentBackStackEntry?.savedStateHandle?.set("POST_IMAGE", imageUrl)
+        }
+    }
+
     override fun navigateToPostDetail(postId: String) {
         navController.navigate(Routes.Main.ReplyPost.routes).apply {
             navController.currentBackStackEntry?.savedStateHandle?.set("POST_ID", postId)

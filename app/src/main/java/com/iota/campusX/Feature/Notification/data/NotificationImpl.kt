@@ -8,6 +8,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.toObject
 import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.Feature.Chats.data.ID
 import com.iota.campusX.Feature.Notification.domain.CommentPayload
@@ -22,7 +23,6 @@ import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.data.model.CreateReplyDTO
 import com.iota.campusX.Feature.Post.data.model.PostContent
-import com.iota.campusX.Feature.Post.data.model.PostData
 import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Utils.ResultState
@@ -114,24 +114,15 @@ class NotificationImpl(
                                         .get()
                                         .await()
 
-                                    val postContentMap = snapshot.get("postContent") as? Map<*, *> ?: return@async null
-                                    val postTypeStr = postContentMap["postType"] as? String ?: "TEXT"
-                                    val postType = runCatching { PostOptions.valueOf(postTypeStr) }.getOrDefault(PostOptions.TEXT)
-
-                                    val postDataMap = postContentMap["postData"] as? Map<*, *> ?: emptyMap<Any, Any>()
-                                    val postText = postDataMap["postText"] as? String ?: ""
-                                    val postImage = postDataMap["postImage"] as? String
+                                    val postText = snapshot["postText"] as? String ?: ""
+                                    val postImage = snapshot["image"] as? String
 
                                     PostContent(
-                                        postType = postType,
-                                        postData = PostData(
-                                            postText = postText,
-                                            postImage = postImage,
-                                            poll = null
-                                        )
+                                        postText = postText,
+                                        postImage = postImage,
+                                        poll = null
                                     )
                                 } catch (e: Exception) {
-                                    Log.e("NotificationImpl", "Failed to fetch liked post: ${e.message}")
                                     null
                                 }
                             } else null
@@ -158,8 +149,8 @@ class NotificationImpl(
 
                             NotificationType.LIKE -> {
                                 Content(
-                                    text = post?.postData?.postText,
-                                    image = post?.postData?.postImage
+                                    text = post?.postText,
+                                    image = post?.postImage
                                 )
                             }
 

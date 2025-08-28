@@ -7,7 +7,12 @@ data class PollOption(
     val optionId: String = "",
     val text: String = "",
     val label: String = "",
-    var votes: List<String> = emptyList()
+)
+
+@Serializable
+data class Vote(
+    val userId: String = "",
+    val optionId: String = ""
 )
 
 
@@ -15,6 +20,9 @@ data class PollOption(
 data class Poll(
     val id: String = "",
     val question: String = "",
-    var options: List<PollOption>? = emptyList(),
-    var hasVoted: Boolean = false
+    var options: List<PollOption> = emptyList(),
+    var hasVoted: Boolean = false,
+    var votes: List<Vote> = emptyList(),
+    val isActive: Boolean = true,
+
 )

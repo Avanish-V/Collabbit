@@ -77,7 +77,6 @@ import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
 import com.iota.campusX.Feature.Post.data.model.PostContent
-import com.iota.campusX.Feature.Post.data.model.PostData
 import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Reply.ReplyViewModel
@@ -91,16 +90,17 @@ import com.iota.campusX.Screens.Post.DataModel.ContentType
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Screens.Post.PostActions.PostAction
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
-import com.iota.campusX.Screens.Post.PostManupulation.PostFeedViewModel
+import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Screens.Post.VisibilityModeChanger
+import com.iota.campusX.Utils.FirestoreIdGenerator
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
-import com.iota.campusX.Utils.generateUID
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AnimatedLikeButton
+import com.iota.campusX.ui.UIComponents.AnonymousImage
 import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
@@ -137,7 +137,7 @@ fun PostReplyScreen(
     val consentBottomSheet = remember { mutableStateOf(false) }
 
 
-    val userProfileState = profileViewModel.userBaseProfile.collectAsState().value
+    val userProfile = profileViewModel.userBaseProfile.collectAsState().value
     val postRepliesState = replyViewModel.postReplies.collectAsState().value
 
 
@@ -151,11 +151,6 @@ fun PostReplyScreen(
     val singlePost = postViewModel.singlePost.collectAsState().value
 
     val mode = homeViewModel.mode.collectAsState().value
-
-    val userProfile = when (userProfileState) {
-        is UiState.Success -> userProfileState.data
-        else -> null // Or handle accordingly
-    }
 
 
     val keyboard = LocalSoftwareKeyboardController.current
@@ -290,7 +285,7 @@ fun PostReplyScreen(
                     onSubmitClick = {
                         if (replyText.isNotEmpty()) {
 
-                            val docID = generateUID()
+                            val docID = FirestoreIdGenerator.generate()
 
                             scope.launch {
 
@@ -370,7 +365,7 @@ fun PostReplyScreen(
                     postData?.let {
                         item {
                             PostCard(
-                                post = postData ?: GetPostDTO(),
+                                post = postData ?: null,
                                 handlers = {
                                     postActionsViewModel.onAction(it)
                                 },
@@ -379,7 +374,7 @@ fun PostReplyScreen(
                                         postMenuState.open(
                                             FeedContent(
                                                 id = ContentId.Post(postId = data.postId),
-                                                text = data.postContent.postData.postText,
+                                                text = data.postContent.postText,
                                                 isOwner = data.creatorDetail.isCurrentUser,
                                                 type = ContentType.POST
                                             )
@@ -588,9 +583,6 @@ fun DragTopButton(
 }
 
 
-enum class PostType { USER, ANONYMOUS }
-
-
 
 @Composable
 fun ReplyWidget(
@@ -610,18 +602,33 @@ fun ReplyWidget(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
-            CircleImage(
-                image = repliesDTO.creatorDetail.profile?.userImage ?: "",
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape),
-                onClick = {
-                    if (repliesDTO.visibility == VisibilityMode.USER) {
-                       handler.invoke(PostAction.OpenUserProfile(userId = repliesDTO.creatorDetail.profile?.id ?: "", isCurrentUser = repliesDTO.creatorDetail.isCurrentUser))
-                    }
-                },
-                visibility = repliesDTO.visibility
-            )
+            if (repliesDTO.visibility == VisibilityMode.USER){
+
+                CircleImage(
+                    image = repliesDTO.creatorDetail.profile?.userImage ?: "",
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape),
+                    onClick = {
+                        if (repliesDTO.visibility == VisibilityMode.USER) {
+                            handler.invoke(PostAction.OpenUserProfile(
+                                userId = repliesDTO.creatorDetail.profile?.id ?: "",
+                                isCurrentUser = repliesDTO.creatorDetail.isCurrentUser
+                            )
+                         )
+                        }
+                    },
+                    visibility = repliesDTO.visibility
+                )
+
+            }
+            else{
+                AnonymousImage(
+                    modifier = Modifier.size(42.dp)
+                )
+            }
+
+
 
             Column {
 
@@ -630,18 +637,9 @@ fun ReplyWidget(
                     postedAt = getTimeAgo(repliesDTO.repliedAt)
                 )
 
-                PostBody(
-                    postContent = PostContent(
-                        postType = PostOptions.TEXT,
-                        postData = PostData(
-                            postText = repliesDTO.content
-                        )
-                    ),
-                    onPollSelect = { },
-                    onPostImageClick = {},
-                    onBodyClick = {
-
-                    },
+                Text(
+                    text = repliesDTO.content,
+                    style = MaterialTheme.typography.bodyLarge
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -759,7 +757,9 @@ fun BottomTextInput(
                 }
             ) {
                 if (isLoading) {
-                    CircularLoading()
+                    CircularLoading(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 } else {
                     Icon(
                         modifier = Modifier.size(22.dp),

@@ -1,6 +1,7 @@
 package com.iota.campusX.ui.theme
 import android.app.Activity
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.iota.campusX.Screens.Setting.ThemeMode
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -259,28 +261,32 @@ val unspecified_scheme = ColorFamily(
 
 @Composable
 fun AppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    themeMode: ThemeMode = ThemeMode.LIGHT,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+    val darkTheme = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        themeMode == ThemeMode.LIGHT && dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            dynamicLightColorScheme(context)
         }
         darkTheme -> darkScheme
         else -> lightScheme
     }
 
+    // Apply system UI colors safely
     val view = LocalView.current
-    if (!view.isInEditMode) {
+    if (!view.isInEditMode && context is Activity) {
         SideEffect {
-            val window = (view.context as Activity).window
-            // 👇 Set status bar color
+            val window = context.window
             window.statusBarColor = colorScheme.background.toArgb()
-
-            // 👇 Control status bar icon brightness
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view)
+                .isAppearanceLightStatusBars = !darkTheme
         }
     }
 
@@ -290,4 +296,5 @@ fun AppTheme(
         content = content
     )
 }
+
 

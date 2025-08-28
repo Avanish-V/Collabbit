@@ -1,14 +1,20 @@
 package com.iota.campusX.Screens.Home
 
+//import com.iota.campusX.ui.theme.DarkTheme_Black
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,6 +26,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,16 +39,36 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-//import com.iota.campusX.ui.theme.DarkTheme_Black
+import com.iota.campusX.Screens.Post.DataModel.ContentId
+import com.iota.campusX.Screens.Post.DataModel.ContentType
+import com.iota.campusX.Screens.Post.DataModel.FeedContent
+import com.iota.campusX.Screens.Post.PostActions.PostAction
+import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
+import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
+import com.iota.campusX.Screens.Post.SharedVisualContentViewModel
+import com.iota.campusX.Utils.getTimeAgo
+import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.PostActionsComponent
+import com.iota.campusX.ui.UIComponents.PostHeader
+import com.iota.campusX.ui.UIComponents.toMillis
 import io.ktor.websocket.Frame.Text
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostViewScreen(navHostController: NavHostController) {
+
+    val postMenuState: PostMenuState = koinInject()
+    val postActionViewModel: PostActionViewModel = koinInject()
+    val sharedVisualContentViewModel: SharedVisualContentViewModel = koinInject()
     val postImage = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("POST_IMAGE")
+    val post = sharedVisualContentViewModel.post.collectAsState()
+
+
 
     Scaffold(
         topBar = {
@@ -58,24 +86,81 @@ fun PostViewScreen(navHostController: NavHostController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-//                    containerColor = DarkTheme_Black
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
         bottomBar = {
 
         },
-//        containerColor = DarkTheme_Black
     ) { padding->
 
-        Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center){
+        Column (modifier = Modifier.padding(padding)){
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center){
+                ZoomableImage(
+                    image = post.value?.postContent?.postImage.toString()
+                )
+            }
+            Column (modifier = Modifier.padding(24.dp)){
 
-            ZoomableImage(
-               image = postImage.toString()
-            )
+                post.value?.let {
+
+                    Row (
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ){
+                        CircleImage(
+                            modifier = Modifier.size(48.dp),
+                            image = it.creatorDetail.profile?.userImage ?: "",
+                            onClick = {},
+                            visibility = it.visibilityMode
+                        )
+
+                        PostHeader(
+                            user = it.creatorDetail,
+                            pod = null,
+                            postedAt = getTimeAgo(it.createdAt.toMillis()),
+                            visibilityMode = it.visibilityMode,
+                            isCurrentUser = it.creatorDetail.isCurrentUser,
+                            feedMode = it.feedMode
+                        )
+                    }
+
+                    Text(text = it.postContent.postText)
+
+//                    PostActionsComponent(
+//                        postAction = it.postActions,
+//                        user = it.creatorDetail.profile,
+//                        onLikeClick = {
+//                            postActionViewModel.onAction(
+//                                PostAction.Like(
+//                                    isLiked = it.postActions.isLiked,
+//                                    contentId = ContentId.Post(postId = it.postId),
+//                                    userId = it.creatorDetail.profile?.id ?: ""
+//                                ),
+//                            )
+//                        },
+//                        onReplyClick = {
+//                            navHostController.popBackStack()
+//                        },
+//                        onDotMenuClick = {
+//                            postMenuState.open(
+//                                content = FeedContent(
+//                                    id = ContentId.Post(postId = it.postId),
+//                                    text = it.postContent.postData.postText,
+//                                    isOwner = it.creatorDetail.isCurrentUser,
+//                                    type = ContentType.POST
+//
+//                                )
+//                            )
+//                        }
+//                    )
+
+
+                }
+            }
 
         }
-
 
     }
 

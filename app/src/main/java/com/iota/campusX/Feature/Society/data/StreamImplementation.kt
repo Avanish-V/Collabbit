@@ -22,21 +22,20 @@ class StreamImplementation : StreamRepository {
 
     override fun initialize(baseContext:Context): Flow<State> = callbackFlow{
 
-        Log.d("AgoraRepoImpl", "Executed")
+
         if (mRtcEngine != null) {
-            Log.d("AgoraRepoImpl", "RtcEngine already initialized")
 
         }
         val myAppId = "8be7292d7bb44b46b541bc72316ebc5a"
 
         val iRtcEngineEventHandler = object : IRtcEngineEventHandler() {
             override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
-                Log.d("AgoraRepoImpl", "Joined Channel: $channel, UID: $uid")
+
                 trySend(State.Channel_joined)
             }
 
             override fun onUserJoined(uid: Int, elapsed: Int) {
-                Log.d("AgoraRepoImpl", "User Joined: UID - $uid")
+
                 trySend(State.Room_Joined)
             }
 
@@ -52,19 +51,19 @@ class StreamImplementation : StreamRepository {
             override fun onUserMuteAudio(uid: Int, muted: Boolean) {
                 super.onUserMuteAudio(uid, muted)
                 trySend(State.isMicrophone(muted))
-                Log.d("AgoraRepoImpl", "Muted - $muted")
+
             }
             override fun onUserOffline(uid: Int, reason: Int) {
-                Log.d("AgoraRepoImpl", "User Offline: UID - $uid")
+
             }
 
             override fun onLeaveChannel(stats: RtcStats?) {
-                Log.d("AgoraRepoImpl", "Leaved Channel ${stats?.users}")
+
                 trySend(State.ChannelLeave)
             }
 
             override fun onError(err: Int) {
-                Log.e("AgoraRepoImpl", "Agora Error:}")
+
                 trySend(State.error(err.toString()))
             }
 
@@ -80,18 +79,11 @@ class StreamImplementation : StreamRepository {
                 mEventHandler = iRtcEngineEventHandler
             }
             mRtcEngine = RtcEngine.create(config)
-            mRtcEngine?.enableAudioVolumeIndication(200, 3, true)
+            mRtcEngine?.enableAudioVolumeIndication(300, 3, true)
 
 
         } catch (e: Exception) {
-            Log.e("AgoraRepoImpl", "Agora Error: ${e.message}}")
             throw RuntimeException("Error initializing RTC engine: ${e.message}")
-        }
-
-        if (mRtcEngine == null) {
-            Log.e("AgoraRepoImpl", "RtcEngine is not initialized!")
-        } else {
-            Log.d("AgoraRepoImpl", "RtcEngine created successfully")
         }
 
         awaitClose {

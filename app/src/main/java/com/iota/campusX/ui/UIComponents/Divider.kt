@@ -25,11 +25,12 @@ fun Divider(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CircularLoading(modifier: Modifier = Modifier) {
+fun CircularLoading(color: Color) {
 
     CircularProgressIndicator(
         modifier = Modifier.size(24.dp),
-        strokeWidth = 2.dp
+        strokeWidth = 4.dp,
+        color = color
     )
 
 }

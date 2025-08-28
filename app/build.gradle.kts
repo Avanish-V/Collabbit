@@ -16,8 +16,8 @@ android {
         applicationId = "com.iota.campusX"
         minSdk = 24
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.0.4"
+        versionCode = 16
+        versionName = "1.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -114,5 +114,6 @@ dependencies {
 
     implementation("io.github.mr0xf00:easycrop:0.1.1")
 
-    implementation("androidx.paging:paging-runtime:3.3.6")
+    implementation("androidx.paging:paging-runtime:3.3.4")
+    implementation("androidx.paging:paging-compose:3.3.4")
 }

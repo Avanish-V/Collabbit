@@ -1,5 +1,7 @@
 package com.iota.campusX.Navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -31,9 +33,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
+import com.iota.campusX.Screens.Post.Poll
 import com.iota.campusX.ui.theme.White
 
 
@@ -89,7 +94,8 @@ fun BottomAppBar(
                         Icon(
                             painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
                             contentDescription = null,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
 
@@ -124,6 +130,16 @@ fun BottomAppBar(
         }
     }
 
+}
+
+fun isPollExpired(createdAt: Long, durationMillis: Long = 24 * 60 * 60 * 1000L): Boolean {
+    // Convert Firestore timestamp to milliseconds
+    val createdAtMillis = createdAt
+    val currentTime = System.currentTimeMillis()
+
+    val expired = createdAtMillis + durationMillis <= currentTime
+    // Update local isActive flag
+    return expired
 }
 
 @Composable
@@ -161,4 +177,42 @@ fun HideBottomBar(
     LaunchedEffect(bottomBarVisible) {
         navigationViewModel.isBottomBarVisible(bottomBarVisible)
     }
+}
+
+
+fun NavGraphBuilder.navScreen(
+    route: String,
+    content: @Composable () -> Unit
+) {
+
+    composable(
+        route = route,
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                tween(500)
+            )
+        },
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                tween(500)
+            )
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                tween(500)
+            )
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                tween(500)
+            )
+        }
+    ) {
+        content()
+    }
+
 }

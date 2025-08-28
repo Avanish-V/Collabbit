@@ -1,10 +1,10 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
-import com.iota.campusX.Feature.Post.domain.PostRepository
-import kotlinx.coroutines.flow.flow
+import androidx.paging.PagingData
+import com.iota.campusX.Feature.Post.data.model.GetPostDTO
+import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
+import kotlinx.coroutines.flow.Flow
 
-class GetPostsUseCase(private val repository: PostRepository) {
-    suspend operator fun invoke() = flow {
-        emit(repository.getPosts())
-    }
+class GetPostsUseCase(private val repository: PostRepositoryInterface) {
+    suspend operator fun invoke() : Flow<PagingData<GetPostDTO>> = repository.getPosts()
 }

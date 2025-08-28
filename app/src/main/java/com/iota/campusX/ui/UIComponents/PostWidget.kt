@@ -15,6 +15,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +50,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -61,6 +64,7 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import com.google.firebase.Timestamp
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
@@ -71,20 +75,29 @@ import com.iota.campusX.Feature.Post.data.model.Reference
 import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Post.DataModel.ContentId
+import com.iota.campusX.Screens.Post.MediaType
+import com.iota.campusX.Screens.Post.Poll
 import com.iota.campusX.Screens.Post.PollOption
 import com.iota.campusX.Screens.Post.PostActions.PostAction
 import com.iota.campusX.Screens.Post.PostOptions
+import com.iota.campusX.Screens.Post.Type
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
+import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+fun Timestamp?.toMillis(): Long {
+    return this?.toDate()?.time ?: 0L
+}
+
 @Composable
 fun PostCard(
-    post: GetPostDTO,
+    post: GetPostDTO?,
     handlers: (PostAction) -> Unit,
     onDotMenuClick: ((GetPostDTO) -> Unit)?
 ) {
+    if (post == null) return
     Column(
         modifier = Modifier
             .clickable(
@@ -97,19 +110,26 @@ fun PostCard(
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircleImage(
-                    image = post.creatorDetail.profile?.userImage.orEmpty(),
-                    modifier = Modifier.size(42.dp),
-                    visibility = post.visibilityMode,
-                    onClick = {
-                        if (post.visibilityMode == VisibilityMode.USER) {
-                            handlers.invoke(PostAction.OpenUserProfile(
-                                userId = post.creatorDetail.profile?.id ?: "",
-                                isCurrentUser = post.creatorDetail.isCurrentUser
-                            ))
+                if (post.visibilityMode == VisibilityMode.ANONYMOUS){
+                    AnonymousImage(
+                        modifier = Modifier.size(42.dp)
+                    )
+                }else{
+                    CircleImage(
+                        image = post.creatorDetail.profile?.userImage.orEmpty(),
+                        modifier = Modifier.size(42.dp),
+                        visibility = post.visibilityMode,
+                        onClick = {
+                            if (post.visibilityMode == VisibilityMode.USER) {
+                                handlers.invoke(PostAction.OpenUserProfile(
+                                    userId = post.creatorDetail.profile?.id ?: "",
+                                    isCurrentUser = post.creatorDetail.isCurrentUser
+                                ))
+                            }
                         }
-                    }
-                )
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
@@ -119,7 +139,7 @@ fun PostCard(
                 PostHeader(
                     user = post.creatorDetail,
                     pod = post.reference,
-                    postedAt = post.createdAt.toString(),
+                    postedAt = getTimeAgo(post.createdAt.toMillis()),
                     isCurrentUser = post.creatorDetail.isCurrentUser,
                     feedMode = post.feedMode,
                     visibilityMode = post.visibilityMode
@@ -130,14 +150,22 @@ fun PostCard(
                 PostBody(
                     postContent = post.postContent,
                     onPollSelect = {
-                        handlers.invoke(PostAction.VotePoll(postId = post.postId))
+                        post.postContent.poll?.let { poll ->
+                            handlers.invoke(PostAction.VotePoll(
+                                postId = post.postId,
+                                optionId = it,
+                                feedMode = post.feedMode
+                            ))
+                        }
                     },
                     onPostImageClick = {
-                        handlers.invoke(PostAction.OpenPostDetail(postId = post.postId))
+                        handlers.invoke(PostAction.ViewPostVisualContent(post = post))
                     },
                     onBodyClick = {
                         handlers.invoke(PostAction.OpenPostDetail(postId = post.postId))
-                    }
+                    },
+                    type = post.type,
+                    mediaType = post.mediaType
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -202,10 +230,10 @@ fun PostHeader(
                 )
 
                 // Verified badge
-                if (user.isVerified) {
+                if (user.isVerified && visibilityMode == VisibilityMode.USER) {
                     Icon(
                         modifier = Modifier.size(16.dp),
-                        painter = painterResource(R.drawable.check_circle),
+                        painter = painterResource(R.drawable.baseline_verified_24),
                         contentDescription = "Verified",
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -244,7 +272,7 @@ fun PostHeader(
                 Text(
                     modifier = Modifier
                         .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
                             shape = RoundedCornerShape(6.dp)
                         )
                         .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -368,7 +396,7 @@ fun AnimatedLikeButton(onLike:()-> Unit,likesCount: Int,isLiked: Boolean) {
                 ),
             painter = painterResource(if (isLiked) R.drawable.up_solid else R.drawable.up_regular),
             contentDescription = "Like",
-            tint = if (isLiked) if (isSystemInDarkTheme()) Color.White else Color.Black else MaterialTheme.colorScheme.onBackground
+            tint = if (isSystemInDarkTheme()) Color.White else Color.Black
         )
     }
 }
@@ -376,55 +404,68 @@ fun AnimatedLikeButton(onLike:()-> Unit,likesCount: Int,isLiked: Boolean) {
 @Composable
 fun ExpandableText(
     text: String,
-    minimizedMaxLines: Int = 4
+    modifier: Modifier = Modifier,
+    context: Context,
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge.copy(
+        color = MaterialTheme.colorScheme.onSurface
+    ),
+    labelStyle: TextStyle = MaterialTheme.typography.labelMedium.copy(
+        color = MaterialTheme.colorScheme.primary
+    ),
+    onLinkClick: (String) -> Unit = { url ->
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        context.startActivity(intent)
+    }
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     var isTextOverflowing by remember { mutableStateOf(false) }
 
-    val context = LocalContext.current
-    val annotatedText = remember(text) { buildAnnotatedAutoLinkText(text) }
 
-    val textLayoutResultState = remember { mutableStateOf<TextLayoutResult?>(null) }
+    val annotatedText = remember(text) { buildAnnotatedAutoLinkText(text) }
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .animateContentSize(
-                animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
             )
             .fillMaxWidth(),
         horizontalAlignment = Alignment.End
-
     ) {
-        ClickableText(
+        BasicText(
             text = annotatedText,
-            maxLines = if (isExpanded) Int.MAX_VALUE else minimizedMaxLines,
+            style = textStyle,
+            maxLines = if (isExpanded) Int.MAX_VALUE else 5,
             overflow = TextOverflow.Ellipsis,
             onTextLayout = { result ->
-                textLayoutResultState.value = result
+                textLayoutResult = result
                 if (!isExpanded) {
                     isTextOverflowing = result.hasVisualOverflow
                 }
             },
-            style = TextStyle(
-                color = MaterialTheme.colorScheme.onSurface
-            ),
-            onClick = { offset ->
-                annotatedText.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                    .firstOrNull()?.let { annotation ->
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(annotation.item))
-                        context.startActivity(intent)
-                    } ?: run {
-
+            modifier = Modifier
+                .fillMaxWidth()
+                .pointerInput(Unit) {
+                    detectTapGestures { offsetPos ->
+                        textLayoutResult?.let { layoutResult ->
+                            val offset = layoutResult.getOffsetForPosition(offsetPos)
+                            annotatedText.getStringAnnotations(
+                                tag = "URL",
+                                start = offset,
+                                end = offset
+                            ).firstOrNull()?.let { annotation ->
+                                onLinkClick(annotation.item)
+                            }
+                        }
+                    }
                 }
-            },
-            modifier = Modifier.fillMaxWidth()
         )
 
         if (isTextOverflowing || isExpanded) {
-            val label = if (isExpanded) "Read Less" else "Read More"
+            val label = if (isExpanded) "Reed Less" else "Reed More"
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
+                style = labelStyle,
                 modifier = Modifier
                     .padding(top = 4.dp)
                     .clickable(
@@ -436,6 +477,7 @@ fun ExpandableText(
         }
     }
 }
+
 
 
 @Composable
@@ -482,11 +524,14 @@ suspend fun getImageSize(context: Context, imageUrl: String): Pair<Int, Int>? {
 
 @Composable
 fun PostBody(
+    type: Type,
+    mediaType: MediaType,
     postContent: PostContent,
     onPollSelect: (String) -> Unit,
     onPostImageClick:(String)-> Unit,
     onBodyClick:()-> Unit
 ) {
+     val context = LocalContext.current
 
     Column(modifier = Modifier.clickable(
         onClick = {onBodyClick.invoke()},
@@ -494,91 +539,72 @@ fun PostBody(
         interactionSource = remember { MutableInteractionSource() }
     )) {
 
-        when(postContent.postType){
+        if (postContent.postText.isNotEmpty()) {
+            ExpandableText(
+                text = postContent.postText,
+                context = context,
+            )
+        }
 
-            PostOptions.TEXT -> {
-
-                if (postContent.postData.postText.isNotEmpty()) {
-                    ExpandableText(
-                        text = postContent.postData.postText,
-                        minimizedMaxLines = 4
+        when(type){
+            Type.Media -> {
+               if (mediaType == MediaType.Image){
+                   postContent.postImage?.let {
+                       Spacer(modifier = Modifier.height(12.dp))
+                       ImageWithDynamicRatio(
+                           imageUrl = it,
+                           modifier = Modifier.fillMaxWidth(),
+                           onImageClick = {onPostImageClick.invoke(postContent.postImage)}
+                       )
+                   }
+               }
+            }
+            Type.Poll -> {
+                postContent.poll?.let {
+                    PollOptionsUI(
+                        poll = it,
+                        totalVotes = postContent.poll.votes.count(),
+                        onOptionSelected = {
+                            onPollSelect(it)
+                        },
+                        hasVoted = postContent.poll.hasVoted
                     )
                 }
-
             }
-
-            PostOptions.IMAGE -> {
-
-                if (postContent.postData.postText.isNotEmpty()){
-                    ExpandableText(
-                        text = postContent.postData.postText,
-                        minimizedMaxLines = 4
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                if (!postContent.postData.postImage.isNullOrBlank() && postContent.postData.postImage != "null") {
-
-                    ImageWithDynamicRatio(
-                        imageUrl = postContent.postData.postImage,
-                        modifier = Modifier.fillMaxWidth(),
-                        onImageClick = {onPostImageClick.invoke(postContent.postData.postImage)}
-                    )
-                }
-
-            }
-
-            PostOptions.POLL -> {
-                PollOptionsUI(
-                    question = postContent.postData.poll?.question ?: "",
-                    options = postContent.postData.poll?.options,
-                    showResults = true,
-                    totalVotes = postContent.postData.poll?.options?.sumOf { it.votes.count() }
-                        ?: 0,
-                    onOptionSelected = {
-                        onPollSelect(it)
-                    },
-                    hasVoted = postContent.postData.poll?.hasVoted == true
-
-                )
-            }
-
-            PostOptions.VIDEO -> {}
-            PostOptions.FILE -> {}
         }
     }
 }
 
 @Composable
 fun PollOptionsUI(
-    question: String,
-    options: List<PollOption>?,
+    poll: Poll,
     selectedOptionId: String? = null,
     onOptionSelected: (String) -> Unit,
-    showResults: Boolean = false,
     totalVotes: Int,
     hasVoted: Boolean = false
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
         Text(
-            text = question,
-            style = MaterialTheme.typography.bodyMedium
+            text = poll.question,
+            style = MaterialTheme.typography.bodyLarge
         )
 
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-            options?.forEach { option ->
+            poll.options.forEach { option ->
 
                 val isSelected = selectedOptionId == option.optionId
 
-                val percentage = if (totalVotes > 0) (option.votes.count() * 100 / totalVotes) else 0
+                val filter = poll.votes.filter { it.optionId == option.optionId }
+
+                val percentage = if (totalVotes > 0) (filter.count() * 100 / totalVotes) else 0
 
                 val backgroundColor = if (isSelected) {
                     Color.Transparent
                 } else {
-                    MaterialTheme.colorScheme.surface // <-- COMPOSABLE SAFE
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) // <-- COMPOSABLE SAFE
                 }
 
 
@@ -594,12 +620,12 @@ fun PollOptionsUI(
                             .height(48.dp)
                             .border(
                                 width = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outline,
+                                color = MaterialTheme.colorScheme.outlineVariant,
                                 shape = RoundedCornerShape(6.dp)
                             )
                             .clip(RoundedCornerShape(6.dp))
                             .drawBehind {
-                                if (showResults) {
+                                if (poll.hasVoted) {
                                     val fillWidth = size.width * (percentage / 100f)
                                     drawRoundRect(
                                         color = backgroundColor,
@@ -628,23 +654,29 @@ fun PollOptionsUI(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        Text(text = "$percentage%",style = MaterialTheme.typography.bodyMedium)
+                        if (poll.hasVoted){
+                            Text(text = "$percentage%",style = MaterialTheme.typography.bodyMedium)
+                        }
+
                     }
                 }
             }
-
+        }
+        if (poll.isActive){
+            Spacer(modifier = Modifier.height(0.dp))
         }
 
-
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Total Votes $totalVotes • Poll ended",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium
-            )
+        if (!poll.isActive){
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Total Votes $totalVotes • Poll ended",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }
@@ -690,10 +722,13 @@ fun ImageWithDynamicRatio(
         modifier = Modifier
             .height(dynamicHeight)
             .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.surface,
+                width = 0.1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(16.dp)
             )
+
+            .padding(3.dp)
+
             .clickable(
                 onClick = {
                     onImageClick()
@@ -701,12 +736,13 @@ fun ImageWithDynamicRatio(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .clip(RoundedCornerShape(16.dp)),
+            .clip(RoundedCornerShape(13.dp)),
         model = imageUrl,
         placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
         contentDescription = "Post Image",
         contentScale = ContentScale.Crop,
     )
+
 }
 
 

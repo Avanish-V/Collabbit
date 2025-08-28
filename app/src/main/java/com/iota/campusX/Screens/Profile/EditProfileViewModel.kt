@@ -1,6 +1,7 @@
 package com.iota.campusX.Screens.Profile
 
 
+import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -14,12 +15,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 class EditProfileViewModel: ViewModel() {
 
-    private val _profileData = MutableStateFlow<ProfileData?>(null)
-    val profileData: StateFlow<ProfileData?> = _profileData.asStateFlow()
+    private val _editType = MutableStateFlow<EditProfileType?>(null)
+    val editType: StateFlow<EditProfileType?> = _editType.asStateFlow()
 
 
-    private val _editType = MutableStateFlow<EditProfileType>(EditProfileType.NONE)
-    val editType: StateFlow<EditProfileType> = _editType.asStateFlow()
+
     private val _items = MutableStateFlow<List<String>>(emptyList())
     val items: StateFlow<List<String>> = _items.asStateFlow()
 
@@ -91,26 +91,21 @@ class EditProfileViewModel: ViewModel() {
         _campus.value = _campus.value.copy(courseEnd = courseEnd)
     }
 
-    fun getProfileData(profileData: ProfileData) {
-         _profileData.value = profileData
+    fun editType(editType: EditProfileType) {
+        _editType.value = editType
     }
 
-    fun editType(){
-        Log.d("PROFILE_DATA", "profile: ${profileData.value}")
-        Log.d("PROFILE_DATA", "editType: ${name.value}" + " ${gender.value}")
-         if (profileData.value?.name != name.value){
-            _editType.value = EditProfileType.NAME
-        }else if (_profileData.value?.gender == gender.value){
-            _editType.value = EditProfileType.GENDER
-        } else {
-            _editType.value = EditProfileType.NONE
-        }
+
+    fun editTypeSetNull(){
+        _editType.value = null
     }
 
 }
-data class ProfileData(
-    val name: String,
-    val gender: Gender = Gender.UNSPECIFIED,
-)
 
-enum class EditProfileType {NONE,NAME,GENDER}
+sealed class EditProfileType {
+    data class UserName (val name: String): EditProfileType()
+    data class UserGender(val gender: Gender): EditProfileType()
+    data class UserImage(val imageUri: Uri): EditProfileType()
+}
+
+

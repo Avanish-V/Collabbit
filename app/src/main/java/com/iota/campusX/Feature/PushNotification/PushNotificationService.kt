@@ -67,7 +67,7 @@ class PushNotificationService : FirebaseMessagingService() {
             .setContentIntent(pendingIntent)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.app_logo)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()

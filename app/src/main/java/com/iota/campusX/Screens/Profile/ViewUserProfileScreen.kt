@@ -60,7 +60,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.iota.campusX.Feature.Post.presentation.ViewUserPostViewModel
 import com.iota.campusX.Feature.Post.presentation.ViewUserReplyViewModel
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
@@ -89,7 +89,6 @@ fun ViewProfile(
     navHostController: NavHostController,
     viewUserPostViewModel: ViewUserPostViewModel,
     viewProfileViewModel: ViewProfileViewModel,
-    googleSignInViewModel: AuthViewModel,
     navigationViewModel: NavigationViewModel,
     viewUserReplyViewModel: ViewUserReplyViewModel,
 ) {
@@ -114,7 +113,7 @@ fun ViewProfile(
     val linkupRequestState by viewProfileViewModel.sendLinkUpRequestState.collectAsState()
 
     val replyState by viewUserReplyViewModel.viewUserReplies.collectAsState()
-    val postState by viewUserPostViewModel.viewUserPost.collectAsState()
+    val postState = viewUserPostViewModel.viewUserPost.collectAsLazyPagingItems()
 
     var viewProfileData by remember { mutableStateOf<BaseProfileDTO?>(null) }
 
@@ -283,9 +282,9 @@ fun ViewProfile(
                                         screenHeight = screenHeight,
                                         pinned = headerPinned,
                                         navHostController = navHostController,
-                                        postState = postState,
+                                        lazyPagingItems = postState,
                                         onPageActive = {
-                                            viewUserPostViewModel.fetchPostById(userId = userId,)
+                                            viewUserPostViewModel.fetchViewUserPosts(userId = userId,)
                                         },
                                         onRetryClick = {},
                                     )

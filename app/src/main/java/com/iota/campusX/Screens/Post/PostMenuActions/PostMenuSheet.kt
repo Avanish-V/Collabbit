@@ -97,6 +97,7 @@ fun MenuBottomSheet(onDismiss: () -> Unit,sheetState: SheetState,menuOptions: Li
     ModalBottomSheet(
         onDismissRequest = { onDismiss() },
         sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
@@ -107,9 +108,10 @@ fun MenuBottomSheet(onDismiss: () -> Unit,sheetState: SheetState,menuOptions: Li
             menuOptions.forEach { action ->
                 Row (
                     modifier = Modifier
-                        .background(color = MaterialTheme.colorScheme.onSecondary)
-                        .padding(horizontal = 12.dp)
-                        .clickable { pendingAction(action)},
+                        .background(color = MaterialTheme.colorScheme.secondaryContainer)
+                        .clickable { pendingAction(action)}
+                        .padding(horizontal = 12.dp),
+
                     verticalAlignment = Alignment.CenterVertically
                 ){
                     Icon(

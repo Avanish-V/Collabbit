@@ -1,6 +1,6 @@
 package com.iota.campusX.Feature.Reply
 
-import com.iota.campusX.Feature.Post.data.visibilityMode
+import com.iota.campusX.Feature.Post.data.remote.visibilityMode
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
@@ -9,7 +9,7 @@ import com.iota.campusX.Feature.Post.data.model.PostActions
 import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Feature.Post.data.model.UserReplyDTO
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
-import com.iota.campusX.Feature.Post.domain.ReplyRepository
+import com.iota.campusX.Feature.Post.domain.repository.ReplyRepositoryInterface
 import com.iota.campusX.Feature.Post.domain.UseCases.CreateReplyUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetRepliesUseCase
 import com.iota.campusX.Utils.UiState
@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.update
 class ReplyRepository (
     private val getRepliesUseCase: GetRepliesUseCase,
     private val createReplyUseCase: CreateReplyUseCase,
-    private val replyRepository: ReplyRepository
+    private val replyRepository: ReplyRepositoryInterface
 ){
 
     private val _postRepliesState = MutableStateFlow<UiState<List<GetRepliesDTO>>>(UiState.Idle)

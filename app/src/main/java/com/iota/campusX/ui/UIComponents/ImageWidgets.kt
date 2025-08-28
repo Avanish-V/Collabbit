@@ -21,63 +21,32 @@ import androidx.compose.ui.unit.dp
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 
 @Composable
-fun CircleImage(image: String, modifier: Modifier = Modifier,onClick: () -> Unit,visibility: VisibilityMode) {
+fun CircleImage(image: String, modifier: Modifier = Modifier,onClick: () -> Unit, visibility: VisibilityMode) {
 
-    Box(modifier = modifier.clip(CircleShape).background(color = MaterialTheme.colorScheme.primary),contentAlignment = Alignment.Center){
+    AsyncImage(
+        modifier = modifier
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onClick.invoke() }
+            ),
+        model = image,
+        contentDescription = "Profile Picture",
+        contentScale = ContentScale.Crop,
+        error = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
+    )
 
-        when(visibility){
-
-            VisibilityMode.ANONYMOUS -> {
-                AsyncImage(
-                    modifier = Modifier.size(24.dp),
-                    colorFilter =  ColorFilter.tint(color = Color.White),
-                    model = image,
-                    contentDescription = "Profile Picture",
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-                )
-            }
-            VisibilityMode.USER -> {
-
-                AsyncImage(
-                    modifier = modifier.clip(CircleShape).
-                    background(
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = CircleShape
-                    ).
-                    clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onClick.invoke() }
-                    ),
-                    model = image,
-                    contentDescription = "Profile Picture",
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-                )
-
-            }
-
-            null -> {
-                AsyncImage(
-                    modifier = modifier.clip(CircleShape).
-                    background(
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = CircleShape
-                    ).
-                    clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onClick.invoke() }
-                    ),
-                    model = image,
-                    contentDescription = "Profile Picture",
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-                )
-            }
-        }
-
-    }
 }
 
+@Composable
+fun AnonymousImage(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.clip(CircleShape).background(color = MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center){
+        Icon(
+            modifier = Modifier.size(22.dp),
+            painter = painterResource(R.drawable.incognito),
+            contentDescription = "",
+            tint = Color.White
+        )
+    }
+}

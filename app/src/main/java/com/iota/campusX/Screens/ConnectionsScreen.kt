@@ -196,7 +196,7 @@ fun ConnectionsItemView(
             Column(modifier = Modifier.weight(1f),) {
                 Text(
                     text = connectionData.user.userName,
-                    style = typography.titleMedium,
+                    style = typography.titleSmall,
                     maxLines = 1
                 )
                 if (connectionData.user.userBio.isNotEmpty()) {
@@ -214,7 +214,7 @@ fun ConnectionsItemView(
                 shape = RoundedCornerShape(6.dp)
 
             ) {
-                Text("Remove")
+                Text("Remove",style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

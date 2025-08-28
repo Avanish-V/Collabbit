@@ -1,9 +1,9 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
-import com.iota.campusX.Feature.Post.domain.ReplyRepository
+import com.iota.campusX.Feature.Post.domain.repository.ReplyRepositoryInterface
 
-class CreateReplyUseCase(private val repository: ReplyRepository) {
+class CreateReplyUseCase(private val repository: ReplyRepositoryInterface) {
     suspend operator fun invoke(
         replyId: String,
         postId: String,

@@ -27,10 +27,22 @@ sealed class Routes(val routes:String){
         data object CreateSociety: Routes("CREATE_SOCIETY")
         data object JoinSociety: Routes("JOIN_SOCIETY")
 
+    }
 
+    companion object {
+        val bottomBarRoutes = listOf(
+            Main.Home.routes,
+            Main.Search.routes,
+            Main.Notification.routes,
+            Main.Profile.routes,
+            Main.Society.routes
+        )
 
-        
-        
     }
     
 }
+
+fun shouldShowBottomBar(currentRoute: String?): Boolean {
+    return currentRoute in Routes.bottomBarRoutes
+}
+

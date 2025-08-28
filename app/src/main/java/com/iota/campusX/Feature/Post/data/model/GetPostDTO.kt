@@ -1,6 +1,8 @@
 package com.iota.campusX.Feature.Post.data.model
 
 import com.google.firebase.Timestamp
+import com.iota.campusX.Screens.Post.MediaType
+import com.iota.campusX.Screens.Post.Type
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
@@ -15,7 +17,9 @@ data class GetPostDTO(
     val visibilityMode: VisibilityMode = VisibilityMode.USER,
     val campusId: String?=null,
     val postContent: PostContent = PostContent(),
-    val postActions: PostActions = PostActions()
+    val postActions: PostActions = PostActions(),
+    val type: Type = Type.Media,
+    val mediaType: MediaType = MediaType.Image,
 )
 
 

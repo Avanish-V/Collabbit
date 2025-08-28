@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.iota.campusX.ui.theme.LightTheme_Blue
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +44,10 @@ fun AlertDialogWidget(
 
         BasicAlertDialog(
             onDismissRequest = {onDismiss},
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true
+            )
         ) {
             Surface(
                 shape = RoundedCornerShape(6.dp)
@@ -70,7 +75,7 @@ fun AlertDialogWidget(
                             Box(Modifier
                                 .weight(1f)
                                 .clickable(
-                                    onClick = { onDismiss },
+                                    onClick = { onDismiss.invoke() },
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() }),contentAlignment = Alignment.Center){
                                 Text(negativeButtonText, modifier = Modifier.padding(16.dp))

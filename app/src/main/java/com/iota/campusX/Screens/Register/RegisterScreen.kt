@@ -1,19 +1,6 @@
 package com.iota.campusX.Screens.Register
 
-import android.R.attr.offset
-import android.app.Activity.RESULT_OK
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -26,21 +13,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,26 +44,21 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.google.firebase.auth.FirebaseAuth
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthViewModel
+import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthResult
+import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleSignInViewModel
 import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.CustomSegmentedProgressBar
 import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardingContent
 import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardingScreen
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Utils.ResultState
-import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.White
-import kotlinx.coroutines.launch
+import com.iota.campusX.ui.UIComponents.CircularLoading
 import org.koin.compose.koinInject
 
 @Composable
 fun SignInScreen(navHostController: NavHostController) {
 
-    val googleAuthViewModel:AuthViewModel = koinInject()
-    val coroutineScope = rememberCoroutineScope()
-    var isLoading by remember { mutableStateOf(false) }
-
+    val googleSignInViewModel: GoogleSignInViewModel = koinInject()
+    val authState = googleSignInViewModel.state.collectAsStateWithLifecycle()
     val onboardingList by remember {
         mutableStateOf(
             listOf(
@@ -100,132 +80,103 @@ fun SignInScreen(navHostController: NavHostController) {
             )
         )
     }
-
-
     val pagerState = rememberPagerState(
         initialPage = 0,
         pageCount = {onboardingList.count()}
     )
+    val snackBarHostState = remember { SnackbarHostState() }
 
-    val state = googleAuthViewModel.state.collectAsStateWithLifecycle()
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult(),
-        onResult = {result->
-            if (result.resultCode == RESULT_OK) {
-                coroutineScope.launch {
-                    googleAuthViewModel.onSignInResult(
-                        intent = result.data?:return@launch
-                    )
-                }
-            }
+    Scaffold(
+        snackbarHost = {
+            androidx.compose.material3.SnackbarHost(hostState = snackBarHostState)
         }
-    )
+    ) {padding->
 
-    LaunchedEffect(key1 = state.value.isSignInSuccessful) {
-        if (state.value.isSignInSuccessful){
-            googleAuthViewModel.verifyUser(state.value.userId,state.value.userToken)
-                .collect{
-                    when(it){
-                        is ResultState.Loading->{
-                            isLoading = true
+        Column ( modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+            .background(color = MaterialTheme.colorScheme.background),verticalArrangement = Arrangement.SpaceBetween) {
+
+
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center){
+                Icon(
+                    modifier = Modifier.size(48.dp),
+                    painter = painterResource(if (isSystemInDarkTheme()) R.drawable.app_logo else R.drawable.app_logo),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Column (Modifier.weight(1f)){
+
+                OnBoardingScreen(
+                    pagerState = pagerState,
+                    onboardingContent = onboardingList
+                )
+
+            }
+
+            CustomSegmentedProgressBar(
+                pagerState.currentPage,
+                onboardingList = onboardingList
+            )
+
+            Column(
+                modifier = Modifier.padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ){
+
+                Button(
+                    modifier = Modifier
+                        .padding(horizontal = 40.dp)
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    onClick = {
+                        if (pagerState.currentPage != onboardingList.count()-1){
+                            pagerState.requestScrollToPage(pagerState.currentPage+1)
+                        }else{
+                            googleSignInViewModel.signIn()
                         }
-                        is ResultState.Success->{
-                            navHostController.navigate(Routes.Main.Home.routes){
-                                popUpTo(Routes.Register.routes)
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    if (pagerState.currentPage != onboardingList.count()-1){
+                        Text("Next")
+                    }else{
+                        when(val value = authState.value){
+
+                            is AuthResult.Idle -> {
+                                LoginButtonText()
+                            }
+
+                            is AuthResult.Loading -> {
+                                CircularLoading(
+                                    color = Color.White
+                                )
+                            }
+                            is AuthResult.SignedIn -> {
+                                navHostController.navigate(Routes.Main.Home.routes)
+                            }
+                            is AuthResult.Error -> {
+                                LoginButtonText()
+                                LaunchedEffect(Unit) {
+                                    snackBarHostState.showSnackbar(value.message)
+                                }
+                            }
+                            else -> {
+
                             }
                         }
-                        is ResultState.Error->{
-                            isLoading = false
-                            FirebaseAuth.getInstance().signOut()
-                        }
                     }
                 }
-        }
-    }
 
+                Spacer(modifier = Modifier.height(20.dp))
 
+                Column(modifier = Modifier.height(40.dp)) {
 
-    Column ( modifier = Modifier.fillMaxSize().background(color = MaterialTheme.colorScheme.background),verticalArrangement = Arrangement.SpaceBetween) {
-
-
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center){
-            Image(
-                modifier = Modifier.height(80.dp).width(120.dp),
-                painter = painterResource(if (isSystemInDarkTheme()) R.drawable.logo_dark else R.drawable.campora_logo),
-                contentDescription = null,
-            )
-        }
-
-        Column (Modifier.weight(1f)){
-
-            OnBoardingScreen(
-                pagerState = pagerState,
-                onboardingContent = onboardingList
-            )
-
-        }
-
-        CustomSegmentedProgressBar(
-            pagerState.currentPage,
-            onboardingList = onboardingList
-        )
-
-        Column(
-            modifier = Modifier.height(200.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ){
-
-            Button(
-                modifier = Modifier.padding(horizontal = 40.dp).fillMaxWidth().height(48.dp),
-                onClick = {
-                    if (pagerState.currentPage != onboardingList.count()-1){
-                        pagerState.requestScrollToPage(pagerState.currentPage+1)
-                    }else{
-                        coroutineScope.launch {
-                            val signInIntentSender = googleAuthViewModel.startSignIn()
-                            launcher.launch(
-                                IntentSenderRequest.Builder(
-                                    signInIntentSender?:return@launch
-                                ).build()
-                            )
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    contentColor = Color.White,
-                    containerColor = LightTheme_Blue
-                )
-            ) {
-                if (pagerState.currentPage != onboardingList.count()-1){
-                        Text("Next")
-                }else{
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            modifier = Modifier.size(20.dp),
-                            painter = painterResource(id = R.drawable.google),
-                            contentDescription = null,
-                            tint = White
-                        )
-                        Text(
-                            text = "Continue with Google",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Column(modifier = Modifier.height(40.dp)) {
-                if (pagerState.currentPage == onboardingList.count()-1){
                     val uriHandler = LocalUriHandler.current
+
                     TermsAndPrivacyText(
                         modifier = Modifier.padding(horizontal = 60.dp),
                         onTermsClick = {
@@ -235,13 +186,12 @@ fun SignInScreen(navHostController: NavHostController) {
                             // Handle privacy click
                         }
                     )
-
                 }
             }
-
-
         }
+
     }
+
 }
 
 @Composable
@@ -309,4 +259,27 @@ fun TermsAndPrivacyText(
         overflow = TextOverflow.Clip,
         onTextLayout = { textLayoutResult = it }
     )
+}
+
+@Composable
+fun LoginButtonText(modifier: Modifier = Modifier) {
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+
+        Icon(
+            modifier = Modifier.size(20.dp),
+            painter = painterResource(id = R.drawable.google),
+            contentDescription = null,
+        )
+
+        Text(
+            text = "Continue with Google",
+            fontWeight = FontWeight.Bold
+        )
+
+    }
+
 }

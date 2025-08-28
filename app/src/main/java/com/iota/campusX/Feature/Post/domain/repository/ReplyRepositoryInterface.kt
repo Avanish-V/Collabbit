@@ -1,11 +1,11 @@
-package com.iota.campusX.Feature.Post.domain
+package com.iota.campusX.Feature.Post.domain.repository
 
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
-import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.data.model.UserReplyDTO
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 
-interface ReplyRepository {
+interface ReplyRepositoryInterface {
 
     suspend fun createReply(replyId: String, postId: String, content: String, postCreatorId: String, visibilityMode: VisibilityMode): Result<Unit>
 

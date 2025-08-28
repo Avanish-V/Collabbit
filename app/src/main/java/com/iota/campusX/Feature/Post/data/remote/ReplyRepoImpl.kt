@@ -1,4 +1,4 @@
-package com.iota.campusX.Feature.Post.data
+package com.iota.campusX.Feature.Post.data.remote
 
 import SendPushNotification
 import android.util.Log
@@ -21,10 +21,11 @@ import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
 import com.iota.campusX.Feature.Post.data.model.PostActions
+import com.iota.campusX.Feature.Post.data.model.PostContent
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.data.model.UserDetail
 import com.iota.campusX.Feature.Post.data.model.UserReplyDTO
-import com.iota.campusX.Feature.Post.domain.ReplyRepository
+import com.iota.campusX.Feature.Post.domain.repository.ReplyRepositoryInterface
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Utils.anonymousImage
 import kotlinx.coroutines.async
@@ -37,7 +38,7 @@ class ReplyRepoImpl(
     private val sendPushNotification: SendPushNotification,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-) : ReplyRepository {
+) : ReplyRepositoryInterface {
 
     override suspend fun createReply(
         replyId: String,
@@ -394,6 +395,12 @@ private suspend fun fetchPostDTO(postId: String, firestore: FirebaseFirestore): 
         reference = null,
         visibilityMode = postData.visibilityMode,
         campusId = postData.campusId,
-        postContent = postData.postContent,
+        postContent = PostContent(
+            postText = postData.postText,
+            postImage = postData.image,
+            poll = postData.poll
+        ),
+        type = postData.type,
+        mediaType = postData.mediaType
     )
 }

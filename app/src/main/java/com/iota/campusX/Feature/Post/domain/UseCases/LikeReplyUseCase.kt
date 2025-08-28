@@ -1,8 +1,8 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
-import com.iota.campusX.Feature.Post.domain.ReplyRepository
+import com.iota.campusX.Feature.Post.domain.repository.ReplyRepositoryInterface
 
-class LikeReplyUseCase(private val repository: ReplyRepository) {
+class LikeReplyUseCase(private val repository: ReplyRepositoryInterface) {
     suspend operator fun invoke(
         replyId: String,
         postId: String,

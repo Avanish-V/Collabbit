@@ -1,15 +1,14 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
-import com.iota.campusX.Feature.Post.data.model.CreatePostDTO
-import com.iota.campusX.Feature.Post.domain.PostRepository
+import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
+import com.iota.campusX.Screens.Post.PostType
 
 class CreatePollUseCase(
-    private val pollRepository: PostRepository
+    private val pollRepository: PostRepositoryInterface
 ) {
-    suspend operator fun invoke(createPostDTO: CreatePostDTO): Result<Unit> {
+    suspend operator fun invoke(postType: PostType): Result<Unit> {
         return try {
-            pollRepository.createPoll(createPostDTO)
-            Result.success(Unit)
+            pollRepository.createPoll(postType)
         } catch (e: Exception) {
             Result.failure(e)
         }
