@@ -34,6 +34,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,9 +59,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
+import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
+import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.theme.LightBlack
@@ -73,8 +77,6 @@ fun ProfileHeader(
     modifier: Modifier,
     headerHeight: (Dp) -> Unit,
     user: BaseProfileDTO?,
-    connectionsCountState: UiState<Int>,
-    onConnectionClick: () -> Unit = {},
     editProfile: @Composable () -> Unit = {},
 ) {
 
@@ -115,7 +117,8 @@ fun ProfileHeader(
                                     width = 6.dp,
                                     color = Color.White,
                                     shape = MaterialTheme.shapes.small
-                                ).shadow(
+                                )
+                                .shadow(
                                     elevation = 6.dp,
                                     shape = MaterialTheme.shapes.small
                                 )
@@ -133,8 +136,9 @@ fun ProfileHeader(
                         user?.let {
                             if (it.metaData.verified){
                                 Icon(
-                                    modifier = Modifier.size(24.dp)
-                                        .offset(x = 12.dp,y = -10.dp),
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .offset(x = 12.dp, y = -10.dp),
                                     painter = painterResource(R.drawable.baseline_verified_24),
                                     contentDescription = "verified",
                                     tint = MaterialTheme.colorScheme.primary
@@ -156,30 +160,6 @@ fun ProfileHeader(
 
         }
 
-        TextButton(
-            onClick = {
-                onConnectionClick.invoke()
-            },
-        ) {
-            when(connectionsCountState){
-                is UiState.Loading->{
-                    CircularLoading(
-                        color = Color
-                            .White
-                    )
-                }
-                is UiState.Success -> {
-                    val connectionsCount = connectionsCountState.data
-                    Text(
-                        text = "$connectionsCount Connections",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                }
-                else -> {
-
-                }
-            }
-        }
     }
 
 }
@@ -418,9 +398,17 @@ fun CampusWidget(
                         )
                     }
 
-                    if (campus.courseStart != null && campus.courseEnd != null) {
+
+                    if (campus.duration?.current ?: false){
                         Text(
-                            text = "${campus.courseStart.month + campus.courseStart.year} - ${campus.courseEnd.month + campus.courseEnd.year}",
+                            text = " ${campus.duration.start } - Current",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    if (campus.duration?.start != null && campus.duration.end != null) {
+                        Text(
+                            text = "${campus.duration.start} - ${campus.duration.end}",
                             style = MaterialTheme.typography.bodyMedium
 
                         )
@@ -449,6 +437,7 @@ fun AppTabRow(pagerState: PagerState,tabList: List<String> = emptyList()) {
         modifier = Modifier,
         selectedTabIndex = pagerState.currentPage,
         divider = { Divider() },
+        containerColor = MaterialTheme.colorScheme.background,
         indicator = {
             TabRowDefaults.PrimaryIndicator(
                 modifier = Modifier.tabIndicatorOffset(
@@ -486,4 +475,97 @@ fun ProfileContents(
     HorizontalPager(state = pagerState) { page ->
         content.invoke(page)
     }
+}
+
+@Composable
+fun ConnectionComponent(
+    navHostController: NavHostController,
+    pagerState: PagerState,
+    followersCount: Int,
+    connectionCount: Int,
+    postsCountCount: Int,
+    userId: String
+) {
+
+    val scope = rememberCoroutineScope()
+
+
+    Row {
+
+
+        Column(
+            modifier = Modifier.weight(1f)
+                .clickable(
+                    onClick = {
+                        navHostController.navigate(Routes.Main.Followers.routes).apply {
+                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                "USER_ID",
+                                 userId
+                            )
+                        }
+                    },
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            Text(text = followersCount.toString())
+            Text(text = "Followers")
+
+        }
+
+        VerticalDivider(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            modifier = Modifier.height(56.dp)
+        )
+
+        Column(
+            modifier = Modifier.weight(1f)
+                .clickable(
+                    onClick = {
+                        navHostController.navigate(Routes.Main.Connections.routes).apply {
+                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                "USER_ID",
+                                 userId
+                            )
+                        }
+                    },
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = connectionCount.toString())
+            Text(text = "Connections")
+        }
+
+        VerticalDivider(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            modifier =  Modifier.height(56.dp)
+        )
+
+        Column(
+            modifier = Modifier.weight(1f)
+                .clickable(
+                    onClick = {
+                        scope.launch {
+                            pagerState.scrollToPage(1)
+                        }
+                    },
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                )
+            ,horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            Text(text = postsCountCount.toString())
+            Text(text = "Posts")
+
+        }
+
+
+    }
+
+
 }

@@ -127,7 +127,7 @@ fun CreateSociety(
                                 joined = emptyList(),
                                 mode = FeedMode.CAMPUS,
                                 campusId = profile.campus.campusCode,
-                                isActive = false
+                                active = false
                             )
                         )
 

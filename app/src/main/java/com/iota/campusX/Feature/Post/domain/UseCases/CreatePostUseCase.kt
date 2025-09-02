@@ -1,8 +1,8 @@
 package com.iota.campusX.Feature.Post.domain.UseCases
 
 import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
+import com.iota.campusX.Feature.Post.data.model.PostType
 import com.iota.campusX.Feature.Post.presentation.UploadState
-import com.iota.campusX.Screens.Post.PostType
 import kotlinx.coroutines.flow.Flow
 
 class CreatePostUseCase(private val repository: PostRepositoryInterface) {

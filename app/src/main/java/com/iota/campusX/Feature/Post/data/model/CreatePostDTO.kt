@@ -1,11 +1,8 @@
 package com.iota.campusX.Feature.Post.data.model
 
-import com.iota.campusX.Screens.Post.Poll
 import kotlinx.serialization.Serializable
 
 import com.google.firebase.Timestamp
-import com.iota.campusX.Screens.Post.MediaType
-import com.iota.campusX.Screens.Post.Type
 import kotlinx.serialization.Contextual
 
 @Serializable

@@ -1,10 +1,9 @@
 package com.iota.campusX.Screens.Profile
 
 import android.net.Uri
+import android.os.Build
 import android.util.Log
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,11 +14,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,8 +24,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +36,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -54,18 +48,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,6 +86,7 @@ import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.University
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
+import com.iota.campusX.Feature.UserProfile.presentation.UpdateProfileViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Utils.CustomTextField
@@ -104,8 +96,7 @@ import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AutoCompleteFieldOfStudyDropdown
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
-import com.iota.campusX.ui.UIComponents.CourseDuration
-import com.iota.campusX.ui.UIComponents.CustomDatePicker
+import com.iota.campusX.ui.UIComponents.CourseDurationPicker
 import com.iota.campusX.ui.UIComponents.EditProfileIconButton
 import com.iota.campusX.ui.UIComponents.SubmitButton
 import com.iota.campusX.ui.theme.LightTheme_Blue
@@ -117,35 +108,38 @@ import com.mr0xf00.easycrop.rememberImageCropper
 import com.mr0xf00.easycrop.rememberImagePicker
 import com.mr0xf00.easycrop.ui.ImageCropperDialog
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import saveBitmapToCache
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditProfileScreen(
     navController: NavController,
-    userProfileViewModel: UserProfileViewModel,
+    userProfileViewModel: UserProfileViewModel = koinInject(),
+    updateProfileViewModel: UpdateProfileViewModel = koinInject()
 ) {
+
+    val snackBarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val focusManager = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
 
     val editProfileViewModel: EditProfileViewModel = viewModel()
     val editType = editProfileViewModel.editType.collectAsState()
-    val context = LocalContext.current
-    val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value
 
-    val modifyState = userProfileViewModel.modifyState.collectAsState().value
+
+    val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value
+    val modifyState = updateProfileViewModel.state.collectAsState().value
     val profileEditValue = navController.currentBackStackEntry?.savedStateHandle?.get<ProfileEdit>("PROFILE_EDIT")
 
 
-    val snackBarHostState = remember { SnackbarHostState() }
-    val imageCropper = rememberImageCropper()
-
-    val scope = rememberCoroutineScope()
     var isLoading by rememberSaveable { mutableStateOf(false) }
-
-    val focusManager = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
-
     val pickedImage = remember { mutableStateOf<Uri?>(null) }
-    
+
+
+    val imageCropper = rememberImageCropper()
     val imagePicker = rememberImagePicker(onImage = { uri ->
         scope.launch {
             val result = imageCropper.crop(uri, context)
@@ -162,6 +156,7 @@ fun EditProfileScreen(
             }
         }
     })
+    
 
     LaunchedEffect(modifyState) {
         when (modifyState) {
@@ -169,10 +164,6 @@ fun EditProfileScreen(
                 isLoading = true
             }
             is UiState.Success -> {
-                snackBarHostState.showSnackbar(
-                    message = "Saved",
-                    duration = SnackbarDuration.Indefinite
-                )
                 editProfileViewModel.editTypeSetNull()
                 navController.popBackStack()
             }
@@ -238,16 +229,22 @@ fun EditProfileScreen(
 
                                             is EditProfileType.UserName -> {
 
-                                                userProfileViewModel.modifyName(value.name)
+                                                updateProfileViewModel.modifyProfile(
+                                                    mutation = UpdateProfileViewModel.ProfileMutation.Name(value.name)
+                                                )
 
                                             }
                                             is EditProfileType.UserGender -> {
 
-                                                userProfileViewModel.modifyGender(value.gender)
+                                                updateProfileViewModel.modifyProfile(
+                                                    mutation = UpdateProfileViewModel.ProfileMutation.Gender(value.gender)
+                                                )
                                             }
                                             is EditProfileType.UserImage -> {
 
-                                                userProfileViewModel.modifyProfileImage(value.imageUri)
+                                                updateProfileViewModel.modifyProfile(
+                                                    mutation = UpdateProfileViewModel.ProfileMutation.ProfileImage(value.imageUri)
+                                                )
 
                                             }
 
@@ -415,18 +412,13 @@ fun EditProfileScreen(
             EditPage(
                 onCancelClick = { navController.popBackStack() },
                 onSubmitClick = {
-
-                    if (editProfileViewModel.about.value.isEmpty()) return@EditPage Toast.makeText(
-                        context,
-                        "Bio cannot be empty",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                    scope.launch {
-                        userProfileViewModel.modifyAbout(about = editProfileViewModel.about.value)
-                    }
+                    updateProfileViewModel.modifyProfile(
+                        mutation = UpdateProfileViewModel.ProfileMutation.About(value = editProfileViewModel.about.value)
+                    )
                 },
-                isLoading = isLoading
+                isLoading = isLoading,
+                topBarTitle = "About",
+                snackBarHostState = snackBarHostState
             ) {
                 CustomTextField(
                     modifier = Modifier.fillMaxWidth(),
@@ -451,12 +443,9 @@ fun EditProfileScreen(
             EditPage(
                 onCancelClick = {navController.popBackStack() },
                 onSubmitClick = {
-
-                    if (interestList.isEmpty()) return@EditPage
-
-                    scope.launch {
-                        userProfileViewModel.updateInterests(interestList)
-                    }
+                    updateProfileViewModel.modifyProfile(
+                        mutation = UpdateProfileViewModel.ProfileMutation.Interests(value = interestList)
+                    )
                 },
                 isLoading = isLoading,
                 content = {
@@ -496,12 +485,12 @@ fun EditProfileScreen(
                                     Text(
                                         text = it,
                                         modifier = Modifier.padding(10.dp),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        style = MaterialTheme.typography.bodyMedium
                                     )
                                 },
                                 border = BorderStroke(
                                     width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline
+                                    color = MaterialTheme.colorScheme.outlineVariant
                                 ),
                                 trailingIcon = {
                                     Icon(
@@ -514,20 +503,20 @@ fun EditProfileScreen(
                                         ),
                                         imageVector = Icons.Default.Close,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = MaterialTheme.colorScheme.outline
                                     )
                                 }
                             )
                         }
                     }
-                }
+                },
+                topBarTitle = "Interests",
+                snackBarHostState = snackBarHostState
             )
         }
 
         ProfileEdit.EDIT_CAMPUS -> {
 
-            var isCalenderVisible by remember { mutableStateOf(false) }
-            var calenderSwitch by rememberSaveable { mutableIntStateOf(0) }
 
             LaunchedEffect(Unit) {
                 editProfileViewModel.editCampus(userProfile?.campus ?: Campus())
@@ -536,11 +525,13 @@ fun EditProfileScreen(
             EditPage(
                 onCancelClick = { navController.popBackStack() },
                 onSubmitClick = {
-                    scope.launch {
-                        userProfileViewModel.modifyCampus(editProfileViewModel.campus.value)
-                    }
+                    updateProfileViewModel.modifyProfile(
+                        mutation = UpdateProfileViewModel.ProfileMutation.Campus(value = editProfileViewModel.campus.value)
+                    )
                 },
-                isLoading = isLoading
+                isLoading = isLoading,
+                topBarTitle = "Edit Campus",
+                snackBarHostState = snackBarHostState
             ) {
 
                 UniversityDropdown(
@@ -610,112 +601,13 @@ fun EditProfileScreen(
                         style = MaterialTheme.typography.titleMedium,
                     )
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(start = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (editProfileViewModel.campus.value.courseStart?.month.isNullOrEmpty() ){
-                                Text(
-                                    text = "Start",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }else{
-                                Text(
-                                    text = "${editProfileViewModel.campus.value.courseStart?.month} ${editProfileViewModel.campus.value.courseStart?.year}",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-
-                            IconButton(onClick = {
-                                calenderSwitch = 0
-                                isCalenderVisible = !isCalenderVisible
-                            }) {
-                                Icon(
-                                    modifier = Modifier.size(22.dp),
-                                    painter = painterResource(R.drawable.calendar),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                )
-                            }
+                    CourseDurationPicker(
+                        initialDuration = editProfileViewModel.campus.value.duration,
+                        onDurationSelected = {
+                            editProfileViewModel.duration(it)
                         }
-
-                        Text(
-                            "-",
-                            modifier = Modifier.padding(horizontal = 5.dp),
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(start = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (editProfileViewModel.campus.value.courseEnd?.month.isNullOrEmpty()){
-                                Text(
-                                    text="End",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }else{
-                                Text(
-                                    text = "${editProfileViewModel.campus.value.courseEnd?.month} ${editProfileViewModel.campus.value.courseEnd?.year}",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-
-                            IconButton(onClick = {
-                                calenderSwitch = 1
-                                isCalenderVisible = !isCalenderVisible
-                            }) {
-                                Icon(
-                                    modifier = Modifier.size(22.dp),
-                                    painter = painterResource(R.drawable.calendar),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                )
-                            }
-                        }
-
-                    }
+                    )
                 }
-
-                CustomDatePicker(
-                    isVisible = isCalenderVisible,
-                    onDismiss = {
-                        isCalenderVisible = false
-                    },
-                    onDateSelected = {
-                        if (calenderSwitch == 0) {
-                            editProfileViewModel.editCourseStart(CourseDuration(month = it.first, year = it.second))
-                        }
-                        if (calenderSwitch == 1) {
-                            editProfileViewModel.editCourseEnd(CourseDuration(month = it.first, year = it.second))
-                        }
-                        isCalenderVisible = false
-                    }
-
-                )
-
             }
 
 
@@ -741,10 +633,6 @@ val fieldsOfStudy = listOf(
     "Data Science",
     "Cybersecurity"
 )
-
-
-
-
 
 
 
@@ -803,7 +691,7 @@ fun UniversityDropdown(
         )
 
         ExposedDropdownMenu(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            containerColor = MaterialTheme.colorScheme.surface,
             expanded = universityListState is UiState.Success,
             onDismissRequest = { expanded = false }
         ) {
@@ -864,52 +752,64 @@ fun UniversityDropdown(
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPage(
     onCancelClick: (ProfileEdit) -> Unit,
     onSubmitClick: () -> Unit,
     isLoading: Boolean,
+    topBarTitle: String,
+    snackBarHostState: SnackbarHostState,
     content: @Composable () -> Unit,
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().background(color = MaterialTheme.colorScheme.background).imePadding().padding(WindowInsets.statusBars.asPaddingValues()),
-        contentPadding = PaddingValues(bottom = 16.dp),
-    ) {
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .height(60.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { onCancelClick(ProfileEdit.PROFILE_SCREEN) }) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = null
-                    )
-                }
-
-                if (isLoading) {
-                    CircularLoading(
-                        MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    SubmitButton {
-                        onSubmitClick.invoke()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(text = topBarTitle, style = MaterialTheme.typography.titleLarge)
+                },
+                navigationIcon = {
+                    IconButton(onClick = { onCancelClick(ProfileEdit.PROFILE_SCREEN) }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null
+                        )
                     }
-                }
-            }
-        }
+                },
+                actions = {
+                    Box(
+                        modifier = Modifier.padding(end = 12.dp).height(60.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoading) {
+                            CircularLoading(MaterialTheme.colorScheme.primary)
+                        } else {
+                            SubmitButton { onSubmitClick.invoke() }
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackBarHostState)
+        },
+        // 👇 important to handle keyboard properly
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { padding ->
 
-        item {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                content()
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()) // ✅ instead of scrollable()
+                .imePadding() // ✅ pushes content above keyboard
+                .padding(padding)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            content()
         }
     }
 }
@@ -939,7 +839,7 @@ fun ProfileComponent(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            if (!editIconVisible){
+            if (editIconVisible){
                 EditProfileIconButton {
                     onEditClick.invoke()
                 }
@@ -970,12 +870,12 @@ fun GenderSelector(
                     .fillMaxWidth()
                     .height(52.dp)
                     .background(
-                        color =  MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                        color =  MaterialTheme.colorScheme.surface,
                         shape = MaterialTheme.shapes.small
                     )
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         shape = RoundedCornerShape(8.dp)
                     )
 
@@ -989,7 +889,7 @@ fun GenderSelector(
                     onClick = { onSelect(it) },
                     colors = RadioButtonDefaults.colors(
                         selectedColor = MaterialTheme.colorScheme.primary,
-                        unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        unselectedColor = MaterialTheme.colorScheme.outlineVariant
                     )
                 )
                 Text(text = it.name.lowercase().replaceFirstChar { it.uppercase() })

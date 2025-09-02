@@ -1,9 +1,9 @@
 package com.iota.campusX.Feature.Society.presentation.Screens
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -14,23 +14,22 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.*
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -38,80 +37,157 @@ import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Society.AgoraTokenBuilder.generateDynamicToken
 import com.iota.campusX.Feature.Society.domain.models.*
-import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
+import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomState
+import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
+import com.iota.campusX.Feature.Society.presentation.ViewModels.UiControls
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Chat.DropDownItem
 import com.iota.campusX.Utils.UiState
-import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.theme.Light_Background_Red
 import com.iota.campusX.ui.theme.Red
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.iota.campusX.ui.theme.Yellow
 import org.koin.compose.koinInject
+import kotlin.Boolean
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JoinSocietyScreen(
     navController: NavHostController,
     userProfileViewModel: UserProfileViewModel,
-    societyViewModel: SocietyViewModel,
-    streamViewModel: StreamViewModel = koinInject()
+    streamViewModel: StreamViewModel = koinInject(),
+    audioRoomViewModel: AudioRoomViewModel = koinInject()
 ) {
+
+    //-----------------------------------NAV DATA---------------------------------------------------
+    val roomId = navController.currentBackStackEntry?.savedStateHandle?.get<String>("ROOM_ID")
+    val createdBy = navController.currentBackStackEntry?.savedStateHandle?.get<String>("CREATOR_ID")
+    val title = navController.currentBackStackEntry?.savedStateHandle?.get<String>("TITLE")
+
+
+    //-----------------------------------COMPOSE ITEMS----------------------------------------------
+
     val context = LocalContext.current
     val snackBarHostState = remember { SnackbarHostState() }
 
+    //-----------------------------------STATES-----------------------------------------------------
+
     // States
-    val userData = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
-    val joiningRequests by societyViewModel.joinRequests.collectAsStateWithLifecycle()
-    val audioRoomState by streamViewModel.audioRoomState.collectAsStateWithLifecycle()
-    val askToSpeak by societyViewModel.askToSpeak.collectAsStateWithLifecycle()
-    val microphone by societyViewModel.microphone.collectAsStateWithLifecycle()
+    val profile = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
 
+    val joiningRequests by audioRoomViewModel.joinRequests.collectAsStateWithLifecycle()
+    val agoraStates by streamViewModel.audioRoomState.collectAsStateWithLifecycle()
+    val audioRoomState by audioRoomViewModel.society.collectAsStateWithLifecycle()
 
-    val roomId = navController.currentBackStackEntry?.savedStateHandle?.get<String>("ROOM_ID")
-    val createdBy = navController.currentBackStackEntry?.savedStateHandle?.get<String>("CREATOR_ID")
-    val isHost = userData?.id == createdBy
+    val joiningRequestList = (joiningRequests as? UiState.Success<List<GetJoinRequestDTO>>)?.data
 
-    val joinRequest by remember(joiningRequests, userData) {
+    val isHost = profile?.id == createdBy
+
+    val userState by remember(joiningRequests, profile) {
         derivedStateOf {
-            joiningRequests.find { it.requestId == userData?.id }
+
+            joiningRequestList?.find { it.requestId == profile?.id }
         }
     }
 
-    LaunchedEffect(joiningRequests) {
-        Log.d("JOINING_REQUESTS",joiningRequests.toString())
+    var isDownVisible by remember { mutableStateOf(false) }
+    //-------------------------------------EFFECTS--------------------------------------------------
+
+    LaunchedEffect(audioRoomState) {
+        when (audioRoomState) {
+            is UiState.Loading -> {
+
+            }
+            is UiState.Success<*> -> {
+
+            }
+            is UiState.Error -> {
+                snackBarHostState.showSnackbar("Error")
+            }
+            else -> {
+            }
+
+        }
+
     }
 
-    // 🔑 Microphone Permission
     LaunchMicrophonePermission {
-        streamViewModel.initializeAgora(context)
-        societyViewModel.startListeningJoinRequests(
-            roomId = roomId.orEmpty(),
-            feedMode = FeedMode.GLOBAL,
-            campusId = null
+        audioRoomViewModel.roomState(
+            AudioRoomState.StartListening(roomId = roomId.orEmpty())
         )
-        roomId?.let {
-            societyViewModel.sendJoinRequest(
-                roomId = it,
-                role = if (isHost) "host" else "user",
-                status = if (isHost) Status.STAGE_UP else Status.IDLE,
-                feedMode = FeedMode.GLOBAL,
-                campusId = null
-            )
+    }
+
+    LaunchedEffect(joiningRequests, profile?.id) {
+
+        when(joiningRequests){
+            is UiState.Loading -> {
+
+            }
+            is UiState.Success<*> -> {
+
+                val joiningRequest = (joiningRequests as UiState.Success<List<GetJoinRequestDTO>>).data
+
+                if (joiningRequest.isNotEmpty()){
+
+                    val currentUser = joiningRequest.find { it.requestId == profile?.id }
+
+                    if (currentUser == null) {
+                        // Only send join request if backend has no record of this user
+                        audioRoomViewModel.roomState(
+                            AudioRoomState.SendJoinRequest(
+                                roomId = roomId.orEmpty(),
+                                role = if (isHost) "host" else "user",
+                                status = if (isHost) Status.STAGE_UP else Status.IDLE,
+                                feedMode = FeedMode.CAMPUS,
+                                campusId = null
+                            )
+                        )
+
+                    } else {
+                        // Already exists → restore their previous status
+                        if (currentUser.status == Status.STAGE_UP) {
+                            streamViewModel.initializeAgora(context)
+                            streamViewModel.joinChannel(
+                                channelId = roomId.orEmpty(),
+                                token = generateDynamicToken(roomId.orEmpty(), currentUser.uid!!),
+                                uid = currentUser.uid,
+                                role = if (isHost) "host" else "user"
+                            )
+                        }
+                    }
+                }
+                else{
+                    audioRoomViewModel.roomState(
+                        AudioRoomState.SendJoinRequest(
+                            roomId = roomId.orEmpty(),
+                            role = if (isHost) "host" else "user",
+                            status = if (isHost) Status.STAGE_UP else Status.IDLE,
+                            feedMode = FeedMode.CAMPUS,
+                            campusId = null
+                        )
+                    )
+                }
+
+            }
+            is UiState.Error -> {
+                snackBarHostState.showSnackbar("Error")
+            }
+            else -> {
+            }
         }
     }
 
-    // Handle Stage Status
-    LaunchedEffect(joinRequest?.status, roomId, joinRequest?.uid) {
-        when (joinRequest?.status) {
+    LaunchedEffect(userState?.status) {
+
+        when (userState?.status) {
+
             Status.STAGE_UP -> {
+
+                streamViewModel.initializeAgora(context)
+
                 roomId?.let {
-                    joinRequest?.uid?.let { uid ->
+                    userState?.uid?.let { uid ->
                         streamViewModel.joinChannel(
                             channelId = it,
                             token = generateDynamicToken(it, uid),
@@ -119,122 +195,113 @@ fun JoinSocietyScreen(
                             role = if (isHost) "host" else "user"
                         )
                     }
+
                 }
             }
-            Status.STAGE_DOWN -> streamViewModel.leaveChannel()
-            else -> Unit
+
+            Status.STAGE_DOWN -> {
+                streamViewModel.leaveChannel()
+            }
+
+            else -> {
+
+            }
+
         }
+
     }
 
-    // Microphone toggle from backend state
-    LaunchedEffect(joinRequest?.microphone) {
-        if (joinRequest?.status == Status.STAGE_UP) {
-            streamViewModel.muteLocalAudioStream(joinRequest?.microphone?:false)
-        }
-        else{
+    LaunchedEffect(userState?.muted) {
+
+        if (userState?.muted == true){
             streamViewModel.muteAudio(true)
-            streamViewModel.muteLocalAudioStream(true)
+            streamViewModel.disableAudio()
         }
+
+        if (userState?.muted == false){
+            streamViewModel.muteAudio(false)
+            streamViewModel.enableAudio()
+        }
+
     }
 
-    // Microphone error handling
-    LaunchedEffect(microphone) {
-        if (microphone is UiState.Error) {
-            snackBarHostState.showSnackbar((microphone as UiState.Error).message)
-        }
-    }
-
-    // Agora events handling
-    LaunchedEffect(audioRoomState) {
-        when (val state = audioRoomState) {
-            is State.isSpeaking -> {
-                userData?.id?.let { userId ->
-                    societyViewModel.isSpeaking(
-                        roomId = roomId.orEmpty(),
-                        requestId = userId,
-                        isSpeaking = state.value > 0,
-                        feedMode = FeedMode.GLOBAL,
-                        campusId = null
-                    )
-                }
-            }
-            is State.ChannelLeave -> navController.popBackStack()
-            else -> Unit
-        }
-    }
-
-    // Cleanup when leaving
-    DisposableEffect(roomId, createdBy) {
-        onDispose {
-            roomId?.let {
-                societyViewModel.deleteJoinRequest(
-                    roomId = it,
-                    feedMode = FeedMode.GLOBAL,
-                    campusId = null
+    LaunchedEffect(isHost) {
+        if (isHost){
+            audioRoomViewModel.roomState(
+                AudioRoomState.IsRoomActive(
+                    roomId = roomId.orEmpty(),
+                    isActive = true
                 )
-            }
-        }
-    }
-
-    // Default: reset raised hand
-    LaunchedEffect(roomId) {
-        if (!roomId.isNullOrBlank()) {
-            societyViewModel.askToSpeak(
-                roomId = roomId,
-                isRaiseHand = false,
-                requestId = userData?.id.orEmpty(),
-                feedMode = FeedMode.GLOBAL,
-                campusId = null
             )
         }
     }
 
-    // ✅ UI Content
-    JoinSocietyContent(
-        navController = navController,
-        userData = userData,
-        joiningRequests = joiningRequests,
-        joiningRequest = joinRequest,
-        isMicrophoneEnabled = joinRequest?.microphone ?: false,
-        snackBarHostState = snackBarHostState,
-        roomId = roomId,
-        createdBy = createdBy,
-        societyViewModel = societyViewModel,
-        streamViewModel = streamViewModel,
-        askToSpeakState = askToSpeak
-    )
-}
+    LaunchedEffect(agoraStates) {
+        when (val state = agoraStates) {
+            is State.isSpeaking -> {
+                profile?.id?.let { userId ->
+                    audioRoomViewModel.uiControls(
+                        UiControls.IsSpeaking(
+                            roomId = roomId.orEmpty(),
+                            isSpeaking = state.value > 0,
+                            feedMode = FeedMode.GLOBAL,
+                            campusId = null
+                        )
+                    )
+                }
+            }
+            is State.ChannelLeave -> {
+                audioRoomViewModel.roomState(
+                    AudioRoomState.deleteJoinRequest(
+                        roomId = roomId.orEmpty(),
+                        feedMode = FeedMode.CAMPUS,
+                        campusId = null
+                    )
+                )
+                if (isHost){
+                    audioRoomViewModel.roomState(
+                        AudioRoomState.IsRoomActive(
+                            roomId = roomId.orEmpty(),
+                            isActive = false
+                        )
+                    )
+                }
+                navController.popBackStack()
+            }
+            else -> Unit
+        }
+    }
 
-@SuppressLint("UnrememberedMutableState")
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@Composable
-fun JoinSocietyContent(
-    navController: NavHostController,
-    userData: BaseProfileDTO?,
-    joiningRequest: GetJoinRequestDTO?,
-    joiningRequests: List<GetJoinRequestDTO>,
-    isMicrophoneEnabled: Boolean,
-    snackBarHostState: SnackbarHostState,
-    roomId: String?,
-    createdBy: String?,
-    societyViewModel: SocietyViewModel,
-    streamViewModel: StreamViewModel,
-    askToSpeakState: UiState<Unit>
-) {
-    val currentUserId = userData?.id.orEmpty()
 
-    // ✅ FIXED: Don't use remember here unless you're certain it's necessary
-    val stageUpParticipants = joiningRequests.filter { it.status == Status.STAGE_UP }
-    val stageDownParticipants = joiningRequests.filter { it.status == Status.STAGE_DOWN || it.status == Status.IDLE }
+
+    //---------------------------------------FILTERS------------------------------------------------
+
+    val stageUpParticipants = joiningRequestList?.filter { it.status == Status.STAGE_UP }
+    val stageDownParticipants = joiningRequestList?.filter { it.status == Status.STAGE_DOWN || it.status == Status.IDLE }
+
+    //---------------------------------------UI CONTENT---------------------------------------------
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Society Room", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
+                    Text(title?: "Society", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            if (userState?.status == Status.IDLE){
+                                audioRoomViewModel.roomState(
+                                    AudioRoomState.deleteJoinRequest(
+                                        roomId = roomId.orEmpty(),
+                                        feedMode = FeedMode.CAMPUS,
+                                        campusId = null
+                                    )
+                                )
+                            }
+                            navController.popBackStack()
+                        }
+                    ) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -243,60 +310,75 @@ fun JoinSocietyContent(
         },
         bottomBar = {
             BottomAppBar(containerColor = MaterialTheme.colorScheme.surface) {
-                if (createdBy == currentUserId) {
+
+                if (createdBy == profile?.id) {
                     HostControlUI(
-                        onSessionEndClick = { streamViewModel.leaveChannel() },
-                        isMicrophoneEnabled = isMicrophoneEnabled,
-                        enableMicrophone = {
-                            societyViewModel.isMicrophone(
-                                roomId = roomId.orEmpty(),
-                                isMicrophone = it,
-                                requestId = currentUserId,
-                                feedMode = FeedMode.GLOBAL,
-                                campusId = null
+                        onSessionEndClick = {
+                            audioRoomViewModel.roomState(
+                                AudioRoomState.ClearAudioRoom(
+                                    roomId = roomId.orEmpty()
+                                )
                             )
-                        }
+                            streamViewModel.leaveChannel()
+                        },
+                        isMicrophoneEnabled = userState?.muted ?: true,
+                        enableMicrophone = {
+                            audioRoomViewModel.uiControls(
+                                UiControls.MuteMicrophone(
+                                    roomId = roomId.orEmpty(),
+                                    muted = it,
+                                    feedMode = FeedMode.GLOBAL,
+                                    campusId = null
+                                )
+                            )
+                        },
+                        enableSpeaker = {
+                            streamViewModel.enableLoudSpeaker(it)
+                        },
                     )
                 }
                 else{
 
-                    val status = joiningRequests.find { it.requestId == userData?.id }?.status
                     ParticipantControlUI(
-                        isMicrophoneVisible = status == Status.STAGE_UP,
-                        isMicrophoneEnabled = isMicrophoneEnabled,
-                        isHandRaise = joiningRequest?.raiseHand ?: false,
+                        visibility = userState?.status == Status.STAGE_UP,
+                        isMicrophoneEnabled = userState?.muted ?: true,
+                        isHandRaise = userState?.raiseHand ?: false,
                         enableMicrophone = {
-                            societyViewModel.isMicrophone(
-                                roomId = roomId.orEmpty(),
-                                isMicrophone = it,
-                                requestId = currentUserId,
-                                feedMode = FeedMode.GLOBAL,
-                                campusId = null
+                            audioRoomViewModel.uiControls(
+                                UiControls.MuteMicrophone(
+                                    roomId = roomId.orEmpty(),
+                                    muted = it,
+                                    feedMode = FeedMode.GLOBAL,
+                                    campusId = null
+                                )
                             )
                         },
                         onRaiseHandClick = {
-                            if (!roomId.isNullOrBlank()) {
-                                societyViewModel.askToSpeak(
-                                    roomId = roomId,
-                                    isRaiseHand = !it,
-                                    requestId = currentUserId,
-                                    feedMode = FeedMode.GLOBAL,
-                                    campusId = null
+                            roomId?.let { it1 ->
+                                audioRoomViewModel.uiControls(
+                                    UiControls.AskToSpeak(
+                                        roomId = it1,
+                                        isRaiseHand = !it,
+                                        feedMode = FeedMode.GLOBAL,
+                                        campusId = null
+                                    )
                                 )
                             }
                         },
                         onLeaveClick = {
                             streamViewModel.leaveChannel()
                         },
-                        askToSpeak = askToSpeakState
+                        enableSpeaker = {
+                            streamViewModel.enableLoudSpeaker(it)
+                        },
+
                     )
-
                 }
-
             }
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
     ) { paddingValues ->
+
         LazyVerticalGrid(
             modifier = Modifier
                 .fillMaxSize()
@@ -306,12 +388,12 @@ fun JoinSocietyContent(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ✅ Section 1: On-stage participants
+
             item(span = { GridItemSpan(3) }) {
                 SectionHeader("Participants")
             }
 
-            if (stageUpParticipants.isEmpty()) {
+            if (stageUpParticipants.isNullOrEmpty()) {
                 item(span = { GridItemSpan(3) }) {
                     Box(
                         modifier = Modifier
@@ -326,39 +408,44 @@ fun JoinSocietyContent(
                 items(stageUpParticipants, span = { GridItemSpan(1) }) { request ->
                     ParticipantAvatar(
                         participant = request,
-                        isSpeaking = request.microphone,
-                        audioEnabled = request.speaking,
+                        isSpeaking = request.speaking,
+                        audioEnabled = request.muted,
                         modifier = Modifier,
+                        isHost = profile?.id == createdBy,
                         onDownClick = {
-                            societyViewModel.stageUp(
-                                roomId = roomId.orEmpty(),
-                                status = Status.STAGE_DOWN,
-                                requestId = request.requestId,
-                                feedMode = FeedMode.GLOBAL,
-                                campusId = null
+                            audioRoomViewModel.roomState(
+                                AudioRoomState.StageDown(
+                                    roomId = roomId.orEmpty(),
+                                    requestId = request.requestId,
+                                    feedMode = FeedMode.GLOBAL,
+                                    campusId = null
+                                )
                             )
-                        }
+                        },
                     )
                 }
             }
 
-            // ✅ Section 2: Stage-down / waiting participants
+
             item(span = { GridItemSpan(3) }) {
                 SectionHeader("Stage")
             }
 
+            if (stageDownParticipants.isNullOrEmpty())return@LazyVerticalGrid
+
             items(stageDownParticipants, span = { GridItemSpan(3) }) { request ->
                 StageDownParticipantItem(
                     request = request,
-                    isHost = createdBy == currentUserId,
+                    isHost = createdBy == profile?.id,
                     onStageUp = {
-                        if (!roomId.isNullOrBlank()) {
-                            societyViewModel.stageUp(
-                                roomId = roomId,
-                                status = Status.STAGE_UP,
-                                requestId = request.requestId,
-                                feedMode = FeedMode.GLOBAL,
-                                campusId = null
+                        roomId?.let {
+                            audioRoomViewModel.roomState(
+                                AudioRoomState.StageUp(
+                                    roomId = it,
+                                    requestId = request.requestId,
+                                    feedMode = FeedMode.GLOBAL,
+                                    campusId = null
+                                )
                             )
                         }
                     }
@@ -366,6 +453,8 @@ fun JoinSocietyContent(
             }
         }
     }
+
+
 }
 
 
@@ -419,7 +508,7 @@ fun StageDownParticipantItem(
                     .padding(end = 12.dp)
                     .size(20.dp),
                 painter = painterResource(R.drawable.hand_paper__1_),
-                tint = com.iota.campusX.ui.theme.Yellow,
+                tint = Yellow,
                 contentDescription = "Raised Hand"
             )
         }
@@ -466,10 +555,10 @@ fun ParticipantControlUI(
     enableMicrophone: (Boolean) -> Unit,
     isMicrophoneEnabled: Boolean,
     isHandRaise: Boolean,
-    isMicrophoneVisible: Boolean,
+    visibility: Boolean,
     onLeaveClick: () -> Unit,
     onRaiseHandClick: (Boolean) -> Unit,
-    askToSpeak: UiState<Unit>
+    enableSpeaker: (Boolean) -> Unit
 ) {
 
 
@@ -477,21 +566,25 @@ fun ParticipantControlUI(
 
         // Leave Button
         Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.Center) {
-            TextButton(
-                onClick = onLeaveClick,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = Red,
-                    containerColor = Light_Background_Red
-                )
-            ) {
-                Icon(
-                    modifier = Modifier.rotate(180f),
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = "Exit"
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Leave",)
+
+            if (visibility){
+                TextButton(
+                    onClick = onLeaveClick,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = Red,
+                        containerColor = Light_Background_Red
+                    )
+                ) {
+                    Icon(
+                        modifier = Modifier.rotate(180f),
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = "Exit"
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Leave",)
+                }
             }
+
         }
 
         // Raise Hand Button
@@ -503,51 +596,51 @@ fun ParticipantControlUI(
             ) {
                 Icon(
                     modifier = Modifier.size(20.dp),
-                    painter = painterResource(R.drawable.hand_paper),
+                    painter = if (isHandRaise) painterResource(R.drawable.hand_paper__1_) else painterResource(R.drawable.hand_paper),
                     contentDescription = null,
-
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    "Raise",
-                    style = MaterialTheme.typography.bodyMedium,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1
                 )
             }
         }
 
         // Microphone Toggle
         Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.Center) {
-            if (isMicrophoneVisible) {
+            if (visibility) {
                 IconButton(
                     onClick = { enableMicrophone(!isMicrophoneEnabled) },
                     colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                        containerColor = MaterialTheme.colorScheme.surface,
                     )
                 ) {
                     Icon(
                         painter = painterResource(
                             if (isMicrophoneEnabled)
-                                R.drawable.round_mic_24
-                            else
                                 R.drawable.round_mic_off_24
+                            else
+                                R.drawable.round_mic_24
                         ),
                         contentDescription = null
                     )
                 }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                SpeakerPhoneToggle(
+                    enableSpeaker = {
+                        enableSpeaker(it)
+                    }
+                )
+
             }
         }
     }
 }
 
-
-
 @Composable
 fun HostControlUI(
     onSessionEndClick:()-> Unit,
     isMicrophoneEnabled: Boolean = false,
-    enableMicrophone: (Boolean) -> Unit = {}
+    enableMicrophone: (Boolean) -> Unit = {},
+    enableSpeaker: (Boolean) -> Unit
 ) {
 
     Row(modifier = Modifier.fillMaxWidth()) {
@@ -565,21 +658,26 @@ fun HostControlUI(
             }
         }
         Row (modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.Center){
-            IconButton(onClick = {
-               enableMicrophone(!isMicrophoneEnabled)
-            }) {
+            IconButton(
+                onClick = { enableMicrophone(!isMicrophoneEnabled) },
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                )
+            ) {
                 Icon(
                     painter = painterResource(
-                        if (isMicrophoneEnabled) R.drawable.round_mic_24 else R.drawable.round_mic_off_24
+                        if (isMicrophoneEnabled) R.drawable.round_mic_off_24 else R.drawable.round_mic_24
                     ),
                     contentDescription = null
                 )
             }
+            Spacer(modifier = Modifier.width(12.dp))
+            SpeakerPhoneToggle(
+                enableSpeaker = {enableSpeaker(it)}
+            )
         }
     }
 }
-
-
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -588,21 +686,24 @@ fun ParticipantAvatar(
     modifier: Modifier = Modifier,
     isSpeaking: Boolean = false,
     audioEnabled: Boolean = false,
-    onDownClick:()-> Unit
-    ) {
-//    val image = participant.image.collectAsState().value
-//    val nameOrId = participant.userNameOrId.collectAsState().value
-//    val isSpeaking = participant.speaking.collectAsState().value
-//    val audioEnabled = participant.audioEnabled.collectAsState().value
+    isHost: Boolean,
+    onDownClick:()-> Unit,
+) {
 
 
-    var isMenuExpanded by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+
+    var isDownVisible by remember { mutableStateOf(false) }
+
+    BackHandler {
+        isDownVisible = false
+    }
 
     Box(
         modifier = Modifier.combinedClickable(
         onClick = {},
-        onLongClick = { isMenuExpanded = true },
+        onLongClick = {
+            isDownVisible = true
+        },
         interactionSource = remember { MutableInteractionSource() },
         indication = null)
     ){
@@ -612,7 +713,8 @@ fun ParticipantAvatar(
                 .background(
                     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
                     shape = RoundedCornerShape(6.dp)
-                ).fillMaxSize(),
+                )
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -634,7 +736,7 @@ fun ParticipantAvatar(
                             .fillMaxSize()
                             .border(BorderStroke(2.dp, Color.Gray), CircleShape)
                     )
-                } else if (!audioEnabled) {
+                } else if (audioEnabled) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
                         Box(
                             modifier = Modifier
@@ -666,53 +768,77 @@ fun ParticipantAvatar(
                 overflow = TextOverflow.Ellipsis
             )
 
-            AppLabelText(
-                text = participant.role,
-            )
             Spacer(modifier = Modifier.height(8.dp))
 
         }
 
         if (participant.raiseHand){
 
-            Box(modifier = Modifier.fillMaxSize().padding(6.dp), contentAlignment = Alignment.TopEnd) {
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp), contentAlignment = Alignment.TopEnd) {
                 Icon(
                     modifier = Modifier
                         .size(24.dp)
                         .padding(3.dp),
                     painter = painterResource(id = R.drawable.hand_paper__1_),
-                    tint = Color.Yellow,
+                    tint = Yellow,
                     contentDescription = null
                 )
             }
 
         }
 
-
-        DropdownMenu(
-            expanded = isMenuExpanded,
-            offset = DpOffset(x = (-0).dp, y = 20.dp),
-            onDismissRequest = { isMenuExpanded = false },
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-
-            DropDownItem(
-                onDelete = {
-                    isMenuExpanded = false
-                    scope.launch {
-                        delay(150) // Give time for the menu to dismiss
-                        onDownClick()
-                    }
+        if (isHost && isDownVisible){
+            IconButton(
+                onClick = {
+                    isDownVisible = false
+                    onDownClick()
                 },
-                title = "Down",
-                icon = R.drawable.round_arrow_upward_24
-            )
-
-
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 12.dp, y = 12.dp)
+                    .rotate(-90f),
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.outlineVariant,
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = null
+                )
+            }
         }
 
 
     }
+
+
+}
+
+
+@Composable
+fun SpeakerPhoneToggle(
+    enableSpeaker: (Boolean) -> Unit
+) {
+    var isSpeakerEnabled by remember { mutableStateOf(false) }
+    IconButton(
+        onClick = {
+        isSpeakerEnabled = !isSpeakerEnabled
+        enableSpeaker(!isSpeakerEnabled)
+        },
+        colors = IconButtonDefaults.iconButtonColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
+    ) {
+        Icon(
+            painter = painterResource(
+                if (isSpeakerEnabled) R.drawable.outline_mobile_sound_24 else R.drawable.outline_mobile_sound_off_24
+            ),
+            contentDescription = null
+        )
+    }
+
 
 
 }

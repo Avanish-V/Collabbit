@@ -73,6 +73,7 @@ import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.CampusWidget
+import com.iota.campusX.ui.UIComponents.ConnectionComponent
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.EmptyState
 import com.iota.campusX.ui.UIComponents.ProfileAction
@@ -93,9 +94,10 @@ fun ViewProfile(
     viewUserReplyViewModel: ViewUserReplyViewModel,
 ) {
 
+
     val useridByFeed = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(useridByFeed) {
         useridByFeed?.let { viewProfileViewModel.getUserById(it) }
     }
 
@@ -215,13 +217,28 @@ fun ViewProfile(
                     modifier = Modifier.fillMaxSize(),
                     headerHeight = { },
                     user = viewProfileData,
-                    connectionsCountState = connectionsCountState,
-                    onConnectionClick = {
-                        navHostController.navigate(Routes.Main.Connections.routes).apply {
-                            navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID", useridByFeed)
-                        }
-                    },
                 )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            item {
+                useridByFeed?.let {
+                    ConnectionComponent(
+                        navHostController = navHostController,
+                        pagerState = pagerState,
+                        followersCount = viewProfileData?.count?.followers?:0,
+                        connectionCount = viewProfileData?.count?.connections?:0,
+                        postsCountCount = viewProfileData?.count?.posts?:0,
+                        userId = it
+                    )
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             item {
@@ -250,7 +267,13 @@ fun ViewProfile(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    thickness = 12.dp
+                )
+            }
 
             stickyHeader {
                 AppTabRow(pagerState = pagerState,tabList = listOf("About","Posts","Replies"))

@@ -14,29 +14,27 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
-import com.iota.campusX.Feature.Notification.domain.ContentType
-import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
-import com.iota.campusX.Feature.Notification.domain.LikePayload
+import com.iota.campusX.Feature.Notification.data.CreateNotification
+import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.domain.NotificationType
-import com.iota.campusX.Feature.Notification.domain.toTypedObject
+import com.iota.campusX.Feature.Post.Validators.PostValidator
+import com.iota.campusX.Feature.Post.Validators.ValidationResult
+import com.iota.campusX.Feature.Post.data.mapper.FirestorePagingSource
 import com.iota.campusX.Feature.Post.data.model.CreatePostDTO
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.PostActions
 import com.iota.campusX.Feature.Post.data.model.PostContent
-import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
+import com.iota.campusX.Feature.Post.data.model.PostType
+import com.iota.campusX.Feature.Post.data.model.Type
 import com.iota.campusX.Feature.Post.presentation.UploadState
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Navigation.isPollExpired
-import com.iota.campusX.Feature.Post.data.mapper.FirestorePagingSource
-import com.iota.campusX.Screens.Post.PostType
-import com.iota.campusX.Screens.Post.Type
-import com.iota.campusX.Feature.Post.Validators.PostValidator
-import com.iota.campusX.Feature.Post.Validators.ValidationResult
-import com.iota.campusX.Screens.Post.Vote
+import com.iota.campusX.Feature.Post.data.model.Vote
 import com.iota.campusX.Utils.anonymousImage
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,6 +52,7 @@ class PostRemoteDataSource(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val validator: PostValidator,
+    private val notificationRepository: NotificationRepository
 ):PostRepositoryInterface {
 
 
@@ -98,21 +97,13 @@ class PostRemoteDataSource(
 
         if (postId.isBlank()) return Result.failure(IllegalArgumentException("Invalid post ID"))
 
-        val path = if (feedMode == FeedMode.CAMPUS) "CampusPosts" else "GlobalPosts"
 
         return try {
-            val task = if (!campusId.isNullOrBlank()) {
-                firestore.collection("Posts")
-                    .document(postId)
-                    .delete()
-            } else {
-                firestore.collection("Posts")
-                    .document(postId)
-                    .delete()
-            }
 
-            task.await()
-
+            firestore.collection("Posts")
+                .document(postId)
+                .delete()
+                .await()
 
             Result.success(Unit)
 
@@ -256,7 +247,7 @@ class PostRemoteDataSource(
                                 isCurrentUser = isCurrentUser,
                                 isVerified = user?.metaData?.verified ?: false,
                                 isPremium = user?.metaData?.premium ?: false,
-                                profile = UserDetail(
+                                profile = UserBasicDetail(
                                     id = post.creatorId,
                                     userName = profile.first,
                                     userImage = profile.second,
@@ -325,7 +316,7 @@ class PostRemoteDataSource(
 
             val postRef = firestore.collection("Posts")
 
-            postRef.document(postId).update("postContent.postData.postText", editedText).await()
+            postRef.document(postId).update("postText", editedText).await()
 
             Result.success(Unit)
 
@@ -358,23 +349,18 @@ class PostRemoteDataSource(
 
         // 4️⃣ Send notification only if someone else’s post is liked
         if (userId != currentUid && !isLiked) {
-            val notificationId = "$postId$userId"
-            val notification = CreateNotificationDTO(
-                notificationId = notificationId,
-                createdAt = FieldValue.serverTimestamp(),
-                type = NotificationType.LIKE,
-                isRead = false,
-                payload = LikePayload(
-                    postId = postId,
-                    actionBy = currentUid,
-                    contentType = ContentType.LIKE_POST
-                ).toTypedObject()
-            )
 
-            firestore.collection("Users").document(userId)
-                .collection("Notifications")
-                .document(notificationId)
-                .set(notification).await()
+            notificationRepository.createNotification(
+                CreateNotification.LikeNotification(
+                    notificationId = postId,
+                    type = NotificationType.LIKE,
+                    createdAt = FieldValue.serverTimestamp(),
+                    read = false,
+                    likes = emptyList(),
+                    postId = postId
+                ),
+                creatorId = userId
+            )
 
             sendPushNotification.messageNotification(
                 notificationReceiverId = userId,

@@ -52,12 +52,12 @@ fun notificationText(notificationType: String,userName:String?=null): Notificati
             "LIKE_POST" -> {
                 NotificationTextDTO(
                     title = "Liked",
-                    body = "Someone liked your post."
+                    body = "Someone upvoted your post."
                 )}
             "LIKE_REPLY" -> {
                 NotificationTextDTO(
                     title = "Liked",
-                    body = "Someone liked your reply."
+                    body = "Someone upvoted your reply."
                 )
             }
             "COMMENTED" -> {

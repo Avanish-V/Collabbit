@@ -16,8 +16,8 @@ android {
         applicationId = "com.iota.campusX"
         minSdk = 24
         targetSdk = 35
-        versionCode = 16
-        versionName = "1.0.6"
+        versionCode = 18
+        versionName = "1.0.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -29,6 +29,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+
+        getByName("debug") {
+            isMinifyEnabled = true  // Enable ProGuard in debug mode
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
@@ -72,6 +77,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
+    implementation(libs.androidx.foundation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -116,4 +122,7 @@ dependencies {
 
     implementation("androidx.paging:paging-runtime:3.3.4")
     implementation("androidx.paging:paging-compose:3.3.4")
+
+    implementation("io.github.alihaider63:richlinkpreview:1.0.0")
+    //implementation ("org.jsoup:jsoup:1.12.1")
 }

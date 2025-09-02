@@ -1,18 +1,19 @@
 package com.iota.campusX.Screens.Profile
 
 
+
 import android.net.Uri
-import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.University
-import com.iota.campusX.ui.UIComponents.CourseDuration
+import com.iota.campusX.Feature.UserProfile.data.Duration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
 class EditProfileViewModel: ViewModel() {
 
     private val _editType = MutableStateFlow<EditProfileType?>(null)
@@ -84,12 +85,10 @@ class EditProfileViewModel: ViewModel() {
         _campus.value = _campus.value.copy(degree = degree)
     }
 
-    fun editCourseStart(courseStart: CourseDuration){
-        _campus.value = _campus.value.copy(courseStart = courseStart)
+    fun duration(courseStart: Duration){
+        _campus.value = _campus.value.copy(duration = courseStart)
     }
-    fun editCourseEnd(courseEnd: CourseDuration){
-        _campus.value = _campus.value.copy(courseEnd = courseEnd)
-    }
+
 
     fun editType(editType: EditProfileType) {
         _editType.value = editType

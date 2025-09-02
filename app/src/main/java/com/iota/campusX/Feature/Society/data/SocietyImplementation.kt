@@ -5,7 +5,7 @@ import com.google.api.client.util.Data.mapOf
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.Post.data.model.FeedMode
-import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Society.AgoraTokenBuilder.generateDigitRandom
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
@@ -62,7 +62,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                     .document(createdById)
                     .get()
                     .await()
-                    .toObject(UserDetail::class.java)?: UserDetail()
+                    .toObject(UserBasicDetail::class.java)?: UserBasicDetail()
 
 
 
@@ -73,7 +73,8 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                     joined = society.joined,
                     mode = society.mode,
                     roomId = society.roomId,
-                    isCurrentUser = isCurrentUser
+                    isCurrentUser = isCurrentUser,
+                    active = society.active
                 )
 
             }
@@ -105,7 +106,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                     .document(createdById)
                     .get()
                     .await()
-                    .toObject(UserDetail::class.java)?: UserDetail()
+                    .toObject(UserBasicDetail::class.java)?: UserBasicDetail()
 
 
 
@@ -168,7 +169,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 "role" to role,
                 "status" to status,
                 "uid" to uid,
-                "microphone" to false,
+                "muted" to true,
                 "speaking" to false,
                 "raiseHand" to false
             )
@@ -206,9 +207,24 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
         }
     }
 
-    override suspend fun listenForApproval(roomId: String, feedMode: FeedMode, campusId: String?): Flow<List<GetJoinRequestDTO>> = callbackFlow {
+    override suspend fun clearAudioRoom(roomId: String, feedMode: FeedMode, campusId: String?): Result<Unit> {
+        return try {
 
-        val path = resolveRoomPath(feedMode, campusId)
+            fireStore.collection("Society")
+                .document(roomId)
+                .collection("JoinRequests")
+                .get()
+                .await()
+                .documents.forEach {
+                    it.reference.delete()
+                }
+            Result.success(Unit)
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun listenForApproval(roomId: String, feedMode: FeedMode, campusId: String?): Flow<Result<List<GetJoinRequestDTO>>> = callbackFlow {
 
         val listener = fireStore.collection("Society")
             .document(roomId)
@@ -230,7 +246,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                                 .get()
                                 .await()
 
-                            val user = userSnapshot.toObject(UserDetail::class.java) ?: return@mapNotNull null
+                            val user = userSnapshot.toObject(UserBasicDetail::class.java) ?: return@mapNotNull null
 
                             GetJoinRequestDTO(
                                 requestId = data.requestId,
@@ -239,18 +255,17 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                                 role = data.role,
                                 status = data.status,
                                 speaking = data.speaking,
-                                microphone = data.microphone,
+                                muted = data.muted,
                                 raiseHand = data.raiseHand,
                                 uid = data.uid
                             )
 
                         } catch (e: Exception) {
-                            Log.d("JOINING_REQUESTS",e.message.toString())
+                            trySend(Result.failure(e))
                             null
                         }
                     }
-                    Log.d("JOINING_REQUESTS",requests.toString())
-                    trySend(requests).isSuccess
+                    trySend(Result.success((requests)))
                 }
             }
 
@@ -281,20 +296,17 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
     override suspend fun isMicrophoneEnabled(roomId: String, isMicrophone: Boolean, requestId: String, feedMode: FeedMode, campusId: String?): Result<Unit> {
         return try {
 
-            val path = resolveRoomPath(feedMode, campusId)
-
 
             fireStore.collection("Society")
                 .document(roomId)
                 .collection("JoinRequests")
                 .document(auth.currentUser?.uid ?: "")
-                .update("microphone", isMicrophone)
+                .update("muted", isMicrophone)
                 .await()
 
             Result.success(Unit)
 
         } catch (e: Exception) {
-            Log.e("Firestore", "Stage up failed", e)
             Result.failure(e)
         }
     }
@@ -308,7 +320,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
             fireStore.collection("Society")
                 .document(roomId)
                 .collection("JoinRequests")
-                .document(requestId)
+                .document(auth.currentUser?.uid ?: "")
                 .update("speaking", isSpeaking)
                 .await()
 
@@ -328,7 +340,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
             fireStore.collection("Society")
                 .document(roomId)
                 .collection("JoinRequests")
-                .document(requestId)
+                .document(auth.currentUser?.uid ?: "")
                 .update("raiseHand", isRaiseHand)
                 .await()
 
@@ -349,6 +361,20 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 .delete()
                 .await()
             Result.success(Unit)
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun audioRoomStatus(isActive: Boolean,roomId: String): Result<Unit> {
+        return try {
+
+            fireStore.collection("Society")
+                .document(roomId)
+                .update("active",isActive)
+                .await()
+            Result.success(Unit)
+
         }catch (e: Exception){
             Result.failure(e)
         }

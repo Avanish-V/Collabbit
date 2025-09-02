@@ -9,20 +9,19 @@ import com.google.firebase.firestore.FieldValue
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
+import com.iota.campusX.Feature.Post.data.model.MediaType
 import com.iota.campusX.Feature.Post.data.model.PostActions
 import com.iota.campusX.Feature.Post.data.model.PostContent
-import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.PostType
+import com.iota.campusX.Feature.Post.data.model.Type
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePollUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePostUseCase
 import com.iota.campusX.Feature.Post.domain.repository.PostRepository
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
-import com.iota.campusX.Screens.Post.MediaType
-import com.iota.campusX.Screens.Post.Poll
-import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
-import com.iota.campusX.Screens.Post.PostType
-import com.iota.campusX.Screens.Post.Type
+import com.iota.campusX.Feature.Post.data.model.Poll
 import com.iota.campusX.Utils.FirestoreIdGenerator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,7 +72,7 @@ class PostCreationViewModel(
         visibility: VisibilityMode,
         type: Type,
         poll: Poll
-    ): PostType{
+    ): PostType {
         return PostType.PollPost(
             postId = FirestoreIdGenerator.generate(),
             creatorId = creatorId,
@@ -113,7 +112,7 @@ class PostCreationViewModel(
                                        postId = postType.postId,
                                        createdAt = timestamp,
                                        creatorDetail = CreatorDetail(
-                                           profile = UserDetail(
+                                           profile = UserBasicDetail(
                                                userName = currentUser.value?.userName ?: "",
                                                id = currentUser.value?.id ?: "",
                                                userImage = currentUser.value?.userImage ?: "",
@@ -158,7 +157,7 @@ class PostCreationViewModel(
                                     postId = postType.postId,
                                     createdAt = timestamp,
                                     creatorDetail = CreatorDetail(
-                                        profile = UserDetail(
+                                        profile = UserBasicDetail(
                                             userName = currentUser.value?.userName ?: "",
                                             id = currentUser.value?.id ?: "",
                                             userImage = currentUser.value?.userImage ?: "",

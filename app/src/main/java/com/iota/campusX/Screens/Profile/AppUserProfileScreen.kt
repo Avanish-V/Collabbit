@@ -1,5 +1,6 @@
 package com.iota.campusX.Screens.Profile
 
+import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -23,6 +24,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -33,6 +35,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,6 +43,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
@@ -69,16 +73,19 @@ import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
+import com.iota.campusX.Screens.Home.RefreshBox
 import com.iota.campusX.Screens.ReplyWidget
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
+import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.timeMillsToString
 import com.iota.campusX.ui.UIComponents.AnonymousImage
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.CampusWidget
 import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.ConnectionComponent
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.EditProfileIconButton
 import com.iota.campusX.ui.UIComponents.EmptyState
@@ -88,11 +95,13 @@ import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.UIComponents.PostHeader
 import com.iota.campusX.ui.UIComponents.ProfileContents
 import com.iota.campusX.ui.UIComponents.ProfileHeader
+import kotlinx.coroutines.launch
 import org.koin.compose.getKoin
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
 // AppUserProfileScreen.kt
+@SuppressLint("ConfigurationScreenWidthHeight")
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -100,11 +109,11 @@ fun AppUserProfile(
     navHostController: NavHostController,
     postFeedViewModel: PostFeedViewModel = koinInject(),
     appUserReplyViewModel: AppUserReplyViewModel = koinInject(),
-    profileViewModel: UserProfileViewModel,
     navigationViewModel: NavigationViewModel,
 ) {
 
-
+   val  profileViewModel: UserProfileViewModel = koinInject()
+    val pullToRefreshState = rememberPullToRefreshState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
     val snackBarHostState = remember { SnackbarHostState() }
@@ -122,16 +131,11 @@ fun AppUserProfile(
 
     // ✅ Collect profile states
     val profile = profileViewModel.userBaseProfile.collectAsState().value
-    val connectionsCountState by profileViewModel.connectionCount.collectAsState()
+    val isLoading = profileViewModel.isLoading.collectAsState().value
+
     val appUserReplyState by appUserReplyViewModel.userReplies.collectAsState()
     val postState = postFeedViewModel.userPosts.collectAsLazyPagingItems()
 
-
-    LaunchedEffect(Unit) {
-        profile?.id?.let {
-            profileViewModel.getConnectionCount(it)
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -159,113 +163,139 @@ fun AppUserProfile(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { innerPadding ->
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            state = postLazyColumnState
+        RefreshBox(
+            modifier = Modifier.padding(innerPadding),
+            pullToRefreshState = pullToRefreshState,
+            isRefreshing = isLoading,
+            onRefresh = {
+                profileViewModel.refreshProfile()
+            },
         ) {
 
-            item {
-                ProfileHeader(
-                    modifier = Modifier.fillMaxSize(),
-                    headerHeight = { },
-                    user = profile,
-                    connectionsCountState = connectionsCountState,
-                    onConnectionClick = {
-                        navHostController.navigate(Routes.Main.Connections.routes).apply {
-                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                "USER_ID",
-                                profile?.id ?: ""
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = postLazyColumnState
+            ) {
+
+                item {
+                    ProfileHeader(
+                        modifier = Modifier.fillMaxSize(),
+                        headerHeight = { },
+                        user = profile,
+                        editProfile = {
+                            EditProfileIconButton(
+                                onClick = {
+                                    navHostController.navigate(Routes.Main.EditProfile.routes).apply {
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                            "PROFILE_EDIT",
+                                            ProfileEdit.PROFILE_SCREEN
+                                        )
+                                    }
+                                }
                             )
                         }
-                    },
-                    editProfile = {
-                        EditProfileIconButton(
-                            onClick = {
-                                navHostController.navigate(Routes.Main.EditProfile.routes).apply {
-                                    navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                        "PROFILE_EDIT",
-                                        ProfileEdit.PROFILE_SCREEN
-                                    )
-                                }
-                            }
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                item {
+                    profile?.let {
+                        ConnectionComponent(
+                            navHostController = navHostController,
+                            pagerState = pagerState,
+                            followersCount = profile.count?.followers?:0,
+                            connectionCount = profile.count?.connections?:0,
+                            postsCountCount = profile.count?.posts?:0,
+                            userId = it.id
                         )
                     }
-                )
-            }
+                }
 
-            item { Spacer(modifier = Modifier.height(12.dp)) }
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    HorizontalDivider(
+                        thickness = 12.dp,
+                        color = MaterialTheme.colorScheme.surface
+                    )
+                }
 
-            stickyHeader {
-                AppTabRow(
-                    pagerState = pagerState,
-                    tabList = tabList
-                )
-            }
+                stickyHeader {
+                    AppTabRow(
+                        pagerState = pagerState,
+                        tabList = tabList
+                    )
+                }
 
-            item {
-                ProfileContents(
-                    pagerState = pagerState,
-                    screenHeight = screenHeight,
-                    headerPinned = headerPinned,
-                    content = {
-                        when (it) {
+                item {
+                    ProfileContents(
+                        pagerState = pagerState,
+                        screenHeight = screenHeight,
+                        headerPinned = headerPinned,
+                        content = {
+                            when (it) {
 
-                            0 -> {
-                                profile?.let { userBasicProfileDTO ->
-                                    UserAbout(
+                                0 -> {
+                                    profile?.let { userBasicProfileDTO ->
+                                        UserAbout(
+                                            screenHeight = screenHeight,
+                                            pinned = headerPinned,
+                                            userBasicProfileDTO = userBasicProfileDTO,
+                                            navHostController = navHostController
+                                        )
+                                    }
+                                }
+
+                                1 ->{
+
+                                    PostScreenComponent(
                                         screenHeight = screenHeight,
                                         pinned = headerPinned,
-                                        userBasicProfileDTO = userBasicProfileDTO,
-                                        navHostController = navHostController
+                                        navHostController = navHostController,
+                                        lazyPagingItems = postState,
+                                        onPageActive = {
+                                            if (postState.itemCount != 0) return@PostScreenComponent
+                                            postFeedViewModel.fetchUserPost(
+                                                userId = profile?.id ?: "",
+                                            )
+                                        },
+                                        onRetryClick = {
+                                            postFeedViewModel.fetchUserPost(
+                                                userId = profile?.id ?: "",
+                                            )
+                                        }
                                     )
                                 }
-                            }
 
-                            1 ->{
+                                2 -> {
 
-                                PostScreenComponent(
-                                    screenHeight = screenHeight,
-                                    pinned = headerPinned,
-                                    navHostController = navHostController,
-                                    lazyPagingItems = postState,
-                                    onPageActive = {
-                                        if (postState.itemCount != 0) return@PostScreenComponent
-                                        postFeedViewModel.fetchUserPost(
-                                            userId = profile?.id ?: "",
-                                        )
-                                    },
-                                    onRetryClick = {
-                                        postFeedViewModel.fetchUserPost(
-                                            userId = profile?.id ?: "",
-                                        )
-                                    }
-                                )
-                            }
+                                    RepliesComponent(
+                                        screenHeight = screenHeight,
+                                        pinned = headerPinned,
+                                        userId = profile?.id ?: "",
+                                        repliesState = appUserReplyState,
+                                        navHostController = navHostController,
+                                        onRetryClick = {
+                                            appUserReplyViewModel.getUserReplies(profile?.id ?: "")
+                                        },
+                                        onPageActive = {
+                                            appUserReplyViewModel.getUserReplies(profile?.id ?: "")
+                                        }
+                                    )
 
-                            2 -> {
-
-                                RepliesComponent(
-                                    screenHeight = screenHeight,
-                                    pinned = headerPinned,
-                                    userId = profile?.id ?: "",
-                                    repliesState = appUserReplyState,
-                                    navHostController = navHostController,
-                                    onRetryClick = {
-                                        appUserReplyViewModel.getUserReplies(profile?.id ?: "")
-                                    },
-                                    onPageActive = {
-                                        appUserReplyViewModel.getUserReplies(profile?.id ?: "")
-                                    }
-                                )
-
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
+
             }
+
         }
+
+
     }
 }
 
@@ -328,6 +358,7 @@ fun RepliesComponent(
                                     image = it.post.creatorDetail.profile?.userImage ?: "",
                                     modifier = Modifier.size(42.dp),
                                     onClick = {
+                                        if (it.post.creatorDetail.isCurrentUser) return@CircleImage
                                         navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
                                             navHostController.currentBackStackEntry?.savedStateHandle?.set(
                                                 "USER_ID",
@@ -353,10 +384,15 @@ fun RepliesComponent(
                                         profile = it.post.creatorDetail.profile,
                                         isCurrentUser = it.post.creatorDetail.isCurrentUser,
                                     ),
-                                    postedAt = timeMillsToString(it.post.createdAt?.toDate()?.time ?: 0L),
+                                    postedAt = getTimeAgo(it.post.createdAt?.toDate()?.time ?: 0L),
                                     visibilityMode = it.post.visibilityMode,
                                     isCurrentUser = it.post.creatorDetail.isCurrentUser,
                                     feedMode = it.post.feedMode
+                                )
+
+                                Log.d(
+                                    "CREATED_AT",
+                                    "RepliesComponent: ${it.post.createdAt}"
                                 )
 
                                 PostBody(
@@ -370,7 +406,13 @@ fun RepliesComponent(
 
                                     },
                                     onBodyClick ={
+                                        navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
+                                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
+                                                "POST_ID",
+                                                it.post.postId
+                                            )
 
+                                        }
                                     }
                                 )
 
@@ -485,7 +527,7 @@ fun UserAbout(
                         }
                     },
                     contentDescription = "Bio",
-                    editIconVisible = userBasicProfileDTO.userBio.isEmpty()
+                    editIconVisible = userBasicProfileDTO.userBio.isNotEmpty()
                 )
 
                 Divider()
@@ -545,7 +587,7 @@ fun UserAbout(
                         }
                     },
                     contentDescription = "INTERESTS",
-                    editIconVisible = userBasicProfileDTO.interests.isEmpty()
+                    editIconVisible = userBasicProfileDTO.interests.isNotEmpty()
                 )
 
                 Divider()
@@ -586,7 +628,7 @@ fun UserAbout(
                         }
                     },
                     contentDescription = "CAMPUS",
-                    editIconVisible = userBasicProfileDTO.campus == null
+                    editIconVisible = userBasicProfileDTO.campus != null
                 )
             }
         }
@@ -615,21 +657,11 @@ fun PostScreenComponent(
     }
 
 
-
-
     LazyColumn (
         modifier = Modifier.height(height = screenHeight),
         userScrollEnabled = pinned
     ){
-        item {
-            if (lazyPagingItems.itemCount == 0){
-                StatusScreen(
-                    modifier = Modifier.height(300.dp),
-                    text = "No Posts Yet",
-                    image = null
-                )
-            }
-        }
+
         items(lazyPagingItems.itemCount) { post ->
             val item = lazyPagingItems[post]
             item?.let {

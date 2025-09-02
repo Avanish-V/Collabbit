@@ -18,7 +18,7 @@ fun Divider(modifier: Modifier = Modifier) {
     HorizontalDivider(
         modifier = modifier.fillMaxWidth()
             .alpha(0.5f),
-        color = MaterialTheme.colorScheme.outlineVariant,
+        color = MaterialTheme.colorScheme.outline,
         thickness = 0.5.dp
     )
 

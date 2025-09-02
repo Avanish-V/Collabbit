@@ -1,4 +1,4 @@
-package com.iota.campusX.Screens.Post
+package com.iota.campusX.Feature.Post.data.model
 
 import kotlinx.serialization.Serializable
 

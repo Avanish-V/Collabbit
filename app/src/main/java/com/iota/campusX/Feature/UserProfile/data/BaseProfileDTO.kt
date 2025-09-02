@@ -2,7 +2,7 @@
 package com.iota.campusX.Feature.UserProfile.data
 
 import androidx.annotation.Keep
-import com.iota.campusX.ui.UIComponents.CourseDuration
+import com.iota.campusX.Feature.UserProfile.data.Duration
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -22,7 +22,8 @@ data class BaseProfileDTO(
     @SerialName("interests") val interests: List<String> = emptyList(),
     @SerialName("metaData") val metaData: MetaData = MetaData(),
     @SerialName("campus") val campus: Campus? = null,
-    @SerialName("isRequestSent") val isRequestSent: Boolean? = null
+    @SerialName("isRequestSent") val isRequestSent: Boolean? = null,
+    @SerialName("count") val count: Counts? = null,
 )
 
 /**
@@ -49,8 +50,7 @@ data class Campus(
     @SerialName("campusCode") val campusCode: String? = null,
     @SerialName("degree") val degree: String? = null,
     @SerialName("fieldOfStudy") val fieldOfStudy: String? = null,
-    @SerialName("courseStart") val courseStart: CourseDuration? = null,
-    @SerialName("courseEnd") val courseEnd: CourseDuration? = null,
+    @SerialName("duration") val duration: Duration? = null,
     @SerialName("alumni") val alumni: Boolean? = null
 )
 
@@ -75,3 +75,10 @@ enum class Gender {
     @SerialName("other") OTHER,
     @SerialName("unspecified") UNSPECIFIED
 }
+
+@Serializable
+data class Counts(
+    val followers:Int = 0,
+    val connections:Int = 0,
+    val posts:Int = 0
+)

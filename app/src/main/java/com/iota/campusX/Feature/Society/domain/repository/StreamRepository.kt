@@ -25,4 +25,6 @@ interface StreamRepository {
 
     fun leaveChannel()
 
+    fun enableLoudSpeaker(isLoud: Boolean)
+
 }

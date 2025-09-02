@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.UserProfile.data
 
+import LinkUpRequestDTO
 import SendPushNotification
 import android.net.Uri
 import android.util.Log
@@ -11,11 +12,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
-import com.iota.campusX.Feature.Notification.domain.ConnectionRequestPayload
-import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
+import com.iota.campusX.Feature.Notification.data.CreateNotification
+import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.domain.NotificationType
-import com.iota.campusX.Feature.Notification.domain.toTypedObject
-import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Utils.UiState
 import io.ktor.client.HttpClient
@@ -36,6 +36,7 @@ import kotlinx.coroutines.tasks.await
 
 class UserProfileImpl(
     private val sendPushNotification: SendPushNotification,
+    private val notificationRepository: NotificationRepository,
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,
@@ -45,12 +46,41 @@ class UserProfileImpl(
 
     override suspend fun getBaseProfile(): Result<BaseProfileDTO> {
         return try {
+
+
             val snapshot = firestore.collection("Users")
                 .document(auth.currentUser!!.uid)
                 .get()
                 .await()
 
+            val connectionCount = firestore.collection("Users")
+                .document(auth.currentUser!!.uid)
+                .collection("Connections")
+                .count()
+                .get(AggregateSource.SERVER)
+                .await()
+
+            val postCount = firestore.collection("Posts")
+                .whereEqualTo("creatorId", auth.currentUser!!.uid)
+                .count()
+                .get(AggregateSource.SERVER)
+                .await()
+
+            val replyCount = firestore.collection("Users")
+                .document(auth.currentUser!!.uid)
+                .collection("Followers")
+                .count()
+                .get(AggregateSource.SERVER)
+                .await()
+
             val profile = snapshot.toObject(BaseProfileDTO::class.java)
+                ?.copy(
+                    count = Counts(
+                        connections = connectionCount.count.toInt(),
+                        posts = postCount.count.toInt(),
+                        followers = replyCount.count.toInt()
+                    )
+                )
 
             if (profile != null) Result.success(profile)
             else Result.failure(Exception("Profile not found"))
@@ -73,14 +103,42 @@ class UserProfileImpl(
                         .toObject(BaseProfileDTO::class.java)
                 }
 
-                val userData = userDeferred.await()
+                val connectionsDeferred = async {
+                    firestore.collection("Users")
+                        .document(userId)
+                        .collection("Connections")
+                        .count()
+                        .get(AggregateSource.SERVER)
+                        .await()
+                }
 
-                if (userData == null) {
+                val postsDeferred = async {
+                    firestore.collection("Posts")
+                        .whereEqualTo("creatorId", userId)
+                        .count()
+                        .get(AggregateSource.SERVER)
+                        .await()
+                }
+
+                val followersDeferred = async {
+                    firestore.collection("Users")
+                        .document(userId)
+                        .collection("Followers")
+                        .count()
+                        .get(AggregateSource.SERVER)
+                        .await()
+                }
+
+                val user = userDeferred.await()
+                if (user == null) {
                     Result.failure<BaseProfileDTO>(Exception("User not found"))
                 } else {
-
-                    Result.success(userData)
-
+                    val counts = Counts(
+                        connections = connectionsDeferred.await().count.toInt(),
+                        posts = postsDeferred.await().count.toInt(),
+                        followers = followersDeferred.await().count.toInt()
+                    )
+                    Result.success(user.copy(count = counts))
                 }
             }
         } catch (e: Exception) {
@@ -90,9 +148,7 @@ class UserProfileImpl(
 
     override suspend fun deleteAccount(): Result<Boolean> {
         return try {
-            Log.d("UserProfileViewModel", "deleteUserProfile() init")
             auth.currentUser?.delete()?.await()
-            Log.d("UserProfileViewModel", "deleteUserProfile() init1")
             Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)
@@ -205,8 +261,6 @@ class UserProfileImpl(
         if (campus.collegeName.isNullOrEmpty()) return Result.failure(Exception("College name is empty."))
         if (campus.fieldOfStudy.isNullOrEmpty()) return Result.failure(Exception("Field of study  is empty."))
         if (campus.degree.isNullOrEmpty()) return Result.failure(Exception("Degree is empty."))
-        if (campus.courseEnd == null) return Result.failure(Exception("Course End is empty."))
-        if (campus.courseStart == null) return Result.failure(Exception("Course Start is empty."))
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
 
         return try {
@@ -255,21 +309,18 @@ class UserProfileImpl(
                 }.await()
 
                 if (requestUserId != auth.currentUser!!.uid) {
-                    val notification = CreateNotificationDTO(
-                        notificationId = userId+requestUserId,
-                        type = NotificationType.CONNECTION_REQUEST,
-                        createdAt = FieldValue.serverTimestamp(),
-                        payload = ConnectionRequestPayload(
-                            actionBy = userId
-                        ).toTypedObject()
-                    )
 
-                    firestore.collection("Users")
-                        .document(requestUserId)
-                        .collection("Notifications")
-                        .document(userId+requestUserId)
-                        .set(notification)
-                        .await()
+                    notificationRepository.createNotification(
+                        createNotification = CreateNotification.ConnectionRequestNotification(
+                            notificationId = userId,
+                            type = NotificationType.CONNECTION_REQUEST,
+                            createdAt = serverTimestamp,
+                            read = false,
+                            actionBy = userId
+                        ),
+                        creatorId = requestUserId
+
+                    )
 
                     sendPushNotification.messageNotification(
                         notificationReceiverId = requestUserId,
@@ -364,14 +415,19 @@ class UserProfileImpl(
 
             val connections = snapshot.documents.mapNotNull { doc ->
 
-                val request = doc.toObject(LinkUpRequestDTO::class.java)
+                val senderId = doc.getString("senderId")
 
-                request?.let {
-                    val userSnapshot = firestore.collection("Users").document(it.senderId).get().await()
+                senderId?.let {
+                    val userSnapshot = firestore
+                        .collection("Users")
+                        .document(senderId)
+                        .get()
+                        .await()
+
                     val userData = userSnapshot.toObject(BaseProfileDTO::class.java)
                     userData?.let { data ->
                         ConnectionsDTO(
-                            user = UserDetail(
+                            user = UserBasicDetail(
                                 id = data.id,
                                 userName = data.userName,
                                 userImage = data.userImage

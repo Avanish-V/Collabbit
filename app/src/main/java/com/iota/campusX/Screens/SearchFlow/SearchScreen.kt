@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -67,7 +69,7 @@ fun SearchScreen(navHostController: NavHostController) {
     Scaffold(
         topBar = {
             TextField(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp).fillMaxWidth(),
+                modifier = Modifier.statusBarsPadding().padding(horizontal = 10.dp, vertical = 10.dp).fillMaxWidth(),
                 value = searchValue,
                 onValueChange = {
                     searchValue = it.replaceFirstChar { it.uppercase()
@@ -84,8 +86,8 @@ fun SearchScreen(navHostController: NavHostController) {
                     fontWeight = FontWeight.Bold,
                 ),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent
                 ),
@@ -168,7 +170,7 @@ fun MentorSingleCard(user: UserSearchDTO, onClick: () -> Unit) {
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = user.userName,
@@ -177,13 +179,17 @@ fun MentorSingleCard(user: UserSearchDTO, onClick: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium
 
                 )
-                Text(
-                    user.userBio,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                if (user.userBio.isNotEmpty()){
+                    Spacer(modifier = Modifier.padding(6.dp))
+                    Text(
+                        user.userBio,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
             }
 
         }

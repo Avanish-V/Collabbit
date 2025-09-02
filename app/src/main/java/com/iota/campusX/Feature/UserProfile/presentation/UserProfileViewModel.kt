@@ -12,8 +12,11 @@ import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Utils.UiState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +27,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 
@@ -37,8 +42,8 @@ class UserProfileViewModel(
 
     val userBaseProfile: StateFlow<BaseProfileDTO?> = userProfileRepository.currentUser
 
-    private val _profileById = MutableStateFlow<UiState<BaseProfileDTO>>(UiState.Idle)
-    val profileById: StateFlow<UiState<BaseProfileDTO>> = _profileById.asStateFlow()
+    val isLoading: StateFlow<Boolean> = userProfileRepository.isLoading
+
 
     private val _universityData = MutableStateFlow<UiState<List<UniversityDTO>>>(UiState.Idle)
     val universityData: StateFlow<UiState<List<UniversityDTO>>> = _universityData.asStateFlow()
@@ -46,171 +51,15 @@ class UserProfileViewModel(
     private val _hasConnection = MutableStateFlow<UiState<Boolean?>>(UiState.Idle)
     val hasConnection: StateFlow<UiState<Boolean?>> = _hasConnection.asStateFlow()
 
-    private val _connections = MutableStateFlow<UiState<List<ConnectionsDTO>>>(UiState.Idle)
-    val connections: StateFlow<UiState<List<ConnectionsDTO>>> = _connections.asStateFlow()
 
-    private val _connectionCount = MutableStateFlow<UiState<Int>>(UiState.Idle)
-    val connectionCount: StateFlow<UiState<Int>> = _connectionCount.asStateFlow()
-
-    private val _sendLinkUpRequestState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val sendLinkUpRequestState: StateFlow<UiState<Unit>> = _sendLinkUpRequestState.asStateFlow()
-
-    private val _rejectState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val rejectState: StateFlow<UiState<Unit>> = _rejectState.asStateFlow()
-
-    private val _acceptState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val acceptState: StateFlow<UiState<Unit>> = _acceptState.asStateFlow()
-
-    private val _modifyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val modifyState: StateFlow<UiState<Unit>> = _modifyState.asStateFlow()
-
-
-    fun getUserProfile() = viewModelScope.launch { userProfileRepository.loadCurrentUser() }
-
-
-    fun getUserById(userId: String) {
-        viewModelScope.launch {
-
-            _profileById.value = UiState.Loading
-
-            val result = userProfileRepo.getUserProfileById(userId)
-
-           _profileById.value =  result.fold(
-                onSuccess = {
-                    UiState.Success(it)
-                   // _profileByUserId.value = UiState.Success((profileByUserId.value as UiState.Success).data.copy(basicProfileDTO = it))
-                },
-                onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-            )
-
-        }
+    fun getUserProfile() = viewModelScope.launch {
+        if (userBaseProfile.value != null) return@launch
+        userProfileRepository.loadCurrentUser()
+    }
+    fun refreshProfile() = viewModelScope.launch {
+        userProfileRepository.loadCurrentUser()
     }
 
-    fun getConnections(userId: String) {
-        viewModelScope.launch {
-            _connections.value = UiState.Loading
-            val result = userProfileRepo.getConnections(userId)
-            _connections.value = result.fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-            )
-        }
-    }
-
-
-    fun getConnectionCount(userId: String) {
-
-        if (connectionCount.value is UiState.Success) return
-
-        viewModelScope.launch {
-
-            _connectionCount.value = UiState.Loading
-
-            val result = userProfileRepo.getConnectionsCount(userId)
-
-            _connectionCount.value = result.fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-            )
-        }
-    }
-
-    // One-liner modify/update functions (no UI state needed)
-    fun modifyName(userName: String) = viewModelScope.launch {
-        _modifyState.value = UiState.Loading
-        _modifyState.value = userProfileRepo.updateUserName(userName).fold(
-            onSuccess = {
-                UiState.Success(Unit).also {
-                    userProfileRepository.updateNameLocally(userName)
-                }
-            },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-        resetModifyState()
-
-    }
-
-    fun modifyAbout(about: String) = viewModelScope.launch {
-        _modifyState.value = UiState.Loading
-        _modifyState.value = userProfileRepo.updateAbout(about).fold(
-            onSuccess = { UiState.Success(Unit).also {  userProfileRepository.updateAboutLocally(about) } },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-        resetModifyState()
-    }
-
-    fun modifyGender(gender: Gender) = viewModelScope.launch {
-
-        _modifyState.value = UiState.Loading
-
-        _modifyState.value = userProfileRepo.updateGender(gender).fold(
-            onSuccess = { UiState.Success(Unit).also {  userProfileRepository.updateGenderLocally(gender) } },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-
-        resetModifyState()
-    }
-
-    fun modifySocialAccount(social: String) = viewModelScope.launch {
-        _modifyState.value = UiState.Loading
-        _modifyState.value = userProfileRepo.updateSocialAccounts(social).fold(
-            onSuccess = { UiState.Success(Unit) },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-    }
-
-    fun updateInterests(interests: List<String>) = viewModelScope.launch {
-
-        _modifyState.value = UiState.Loading
-
-        _modifyState.value = userProfileRepo.updateInterests(interests).fold(
-            onSuccess = { UiState.Success(Unit).also({  userProfileRepository.updateInterestLocally(interests) }) },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-        resetModifyState()
-
-    }
-
-    fun modifyCampus(campus: Campus) = viewModelScope.launch {
-
-        _modifyState.value = UiState.Loading
-
-        _modifyState.value = userProfileRepo.updateCampus(campus).fold(
-            onSuccess = {
-                userProfileRepository.updateCampusLocally(campus)
-                UiState.Success(Unit)
-            },
-            onFailure = {
-                UiState.Error(it.message ?: "Something went wrong")
-            }
-        )
-
-        resetModifyState()
-
-    }
-
-    fun modifyProfileImage(imageUri: Uri) = viewModelScope.launch {
-        _modifyState.value = UiState.Loading
-        _modifyState.value = userProfileRepo.updateProfileImage(imageUri).fold(
-            onSuccess = {
-                UiState.Success(Unit).apply {
-                    userProfileRepository.updateImageLocally(imageUri)
-                }
-            },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-        resetModifyState()
-
-    }
-
-    fun sendLinkUpRequest(requestUserId: String, currentState: Boolean?) = viewModelScope.launch {
-        _sendLinkUpRequestState.value = UiState.Loading
-        _sendLinkUpRequestState.value = userProfileRepo.sendLinkUpRequest(requestUserId, currentState).fold(
-            onSuccess = { UiState.Success(Unit) },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-        resetModifyState()
-    }
 
     fun hasConnection(userId: String) = viewModelScope.launch {
         _hasConnection.value = UiState.Loading
@@ -218,45 +67,6 @@ class UserProfileViewModel(
             onSuccess = { UiState.Success(it) },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
-    }
-
-    fun acceptLinkUpRequest(requestUserId: String) = viewModelScope.launch {
-        _acceptState.value = UiState.Loading
-        _acceptState.value = userProfileRepo.acceptLinkUpRequest(requestUserId).fold(
-            onSuccess = { UiState.Success(Unit) },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-        resetModifyState()
-    }
-
-    fun rejectLinkUpRequest(requestUserId: String) = viewModelScope.launch {
-        _rejectState.value = UiState.Loading
-        _rejectState.value = userProfileRepo.rejectLinkUpRequest(requestUserId).fold(
-            onSuccess = { UiState.Success(Unit) },
-            onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-        )
-        resetModifyState()
-    }
-
-    suspend fun deleteUserProfile() {
-
-       viewModelScope.launch {
-           _modifyState.value = UiState.Loading
-           val result = userProfileRepo.deleteAccount()
-           _modifyState.value = result.fold(
-               onSuccess = {
-                   Log.d("UserProfileViewModel", "deleteUserProfile() called")
-                   UiState.Success(Unit)
-                },
-               onFailure = { UiState.Error(it.message ?: "Something went wrong") }
-           )
-       }
-
-    }
-
-    suspend fun resetModifyState(){
-        delay(2000)
-        _modifyState.value = UiState.Idle
     }
 
     fun onUniversityQueryChanged(query: String) {
@@ -283,14 +93,13 @@ class UserProfileViewModel(
         }
     }
 
-
     fun resetUniversityData() {
         _universityData.value = UiState.Idle
     }
 
-    fun removeConnectionFromList(userId: String){
-        if (connections.value is UiState.Idle || connections.value is UiState.Loading) return
-        _connections.value = UiState.Success((connections.value as UiState.Success).data.filter { it.user.id != userId })
-    }
+
+    // Define mutation operations
+
+
 }
 

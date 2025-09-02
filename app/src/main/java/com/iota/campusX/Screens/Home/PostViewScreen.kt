@@ -81,7 +81,6 @@ fun PostViewScreen(navHostController: NavHostController) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color.White
                         )
                     }
                 },

@@ -1,7 +1,7 @@
 package com.iota.campusX.Feature.Post.Validators
 
 import com.iota.campusX.Feature.Post.data.model.FeedMode
-import com.iota.campusX.Screens.Post.PostType
+import com.iota.campusX.Feature.Post.data.model.PostType
 
 //interface PostValidator<T : PostType> {
 //    fun validate(post: T): ValidationResult
@@ -45,12 +45,16 @@ class PostValidator {
         }
 
         return when (post) {
+
             is PostType.MediaPost -> {
                 if (post.image == null && post.postText.isBlank()) {
                     ValidationResult.Error("Media post must contain text or an image")
                 }
                 else if (post.postText.length > 1000) {
                     ValidationResult.Error("Post text cannot exceed 1000 characters")
+                }
+                else if (post.creatorId.isEmpty()){
+                    ValidationResult.Error("Creator is missing.")
                 }
                 else ValidationResult.Success
             }
@@ -61,7 +65,10 @@ class PostValidator {
                     ValidationResult.Error("Poll must have at least 2 options")
                 }else if (post.poll.options.any { it.text.isEmpty() }) {
                     ValidationResult.Error("Poll options cannot be empty")
-                } else {
+                }
+                else if (post.creatorId.isEmpty()){
+                    ValidationResult.Error("Creator is missing.")
+                }else {
                     ValidationResult.Success
                 }
             }

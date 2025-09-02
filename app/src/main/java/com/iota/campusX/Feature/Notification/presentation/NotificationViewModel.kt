@@ -2,7 +2,10 @@ package com.iota.campusX.Feature.Notification.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.iota.campusX.Feature.Notification.domain.NotificationDTO
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.filter
+import com.iota.campusX.Feature.Notification.domain.GetNotification
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.UiState
@@ -15,8 +18,8 @@ import kotlinx.coroutines.launch
 
 class NotificationViewModel(private val notificationRepository: NotificationRepository): ViewModel() {
 
-    private val _notification: MutableStateFlow<NotificationResultState> = MutableStateFlow(NotificationResultState())
-    val notification : StateFlow<NotificationResultState> = _notification.asStateFlow()
+    private val _notification: MutableStateFlow<PagingData<GetNotification>> = MutableStateFlow(PagingData.empty())
+    val notification : StateFlow<PagingData<GetNotification>> = _notification.asStateFlow()
 
     private val _notificationCount: MutableStateFlow<Int> = MutableStateFlow(0)
     val notificationCount: StateFlow<Int> = _notificationCount.asStateFlow()
@@ -29,38 +32,21 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
 
 
     init {
-
         fetchNotifications()
-
     }
     fun fetchNotifications() {
-
         viewModelScope.launch {
-            notificationRepository.fetchNotification().collect {
-
-                when (it) {
-                    is ResultState.Success -> {
-                        _notification.value = NotificationResultState(data = it.data)
-                    }
-
-                    is ResultState.Loading -> {
-                        _notification.value = NotificationResultState(isLoading = true)
-                    }
-
-                    is ResultState.Error -> {
-                        _notification.value = NotificationResultState(error = it.message)
-                    }
-
+            notificationRepository.fetchPagedNotification()
+                .cachedIn(viewModelScope)
+                .collect {
+                    _notification.value = it
                 }
-            }
         }
     }
 
-    fun deleteNotificationFromList(notificationDTO: NotificationDTO) {
-        _notification.update { currentState ->
-            currentState.copy(
-                data = currentState.data - notificationDTO
-            )
+    fun deleteNotificationFromList(notificationDTO: GetNotification) {
+        _notification.update { pagingData ->
+            pagingData.filter { it != notificationDTO }
         }
     }
 
@@ -115,9 +101,3 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
     }
 
 }
-
-data class NotificationResultState(
-    val isLoading: Boolean = false,
-    val data: List<NotificationDTO> = emptyList(),
-    val error: String = ""
-)

@@ -38,6 +38,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -315,14 +316,17 @@ fun MessageInputBar(modifier :Modifier = Modifier, messageText: String, onMessag
         modifier = modifier
             .height(intrinsicSize = IntrinsicSize.Min)
             .border(
-                width = 1.dp,
+                width = 0.5.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(6.dp)
             )
             .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(6.dp))
             .imePadding()
             .padding(horizontal = 12.dp, vertical = 12.dp),
-        textStyle = MaterialTheme.typography.bodyMedium,
+         textStyle = LocalTextStyle.current.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 16.sp
+        ),
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         decorationBox = { innerTextField ->
             Box(
@@ -477,7 +481,7 @@ fun ChatBubbleItem(
                         modifier = Modifier.size(20.dp),
                         painter = painterResource(R.drawable.baseline_done_all_24),
                         contentDescription = null,
-                        tint = if (chat.read) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (chat.read) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.outlineVariant
                     )
 
 

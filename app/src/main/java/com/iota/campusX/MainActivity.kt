@@ -18,7 +18,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +36,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -55,14 +53,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
-import com.cloudinary.android.MediaManager
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
@@ -70,11 +66,9 @@ import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.messaging.FirebaseMessaging
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleSignInViewModel
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
+import com.iota.campusX.Feature.Follow.di.followModule
 import com.iota.campusX.Feature.Post.DI.postModule
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
 import com.iota.campusX.Feature.Post.presentation.UploadState
@@ -115,6 +109,8 @@ import com.iota.campusX.Koin.themeMode
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.navScreen
 import com.iota.campusX.Navigation.shouldShowBottomBar
+import com.iota.campusX.Feature.Follow.presentation.Followers
+import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuSheet
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuViewModel
@@ -122,7 +118,6 @@ import com.iota.campusX.Screens.Profile.ViewProfile
 import com.iota.campusX.Screens.Setting.ThemeMode
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.ThemeMode.ThemePreference
-import com.iota.campusX.Utils.config
 import com.iota.campusX.Utils.initCloudinary
 import com.iota.campusX.ui.theme.AppTheme
 import com.jetpack.observeliveconnectivity.ConnectionState
@@ -148,7 +143,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         actionBar?.hide()
 
-        WindowCompat.setDecorFitsSystemWindows(window, true)
+        //WindowCompat.setDecorFitsSystemWindows(window, true)
 
         initCloudinary(this)
 
@@ -168,21 +163,21 @@ class MainActivity : ComponentActivity() {
                 navigationModule,
                 replyModule,
                 cloudinaryModule,
-                themeMode
+                themeMode,
+                followModule
             )
         }
-
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val token = task.result
-                FirebaseAuth.getInstance().currentUser?.let {
-                    FirebaseFirestore.getInstance().collection("Users")
-                        .document(it.uid)
-                        .update("token", token)
-                }
-            }
-        }
-
+//
+//        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+//            if (task.isSuccessful) {
+//                val token = task.result
+//                FirebaseAuth.getInstance().currentUser?.let {
+//                    FirebaseFirestore.getInstance().collection("Users")
+//                        .document(it.uid)
+//                        .update("token", token)
+//                }
+//            }
+//        }
         setContent {
 
             val themeMode by ThemePreference.getThemeMode(this).collectAsState(initial = ThemeMode.LIGHT)
@@ -195,6 +190,7 @@ class MainActivity : ComponentActivity() {
             val navBackStackEntry by navHostController.currentBackStackEntryAsState()
             val destination = navBackStackEntry?.destination?.route
             val connectivityState = connectivityState()
+            val userProfileViewModel: UserProfileViewModel = koinInject()
 
             LaunchedEffect(connectivityState.value) {
                 if (connectivityState.value == ConnectionState.Unavailable) {
@@ -203,6 +199,8 @@ class MainActivity : ComponentActivity() {
                         actionLabel = "OK",
                         withDismissAction = true
                     )
+                }else{
+                    userProfileViewModel.refreshProfile()
                 }
             }
 
@@ -214,194 +212,190 @@ class MainActivity : ComponentActivity() {
                         postCreationViewModel = koinInject(),
                     )
 
-                    Scaffold(
-                        snackbarHost = {
-                            SnackbarHost(
-                                hostState = snackBarHostState
-                            )
-                        },
-                    ) { innerPadding ->
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
 
-                        Box(
-                            modifier = Modifier
-                                .padding(innerPadding)
-                                .weight(1f),
-                            contentAlignment = Alignment.BottomCenter
+                        NavHost(
+                            modifier = Modifier.fillMaxSize(),
+                            navController = navHostController,
+                            startDestination = if (authViewModel.getCurrentUser()) Routes.Main.routes else Routes.Register.routes
                         ) {
 
-                            NavHost(
-                                modifier = Modifier.fillMaxSize(),
-                                navController = navHostController,
-                                startDestination = if (authViewModel.getCurrentUser()) Routes.Main.routes else Routes.Register.routes
+                            navigation(
+                                startDestination = Routes.Register.SignIn.routes,
+                                route = Routes.Register.routes
                             ) {
+                                composable(route = Routes.Register.SignIn.routes) {
 
-                                navigation(
-                                    startDestination = Routes.Register.SignIn.routes,
-                                    route = Routes.Register.routes
-                                ) {
-                                    composable(route = Routes.Register.SignIn.routes) {
-
-                                        SignInScreen(
-                                            navHostController = navHostController,
-                                        )
-
-                                    }
-                                }
-
-                                navigation(
-                                    startDestination = Routes.Main.Home.routes,
-                                    route = Routes.Main.routes
-                                ) {
-                                    composable(route = Routes.Main.Home.routes) {
-
-                                        MainScreen(
-                                            navHostController,
-                                            navigationViewModel = koinInject(),
-                                            profileViewModel = koinInject(),
-                                            homeViewModel = koinInject(),
-                                            notificationViewModel = koinInject()
-
-                                        )
-                                    }
-                                    navScreen(route = Routes.Main.ProfileByID.routes) {
-                                        val viewProfileViewModel = koinInject<ViewProfileViewModel>()
-                                        val viewUserPostViewModel = koinInject<ViewUserPostViewModel>()
-                                        val viewUserReplyViewModel = koinInject<ViewUserReplyViewModel>()
-                                        ViewProfile(
-                                            navHostController,
-                                            viewUserPostViewModel = viewUserPostViewModel,
-                                            viewProfileViewModel = viewProfileViewModel,
-                                            navigationViewModel = koinInject(),
-                                            viewUserReplyViewModel = viewUserReplyViewModel,
-                                        )
-
-                                    }
-                                    navScreen(route = Routes.Main.Connections.routes) {
-
-                                        ConnectionsScreen(
-                                            navHostController = navHostController
-                                        )
-
-                                    }
-                                    composable(route = Routes.Main.Search.routes) {
-                                        SearchScreen(
-                                            navHostController = navHostController
-                                        )
-                                    }
-                                    composable(route = Routes.Main.Society.routes) {
-                                        SocietyScreen(
-                                            navHostController = navHostController,
-                                        )
-                                    }
-                                    navScreen(route = Routes.Main.CreateSociety.routes) {
-                                        CreateSociety(navHostController)
-                                    }
-                                    composable(route = Routes.Main.JoinSociety.routes) {
-                                        JoinSocietyScreen(
-                                            navController = navHostController,
-                                            userProfileViewModel = koinInject(),
-                                            societyViewModel = koinInject()
-                                        )
-                                    }
-                                    composable(route = Routes.Main.Voxci.routes) {
-                                        VoxciScreen()
-                                    }
-                                    composable(route = Routes.Main.Notification.routes) {
-                                        NotificationScreen(
-                                            navigationViewModel = koinInject(),
-                                            userProfileViewModel = koinInject(),
-                                            navHostController = navHostController
-                                        )
-                                    }
-
-                                    navScreen(Routes.Main.ChatList.routes) {
-
-                                        val chatsViewModel = koinInject<ChatsViewModel>()
-                                        ChatScreen(
-                                            navHostController = navHostController,
-                                            chatsViewModel = chatsViewModel
-                                        )
-
-                                    }
-
-                                    navScreen(Routes.Main.SendMessage.routes) {
-                                        SendMessageScreen(
-                                            navHostController = navHostController,
-                                        )
-                                    }
-
-                                    navScreen(route = Routes.Main.Profile.routes) {
-                                        AppUserProfile(
-                                            navHostController,
-                                            profileViewModel = koinInject(),
-                                            navigationViewModel = koinInject(),
-                                        )
-                                    }
-
-                                    navScreen(Routes.Main.EditProfile.routes) {
-                                        EditProfileScreen(
-                                            navController = navHostController,
-                                            userProfileViewModel = koinInject()
-                                        )
-                                    }
-
-                                    navScreen(Routes.Main.Setting.routes) {
-                                        SettingScreen(
-                                            navController = navHostController,
-                                            userProfileViewModel = koinInject()
-                                        )
-                                    }
-
-                                    navScreen(route = Routes.Main.CreatePost.routes) {
-
-                                        CreatePostScreen(
-                                            navHostController = navHostController,
-                                            userProfileViewModel = koinInject(),
-                                            postCreationViewModel = koinInject(),
-                                            homeViewModel = koinInject(),
-                                        )
-
-                                    }
-
-                                    navScreen(
-                                        route = Routes.Main.ReplyPost.routes
-                                    ) {
-                                        PostReplyScreen(
-                                            navHostController =  navHostController,
-                                            profileViewModel = koinInject(),
-                                            postViewModel = koinInject(),
-                                            homeViewModel = koinInject()
-                                        )
-                                    }
-
-                                    navScreen(
-                                        route = Routes.Main.PostViewScreen.routes
-                                    ) {
-                                        PostViewScreen(navHostController)
-                                    }
+                                    SignInScreen(
+                                        navHostController = navHostController,
+                                    )
 
                                 }
                             }
 
-                            BottomBar(
-                                showBottomBar = shouldShowBottomBar(destination),
-                                navigationViewModel = koinInject(),
-                                navHostController = navHostController
+                            navigation(
+                                startDestination = Routes.Main.Home.routes,
+                                route = Routes.Main.routes
+                            ) {
+                                composable(route = Routes.Main.Home.routes) {
+
+                                    MainScreen(
+                                        navHostController,
+                                        navigationViewModel = koinInject(),
+                                        profileViewModel = koinInject(),
+                                        homeViewModel = koinInject(),
+                                        notificationViewModel = koinInject()
+
+                                    )
+                                }
+                                navScreen(route = Routes.Main.ProfileByID.routes) {
+                                    val viewProfileViewModel = koinInject<ViewProfileViewModel>()
+                                    val viewUserPostViewModel = koinInject<ViewUserPostViewModel>()
+                                    val viewUserReplyViewModel = koinInject<ViewUserReplyViewModel>()
+                                    ViewProfile(
+                                        navHostController,
+                                        viewUserPostViewModel = viewUserPostViewModel,
+                                        viewProfileViewModel = viewProfileViewModel,
+                                        navigationViewModel = koinInject(),
+                                        viewUserReplyViewModel = viewUserReplyViewModel,
+                                    )
+
+                                }
+                                navScreen(route = Routes.Main.Connections.routes) {
+
+                                    ConnectionsScreen(
+                                        navHostController = navHostController
+                                    )
+
+                                }
+                                navScreen(route = Routes.Main.Followers.routes) {
+
+                                    Followers(
+                                        navHostController = navHostController
+                                    )
+
+                                }
+                                composable(route = Routes.Main.Search.routes) {
+                                    SearchScreen(
+                                        navHostController = navHostController
+                                    )
+                                }
+                                composable(route = Routes.Main.Society.routes) {
+                                    SocietyScreen(
+                                        navHostController = navHostController,
+                                    )
+                                }
+                                navScreen(route = Routes.Main.CreateSociety.routes) {
+                                    CreateSociety(navHostController)
+                                }
+                                composable(route = Routes.Main.JoinSociety.routes) {
+                                    JoinSocietyScreen(
+                                        navController = navHostController,
+                                        userProfileViewModel = koinInject(),
+                                    )
+                                }
+                                composable(route = Routes.Main.Voxci.routes) {
+                                    VoxciScreen()
+                                }
+                                composable(route = Routes.Main.Notification.routes) {
+                                    NotificationScreen(
+                                        navigationViewModel = koinInject(),
+                                        userProfileViewModel = koinInject(),
+                                        navHostController = navHostController
+                                    )
+                                }
+
+                                navScreen(Routes.Main.ChatList.routes) {
+
+                                    val chatsViewModel = koinInject<ChatsViewModel>()
+                                    ChatScreen(
+                                        navHostController = navHostController,
+                                        chatsViewModel = chatsViewModel
+                                    )
+
+                                }
+
+                                navScreen(Routes.Main.SendMessage.routes) {
+                                    SendMessageScreen(
+                                        navHostController = navHostController,
+                                    )
+                                }
+
+                                composable(route = Routes.Main.Profile.routes) {
+                                    AppUserProfile(
+                                        navHostController,
+                                        navigationViewModel = koinInject(),
+                                    )
+                                }
+
+                                navScreen(Routes.Main.EditProfile.routes) {
+                                    EditProfileScreen(
+                                        navController = navHostController,
+                                        userProfileViewModel = koinInject()
+                                    )
+                                }
+
+                                navScreen(Routes.Main.Setting.routes) {
+                                    SettingScreen(
+                                        navController = navHostController,
+                                        userProfileViewModel = koinInject()
+                                    )
+                                }
+
+                                navScreen(route = Routes.Main.CreatePost.routes) {
+
+                                    CreatePostScreen(
+                                        navHostController = navHostController,
+                                        userProfileViewModel = koinInject(),
+                                        postCreationViewModel = koinInject(),
+                                        homeViewModel = koinInject(),
+                                    )
+
+                                }
+
+                                navScreen(
+                                    route = Routes.Main.ReplyPost.routes
+                                ) {
+                                    PostReplyScreen(
+                                        navHostController =  navHostController,
+                                        profileViewModel = koinInject(),
+                                        postViewModel = koinInject(),
+                                        homeViewModel = koinInject()
+                                    )
+                                }
+
+                                navScreen(
+                                    route = Routes.Main.PostViewScreen.routes
+                                ) {
+                                    PostViewScreen(navHostController)
+                                }
+
+                            }
+                        }
+
+
+                        BottomBar(
+                            showBottomBar = shouldShowBottomBar(destination),
+                            navigationViewModel = koinInject(),
+                            navHostController = navHostController
+                        )
+
+                        SnackbarHost(
+                            hostState = snackBarHostState,
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp) // margin from bottom
+                        )
+
+                    }
+
+                    if (postMenuState.showSheet) {
+                        postMenuState.currentContent?.let {
+                            PostMenuSheet(
+                                viewModel = koinInject<PostMenuViewModel>(),
+                                content = it,
+                                onDismiss = { postMenuState.close() },
+                                snackBarHostState = snackBarHostState,
                             )
-
                         }
-
-                        if (postMenuState.showSheet) {
-                            postMenuState.currentContent?.let {
-                                PostMenuSheet(
-                                    viewModel = koinInject<PostMenuViewModel>(),
-                                    content = it,
-                                    onDismiss = { postMenuState.close() },
-                                    snackBarHostState = snackBarHostState,
-                                )
-                            }
-                        }
-
                     }
                 }
             }

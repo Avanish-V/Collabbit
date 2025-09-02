@@ -20,7 +20,6 @@ class SearchRepositoryImpl(private val firestore: FirebaseFirestore): SearchRepo
         }
 
         try {
-            Log.d("SearchRepositoryImpl", "Search triggered with query: $query")
 
             val snapshot = firestore.collection("Users")
                 .orderBy("userName")
@@ -30,7 +29,6 @@ class SearchRepositoryImpl(private val firestore: FirebaseFirestore): SearchRepo
                 .addOnSuccessListener {snapshot ->
                     val users = snapshot.documents.mapNotNull { doc ->
                         val user = doc.toObject(UserSearchDTO::class.java)
-                        Log.d("SearchRepositoryImpl", "Fetched user: $user")
                         user
                     }
                     trySend(Result.success(users))
@@ -42,7 +40,6 @@ class SearchRepositoryImpl(private val firestore: FirebaseFirestore): SearchRepo
                 }
 
         } catch (e: Exception) {
-            Log.e("SearchRepositoryImpl", "Search failed: ${e.message}", e)
             if (e is CancellationException) {
                 // ✅ Don't log or emit anything — just rethrow
                 throw e

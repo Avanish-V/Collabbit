@@ -58,4 +58,9 @@ class StreamViewModel(private val  streamRepository: StreamRepository): ViewMode
         streamRepository.leaveChannel()
     }
 
+    fun enableLoudSpeaker(isLoud: Boolean){
+        streamRepository.enableLoudSpeaker(isLoud)
+
+    }
+
 }

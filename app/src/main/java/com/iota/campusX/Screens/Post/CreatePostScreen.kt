@@ -5,7 +5,6 @@ import ConsentAgreeViewModel
 import ConsentBottomSheet
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -74,18 +74,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.google.firebase.firestore.FieldValue
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.Post.data.model.MediaType
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
+import com.iota.campusX.Feature.Post.data.model.Type
 import com.iota.campusX.Feature.Post.presentation.UploadState
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
@@ -102,7 +101,6 @@ import com.iota.campusX.ui.UIComponents.SimpleDropDown
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.LightTheme_Blue
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Contextual
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.abs
@@ -339,10 +337,26 @@ fun CreatePostScreen(
                 when (currentMode) {
 
                     is CreatePostMode.Text->{
-                        InputBox(
-                            text = text,
-                            onValueChange = { text = it },
-                        )
+
+                        Column {
+                            InputBox(
+                                text = text,
+                                onValueChange = { text = it },
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Text(
+                                    text = "${text.count()}/1000",
+                                    color = if (text.count() > 1000) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSecondaryContainer,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        }
                     }
 
                     is CreatePostMode.Media -> {
@@ -664,49 +678,6 @@ fun BottomBarComponent(
 
 }
 
-sealed class PostType {
-
-    abstract val postId: String
-    abstract val creatorId: String
-    @Contextual
-    abstract val createdAt: FieldValue
-    abstract val feedMode: FeedMode?
-    abstract val campusId: String
-    abstract val visibilityMode: VisibilityMode
-
-    abstract val type: Type
-
-    data class MediaPost(
-        val image: Uri?,
-        val postText: String,
-        val mediaType: MediaType,
-        override val postId: String,
-        override val creatorId: String,
-        @Contextual
-        override val createdAt: FieldValue,
-        override val feedMode: FeedMode,
-        override val campusId: String,
-        override val visibilityMode: VisibilityMode,
-        override val type: Type
-    ) : PostType()
-
-    data class PollPost(
-        val poll: Poll,
-        override val postId: String,
-        override val creatorId: String,
-        @Contextual
-        override val createdAt: FieldValue,
-        override val feedMode: FeedMode,
-        override val campusId: String,
-        override val visibilityMode: VisibilityMode,
-        override val type: Type
-    ) : PostType()
-
-}
-
-enum class Type{Poll,Media}
-enum class MediaType {Image, Video}
-
 
 
 @Composable
@@ -716,8 +687,10 @@ fun InputBox(
     mediaContent: @Composable ()  -> Unit = {},
 ) {
 
+
     BasicTextField(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth()
+            .defaultMinSize(minHeight = 100.dp),
         value = text,
         onValueChange = { onValueChange(it) },
         textStyle = LocalTextStyle.current.copy(
@@ -745,17 +718,6 @@ fun InputBox(
             ) {
 
                 it()
-
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
-                    Text(
-                        text = "${text.count()}/1000",
-                        color = if (text.count() > 1000) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
 
                 mediaContent()
 

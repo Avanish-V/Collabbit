@@ -127,7 +127,7 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
             }
 
             PrimaryButton(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(horizontal = 16.dp),
                 buttonText = "I agree and understand",
                 onClick = {
                     onAgree.invoke()

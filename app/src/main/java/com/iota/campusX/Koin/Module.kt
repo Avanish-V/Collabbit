@@ -34,11 +34,14 @@ import com.iota.campusX.Feature.Society.data.SocietyImplementation
 import com.iota.campusX.Feature.Society.data.StreamImplementation
 import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
 import com.iota.campusX.Feature.Society.domain.repository.StreamRepository
+import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
 import com.iota.campusX.Feature.UserProfile.data.UserProfileImpl
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
+import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestViewModel
+import com.iota.campusX.Feature.UserProfile.presentation.UpdateProfileViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.ViewProfileViewModel
 import com.iota.campusX.Navigation.NavigationViewModel
@@ -114,8 +117,6 @@ val authModule = module {
     viewModel { GoogleSignInViewModel(get(),get()) }
 }
 
-
-
 val replyModule = module {
     single { com.iota.campusX.Feature.Reply.ReplyRepository(get(), get(), get()) }
     viewModel { ReplyViewModel(get()) }
@@ -129,22 +130,27 @@ val chatModule = module {
 
 val notificationModule = module {
     single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
-    viewModel { NotificationViewModel(get()) }
+    single { NotificationViewModel(get()) }
     single { SendPushNotification(get(), get()) }
 }
 
 val profileModule = module {
-    single<UserProfileRepo> { UserProfileImpl(get(), get(), get(), get(), get()) }
+    single<UserProfileRepo> { UserProfileImpl(get(), get(), get(), get(), get(),get()) }
     single { UserProfileViewModel(get(),get()) }
     single { UserProfileRepository(get()) }
     viewModel { ViewProfileViewModel(get()) }
+    viewModel { ConnectionRequestViewModel(get() )}
+    viewModel { UpdateProfileViewModel(get(),get()) }
 }
 
 val societyModule = module {
+
     single<SocietyRepository> { SocietyImplementation(get(), get()) }
     single<StreamRepository> { StreamImplementation() }
     viewModel { SocietyViewModel(get()) }
     viewModel { StreamViewModel(get()) }
+    viewModel { AudioRoomViewModel(get()) }
+
 }
 
 val searchModule = module {

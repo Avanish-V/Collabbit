@@ -1,14 +1,11 @@
 package com.iota.campusX.Screens.Setting
 
-import android.R.style.Theme
-import android.content.res.Resources
-import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,24 +16,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,26 +39,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
-import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.Setting
 import com.iota.campusX.Utils.ThemeMode.ThemePreference
-import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.UIComponents.AppLabelText
 //import com.iota.campusX.ui.theme.Black800
-import com.iota.campusX.ui.theme.LightTheme_Black
-import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -80,17 +66,12 @@ fun SettingScreen(
     var screenValue by rememberSaveable { mutableStateOf(Setting.SETTING_SCREEN) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val currentThemeMode = themePreference.getThemeMode(context).collectAsState(initial = ThemeMode.LIGHT)
+    val uriHandler = LocalUriHandler.current
+    val currentThemeMode =
+        themePreference.getThemeMode(context).collectAsState(initial = ThemeMode.LIGHT)
     var showAlert by remember { mutableStateOf(false) }
 
 
-    val modifyState = userProfileViewModel.modifyState.collectAsState().value
-
-    LaunchedEffect(modifyState) {
-        if (modifyState is UiState.Success) {
-            navController.popBackStack()
-        }
-    }
 
     when (screenValue) {
 
@@ -122,36 +103,34 @@ fun SettingScreen(
 
                     LazyColumn(
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(settingList) {
-
-                            TextButton(
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = {
-                                    screenValue = it.destination
-                                },
+                            Row(
+                                modifier = Modifier
+                                    .clickable(
+                                        onClick = {
+                                            it.url?.let { uri -> uriHandler.openUri(uri) }
+                                        }
+                                    )
+                                    .fillMaxWidth()
+                                    .padding(18.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Icon(
-                                        modifier = Modifier.size(22.dp),
-                                        painter = painterResource(it.icon),
-                                        contentDescription = null,
-                                    )
-                                    Text(
-                                        text = it.title,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
+
+                                Icon(
+                                    modifier = Modifier.size(22.dp),
+                                    painter = painterResource(it.icon),
+                                    contentDescription = null,
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = it.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
                             }
                         }
+
                         item {
                             ThemeSwitch(
                                 currentMode = currentThemeMode.value,
@@ -181,7 +160,7 @@ fun SettingScreen(
                             TextButton(
                                 onClick = {
                                     scope.launch {
-                                       showAlert = true
+                                        showAlert = true
                                     }
                                 },
                             ) {
@@ -200,7 +179,7 @@ fun SettingScreen(
                 }
                 val uriHandler = LocalUriHandler.current
 
-                if (showAlert){
+                if (showAlert) {
                     AlertDialogWidget(
                         onDismiss = {
                             showAlert = false
@@ -216,7 +195,6 @@ fun SettingScreen(
                         showLoading = false
                     )
                 }
-
 
 
             }
@@ -298,7 +276,8 @@ fun SettingScreen(
 data class ProfileSetting(
     val title: String,
     val icon: Int,
-    val destination: Setting
+    val destination: Setting,
+    val url: String? = null
 )
 
 val settingList = listOf(
@@ -306,24 +285,28 @@ val settingList = listOf(
         title = "About",
         icon = R.drawable.info,
         destination = Setting.ABOUT_SCREEN,
+        url = "https://www.campuscircle.in/about"
     ),
 
     ProfileSetting(
         title = "Privacy Policy",
         icon = R.drawable.user_lock,
-        destination = Setting.PRIVACY_POLICY
+        destination = Setting.PRIVACY_POLICY,
+        url = "https://www.campuscircle.in/privacy"
     ),
 
     ProfileSetting(
         title = "Term & Conditions",
         icon = R.drawable.memo_circle_check,
-        destination = Setting.TERMS_AND_CONDITIONS
+        destination = Setting.TERMS_AND_CONDITIONS,
+        url = "https://www.campuscircle.in/term-condition"
     ),
 
     ProfileSetting(
         title = "Feedback",
         icon = R.drawable.feedback_hand,
-        destination = Setting.FEEDBACK
+        destination = Setting.FEEDBACK,
+        url = "https://www.campuscircle.in/feedback"
     ),
 )
 
@@ -363,9 +346,7 @@ fun SettingPage(
         },
     ) { paddingValues ->
 
-        Column(modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)) {
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
 
             content()
 
@@ -384,7 +365,7 @@ fun ThemeSwitch(
     onDynamicColorChange: (Boolean) -> Unit
 ) {
 
-    Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+    Column(modifier = Modifier.padding(horizontal = 18.dp)) {
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -394,7 +375,6 @@ fun ThemeSwitch(
                 modifier = Modifier.size(22.dp),
                 painter = painterResource(R.drawable.dark_mode_alt),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
             )
             Text(text = "Theme", style = MaterialTheme.typography.bodyLarge)
         }
@@ -422,16 +402,9 @@ fun ThemeSwitch(
     }
 }
 
-enum class ThemeMode {
-    LIGHT,
-    DARK,
-}
-
 val themeModeList = listOf<Theme>(
     Theme(theme = "Light", mode = ThemeMode.LIGHT),
     Theme(theme = "Dark", mode = ThemeMode.DARK)
 )
 
 
-
-data class Theme(val theme: String, val mode: ThemeMode)

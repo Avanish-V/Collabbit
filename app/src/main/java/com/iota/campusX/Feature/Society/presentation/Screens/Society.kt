@@ -1,6 +1,5 @@
 package com.iota.campusX.Feature.Society.presentation.Screens
 
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -23,7 +22,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +41,7 @@ import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AnimatedStatus
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.CircularLoading
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -66,7 +65,7 @@ fun SocietyScreen(
     var selectedRoomId by remember { mutableStateOf("") }
 
     // Initial fetch
-    LaunchedEffect(Unit) {
+    LaunchedEffect(profile?.campus?.campusCode) {
         societyViewModel.fetchSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.campus?.campusCode)
     }
 
@@ -142,14 +141,13 @@ fun SocietyScreen(
                             showDeleteButton = true
                             selectedRoomId = roomId
                             context.vibrate()
-                            Log.d("SocietyScreen", "Clicked")
+
                         }
                     )
                     1 -> MySocietyList(
                         state = userSociety.value,
                         navHostController = navHostController,
                         onLongClick = { roomId ->
-                            Log.d("SocietyScreen", "Clicked")
                             showDeleteButton = true
                             selectedRoomId = roomId
                             context.vibrate()
@@ -240,6 +238,7 @@ private fun SocietyList(
                             navHostController.navigate(Routes.Main.JoinSociety.routes).apply {
                                 navHostController.currentBackStackEntry?.savedStateHandle?.set("CREATOR_ID", society.createdBy.id)
                                 navHostController.currentBackStackEntry?.savedStateHandle?.set("ROOM_ID", society.roomId)
+                                navHostController.currentBackStackEntry?.savedStateHandle?.set("TITLE", society.societyName)
                             }
                         },
                         onLongClick = {
@@ -271,7 +270,7 @@ private fun MySocietyList(
 
     when (state) {
         is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+            CircularLoading(MaterialTheme.colorScheme.primary)
         }
 
         is UiState.Success<*> -> {
@@ -324,10 +323,6 @@ fun SocietyCard(
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(12.dp)
-            )
             .combinedClickable(
                 onClick = { onCardClick.invoke() },
                 onLongClick = {
@@ -340,19 +335,37 @@ fun SocietyCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(getSocietyDTO.societyName, style = MaterialTheme.typography.bodyLarge)
+            Text(getSocietyDTO.societyName, style = MaterialTheme.typography.titleMedium)
             Text(getSocietyDTO.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
                 Text("Hosted by", style = MaterialTheme.typography.titleSmall)
+
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircleImage(
-                        image = getSocietyDTO.createdBy.userImage,
-                        modifier = Modifier.size(28.dp),
-                        onClick = {},
-                        visibility = VisibilityMode.USER
-                    )
-                    Text(getSocietyDTO.createdBy.userName, style = MaterialTheme.typography.bodyMedium)
+
+                    Row(verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+
+
+                        Box(contentAlignment = Alignment.Center){
+                            if (getSocietyDTO.active){
+                                AnimatedStatus(
+                                    modifier = Modifier.size(48.dp),
+                                    file = R.raw.wave_animation,
+                                    description = "Online"
+                                )
+                            }
+
+                            CircleImage(
+                                image = getSocietyDTO.createdBy.userImage,
+                                modifier = Modifier.size(28.dp),
+                                onClick = {},
+                                visibility = VisibilityMode.USER
+                            )
+                        }
+                        Text(getSocietyDTO.createdBy.userName, style = MaterialTheme.typography.bodyMedium)
+                    }
+
                 }
             }
         }

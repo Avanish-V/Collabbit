@@ -2,7 +2,6 @@ package com.iota.campusX.Screens.Home
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -12,15 +11,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -30,15 +26,10 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
@@ -47,7 +38,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -58,19 +48,15 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -83,7 +69,6 @@ import androidx.navigation.NavHostController
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.data.model.FeedMode
@@ -109,16 +94,11 @@ import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
-import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.PostCard
-import com.iota.campusX.ui.theme.LightTheme_Blue
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.getKoin
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
-import kotlin.time.Duration.Companion.milliseconds
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -154,15 +134,14 @@ fun MainScreen(
     val feedMode = (switchState as? UiState.Success<FeedMode>)?.data
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface ,
+        containerColor = MaterialTheme.colorScheme.background ,
         topBar = {
             TopAppBar(
                 title = {
                     Image(
                         painter = painterResource(if (isSystemInDarkTheme()) R.drawable.app_logo else R.drawable.app_logo),
                         contentDescription = "Logo",
-                        modifier = Modifier
-                            .size(42.dp),
+                        modifier = Modifier.size(42.dp),
                         colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
                     )
                 },
@@ -219,9 +198,7 @@ fun MainScreen(
         },
     ) { innerPadding ->
 
-        Column(modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)) {
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when {
                 feedMode != null -> {
 
@@ -414,13 +391,14 @@ fun FeedComponent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RefreshBox(
+    modifier: Modifier = Modifier,
     pullToRefreshState: PullToRefreshState,
     onRefresh: () -> Unit,
     isRefreshing: Boolean,
     content: @Composable () -> Unit
 ) {
     PullToRefreshBox(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         isRefreshing = isRefreshing,
         onRefresh = {
             onRefresh.invoke()
@@ -483,7 +461,7 @@ fun FeedUiRenderer(
             item {
                 HorizontalDivider(
                     thickness = 12.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                    color = MaterialTheme.colorScheme.surface
                 )
             }
 

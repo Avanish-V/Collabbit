@@ -14,8 +14,7 @@ import com.iota.campusX.Feature.Post.domain.UseCases.GetPostByIdUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.GetPostsUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.ToggleLikeUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.VotePollUseCase
-import com.iota.campusX.Feature.Post.domain.repository.updateLike
-import com.iota.campusX.Screens.Post.Vote
+import com.iota.campusX.Feature.Post.data.model.Vote
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -256,6 +255,20 @@ class PostRepository(
                    post
                }
            }
+        }
+
+    }
+
+    suspend fun updateFollowLocally(userId: String, isFollowing: Boolean){
+        _globalPosts.update { pagingData ->
+            pagingData.map { post->
+                if (post.creatorDetail.profile?.id == userId){
+                    post.copy(creatorDetail = post.creatorDetail.copy(isFollow = isFollowing))
+                }else{
+                    post
+                }
+            }
+
         }
 
     }

@@ -6,7 +6,7 @@ import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
 import com.iota.campusX.Feature.Post.data.model.PostActions
-import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.model.UserReplyDTO
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.domain.repository.ReplyRepositoryInterface
@@ -250,7 +250,7 @@ class ReplyRepository (
             replyId = replyId,
             visibility = visibilityMode,
             creatorDetail = CreatorDetail(
-                profile = UserDetail(
+                profile = UserBasicDetail(
                     userName = visibility?.first ?: "",
                     id = creatorDetail.profile?.id ?: "",
                     userImage = visibility?.second ?: "",

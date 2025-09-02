@@ -35,6 +35,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
+import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestState
+import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestViewModel
+import com.iota.campusX.Feature.UserProfile.presentation.ConnectionState
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
@@ -53,20 +56,24 @@ import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConnectionsScreen(navHostController: NavHostController) {
+fun ConnectionsScreen(
+    navHostController: NavHostController,
+    connectionRequestViewModel: ConnectionRequestViewModel = koinInject(),
+) {
 
     val scope = rememberCoroutineScope()
-    val profileViewModel = koinInject<UserProfileViewModel>()
-    val connections = profileViewModel.connections.collectAsStateWithLifecycle().value
-    val rejectConnectionState = profileViewModel.rejectState.collectAsStateWithLifecycle().value
+    val connections = connectionRequestViewModel.connections.collectAsStateWithLifecycle().value
+    val rejectConnectionState = connectionRequestViewModel.rejectRequestState.collectAsStateWithLifecycle().value
     val user = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
 
     LaunchedEffect(Unit) {
-        user?.let { profileViewModel.getConnections(it) }
+        user?.let { connectionRequestViewModel.getConnections(it) }
     }
 
     LaunchedEffect(rejectConnectionState) {
+
         when(rejectConnectionState){
+
             is UiState.Loading -> {
 
             }
@@ -135,8 +142,13 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                                 },
                                 connectionData = connections,
                                 onRejectClick = {
-                                    profileViewModel.rejectLinkUpRequest(connections.user.id)
-                                }
+                                    connectionRequestViewModel.request(
+                                        ConnectionRequestState.RejectConnectionRequest(
+                                            connections.user.id
+                                        )
+                                    )
+                                },
+                                title = "Remove"
                             )
 
                         }
@@ -149,7 +161,7 @@ fun ConnectionsScreen(navHostController: NavHostController) {
                         image = R.drawable.undraw_voice_assistant_k27k,
                         onReTry = {
                             scope.launch {
-                                user?.let { profileViewModel.getConnections(it) }
+                                user?.let { connectionRequestViewModel.getConnections(it) }
                             }
                         },
                         buttonText = "Try again"
@@ -167,7 +179,8 @@ fun ConnectionsScreen(navHostController: NavHostController) {
 fun ConnectionsItemView(
     onItemClick: () -> Unit,
     connectionData: ConnectionsDTO,
-    onRejectClick: () -> Unit
+    onRejectClick: () -> Unit,
+    title : String
 ) {
     Card(
         onClick = {
@@ -214,7 +227,7 @@ fun ConnectionsItemView(
                 shape = RoundedCornerShape(6.dp)
 
             ) {
-                Text("Remove",style = MaterialTheme.typography.bodyMedium)
+                Text(title,style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

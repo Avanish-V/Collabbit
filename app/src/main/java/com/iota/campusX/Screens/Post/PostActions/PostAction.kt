@@ -12,4 +12,10 @@ sealed class PostAction {
     data class ViewPostVisualContent(val post: GetPostDTO) : PostAction()
     data class OpenPostDetail(val postId: String) : PostAction()
     data class VotePoll(val postId: String,val optionId: String,val feedMode: FeedMode) : PostAction()
+
+    data class FollowUser(val userId: String) : PostAction()
+
+    data class UnFollowUser(val userId: String) : PostAction()
+
+
 }

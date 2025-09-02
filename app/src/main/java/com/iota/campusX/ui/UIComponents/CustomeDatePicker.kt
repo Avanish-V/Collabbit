@@ -1,201 +1,193 @@
 package com.iota.campusX.ui.UIComponents
 
+import android.app.DatePickerDialog
+import android.util.Log
+import android.widget.DatePicker
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import kotlinx.serialization.Serializable
+import com.iota.campusX.Feature.UserProfile.data.Duration
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
-@Serializable
-data class CourseDuration(
-    val month: String = "",
-    val year: String = ""
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomDatePicker(
-    isVisible: Boolean,
-    onDismiss: () -> Unit,
-    onDateSelected: (Pair<String, String>) -> Unit
+fun CourseDurationPicker(
+    initialDuration: Duration? = null, // pass data from DB here
+    onDurationSelected: (Duration) -> Unit = {}
 ) {
+    Log.d("CourseDurationPicker", "initialDuration: $initialDuration")
+    val context = LocalContext.current
+    val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
 
-    if (!isVisible) return
+    // State holders (not tied permanently to initialDuration)
+    var startDate by remember { mutableStateOf<Date?>(null) }
+    var endDate by remember { mutableStateOf<Date?>(null) }
+    var isCurrentlyStudying by remember { mutableStateOf(false) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var selectedDuration by remember { mutableStateOf(Duration()) }
 
-    BasicAlertDialog(
-        onDismissRequest = {
-            onDismiss.invoke()
-        },
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        )
-    ) {
-        var selectedMonth: String by remember { mutableStateOf("0") }
-        var selectedYear: String by remember { mutableStateOf("2025") }
-
-        Column(
-            modifier = Modifier
-                .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp))
-                .clip(RoundedCornerShape(12.dp)),
-            horizontalAlignment = Alignment.End
-        ) {
-
-
-            MonthYearPicker(
-                selectedMonth = selectedMonth.toString(),
-                selectedYear = selectedYear.toString(),
-                onMonthChange = { selectedMonth = it },
-                onYearChange = { selectedYear = it }
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-
-            TextButton(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                onClick = {
-                    onDateSelected(Pair(first = selectedMonth, second = selectedYear))
-                },
-                shape = RoundedCornerShape(0.dp)
-            ) {
-                Text("Set")
-            }
-
-
+    // 🔹 Sync state with initialDuration whenever it changes
+    LaunchedEffect(initialDuration) {
+        if (initialDuration != null) {
+            startDate = initialDuration.startTimestamp?.let { Date(it) }
+            endDate = initialDuration.endTimestamp?.let { Date(it) }
+            isCurrentlyStudying = initialDuration.current
+            selectedDuration = initialDuration
         }
     }
 
+    fun updateDuration() {
+        selectedDuration = Duration(
+            start = startDate?.let { dateFormat.format(it) } ?: "",
+            startTimestamp = startDate?.time,
+            end = if (isCurrentlyStudying) null else endDate?.let { dateFormat.format(it) },
+            endTimestamp = if (isCurrentlyStudying) null else endDate?.time,
+            current = isCurrentlyStudying
+        )
+        onDurationSelected(selectedDuration)
+    }
 
-}
+    fun showDatePicker(onDateSelected: (Date) -> Unit) {
+        val calendar = Calendar.getInstance()
+        DatePickerDialog(
+            context,
+            { _: DatePicker, year: Int, month: Int, _: Int ->
+                calendar.set(Calendar.YEAR, year)
+                calendar.set(Calendar.MONTH, month)
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                onDateSelected(calendar.time)
 
+                validationError = validateDates(startDate, endDate, isCurrentlyStudying)
+                updateDuration()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
 
-
-@Composable
-fun MonthYearPicker(
-    selectedMonth: String,
-    selectedYear: String,
-    onMonthChange: (String) -> Unit,
-    onYearChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val months = listOf(
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    )
-    val years = (2000..2050).toList()
-
-
-
-    Box(modifier = Modifier
-        .fillMaxWidth()
-        .height(150.dp)){
-
+    Column {
+        // Start Date Picker
         Row(
-            modifier = modifier
-                .height(150.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = MaterialTheme.colorScheme.surface
+                )
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = MaterialTheme.shapes.small
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Month Picker
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(vertical = 12.dp)
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text(
+                    text = startDate?.let { "Start: ${dateFormat.format(it)}" }
+                        ?: "Select Start Date",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                )
+            }
+            IconButton(onClick = { showDatePicker { startDate = it } }) {
+                Icon(imageVector = Icons.Default.DateRange, contentDescription = "Pick Start Date")
+            }
+        }
+
+        // Checkbox
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = isCurrentlyStudying,
+                onCheckedChange = {
+                    isCurrentlyStudying = it
+                    if (it) endDate = null
+                    validationError = validateDates(startDate, endDate, isCurrentlyStudying)
+                    updateDuration()
+                }
+            )
+            Text("I currently study here")
+        }
+
+        // End Date Picker
+        if (!isCurrentlyStudying) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = MaterialTheme.colorScheme.surface
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = MaterialTheme.shapes.small
+                    ),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                itemsIndexed(months) { index, month ->
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Text(
-                        text = month,
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .clickable(
-                                onClick = { onMonthChange(month) },
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ),
-                        color = if (month == selectedMonth) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = if (month == selectedMonth) 20.sp else 16.sp,
-                        fontWeight = if (month == selectedMonth) FontWeight.Bold else FontWeight.Normal
+                        text = endDate?.let { "End: ${dateFormat.format(it)}" }
+                            ?: "Select End Date",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
                     )
                 }
-            }
-
-            // Year Picker
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(vertical = 12.dp)
-            ) {
-                itemsIndexed(years) { index, year ->
-                    Text(
-                        text = year.toString(),
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .clickable(
-                                onClick = { onYearChange(year.toString()) },
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ),
-                        color = if (year.toString() == selectedYear) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = if (year.toString() == selectedYear) 20.sp else 16.sp,
-                        fontWeight = if (year.toString() == selectedYear) FontWeight.Bold else FontWeight.Normal
-                    )
+                IconButton(onClick = { showDatePicker { endDate = it } }) {
+                    Icon(imageVector = Icons.Default.DateRange, contentDescription = "Pick End Date")
                 }
             }
         }
 
-        Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(16.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color.Gray.copy(alpha = 0.2f), Color.Transparent)
-                        )
-                    )
+        Spacer(Modifier.height(12.dp))
 
+        // Validation error
+        validationError?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
             )
         }
 
+        Spacer(Modifier.height(16.dp))
     }
-
-
-
-
 }
+
+private fun validateDates(startDate: Date?, endDate: Date?, isCurrentlyStudying: Boolean): String? {
+    return when {
+        startDate == null -> "Please select a start date"
+        !isCurrentlyStudying && endDate == null -> "Please select an end date"
+        !isCurrentlyStudying && startDate.after(endDate) ->
+            "Start date cannot be after end date"
+        else -> null
+    }
+}
+
+
+
+

@@ -1,6 +1,11 @@
 package com.iota.campusX.Screens.Post.PostMenuActions
 
 import android.graphics.Color
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -31,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.iota.campusX.R
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Utils.UiState
 import org.koin.compose.koinInject
@@ -97,7 +104,7 @@ fun MenuBottomSheet(onDismiss: () -> Unit,sheetState: SheetState,menuOptions: Li
     ModalBottomSheet(
         onDismissRequest = { onDismiss() },
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -108,19 +115,36 @@ fun MenuBottomSheet(onDismiss: () -> Unit,sheetState: SheetState,menuOptions: Li
             menuOptions.forEach { action ->
                 Row (
                     modifier = Modifier
-                        .background(color = MaterialTheme.colorScheme.secondaryContainer)
+                        .background(color = MaterialTheme.colorScheme.background)
                         .clickable { pendingAction(action)}
                         .padding(horizontal = 12.dp),
 
                     verticalAlignment = Alignment.CenterVertically
                 ){
-                    Icon(
-                        modifier = Modifier.size(24.dp),
-                        painter = painterResource(action.icon),
-                        contentDescription = action.label,
-                        tint = if (action.label == "Delete") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground
-                    )
-
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = slideInHorizontally(
+                            initialOffsetX = { it }, // starts from right side
+                            animationSpec = spring(
+                                stiffness = Spring.StiffnessMedium, // adjust bounce
+                                dampingRatio = Spring.DampingRatioMediumBouncy
+                            )
+                        ),
+                        exit = slideOutHorizontally(
+                            targetOffsetX = { it }, // slides out to right side
+                            animationSpec = spring(
+                                stiffness = Spring.StiffnessMedium,
+                                dampingRatio = Spring.DampingRatioNoBouncy
+                            )
+                        )
+                    ) {
+                        Icon(
+                            modifier = Modifier.size(24.dp),
+                            painter = painterResource(action.icon),
+                            contentDescription = action.label,
+                            tint = if (action.label == "Delete") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                     Text(
                         text = action.label,
                         modifier = Modifier

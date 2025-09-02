@@ -8,15 +8,16 @@
 -dontwarn io.agora.**
 
 # Notification-related DTOs
--keep class com.iota.campusX.Feature.Notification.domain.NotificationDTO { *; }
--keep class com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO { *; }
--keep class com.iota.campusX.Feature.Post.data.model.PostData { *; }
+-keep class com.iota.campusX.Feature.Notification.data.** { *; }
+-keep class com.iota.campusX.Feature.Notification.domain.** { *; }
+-keep class com.iota.campusX.Screens.Setting.** { *; }
 
 # Referenced User model
 #-keep class com.iota.campusX.Feature.Post.domain.Models.User { *; }
 
 # Post-related DTOs (already mostly present)
--keep class com.iota.campusX.Feature.Post.domain.** { *; }
+-keep class com.iota.campusX.Feature.Post.data.model.** { *; }
+-keep class com.iota.campusX.Feature.UserProfile.data.** { *; }
 
 
 

@@ -17,9 +17,15 @@ class UserProfileRepository (
     private val _currentUser = MutableStateFlow<BaseProfileDTO?>(null)
     val currentUser: StateFlow<BaseProfileDTO?> = _currentUser.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+
     suspend fun loadCurrentUser() {
+        _isLoading.value = true
         val result = userProfileRepo.getBaseProfile() // returns Result<BaseProfileDTO>
         result.onSuccess { profile ->
+            _isLoading.value = false
             _currentUser.value = profile
         }.onFailure {
             _currentUser.value = null // or keep previous value

@@ -1,6 +1,8 @@
 package com.iota.campusX.Screens.Post
 
 import androidx.lifecycle.ViewModel
+import com.iota.campusX.Feature.Post.data.model.Poll
+import com.iota.campusX.Feature.Post.data.model.PollOption
 import com.iota.campusX.Utils.FirestoreIdGenerator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

@@ -3,8 +3,8 @@ package com.iota.campusX.Feature.Post.domain.repository
 import androidx.paging.PagingData
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
+import com.iota.campusX.Feature.Post.data.model.PostType
 import com.iota.campusX.Feature.Post.presentation.UploadState
-import com.iota.campusX.Screens.Post.PostType
 import kotlinx.coroutines.flow.Flow
 
 interface PostRepositoryInterface {

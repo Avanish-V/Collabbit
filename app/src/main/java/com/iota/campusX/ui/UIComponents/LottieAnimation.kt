@@ -13,7 +13,11 @@ import com.iota.campusX.R
 @Composable
 fun AnimatedStatus(modifier : Modifier= Modifier, file: Int, description: String) {
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(file))
-    val progress by animateLottieCompositionAsState(composition)
+    val progress by animateLottieCompositionAsState(
+        composition,
+        isPlaying = true,
+        iterations =100
+    )
     LottieAnimation(
         modifier = modifier,
         composition = composition,

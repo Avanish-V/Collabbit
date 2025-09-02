@@ -21,7 +21,9 @@ interface SocietyRepository {
 
     suspend fun deleteJoinRequest( roomId: String,feedMode: FeedMode,campusId: String?) : Result<Unit>
 
-    suspend fun listenForApproval(roomId: String, feedMode: FeedMode, campusId: String?) : Flow<List<GetJoinRequestDTO>>
+    suspend fun clearAudioRoom(roomId: String,feedMode: FeedMode,campusId: String?) : Result<Unit>
+
+    suspend fun listenForApproval(roomId: String, feedMode: FeedMode, campusId: String?) : Flow<Result<List<GetJoinRequestDTO>>>
 
     suspend fun stageUpParticipant(roomId: String, status: Status,requestId:String,feedMode: FeedMode, campusId: String?): Result<String>
 
@@ -32,6 +34,8 @@ interface SocietyRepository {
     suspend fun askToSpeak(roomId: String, isRaiseHand: Boolean,requestId:String,feedMode: FeedMode, campusId: String?): Result<Unit>
 
     suspend fun deleteRoom(roomId: String): Result<Unit>
+
+    suspend fun audioRoomStatus(isActive: Boolean,roomId: String): Result<Unit>
 
 
 

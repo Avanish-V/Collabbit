@@ -67,6 +67,9 @@ class StreamImplementation : StreamRepository {
                 trySend(State.error(err.toString()))
             }
 
+            override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
+                super.onNetworkQuality(uid, txQuality, rxQuality)
+            }
 
 
         }
@@ -131,6 +134,10 @@ class StreamImplementation : StreamRepository {
         if (mRtcEngine != null){
             mRtcEngine = null
         }
+    }
+
+    override fun enableLoudSpeaker(isLoud: Boolean) {
+        mRtcEngine?.setEnableSpeakerphone(isLoud)
     }
 
 

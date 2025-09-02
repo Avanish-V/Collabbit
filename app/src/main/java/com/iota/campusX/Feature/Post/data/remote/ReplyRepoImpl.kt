@@ -8,12 +8,10 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.iota.campusX.Feature.Notification.domain.CommentPayload
-import com.iota.campusX.Feature.Notification.domain.ContentType
-import com.iota.campusX.Feature.Notification.domain.CreateNotificationDTO
-import com.iota.campusX.Feature.Notification.domain.LikePayload
+import com.iota.campusX.Feature.Notification.data.CommentContent
+import com.iota.campusX.Feature.Notification.data.CreateNotification
+import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.domain.NotificationType
-import com.iota.campusX.Feature.Notification.domain.toTypedObject
 import com.iota.campusX.Feature.Post.data.model.CreatePostDTO
 import com.iota.campusX.Feature.Post.data.model.CreateReplyDTO
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
@@ -22,9 +20,9 @@ import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
 import com.iota.campusX.Feature.Post.data.model.PostActions
 import com.iota.campusX.Feature.Post.data.model.PostContent
-import com.iota.campusX.Feature.Post.data.model.VisibilityMode
-import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.model.UserReplyDTO
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.domain.repository.ReplyRepositoryInterface
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Utils.anonymousImage
@@ -36,6 +34,7 @@ import kotlin.coroutines.suspendCoroutine
 
 class ReplyRepoImpl(
     private val sendPushNotification: SendPushNotification,
+    private val notificationRepository: NotificationRepository,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
 ) : ReplyRepositoryInterface {
@@ -84,22 +83,25 @@ class ReplyRepoImpl(
 
             if (postCreatorId != currentUserId) {
 
-                val notification = CreateNotificationDTO(
-                    notificationId = postId + currentUserId,
-                    createdAt = FieldValue.serverTimestamp(),
-                    isRead = false,
-                    type = NotificationType.COMMENT,
-                    payload = CommentPayload(
+                notificationRepository.createNotification(
+                    createNotification = CreateNotification.CommentNotification(
+                        notificationId = postId,
+                        type = NotificationType.COMMENT,
+                        createdAt = FieldValue.serverTimestamp(),
+                        read = false,
                         postId = postId,
-                        commentId = replyId,
-                        actionBy = currentUserId,
                         visibilityMode = visibilityMode,
-                        contentType = ContentType.REPLY_POST,
-                    ).toTypedObject()
+                        commentContent = listOf(
+                            CommentContent(
+                                visibilityMode = visibilityMode,
+                                repliedBy = auth.currentUser?.uid ?: "",
+                                replyId = replyId
+                            )
+                        )
+                    ),
+                    creatorId = postCreatorId
                 )
 
-                firestore.collection("Users").document(postCreatorId).collection("Notifications")
-                    .add(notification).await()
 
                 sendPushNotification.messageNotification(
                     notificationReceiverId = postCreatorId, notificationType = "COMMENTED"
@@ -166,31 +168,10 @@ class ReplyRepoImpl(
                 return@addOnSuccessListener
             }
 
-            if (!isLiked) {
-                val notification = CreateNotificationDTO(
-                    notificationId = replyId + (auth.currentUser?.uid ?: ""),
-                    createdAt = FieldValue.serverTimestamp(),
-                    isRead = false,
-                    type = NotificationType.LIKE,
-                    payload = LikePayload(
-                        postId = postId,
-                        actionBy = repliedById,
-                        contentType = ContentType.LIKE_REPLY
-                    ).toTypedObject()
+            if (repliedById != auth.currentUser?.uid) {
 
-                )
+                // Notification
 
-                firestore.collection("Users").document(repliedById).collection("Notifications")
-                    .document(notification.notificationId).set(notification)
-                    .addOnSuccessListener {
-                        sendPushNotification.messageNotification(
-                            notificationReceiverId = repliedById,
-                            notificationType = "LIKE_REPLY"
-                        )
-                        cont.resume(Result.success(Unit))
-                    }.addOnFailureListener { notifError ->
-                        cont.resume(Result.failure(notifError))
-                    }
             } else {
                 cont.resume(Result.success(Unit))
             }
@@ -250,6 +231,7 @@ class ReplyRepoImpl(
 
     override suspend fun fetchUserReplies(userId: String): Result<List<UserReplyDTO>> {
         return try {
+
             val repliesSnapshot = firestore.collection("Users")
                 .document(userId)
                 .collection("Replies")
@@ -260,13 +242,15 @@ class ReplyRepoImpl(
             val currentUserId = auth.currentUser?.uid
 
             val data = coroutineScope {
+
                 repliesSnapshot.map { snapshot ->
                     async {
                         runCatching {
+
                             val postId = snapshot.getString("postId") ?: return@runCatching null
                             val replyId = snapshot.getString("replyId") ?: return@runCatching null
 
-                            val postDTO = fetchPostDTO(postId, firestore) ?: return@runCatching null
+                            val postDTO = fetchPostDTO(postId, firestore,auth) ?: return@runCatching null
 
                             // ✅ fetch the actual reply doc
                             val replyDoc = baseCollection.document(postId)
@@ -276,7 +260,6 @@ class ReplyRepoImpl(
                                 .await()
 
                             if (!replyDoc.exists()) {
-                                Log.w("FetchUserReplies", "Reply not found: $replyId for postId: $postId")
                                 return@runCatching null
                             }
 
@@ -289,22 +272,17 @@ class ReplyRepoImpl(
 
                             UserReplyDTO(post = postDTO, reply = replyDTO)
                         }.getOrElse { e ->
-                            Log.e("FetchUserReplies", "Error mapping reply: ${e.message}", e)
                             null
                         }
                     }
                 }.mapNotNull { it.await() }
             }
 
-            Log.d("FetchUserReplies", "Total valid replies: ${data.size}")
             Result.success(data)
         } catch (e: Exception) {
-            Log.e("FetchUserReplies", "Failed: ${e.message}", e)
             Result.failure(e)
         }
     }
-
-
 }
 
 private suspend fun mapReplyDocumentToDTO(
@@ -349,7 +327,7 @@ private suspend fun mapReplyDocumentToDTO(
             isCurrentUser = isCurrentUser,
             isVerified = user?.metaData?.verified ?: false,
             isPremium = user?.metaData?.premium ?: false,
-            profile = UserDetail(
+            profile = UserBasicDetail(
                 id = user?.id ?: "",
                 userName = userName ?: "",
                 userImage = userImage ?: "",
@@ -370,7 +348,7 @@ private suspend fun mapReplyDocumentToDTO(
 }
 
 
-private suspend fun fetchPostDTO(postId: String, firestore: FirebaseFirestore): GetPostDTO? {
+private suspend fun fetchPostDTO(postId: String, firestore: FirebaseFirestore,firebaseAuth: FirebaseAuth): GetPostDTO? {
 
     val postDoc = firestore.collection("Posts").document(postId).get().await()
     val postData = postDoc.toObject(CreatePostDTO::class.java) ?: return null
@@ -379,14 +357,16 @@ private suspend fun fetchPostDTO(postId: String, firestore: FirebaseFirestore): 
     val postUserName = postUserDoc.getString("userName") ?: return null
     val postUserImage = postUserDoc.getString("userImage") ?: return null
 
+    val isCurrentUser = firebaseAuth.currentUser?.uid == postData.creatorId
+
     return GetPostDTO(
         postId = postData.postId,
         createdAt = postData.createdAt,
         creatorDetail = CreatorDetail(
-            isCurrentUser = false,
-            isVerified = false,
+            isCurrentUser = isCurrentUser,
+            isVerified = postUserDoc.getBoolean("verified") ?: false,
             isPremium = false,
-            profile = UserDetail(
+            profile = UserBasicDetail(
                 userName = postUserName,
                 userImage = postUserImage
             )

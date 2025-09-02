@@ -3,6 +3,8 @@ package com.iota.campusX.ui.UIComponents
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
+import android.util.Patterns
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -17,7 +19,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +32,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -65,6 +67,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.google.firebase.Timestamp
+import com.iota.campusX.Feature.Notification.domain.UserPayload
+import com.iota.campusX.Feature.Post.Savers.LinkPreviewViewModel
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
@@ -72,20 +76,19 @@ import com.iota.campusX.Feature.Post.data.model.PostActions
 import com.iota.campusX.Feature.Post.data.model.PostContent
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Post.data.model.Reference
-import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
+import com.iota.campusX.Feature.Post.data.model.MediaType
+import com.iota.campusX.Feature.Post.data.model.Type
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Post.DataModel.ContentId
-import com.iota.campusX.Screens.Post.MediaType
-import com.iota.campusX.Screens.Post.Poll
-import com.iota.campusX.Screens.Post.PollOption
+import com.iota.campusX.Feature.Post.data.model.Poll
 import com.iota.campusX.Screens.Post.PostActions.PostAction
-import com.iota.campusX.Screens.Post.PostOptions
-import com.iota.campusX.Screens.Post.Type
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
 import com.iota.campusX.Utils.getTimeAgo
-import com.iota.campusX.ui.theme.White
+import com.iota.campusX.ui.theme.LightBlack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.koin.androidx.compose.koinViewModel
 
 fun Timestamp?.toMillis(): Long {
     return this?.toDate()?.time ?: 0L
@@ -95,7 +98,8 @@ fun Timestamp?.toMillis(): Long {
 fun PostCard(
     post: GetPostDTO?,
     handlers: (PostAction) -> Unit,
-    onDotMenuClick: ((GetPostDTO) -> Unit)?
+    onDotMenuClick: ((GetPostDTO) -> Unit)?,
+
 ) {
     if (post == null) return
     Column(
@@ -142,7 +146,14 @@ fun PostCard(
                     postedAt = getTimeAgo(post.createdAt.toMillis()),
                     isCurrentUser = post.creatorDetail.isCurrentUser,
                     feedMode = post.feedMode,
-                    visibilityMode = post.visibilityMode
+                    visibilityMode = post.visibilityMode,
+                    onFollowClick = {
+                        if (post.creatorDetail.isFollow){
+                            handlers.invoke(PostAction.UnFollowUser(post.creatorDetail.profile?.id ?: ""))
+                        }else{
+                            handlers.invoke(PostAction.FollowUser(post.creatorDetail.profile?.id ?: ""))
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -168,7 +179,7 @@ fun PostCard(
                     mediaType = post.mediaType
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 PostActionsComponent(
                     postAction = post.postActions,
@@ -202,14 +213,16 @@ fun PostHeader(
     postedAt: String? = null,
     visibilityMode: VisibilityMode? = null,
     isCurrentUser: Boolean? = null,
-    feedMode: FeedMode? = null
+    feedMode: FeedMode? = null,
+    onFollowClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -228,6 +241,13 @@ fun PostHeader(
                     color = MaterialTheme.colorScheme.onSurface,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (user.isAlumni){
+                    Text(
+                        text = "Alumni",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
                 // Verified badge
                 if (user.isVerified && visibilityMode == VisibilityMode.USER) {
@@ -283,6 +303,30 @@ fun PostHeader(
             }
 
         }
+
+        var isFollowed by rememberSaveable { mutableStateOf(false) }
+
+
+        isCurrentUser?.let {
+            if (!it){
+
+                Text(
+                    modifier = Modifier.clickable(
+                        onClick = {
+                            onFollowClick?.invoke()
+                            isFollowed = !isFollowed
+                        },
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+
+                    ),
+                    text = if (user.isFollow) "Unfollow" else "Follow",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (user.isFollow) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.primary
+                )
+
+            }
+        }
     }
 
         // Pod icon
@@ -300,7 +344,7 @@ fun PostHeader(
 @Composable
 fun PostActionsComponent(
     postAction: PostActions,
-    user: UserDetail?,
+    user: UserBasicDetail?,
     onLikeClick: (() -> Unit)? = null,
     onReplyClick: (() -> Unit)? = null,
     onDotMenuClick: (() -> Unit)? = null,
@@ -343,6 +387,7 @@ fun PostActionsComponent(
                         ),
                     painter = painterResource(R.drawable.chatbubble_outline),
                     contentDescription = "Reply",
+                    tint =  MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -396,7 +441,7 @@ fun AnimatedLikeButton(onLike:()-> Unit,likesCount: Int,isLiked: Boolean) {
                 ),
             painter = painterResource(if (isLiked) R.drawable.up_solid else R.drawable.up_regular),
             contentDescription = "Like",
-            tint = if (isSystemInDarkTheme()) Color.White else Color.Black
+            tint = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -406,7 +451,7 @@ fun ExpandableText(
     text: String,
     modifier: Modifier = Modifier,
     context: Context,
-    textStyle: TextStyle = MaterialTheme.typography.bodyLarge.copy(
+    textStyle: TextStyle = MaterialTheme.typography.bodyMedium.copy(
         color = MaterialTheme.colorScheme.onSurface
     ),
     labelStyle: TextStyle = MaterialTheme.typography.labelMedium.copy(
@@ -466,6 +511,7 @@ fun ExpandableText(
             Text(
                 text = label,
                 style = labelStyle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .padding(top = 4.dp)
                     .clickable(
@@ -481,21 +527,34 @@ fun ExpandableText(
 
 
 @Composable
-fun ReplyRail(reliesList: List<PostActions>) {
+fun LikeRail(reliesList: List<UserPayload>) {
 
     Row {
         Box(){
             reliesList.forEachIndexed { index, item->
-                AsyncImage(
-                    modifier = Modifier
-                        .padding(start = (index * 20).dp)
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, White, CircleShape),
-                    model = item,
-                    contentDescription = "Reply User",
-                    contentScale = ContentScale.Crop
-                )
+
+                if (item.visibilityMode == VisibilityMode.ANONYMOUS){
+                    AnonymousImage(
+                        modifier = Modifier.padding(start = (index * 20).dp)
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, LightBlack, CircleShape)
+                    )
+
+                }else{
+
+                    AsyncImage(
+                        modifier = Modifier
+                            .padding(start = (index * 20).dp)
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, LightBlack, CircleShape),
+                        model = item.userImage,
+                        contentDescription = "Reply User",
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
             }
         }
     }
@@ -532,6 +591,7 @@ fun PostBody(
     onBodyClick:()-> Unit
 ) {
      val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     Column(modifier = Modifier.clickable(
         onClick = {onBodyClick.invoke()},
@@ -546,9 +606,23 @@ fun PostBody(
             )
         }
 
+        if (postContent.postText.isNotEmpty() && postContent.postImage == null){
+
+            val url = extractUrlFromText(postContent.postText)
+            val normalUrl = url?.let { normalizeUrl(it) }
+
+            normalUrl?.let {
+                LinkPreviewCard(it){
+                    uriHandler.openUri(normalUrl)
+                }
+            }
+
+        }
+
         when(type){
             Type.Media -> {
                if (mediaType == MediaType.Image){
+
                    postContent.postImage?.let {
                        Spacer(modifier = Modifier.height(12.dp))
                        ImageWithDynamicRatio(
@@ -557,10 +631,12 @@ fun PostBody(
                            onImageClick = {onPostImageClick.invoke(postContent.postImage)}
                        )
                    }
+
                }
             }
             Type.Poll -> {
                 postContent.poll?.let {
+                    Log.d("POLL", "PostBody: $it")
                     PollOptionsUI(
                         poll = it,
                         totalVotes = postContent.poll.votes.count(),
@@ -746,3 +822,65 @@ fun ImageWithDynamicRatio(
 }
 
 
+@Composable
+fun LinkPreviewCard(
+    url: String,
+    linkPreviewViewModel: LinkPreviewViewModel = koinViewModel(),
+    onClick:()-> Unit
+) {
+
+    val previews = linkPreviewViewModel.previews
+    val meta = previews[url]
+
+    LaunchedEffect(url) {
+        linkPreviewViewModel.loadPreview(url)
+    }
+
+    meta?.let { data ->
+
+        Column (
+            modifier = Modifier.border(
+                width = 0.1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(16.dp)
+            ).clickable(
+                onClick = {
+                    onClick()
+                },
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ).clip(RoundedCornerShape(16.dp))
+
+        ){
+
+            AsyncImage(
+                model = data.imageUrl?:R.drawable.landscape_placeholder_svgrepo_com,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(180.dp),
+                fallback = painterResource(R.drawable.landscape_placeholder_svgrepo_com)
+            )
+
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(data.title ?: "", style = MaterialTheme.typography.titleMedium)
+                data.description?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                }
+            }
+        }
+
+    }
+}
+
+
+fun extractUrlFromText(text: String): String? {
+    val matcher = Patterns.WEB_URL.matcher(text)
+    return if (matcher.find()) matcher.group() else null
+}
+fun normalizeUrl(url: String): String {
+    return if (url.startsWith("http://") || url.startsWith("https://")) {
+        url
+    } else {
+        "https://$url"
+    }
+}

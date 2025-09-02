@@ -4,6 +4,7 @@ package com.iota.campusX.Screens
 import ConsentAgreeViewModel
 import ConsentBottomSheet
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -76,8 +78,7 @@ import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
-import com.iota.campusX.Feature.Post.data.model.PostContent
-import com.iota.campusX.Feature.Post.data.model.UserDetail
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Reply.ReplyViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -92,7 +93,6 @@ import com.iota.campusX.Screens.Post.PostActions.PostAction
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
-import com.iota.campusX.Screens.Post.PostOptions
 import com.iota.campusX.Screens.Post.VisibilityModeChanger
 import com.iota.campusX.Utils.FirestoreIdGenerator
 import com.iota.campusX.Utils.LoadingUI
@@ -105,7 +105,6 @@ import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
-import com.iota.campusX.ui.UIComponents.PostBody
 import com.iota.campusX.ui.UIComponents.PostCard
 import com.iota.campusX.ui.UIComponents.PostHeader
 import kotlinx.coroutines.launch
@@ -174,48 +173,6 @@ fun PostReplyScreen(
         }
     }
 
-//    LaunchedEffect(editPostState) {
-//        when (editPostState) {
-//            is UiState.Loading -> {
-//                isLoading = true
-//            }
-//
-//            is UiState.Success -> {
-//                replyText = ""
-//                isLoading = false
-//                snackBarHostState.showSnackbar("Done!")
-//            }
-//
-//            is UiState.Error -> {
-//                snackBarHostState.showSnackbar("Something went wrong!")
-//                isLoading = false
-//            }
-//
-//            else -> {}
-//        }
-//    }
-
-//    LaunchedEffect(deleteReplyState.value) {
-//        when (deleteReplyState.value) {
-//            is UiState.Loading -> {
-//               bottomSheetViewModel.isLoading(true)
-//            }
-//
-//            is UiState.Success -> {
-//                bottomSheetViewModel.isLoading(false)
-//                isAlertDialogVisible.value = false
-//                replyViewModel.removeReplyOnDelete(replyId = bottomSheetData.content.replyId)
-//            }
-//
-//            is UiState.Error -> {
-//                bottomSheetViewModel.isLoading(false)
-//                snackBarHostState.showSnackbar("Something went wrong!")
-//            }
-//
-//            else -> {}
-//        }
-//    }
-//
     LaunchedEffect(createReplyState.value) {
 
         when (createReplyState.value) {
@@ -238,25 +195,6 @@ fun PostReplyScreen(
         }
     }
 
-//    LaunchedEffect(deletePostState.value) {
-//        when (deletePostState.value) {
-//
-//            is UiState.Loading -> {
-//                bottomSheetViewModel.isLoading(true)
-//            }
-//            is UiState.Success -> {
-//                bottomSheetViewModel.isLoading(false)
-//                isAlertDialogVisible.value = false
-//                navHostController.popBackStack()
-//            }
-//            is UiState.Error -> {
-//                bottomSheetViewModel.isLoading(false)
-//                snackBarHostState.showSnackbar("Something went wrong!")
-//            }
-//            else -> {}
-//        }
-//
-//    }
 
     Scaffold(
         topBar = {
@@ -299,7 +237,7 @@ fun PostReplyScreen(
                                         postCreatorId = it.creatorDetail.profile?.id ?: "",
                                         visibilityMode = visibilityMode,
                                         creatorDetail = CreatorDetail(
-                                            profile = UserDetail(
+                                            profile = UserBasicDetail(
                                                 userName = userProfile?.userName ?: "",
                                                 id = userProfile?.id ?: "",
                                                 userImage = userProfile?.userImage ?: "",
@@ -341,9 +279,14 @@ fun PostReplyScreen(
             }
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
 
         when(singlePost){
+
+            is UiState.Loading->{
+                LoadingUI(true)
+            }
 
             is UiState.Success -> {
 
@@ -358,14 +301,14 @@ fun PostReplyScreen(
                 }
 
                 LazyColumn(
-                    modifier = Modifier.padding(innerPadding),
+                    modifier = Modifier .imePadding().padding(innerPadding),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
                     postData?.let {
                         item {
                             PostCard(
-                                post = postData ?: null,
+                                post = postData,
                                 handlers = {
                                     postActionsViewModel.onAction(it)
                                 },
@@ -394,12 +337,12 @@ fun PostReplyScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Divider()
-                            Text(text = "Replies", style = MaterialTheme.typography.titleLarge)
+                            Text(text = "Replies", style = MaterialTheme.typography.titleMedium)
                             Divider()
                         }
                     }
 
-                    // Replies State Handling
+
                     when (postRepliesState) {
                         is UiState.Loading -> {
                             item {
@@ -634,12 +577,14 @@ fun ReplyWidget(
 
                 PostHeader(
                     user = repliesDTO.creatorDetail,
-                    postedAt = getTimeAgo(repliesDTO.repliedAt)
+                    postedAt = getTimeAgo(repliesDTO.repliedAt),
+                    visibilityMode = repliesDTO.visibility
+
                 )
 
                 Text(
                     text = repliesDTO.content,
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyMedium
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))

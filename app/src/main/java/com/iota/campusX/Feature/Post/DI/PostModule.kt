@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Post.DI
 
+import com.iota.campusX.Feature.Post.Savers.LinkPreviewViewModel
 import com.iota.campusX.Feature.Post.data.remote.PostRemoteDataSource
 import com.iota.campusX.Feature.Post.data.remote.ReplyRepoImpl
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePollUseCase
@@ -39,8 +40,8 @@ import org.koin.dsl.module
 val postModule = module {
     single { PostValidator() }
     // Repositories
-    single<PostRepositoryInterface> { PostRemoteDataSource(get(), get(), get(), get()) }
-    single<ReplyRepositoryInterface> { ReplyRepoImpl(get(), get(), get()) }
+    single<PostRepositoryInterface> { PostRemoteDataSource(get(), get(), get(), get(),get()) }
+    single<ReplyRepositoryInterface> { ReplyRepoImpl(get(), get(), get(),get()) }
     single {
         PostRepository(get(), get(), get(), get(), get(), get(), get(), get())
     }
@@ -75,7 +76,8 @@ val postModule = module {
             navHostController = appNavigator,
             replyRepository = get(),
             sharedVisualContentViewModel = get(),
-            repository = get()
+            repository = get(),
+            followRepositoryInterface = get()
         )
     }
 
@@ -86,7 +88,8 @@ val postModule = module {
                 navHostController = appNavigator,
                 replyRepository = get(),
                 sharedVisualContentViewModel = get(),
-                repository = get()
+                repository = get(),
+                followRepositoryInterface = get()
             )
         )
     }
@@ -99,4 +102,6 @@ val postModule = module {
     single { PostMenuState() }
     factory { PostMenuViewModel(get()) }
     single { SharedVisualContentViewModel() }
+
+    viewModel { LinkPreviewViewModel() }
 }

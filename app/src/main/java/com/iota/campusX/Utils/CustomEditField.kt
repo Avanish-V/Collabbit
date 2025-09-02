@@ -1,5 +1,6 @@
 package com.iota.campusX.Utils
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,7 +48,12 @@ fun CustomTextField(
         }
 
         OutlinedTextField(
-            modifier = modifier,
+            modifier = modifier
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = MaterialTheme.shapes.small
+                ),
             value = value,
             onValueChange = {
                 onValueChange(it)
@@ -64,11 +70,10 @@ fun CustomTextField(
                 trailingIcon?.invoke()
             },
             colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-//                disabledContainerColor = secondary
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
             ),
             shape = RoundedCornerShape(8.dp),
             keyboardOptions = keyboardOptions,
@@ -114,7 +119,12 @@ fun CustomTextFieldWithLeadingIcon(
             )
         }
         OutlinedTextField(
-            modifier = modifier,
+            modifier = modifier
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = MaterialTheme.shapes.small
+                ),
             value = value,
             onValueChange = {
                 onValueChange(it)
@@ -133,13 +143,11 @@ fun CustomTextFieldWithLeadingIcon(
                 trailingIcon?.invoke()
             },
             colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-//                disabledContainerColor = secondary
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
             ),
-            shape = RoundedCornerShape(8.dp),
             textStyle = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             keyboardOptions = keyboardOptions,

@@ -180,18 +180,16 @@ fun SignInScreen(navHostController: NavHostController) {
                     TermsAndPrivacyText(
                         modifier = Modifier.padding(horizontal = 60.dp),
                         onTermsClick = {
-                            uriHandler.openUri("https://example.com/terms")
+                            uriHandler.openUri("https://www.campuscircle.in/term-condition")
                         },
                         onPrivacyClick = {
-                            // Handle privacy click
+                            uriHandler.openUri("https://www.campuscircle.in/privacy")
                         }
                     )
                 }
             }
         }
-
     }
-
 }
 
 @Composable
