@@ -255,7 +255,6 @@ class ReplyRepository (
                     id = creatorDetail.profile?.id ?: "",
                     userImage = visibility?.second ?: "",
                     userBio = creatorDetail.profile?.userBio ?: "",
-                    designation = ""
                 ),
                 isCurrentUser = true,
                 isVerified = creatorDetail.isVerified

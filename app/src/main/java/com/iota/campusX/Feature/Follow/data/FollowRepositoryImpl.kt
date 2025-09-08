@@ -77,13 +77,10 @@ class FollowRepositoryImpl(
                      .toObject(BaseProfileDTO::class.java)
 
                  ConnectionsDTO(
-                     user = UserBasicDetail(
-                         id = userData?.id ?: "",
-                         userName = userData?.userName ?: "",
-                         userImage = userData?.userImage ?: "",
-                         userBio = userData?.userBio ?: "",
-                         isCurrentUser = auth.currentUser?.uid == userId
-                     )
+                     userName = userData?.userName ?: "",
+                     id = userId,
+                     userImage = userData?.userImage ?: "",
+                     isCurrentUser = false
                  )
 
              }

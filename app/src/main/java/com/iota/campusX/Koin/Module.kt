@@ -6,6 +6,7 @@ import VerifyUserRepoImpl
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.room.Room
 import com.cloudinary.android.MediaManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -32,13 +33,18 @@ import com.iota.campusX.Feature.Search.Domain.SearchRepository
 import com.iota.campusX.Feature.Search.Presentation.SearchViewModel
 import com.iota.campusX.Feature.Society.data.SocietyImplementation
 import com.iota.campusX.Feature.Society.data.StreamImplementation
+import com.iota.campusX.Feature.Society.domain.repository.SocietyInterface
 import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
 import com.iota.campusX.Feature.Society.domain.repository.StreamRepository
+import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyOptionRepository
+import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyOptionsInterface
+import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyOptionsViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
+import com.iota.campusX.Feature.UserProfile.OfflineSupport.AppDatabase
 import com.iota.campusX.Feature.UserProfile.data.UserProfileImpl
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UpdateProfileViewModel
@@ -114,7 +120,7 @@ val authModule = module {
     single<VerifyUserRepository> { VerifyUserRepoImpl( get(), get()) }
     viewModel { ConsentAgreeViewModel(get()) }
     single { CredentialAuthDataSource(get()) }
-    viewModel { GoogleSignInViewModel(get(),get()) }
+    viewModel { GoogleSignInViewModel(get(),get(),get()) }
 }
 
 val replyModule = module {
@@ -135,9 +141,32 @@ val notificationModule = module {
 }
 
 val profileModule = module {
-    single<UserProfileRepo> { UserProfileImpl(get(), get(), get(), get(), get(),get()) }
+
+    single {
+        Room.databaseBuilder(
+            androidContext(),
+            AppDatabase::class.java,
+            "campusx_db"
+        )
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+
+
+    // DAO
+    single { get<AppDatabase>().userProfileDao() }
+
+    // Firebase Firestore
+    single { FirebaseFirestore.getInstance() }
+
+    // Kotlinx Serialization Json
+    single { Json { ignoreUnknownKeys = true } }
+
+    // Bind implementation to interface
+
+    single<UserProfileInterface> { UserProfileImpl(get(), get(), get(), get(), get(),get(),get()) }
     single { UserProfileViewModel(get(),get()) }
-    single { UserProfileRepository(get()) }
+    single { UserProfileRepository(get(),get()) }
     viewModel { ViewProfileViewModel(get()) }
     viewModel { ConnectionRequestViewModel(get() )}
     viewModel { UpdateProfileViewModel(get(),get()) }
@@ -145,11 +174,14 @@ val profileModule = module {
 
 val societyModule = module {
 
-    single<SocietyRepository> { SocietyImplementation(get(), get()) }
+    single<SocietyInterface> { SocietyImplementation(get(), get()) }
     single<StreamRepository> { StreamImplementation() }
-    viewModel { SocietyViewModel(get()) }
-    viewModel { StreamViewModel(get()) }
+    single { SocietyViewModel(get()) }
+    viewModel { StreamViewModel(get(),get(),get()) }
     viewModel { AudioRoomViewModel(get()) }
+    viewModel { SocietyOptionsViewModel(get()) }
+    single { SocietyRepository(get()) }
+    single <SocietyOptionsInterface>{ SocietyOptionRepository(get()) }
 
 }
 

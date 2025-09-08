@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -113,7 +114,8 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
                 item {
 
                     Image(
-                        painter = painterResource(R.drawable.guidelines),
+                        modifier = Modifier.size(250.dp),
+                        painter = painterResource(R.drawable.law_outline__1_),
                         contentDescription = null
                     )
                 }
@@ -124,19 +126,18 @@ fun ConsentBottomSheet(isVisible:Boolean,onDismiss: () -> Unit,onAgree:()-> Unit
                         description = it.description
                     )
                 }
-            }
+                item {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    PrimaryButton(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        buttonText = "I agree and understand",
+                        onClick = {
+                            onAgree.invoke()
+                        }
 
-            PrimaryButton(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                buttonText = "I agree and understand",
-                onClick = {
-                    onAgree.invoke()
+                    )
                 }
-
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
+            }
         }
     }
 

@@ -133,24 +133,25 @@ fun ConnectionsScreen(
 
                     LazyColumn() {
                         items(connectionList) { connections ->
-                            Divider()
                             ConnectionsItemView(
                                 onItemClick = {
+                                    if (connections.isCurrentProfile) return@ConnectionsItemView
                                     navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
-                                        navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID",connections.user.id)
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID",connections.id)
                                     }
                                 },
                                 connectionData = connections,
                                 onRejectClick = {
                                     connectionRequestViewModel.request(
                                         ConnectionRequestState.RejectConnectionRequest(
-                                            connections.user.id
+                                            connections.id
                                         )
                                     )
                                 },
                                 title = "Remove"
                             )
 
+                            Divider()
                         }
                     }
 
@@ -200,7 +201,7 @@ fun ConnectionsItemView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircleImage(
-                image = connectionData.user.userImage,
+                image = connectionData.userImage,
                 modifier = Modifier.size(48.dp),
                 onClick = {},
                 visibility = VisibilityMode.USER
@@ -208,13 +209,13 @@ fun ConnectionsItemView(
 
             Column(modifier = Modifier.weight(1f),) {
                 Text(
-                    text = connectionData.user.userName,
+                    text = connectionData.userName,
                     style = typography.titleSmall,
                     maxLines = 1
                 )
-                if (connectionData.user.userBio.isNotEmpty()) {
+                if (connectionData.userBio.isNotEmpty()) {
                     Text(
-                        text = connectionData.user.userBio,
+                        text = connectionData.userBio,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1
                     )
@@ -222,13 +223,16 @@ fun ConnectionsItemView(
 
             }
 
-            TextButton (
-                onClick = { onRejectClick.invoke() },
-                shape = RoundedCornerShape(6.dp)
+            if (connectionData.isCurrentUser){
+                TextButton (
+                    onClick = { onRejectClick.invoke() },
+                    shape = RoundedCornerShape(6.dp)
 
-            ) {
-                Text(title,style = MaterialTheme.typography.bodyMedium)
+                ) {
+                    Text(title,style = MaterialTheme.typography.bodyMedium)
+                }
             }
+
         }
     }
 }

@@ -38,6 +38,7 @@ import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import org.koin.androidx.compose.koinViewModel
 
@@ -89,11 +90,11 @@ fun Followers(
                     items(followers){
                         FollowersItemView(
                             onItemClick = {
-                                if (it.user.isCurrentUser) return@FollowersItemView
+                                if (it.isCurrentUser) return@FollowersItemView
                                 navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
                                     navHostController.currentBackStackEntry?.savedStateHandle?.set(
                                         "USER_ID",
-                                        it.user.id
+                                        it.id
                                     )
                                 }
                             },
@@ -103,6 +104,7 @@ fun Followers(
                             },
                             title = "Unfollow"
                         )
+                        Divider()
                     }
                 }
             }
@@ -148,7 +150,7 @@ fun FollowersItemView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircleImage(
-                image = connectionData.user.userImage,
+                image = connectionData.userImage,
                 modifier = Modifier.size(48.dp),
                 onClick = {},
                 visibility = VisibilityMode.USER
@@ -156,13 +158,13 @@ fun FollowersItemView(
 
             Column(modifier = Modifier.weight(1f),) {
                 Text(
-                    text = connectionData.user.userName,
+                    text = connectionData.userName,
                     style = typography.titleSmall,
                     maxLines = 1
                 )
-                if (connectionData.user.userBio.isNotEmpty()) {
+                if (connectionData.userBio.isNotEmpty()) {
                     Text(
-                        text = connectionData.user.userBio,
+                        text = connectionData.userBio,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1
                     )

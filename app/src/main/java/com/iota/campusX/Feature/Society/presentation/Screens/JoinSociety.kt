@@ -1,7 +1,6 @@
 package com.iota.campusX.Feature.Society.presentation.Screens
 
 import android.Manifest
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,8 +12,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,25 +29,41 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.*
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.google.firebase.firestore.FieldValue
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Society.AgoraTokenBuilder.generateDynamicToken
 import com.iota.campusX.Feature.Society.domain.models.*
+import com.iota.campusX.Feature.Society.domain.models.GetChatMessage
+import com.iota.campusX.Feature.Society.domain.models.SetChatMessage
 import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomState
 import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.UiControls
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
+import com.iota.campusX.Screens.Chat.MessageInputBar
+import com.iota.campusX.Screens.Chat.convertTimestampToTime
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.theme.Light_Background_Red
+import com.iota.campusX.ui.UIComponents.CircularLoading
+import com.iota.campusX.ui.UIComponents.FeedUI.Avatar
+import com.iota.campusX.ui.UIComponents.FeedUI.LinkPreviewCard
+import com.iota.campusX.ui.UIComponents.FeedUI.extractUrlFromText
+import com.iota.campusX.ui.UIComponents.FeedUI.normalizeUrl
+import com.iota.campusX.ui.UIComponents.FeedUI.toMillis
 import com.iota.campusX.ui.theme.Red
+import com.iota.campusX.ui.theme.White
 import com.iota.campusX.ui.theme.Yellow
 import org.koin.compose.koinInject
 import kotlin.Boolean
@@ -59,6 +76,10 @@ fun JoinSocietyScreen(
     streamViewModel: StreamViewModel = koinInject(),
     audioRoomViewModel: AudioRoomViewModel = koinInject()
 ) {
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    val urlHandler = LocalUriHandler.current
 
     //-----------------------------------NAV DATA---------------------------------------------------
     val roomId = navController.currentBackStackEntry?.savedStateHandle?.get<String>("ROOM_ID")
@@ -74,11 +95,26 @@ fun JoinSocietyScreen(
     //-----------------------------------STATES-----------------------------------------------------
 
     // States
-    val profile = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
+    val profileState = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
+
+    val profile = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
 
     val joiningRequests by audioRoomViewModel.joinRequests.collectAsStateWithLifecycle()
     val agoraStates by streamViewModel.audioRoomState.collectAsStateWithLifecycle()
     val audioRoomState by audioRoomViewModel.society.collectAsStateWithLifecycle()
+
+
+    val sendMessageState by audioRoomViewModel.sendMessageState.collectAsStateWithLifecycle()
+
+    val chatMessages by audioRoomViewModel.chatMessages.collectAsStateWithLifecycle()
+
 
     val joiningRequestList = (joiningRequests as? UiState.Success<List<GetJoinRequestDTO>>)?.data
 
@@ -91,7 +127,8 @@ fun JoinSocietyScreen(
         }
     }
 
-    var isDownVisible by remember { mutableStateOf(false) }
+    var isBottomSheet by remember { mutableStateOf(false) }
+    var messageText by remember { mutableStateOf("") }
     //-------------------------------------EFFECTS--------------------------------------------------
 
     LaunchedEffect(audioRoomState) {
@@ -150,7 +187,7 @@ fun JoinSocietyScreen(
                             streamViewModel.initializeAgora(context)
                             streamViewModel.joinChannel(
                                 channelId = roomId.orEmpty(),
-                                token = generateDynamicToken(roomId.orEmpty(), currentUser.uid!!),
+                                token = generateDynamicToken(roomId.orEmpty(), currentUser.uid),
                                 uid = currentUser.uid,
                                 role = if (isHost) "host" else "user"
                             )
@@ -200,7 +237,7 @@ fun JoinSocietyScreen(
             }
 
             Status.STAGE_DOWN -> {
-                streamViewModel.leaveChannel()
+                roomId?.let { streamViewModel.leaveChannel(it) }
             }
 
             else -> {
@@ -251,13 +288,7 @@ fun JoinSocietyScreen(
                 }
             }
             is State.ChannelLeave -> {
-                audioRoomViewModel.roomState(
-                    AudioRoomState.deleteJoinRequest(
-                        roomId = roomId.orEmpty(),
-                        feedMode = FeedMode.CAMPUS,
-                        campusId = null
-                    )
-                )
+
                 if (isHost){
                     audioRoomViewModel.roomState(
                         AudioRoomState.IsRoomActive(
@@ -265,14 +296,56 @@ fun JoinSocietyScreen(
                             isActive = false
                         )
                     )
+                    audioRoomViewModel.roomState(
+                        AudioRoomState.DeleteMessageRoom(
+                            roomId = roomId.orEmpty(),
+                        )
+                    )
                 }
+
                 navController.popBackStack()
             }
             else -> Unit
         }
     }
 
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    // App in background → keep alive
+                    streamViewModel.startForegroundKeepAlive(
+                        title = title ?: "",
+                        text = "",
+                    )
+                }
 
+                Lifecycle.Event.ON_START -> {
+                    // App back in foreground → stop service if you want
+                    streamViewModel.stopForegroundKeepAlive()
+                }
+                Lifecycle.Event.ON_DESTROY -> {
+                    audioRoomViewModel.roomState(
+                        AudioRoomState.deleteJoinRequest(
+                            roomId = roomId.orEmpty(),
+                            feedMode = FeedMode.CAMPUS,
+                            campusId = null
+                        )
+                    )
+                }
+
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(roomId){
+        audioRoomViewModel.fetchChatMessages(roomId = roomId.orEmpty())
+    }
 
     //---------------------------------------FILTERS------------------------------------------------
 
@@ -319,7 +392,7 @@ fun JoinSocietyScreen(
                                     roomId = roomId.orEmpty()
                                 )
                             )
-                            streamViewModel.leaveChannel()
+                            roomId?.let { streamViewModel.leaveChannel(it) }
                         },
                         isMicrophoneEnabled = userState?.muted ?: true,
                         enableMicrophone = {
@@ -366,7 +439,7 @@ fun JoinSocietyScreen(
                             }
                         },
                         onLeaveClick = {
-                            streamViewModel.leaveChannel()
+                            roomId?.let { streamViewModel.leaveChannel(it) }
                         },
                         enableSpeaker = {
                             streamViewModel.enableLoudSpeaker(it)
@@ -377,12 +450,25 @@ fun JoinSocietyScreen(
             }
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
+        floatingActionButton = {
+            FloatingActionButton(
+                containerColor = Yellow,
+                contentColor = White,
+                shape = CircleShape,
+                onClick = {isBottomSheet = true}
+            ) {
+                Icon(
+                    modifier = Modifier.size(24.dp),
+                    painter = painterResource(R.drawable.chatbubble_outline),
+                    contentDescription = "Chats"
+                )
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { paddingValues ->
 
         LazyVerticalGrid(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
             columns = GridCells.Fixed(3),
             contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -426,7 +512,6 @@ fun JoinSocietyScreen(
                 }
             }
 
-
             item(span = { GridItemSpan(3) }) {
                 SectionHeader("Stage")
             }
@@ -452,8 +537,174 @@ fun JoinSocietyScreen(
                 )
             }
         }
-    }
 
+
+        if (isBottomSheet){
+
+            ModalBottomSheet(
+                modifier = Modifier.padding(top = paddingValues.calculateTopPadding()),
+                onDismissRequest = { isBottomSheet = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = MaterialTheme.colorScheme.background
+            ) {
+
+                Column {
+
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        reverseLayout = true
+                    ) {
+                        when(chatMessages){
+
+                            is UiState.Loading -> {
+                                item {
+                                    CircularLoading()
+                                }
+
+                            }
+                            is UiState.Success<*> -> {
+
+                                val chats = (chatMessages as UiState.Success<List<GetChatMessage>>).data
+
+                                item{
+                                    if (chats.isEmpty()){
+                                        Box(modifier = Modifier.fillMaxWidth().height(250.dp), contentAlignment = Alignment.Center) {
+                                            Text("No Chats")
+                                        }
+                                    }
+                                }
+
+                                items(chats) {
+                                    Column (modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)){
+                                        Row(
+                                            modifier = Modifier.background(
+                                                color = MaterialTheme.colorScheme.surface,
+                                                shape = RoundedCornerShape(
+                                                    bottomStart = 0.dp,
+                                                    bottomEnd = 12.dp,
+                                                    topStart = 12.dp,
+                                                    topEnd = 12.dp
+                                                )
+                                            ).padding(12.dp),
+                                            verticalAlignment = Alignment.Top,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Avatar(
+                                                visibilityMode = VisibilityMode.USER,
+                                                imageUrl = it.senderProfile,
+                                                onAvatarClick = {}
+                                            )
+                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+
+                                                Text(it.senderName,style = MaterialTheme.typography.titleSmall)
+
+                                                val isUrl = extractUrlFromText(it.message)
+
+                                                if (isUrl.isNullOrEmpty()){
+                                                    Text(it.message,style = MaterialTheme.typography.bodyMedium)
+                                                }
+
+                                                else{
+
+                                                    val url = normalizeUrl(isUrl)
+
+                                                    LinkPreviewCard(url = url)  {
+                                                        urlHandler.openUri(url)
+                                                    }
+
+                                                }
+
+                                            }
+                                        }
+                                        Text(
+                                            text = convertTimestampToTime(it.createdAt.toMillis()),
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+
+                                }
+
+
+                            }
+                            is UiState.Error -> {
+                                item {
+                                    LaunchedEffect(key1 = (chatMessages as UiState.Error).message) {
+                                        snackBarHostState.showSnackbar("Failed to load messages.")
+                                    }
+                                }
+
+                            }
+                            else -> {}
+                        }
+
+
+
+                    }
+
+
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+
+                        MessageInputBar(
+                            modifier = Modifier.weight(1f),
+                            messageText = messageText,
+                            onMessageChange = {
+                                messageText = it
+                            },
+                            onSendClick = {
+
+                            }
+                        )
+
+                        FilledIconButton(
+                            onClick = {
+                                audioRoomViewModel.sendChatMessage(
+                                    roomId = roomId.orEmpty(),
+                                    chatMessage = SetChatMessage(
+                                        senderId = profile?.id.orEmpty(),
+                                        message = messageText,
+                                        createdAt = FieldValue.serverTimestamp(),
+                                        senderName = profile?.userName ?: "",
+                                        senderProfile = profile?.userImage.orEmpty(),
+                                    ),
+                                )
+                            },
+                            enabled = messageText.isNotEmpty()
+                        ) {
+
+                            when(sendMessageState){
+                                is UiState.Idle->{
+                                    Icon(
+                                        modifier = Modifier.size(18.dp).padding(start = 2.dp),
+                                        painter = painterResource(R.drawable.send_solid),
+                                        contentDescription = null,
+                                    )
+                                }
+                                is UiState.Success->{
+                                    messageText = ""
+                                }
+                                is UiState.Loading -> {
+                                    CircularLoading()
+                                }
+                                else -> {
+                                    Icon(
+                                        modifier = Modifier.size(18.dp).padding(start = 2.dp),
+                                        painter = painterResource(R.drawable.send_solid),
+                                        contentDescription = null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
 }
 
@@ -480,7 +731,7 @@ fun StageDownParticipantItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                color = MaterialTheme.colorScheme.surface,
                 shape = MaterialTheme.shapes.small
             )
             .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -572,7 +823,6 @@ fun ParticipantControlUI(
                     onClick = onLeaveClick,
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = Red,
-                        containerColor = Light_Background_Red
                     )
                 ) {
                     Icon(
@@ -690,8 +940,6 @@ fun ParticipantAvatar(
     onDownClick:()-> Unit,
 ) {
 
-
-
     var isDownVisible by remember { mutableStateOf(false) }
 
     BackHandler {
@@ -711,7 +959,7 @@ fun ParticipantAvatar(
         Column(
             modifier = modifier
                 .background(
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                    color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(6.dp)
                 )
                 .fillMaxSize(),
@@ -760,7 +1008,7 @@ fun ParticipantAvatar(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                modifier = Modifier.padding(horizontal = 6.dp),
+                modifier = Modifier.padding(horizontal = 12.dp),
                 text = participant.userName,
                 maxLines = 1,
                 textAlign = TextAlign.Center,
@@ -809,10 +1057,7 @@ fun ParticipantAvatar(
                 )
             }
         }
-
-
     }
-
 
 }
 
@@ -822,18 +1067,20 @@ fun SpeakerPhoneToggle(
     enableSpeaker: (Boolean) -> Unit
 ) {
     var isSpeakerEnabled by remember { mutableStateOf(false) }
+
     IconButton(
         onClick = {
         isSpeakerEnabled = !isSpeakerEnabled
-        enableSpeaker(!isSpeakerEnabled)
+        enableSpeaker(isSpeakerEnabled)
         },
         colors = IconButtonDefaults.iconButtonColors(
             containerColor = MaterialTheme.colorScheme.surface,
         )
     ) {
         Icon(
+            modifier = Modifier.size(22.dp),
             painter = painterResource(
-                if (isSpeakerEnabled) R.drawable.outline_mobile_sound_24 else R.drawable.outline_mobile_sound_off_24
+                if (isSpeakerEnabled) R.drawable.outline_mobile_sound_off_24 else R.drawable.outline_mobile_sound_24
             ),
             contentDescription = null
         )

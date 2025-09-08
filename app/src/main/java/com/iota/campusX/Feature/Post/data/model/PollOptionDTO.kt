@@ -24,5 +24,5 @@ data class Poll(
     var hasVoted: Boolean = false,
     var votes: List<Vote> = emptyList(),
     val isActive: Boolean = true,
-
+    val selectedOptionId: String? = null
 )

@@ -82,15 +82,22 @@ suspend fun fetchNotification(
                     async {
                         // 1. Fetch post content
                         val postDeferred = async {
+
                             val postSnap = firestore.collection("Posts")
                                 .document(raw.postId)
                                 .get()
                                 .await()
 
+                            val text = postSnap.getString("postText") ?: ""
+                            val image = postSnap.getString("image") ?: ""
+
+                            if (!postSnap.exists()) return@async null
+
                             PostContent(
                                 text = postSnap.getString("postText") ?: "",
                                 image = postSnap.getString("image") ?: ""
                             )
+
                         }
 
                         // 2. Fetch each user who liked

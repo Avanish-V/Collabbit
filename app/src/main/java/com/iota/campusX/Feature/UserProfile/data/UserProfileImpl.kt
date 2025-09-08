@@ -1,6 +1,5 @@
 package com.iota.campusX.Feature.UserProfile.data
 
-import LinkUpRequestDTO
 import SendPushNotification
 import android.net.Uri
 import android.util.Log
@@ -15,8 +14,8 @@ import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Feature.Notification.data.CreateNotification
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.domain.NotificationType
-import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
+import com.iota.campusX.Feature.UserProfile.OfflineSupport.UserProfileDao
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
 import com.iota.campusX.Utils.UiState
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -26,13 +25,20 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlinx.serialization.json.Json
+import toDomain
+import toEntity
 
 class UserProfileImpl(
     private val sendPushNotification: SendPushNotification,
@@ -41,8 +47,76 @@ class UserProfileImpl(
     private val auth: FirebaseAuth,
     private val firebaseStorage: FirebaseStorage,
     private val httpClient: HttpClient,
-) : UserProfileRepo {
+    private val userProfileDao: UserProfileDao
+) : UserProfileInterface {
 
+    override suspend fun getUserProfile(): Flow<BaseProfileDTO?> {
+
+        return userProfileDao.getProfile(auth.currentUser!!.uid).map { it?.toDomain() }
+
+    }
+
+    override suspend fun syncUserProfile(): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(IllegalStateException("User not logged in"))
+
+            // Fetch user profile snapshot
+            val snapshot = firestore.collection("Users")
+                .document(user.uid)
+                .get()
+                .await()
+
+            val remote = snapshot.toObject(BaseProfileDTO::class.java)
+                ?: return Result.failure(IllegalStateException("User profile not found"))
+
+            coroutineScope {
+                val connectionCount = async {
+                    firestore.collection("Users")
+                        .document(user.uid)
+                        .collection("Connections")
+                        .whereEqualTo("status", true)
+                        .count()
+                        .get(AggregateSource.SERVER)
+                        .await()
+                        .count.toInt()
+                }
+
+                val postCount = async {
+                    firestore.collection("Posts")
+                        .whereEqualTo("creatorId", user.uid)
+                        .count()
+                        .get(AggregateSource.SERVER)
+                        .await()
+                        .count.toInt()
+                }
+
+                val followersCount = async {
+                    firestore.collection("Users")
+                        .document(user.uid)
+                        .collection("Followers")
+                        .count()
+                        .get(AggregateSource.SERVER)
+                        .await()
+                        .count.toInt()
+                }
+
+                val profileWithCounts = remote.copy(
+                    count = Counts(
+                        connections = connectionCount.await(),
+                        posts = postCount.await(),
+                        followers = followersCount.await()
+                    )
+                )
+
+                // Save to local DB
+                userProfileDao.insertProfile(profileWithCounts.toEntity())
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     override suspend fun getBaseProfile(): Result<BaseProfileDTO> {
         return try {
@@ -56,6 +130,7 @@ class UserProfileImpl(
             val connectionCount = firestore.collection("Users")
                 .document(auth.currentUser!!.uid)
                 .collection("Connections")
+                .whereEqualTo("status",true)
                 .count()
                 .get(AggregateSource.SERVER)
                 .await()
@@ -91,6 +166,7 @@ class UserProfileImpl(
     }
 
     override suspend fun getUserProfileById(userId: String): Result<BaseProfileDTO> {
+
         if (userId.isBlank()) return Result.failure(Exception("Invalid user ID"))
 
         return try {
@@ -107,6 +183,7 @@ class UserProfileImpl(
                     firestore.collection("Users")
                         .document(userId)
                         .collection("Connections")
+                        .whereEqualTo("status",true)
                         .count()
                         .get(AggregateSource.SERVER)
                         .await()
@@ -257,10 +334,6 @@ class UserProfileImpl(
 
     override suspend fun updateCampus(campus: Campus): Result<Boolean> {
 
-        if (campus.campusCode.isNullOrEmpty()) return Result.failure(Exception("Campus code is empty."))
-        if (campus.collegeName.isNullOrEmpty()) return Result.failure(Exception("College name is empty."))
-        if (campus.fieldOfStudy.isNullOrEmpty()) return Result.failure(Exception("Field of study  is empty."))
-        if (campus.degree.isNullOrEmpty()) return Result.failure(Exception("Degree is empty."))
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
 
         return try {
@@ -425,13 +498,14 @@ class UserProfileImpl(
                         .await()
 
                     val userData = userSnapshot.toObject(BaseProfileDTO::class.java)
+
                     userData?.let { data ->
                         ConnectionsDTO(
-                            user = UserBasicDetail(
-                                id = data.id,
-                                userName = data.userName,
-                                userImage = data.userImage
-                            )
+                            userName = data.userName,
+                            id = userData.id,
+                            userImage = data.userImage,
+                            isCurrentProfile = userData.id == auth.currentUser!!.uid,
+                            isCurrentUser = userId == auth.currentUser!!.uid
                         )
                     }
                 }
@@ -464,11 +538,12 @@ class UserProfileImpl(
         }
     }
 
-    override fun updateUniversity(title: String): Flow<UiState<List<UniversityDTO>>> =
-        flow {
+    override fun updateUniversity(title: String): Flow<UiState<List<UniversityDTO>>> = flow {
+
         emit(UiState.Loading)
 
         try {
+
             val response: HttpResponse = httpClient.get(
                 "https://autocomplete.clearbit.com/v1/companies/suggest?query=$title"
             ) {
@@ -477,17 +552,18 @@ class UserProfileImpl(
                 }
             }
 
-            if (response.status.isSuccess()) {
-                val universities = response.body<List<UniversityDTO>>()
-                emit(UiState.Success(universities))
-            } else {
-                val errorBody = response.bodyAsText()
-                emit(UiState.Error("HTTP ${response.status.value}: $errorBody"))
-            }
+            val bodyText = response.bodyAsText()
+
+            val universities = Json.decodeFromString<List<UniversityDTO>>(bodyText)
+
+            emit(UiState.Success(universities))
 
         } catch (e: Exception) {
-            emit(UiState.Error("Exception: ${e.localizedMessage ?: "Unknown error"}"))
+
+            emit(UiState.Error("Parsing error: ${e.localizedMessage}"))
+
         }
+
     }
 
 }

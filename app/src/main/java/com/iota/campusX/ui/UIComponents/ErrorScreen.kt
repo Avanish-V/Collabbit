@@ -1,5 +1,6 @@
 package com.iota.campusX.ui.UIComponents
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,8 +46,8 @@ fun ErrorScreen(text: String, image: Int? = null, onReTry: () -> Unit, buttonTex
 
             OutlinedButton(
                 onClick = { onReTry.invoke() },
-                border = _root_ide_package_.androidx.compose.foundation.BorderStroke(
-                    color = MaterialTheme.colorScheme.outline,
+                border = BorderStroke(
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     width = 1.dp
                 )
             ) {

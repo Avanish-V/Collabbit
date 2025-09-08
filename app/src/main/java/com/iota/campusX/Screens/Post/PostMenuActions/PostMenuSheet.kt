@@ -59,7 +59,9 @@ fun PostMenuSheet(
     }
 
     LaunchedEffect(Unit) {
+
         when (actionResult.value) {
+
             is UiState.Error ->{
                 snackBarHostState.showSnackbar((actionResult.value as UiState.Error).message)
             }
@@ -72,6 +74,7 @@ fun PostMenuSheet(
             is UiState.Success<*> -> {
                 snackBarHostState.showSnackbar("Done")
             }
+
         }
     }
 
@@ -92,7 +95,8 @@ fun PostMenuSheet(
             action = action,
             content = content,
             viewModel = viewModel,
-            onDismiss = { pendingAction = null }
+            onDismiss = { pendingAction = null },
+            snackBar = snackBarHostState
         )
     }
 }

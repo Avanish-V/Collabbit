@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +28,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -87,6 +91,7 @@ import com.iota.campusX.Screens.Post.DataModel.ContentType
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
@@ -94,7 +99,8 @@ import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
-import com.iota.campusX.ui.UIComponents.PostCard
+import com.iota.campusX.ui.UIComponents.ErrorScreen
+import com.iota.campusX.ui.UIComponents.FeedUI.FeedItem
 import kotlinx.coroutines.launch
 import org.koin.compose.getKoin
 import org.koin.compose.koinInject
@@ -334,8 +340,16 @@ fun FeedComponent(
     val globalPostState = postFeedViewModel.globalPosts.collectAsLazyPagingItems()
     val campusPostState = postFeedViewModel.campusPosts.collectAsLazyPagingItems()
 
-    val profileData = userProfileViewModel.userBaseProfile.collectAsState().value
+    val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
 
+    val profileData = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
 
     HideBottomBar(
         navigationViewModel = navigationViewModel,
@@ -368,19 +382,32 @@ fun FeedComponent(
         )
 
         1 -> {
-            if (profileData?.campus?.campusCode.isNullOrEmpty()){
-                CampusEmptyState(
-                    onUpdateClick = {navHostController.navigate(Routes.Main.Profile.routes)}
-                )
-                return
+            when(profileState){
+                is UiState.Loading -> {
+                    LoadingUI()
+                }
+                is UiState.Success->{
+                    if (profileData?.campus?.campusCode.isNullOrEmpty()){
+                        CampusEmptyState(
+                            onUpdateClick = {navHostController.navigate(Routes.Main.Profile.routes)}
+                        )
+                        return
+                    }
+                    FeedUiRenderer(
+                        feedData  = campusPostState,
+                        navHostController = navHostController,
+                        lazyState = lazyState,
+                        scrollBehavior = scrollBehavior,
+                        userProfileImage = profileData.userImage,
+                    )
+                }
+                is UiState.Error -> {
+
+                }
+                else -> {}
+
             }
-            FeedUiRenderer(
-                feedData  = campusPostState,
-                navHostController = navHostController,
-                lazyState = lazyState,
-                scrollBehavior = scrollBehavior,
-                userProfileImage = profileData.userImage,
-            )
+
         }
     }
 
@@ -443,12 +470,15 @@ fun FeedUiRenderer(
         pullToRefreshState = pullToRefreshState,
         onRefresh = {
             context.vibrate()
-            scope.launch { lazyState.animateScrollToItem(0) }
             feedData.refresh()
+            scope.launch { lazyState.animateScrollToItem(0) }
         },
         isRefreshing = feedData.loadState.refresh is LoadState.Loading && feedData.itemCount > 0
     ) {
 
+        PagingListHeader(
+            items = feedData,
+        )
 
         LazyColumn(
             state = lazyState,
@@ -456,6 +486,7 @@ fun FeedUiRenderer(
                 .fillMaxSize()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
         ) {
+
             writePostComponent(navHostController, context, userProfileImage)
 
             item {
@@ -468,8 +499,8 @@ fun FeedUiRenderer(
             items(feedData.itemCount) { post ->
                 val item = feedData[post]
                 item?.let {
-                    PostCard(
-                        post = item,
+                    FeedItem(
+                        feedItem = item,
                         handlers = {
                             viewModel.onAction(it)
                         },
@@ -490,9 +521,9 @@ fun FeedUiRenderer(
 
 
             item {
-                LazyColumBottomHeader(
+                PagingListFooter(
                     items = feedData,
-                    isRefreshing = { isRefreshing = it }
+                    minItemsBeforeEnd = 16, // don’t show "No more" too early
                 )
             }
         }
@@ -501,52 +532,85 @@ fun FeedUiRenderer(
 }
 
 @Composable
-fun LazyColumBottomHeader(
-    items: LazyPagingItems<GetPostDTO>,
-    isRefreshing: (Boolean)-> Unit
+fun <T : Any> PagingListFooter(
+    items: LazyPagingItems<T>,
+    modifier: Modifier = Modifier,
+    minItemsBeforeEnd: Int = 0, // show "No more" only after some data is loaded
+    loadingContent: @Composable (() -> Unit)? = {
+        CircularLoading()
+    },
+    errorContent: @Composable ((Throwable) -> Unit)? = { error ->
+        AppLabelText(text = error.localizedMessage ?: "Something went wrong.")
+    },
+    endContent: @Composable (() -> Unit)? = {
+        AppLabelText("🎉 You’ve reached the end!")
+    }
 ) {
-
-    Box(Modifier.fillMaxSize().height(62.dp), contentAlignment = Alignment.Center) {
-
-        when (val state = items.loadState.refresh) {
-
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(62.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        when (val append = items.loadState.append) {
             is LoadState.Loading -> {
-
-                LoadingUI()
-
+                loadingContent?.invoke()
             }
             is LoadState.Error -> {
-                AppLabelText(
-                    text = "No Post Found.",
-                )
+                errorContent?.invoke(append.error)
             }
             is LoadState.NotLoading -> {
-                isRefreshing.invoke(false)
-
+                if (append.endOfPaginationReached && items.itemCount > minItemsBeforeEnd) {
+                    endContent?.invoke()
+                }
             }
+        }
+    }
+}
 
+
+@Composable
+fun <T : Any> PagingListHeader(
+    items: LazyPagingItems<T>,
+    modifier: Modifier = Modifier,
+    loadingContent: @Composable (() -> Unit)? = {
+        if (items.itemCount == 0){
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularLoading()
+            }
+        }
+    },
+    errorContent: @Composable ((Throwable) -> Unit)? = { error ->
+        ErrorScreen(
+            text = error.localizedMessage ?: "Something went wrong.",
+            image = R.drawable.undraw_page_not_found_6wni,
+            onReTry = {
+                items.retry()
+            },
+            buttonText = "Retry"
+        )
+
+    },
+    emptyContent: @Composable (() -> Unit)? = {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            AppLabelText(text = "No data available.")
         }
 
-
-        // Optional: footer progress / append error
-
-        when (val append = items.loadState.append) {
-
-            is LoadState.Loading -> {
-                CircularLoading(
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+    }
+) {
+    Box(
+        modifier = modifier.fillMaxWidth().heightIn(min = 62.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        when (val refresh = items.loadState.refresh) {
+            is LoadState.Loading -> loadingContent?.invoke()
             is LoadState.Error -> {
-                AppLabelText(
-                    text = "No Post Found.",
-                )
+                errorContent?.invoke(refresh.error)
+                return
             }
-            else ->{
-                if (items.itemCount > 16){
-                    AppLabelText(
-                        text = "No more posts.",
-                    )
+            is LoadState.NotLoading -> {
+                if (items.itemCount == 0) {
+                    emptyContent?.invoke()
                 }
             }
         }

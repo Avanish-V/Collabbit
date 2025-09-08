@@ -172,13 +172,16 @@ fun ProfileAction(
     snackBarHostState: SnackbarHostState
 ) {
 
+    val hasConnection = when(hasConnectionState){
+        is UiState.Success -> hasConnectionState.data
+        else -> false
+    }
+
     Row (modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)){
         Button(
             onClick = { onLinkUpRequestClick?.invoke() },
-            modifier = Modifier
-                .weight(1f)
-                .height(40.dp),
-            shape = RoundedCornerShape(6.dp)
+            modifier = Modifier.weight(1f).height(40.dp),
+            shape = MaterialTheme.shapes.small
         ) {
             when (hasConnectionState) {
 
@@ -194,14 +197,12 @@ fun ProfileAction(
                     Text(
                         text = connectionText,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if ( hasConnectionState.data == true) White else LightTheme_Gray
+                        color =  Color.White
                     )
                 }
 
                 is UiState.Loading -> {
-                    CircularLoading(
-                        color = Color.White
-                    )
+                    CircularLoading()
                 }
 
                 is UiState.Error -> {
@@ -217,16 +218,14 @@ fun ProfileAction(
             modifier = Modifier.width(12.dp)
         )
         Button(
-            modifier = Modifier
-                .weight(1f)
-                .height(40.dp)
-                .align(Alignment.CenterVertically),
+            modifier = Modifier.weight(1f).height(40.dp).align(Alignment.CenterVertically),
             onClick = { onMessageClick?.invoke() },
             shape = RoundedCornerShape(6.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
-            )
+            ),
+            enabled = hasConnection ?: false
         ) {
             Text(
                 text = "Message",
@@ -374,7 +373,7 @@ fun CampusWidget(
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
 
-                    campus.university?.let {
+                    if (!campus.university?.university.isNullOrEmpty()){
                         Text(
                             text = campus.university.university,
                             style = MaterialTheme.typography.titleMedium

@@ -23,6 +23,7 @@ import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Feature.Post.data.model.Poll
 import com.iota.campusX.Utils.FirestoreIdGenerator
+import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +38,14 @@ class PostCreationViewModel(
     private val mediaManager: MediaManager
 ) : ViewModel() {
 
-    val currentUser: StateFlow<BaseProfileDTO?> = userProfileRepository.currentUser
+    val profile: StateFlow<UiState<BaseProfileDTO>> = userProfileRepository.currentUser
+
+    val currentUser = when(profile.value){
+        is UiState.Success<*> -> {
+            (profile.value as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> null
+    }
     private val _uploadState = MutableStateFlow<UploadState>(UploadState.Idle)
     val uploadState: StateFlow<UploadState> = _uploadState
 
@@ -113,13 +121,13 @@ class PostCreationViewModel(
                                        createdAt = timestamp,
                                        creatorDetail = CreatorDetail(
                                            profile = UserBasicDetail(
-                                               userName = currentUser.value?.userName ?: "",
-                                               id = currentUser.value?.id ?: "",
-                                               userImage = currentUser.value?.userImage ?: "",
-                                               userBio = currentUser.value?.userBio ?: "",
+                                               userName = currentUser?.userName ?: "",
+                                               id = currentUser?.id ?: "",
+                                               userImage = currentUser?.userImage ?: "",
+                                               userBio = currentUser?.userBio ?: "",
                                            ),
                                            isCurrentUser = true,
-                                           isVerified = currentUser.value?.metaData?.verified ?: false
+                                           isVerified = currentUser?.metaData?.verified ?: false
                                        ),
                                        feedMode = postType.feedMode,
                                        visibilityMode = postType.visibilityMode,
@@ -158,13 +166,13 @@ class PostCreationViewModel(
                                     createdAt = timestamp,
                                     creatorDetail = CreatorDetail(
                                         profile = UserBasicDetail(
-                                            userName = currentUser.value?.userName ?: "",
-                                            id = currentUser.value?.id ?: "",
-                                            userImage = currentUser.value?.userImage ?: "",
-                                            userBio = currentUser.value?.userBio ?: "",
+                                            userName = currentUser?.userName ?: "",
+                                            id = currentUser?.id ?: "",
+                                            userImage = currentUser?.userImage ?: "",
+                                            userBio = currentUser?.userBio ?: "",
                                         ),
                                         isCurrentUser = true,
-                                        isVerified = currentUser.value?.metaData?.verified ?: false
+                                        isVerified = currentUser?.metaData?.verified ?: false
                                     ),
                                     feedMode = postType.feedMode,
                                     visibilityMode = postType.visibilityMode,

@@ -9,7 +9,11 @@ import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.Flow
 
-interface UserProfileRepo {
+interface UserProfileInterface {
+
+    suspend fun syncUserProfile() : Result<Unit>
+
+    suspend fun getUserProfile(): Flow<BaseProfileDTO?>
 
     suspend fun getBaseProfile(): Result<BaseProfileDTO>
 

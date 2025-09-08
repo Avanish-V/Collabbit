@@ -3,7 +3,7 @@ package com.iota.campusX.Feature.UserProfile.presentation
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.TimeoutCancellationException
@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 class UpdateProfileViewModel(
-    private val userProfileRepo: UserProfileRepo,
+    private val userProfileRepo: UserProfileInterface,
     private val userProfileRepository: UserProfileRepository
 ) : ViewModel() {
 
@@ -136,7 +136,10 @@ class UpdateProfileViewModel(
         is ProfileMutation.About -> if (mutation.value.length > 200 || mutation.value.isBlank()) "About is too long" else null
         is ProfileMutation.Gender -> if (mutation.value == null) "Please select a gender" else null
         is ProfileMutation.SocialAccount -> if (mutation.value.isBlank()) "Social account cannot be empty" else null
-        is ProfileMutation.Interests -> if (mutation.value.isEmpty()) "Please select at least one interest" else null
+        is ProfileMutation.Interests -> {
+
+            if (mutation.value.isEmpty()) "Please select at least one interest" else null
+        }
         is ProfileMutation.Campus -> {
 
             if (mutation.value.collegeName.isNullOrEmpty() || mutation.value.university == null) "Please enter college or university"
@@ -150,8 +153,7 @@ class UpdateProfileViewModel(
 
         }
 
-        is ProfileMutation.ProfileImage -> if (mutation.uri.toString()
-                .isBlank()
+        is ProfileMutation.ProfileImage -> if (mutation.uri.toString().isBlank()
         ) "Invalid profile image" else null
 
         is ProfileMutation.DeleteAccount -> null // no validation needed

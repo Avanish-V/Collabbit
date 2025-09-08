@@ -12,12 +12,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,6 +35,7 @@ import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.FirestoreIdGenerator
@@ -50,9 +53,16 @@ fun CreateSociety(
     //ViewModels
     val societyViewModel = koinInject<SocietyViewModel>()
 
-    val profile = userProfileViewModel.userBaseProfile.collectAsState().value
+    val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
 
     //States
+
+    val profile = when(profileState){
+        is UiState.Success -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> null
+    }
 
     val createSocietyState by societyViewModel.createSocietyState.collectAsState()
 
@@ -142,7 +152,10 @@ fun CreateSociety(
                         }
 
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
         snackbarHost = {

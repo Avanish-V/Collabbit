@@ -5,6 +5,7 @@ import ConsentAgreeViewModel
 import ConsentBottomSheet
 import android.os.Build
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -20,12 +21,16 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeGesturesPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +39,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -92,6 +98,7 @@ import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Screens.Post.PostActions.PostAction
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.Post.VisibilityModeChanger
 import com.iota.campusX.Utils.FirestoreIdGenerator
@@ -99,14 +106,14 @@ import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
-import com.iota.campusX.ui.UIComponents.AnimatedLikeButton
 import com.iota.campusX.ui.UIComponents.AnonymousImage
 import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
-import com.iota.campusX.ui.UIComponents.PostCard
-import com.iota.campusX.ui.UIComponents.PostHeader
+import com.iota.campusX.ui.UIComponents.FeedUI.AnimatedLikeButton
+import com.iota.campusX.ui.UIComponents.FeedUI.FeedHeader
+import com.iota.campusX.ui.UIComponents.FeedUI.FeedItem
 import kotlinx.coroutines.launch
 import org.koin.compose.getKoin
 import org.koin.compose.koinInject
@@ -136,15 +143,23 @@ fun PostReplyScreen(
     val consentBottomSheet = remember { mutableStateOf(false) }
 
 
-    val userProfile = profileViewModel.userBaseProfile.collectAsState().value
+    val profileState = profileViewModel.userBaseProfile.collectAsState().value
     val postRepliesState = replyViewModel.postReplies.collectAsState().value
 
+    val userProfile = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
 
 
-   // val editPostState = postViewModel.editPostState
+    // val editPostState = postViewModel.editPostState
 //    val deleteReplyState = replyViewModel.deleteReplyState.collectAsState()
-     val createReplyState = replyViewModel.createReplyState.collectAsState()
-  //  val deletePostState = postViewModel.deletePostState.collectAsState()
+    val createReplyState = replyViewModel.createReplyState.collectAsState()
+    //  val deletePostState = postViewModel.deletePostState.collectAsState()
 
 
     val singlePost = postViewModel.singlePost.collectAsState().value
@@ -209,8 +224,10 @@ fun PostReplyScreen(
             )
         },
         bottomBar = {
-            Column {
-
+            BottomAppBar (
+                modifier = Modifier.navigationBarsPadding().imePadding(),
+                containerColor = MaterialTheme.colorScheme.background
+            ){
                 BottomTextInput(
                     focusRequester = focusRequester,
                     onFocusChange = {
@@ -242,7 +259,6 @@ fun PostReplyScreen(
                                                 id = userProfile?.id ?: "",
                                                 userImage = userProfile?.userImage ?: "",
                                                 userBio = userProfile?.userBio ?: "",
-                                                designation = ""
                                             ),
                                             isCurrentUser = true,
                                             isVerified = userProfile?.metaData?.verified ?: false
@@ -259,32 +275,33 @@ fun PostReplyScreen(
                     selectedVisibility = visibilityMode,
                     onVisibilityChange = {
                         visibilityMode = it
-                        when(isConsentAgree){
+                        when (isConsentAgree) {
                             is UiState.Success -> {
-                                if (it == VisibilityMode.ANONYMOUS){
-                                    if ((isConsentAgree as UiState.Success<Boolean>).data){
+                                if (it == VisibilityMode.ANONYMOUS) {
+                                    if ((isConsentAgree as UiState.Success<Boolean>).data) {
                                         visibilityMode = it
-                                    }else{
+                                    } else {
                                         consentBottomSheet.value = true
                                         visibilityMode = VisibilityMode.USER
                                     }
-                                }else{
+                                } else {
                                     visibilityMode = it
                                 }
                             }
+
                             else -> {}
                         }
                     }
                 )
             }
+
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
 
-        when(singlePost){
+        when (singlePost) {
 
-            is UiState.Loading->{
+            is UiState.Loading -> {
                 LoadingUI(true)
             }
 
@@ -301,19 +318,21 @@ fun PostReplyScreen(
                 }
 
                 LazyColumn(
-                    modifier = Modifier .imePadding().padding(innerPadding),
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding), // prevents double-inset,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
                     postData?.let {
                         item {
-                            PostCard(
-                                post = postData,
+                            FeedItem(
+                                feedItem = it,
                                 handlers = {
                                     postActionsViewModel.onAction(it)
                                 },
                                 onDotMenuClick = {
-                                    postData?.let {data->
+                                    postData?.let { data ->
                                         postMenuState.open(
                                             FeedContent(
                                                 id = ContentId.Post(postId = data.postId),
@@ -331,13 +350,15 @@ fun PostReplyScreen(
                     // Replies Header
                     item {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Divider()
-                            Text(text = "Replies", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                modifier = Modifier.padding(start = 12.dp),
+                                text = "Replies",
+                                style = MaterialTheme.typography.titleMedium
+                            )
                             Divider()
                         }
                     }
@@ -374,7 +395,8 @@ fun PostReplyScreen(
 
                         is UiState.Success -> {
 
-                            val orderedReplies = postRepliesState.data.sortedByDescending { it.repliedAt }
+                            val orderedReplies =
+                                postRepliesState.data.sortedByDescending { it.repliedAt }
 
                             if (orderedReplies.isEmpty()) {
 
@@ -391,13 +413,16 @@ fun PostReplyScreen(
 
                             } else {
 
-                                items(orderedReplies) {reply->
+                                items(orderedReplies) { reply ->
                                     ReplyWidget(
                                         repliesDTO = reply,
                                         onDotsClick = {
                                             postMenuState.open(
                                                 FeedContent(
-                                                    id = ContentId.Reply(postId = reply.postId,replyId = reply.replyId),
+                                                    id = ContentId.Reply(
+                                                        postId = reply.postId,
+                                                        replyId = reply.replyId
+                                                    ),
                                                     text = reply.content,
                                                     isOwner = reply.creatorDetail.isCurrentUser,
                                                     type = ContentType.REPLY
@@ -418,19 +443,21 @@ fun PostReplyScreen(
                     }
                 }
             }
+
             is UiState.Error -> {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp), contentAlignment = Alignment.Center){
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp), contentAlignment = Alignment.Center
+                ) {
                     AppLabelText(
                         text = "Content no longer available"
                     )
                 }
             }
+
             else -> {}
         }
-
-
 
         ConsentBottomSheet(
             isVisible = consentBottomSheet.value,
@@ -526,12 +553,11 @@ fun DragTopButton(
 }
 
 
-
 @Composable
 fun ReplyWidget(
     repliesDTO: GetRepliesDTO,
-    handler:(PostAction)-> Unit,
-    onDotsClick:()-> Unit
+    handler: (PostAction) -> Unit,
+    onDotsClick: () -> Unit
 ) {
 
     Column(
@@ -545,7 +571,7 @@ fun ReplyWidget(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
-            if (repliesDTO.visibility == VisibilityMode.USER){
+            if (repliesDTO.visibility == VisibilityMode.USER) {
 
                 CircleImage(
                     image = repliesDTO.creatorDetail.profile?.userImage ?: "",
@@ -554,18 +580,18 @@ fun ReplyWidget(
                         .clip(CircleShape),
                     onClick = {
                         if (repliesDTO.visibility == VisibilityMode.USER) {
-                            handler.invoke(PostAction.OpenUserProfile(
-                                userId = repliesDTO.creatorDetail.profile?.id ?: "",
-                                isCurrentUser = repliesDTO.creatorDetail.isCurrentUser
+                            handler.invoke(
+                                PostAction.OpenUserProfile(
+                                    userId = repliesDTO.creatorDetail.profile?.id ?: "",
+                                    isCurrentUser = repliesDTO.creatorDetail.isCurrentUser
+                                )
                             )
-                         )
                         }
                     },
                     visibility = repliesDTO.visibility
                 )
 
-            }
-            else{
+            } else {
                 AnonymousImage(
                     modifier = Modifier.size(42.dp)
                 )
@@ -575,11 +601,14 @@ fun ReplyWidget(
 
             Column {
 
-                PostHeader(
-                    user = repliesDTO.creatorDetail,
+                FeedHeader(
+                    creator = repliesDTO.creatorDetail,
+                    feedMode = repliesDTO.feedMode,
                     postedAt = getTimeAgo(repliesDTO.repliedAt),
-                    visibilityMode = repliesDTO.visibility
+                    visibilityMode = repliesDTO.visibility,
+                    trailingComponent = {
 
+                    }
                 )
 
                 Text(
@@ -600,7 +629,10 @@ fun ReplyWidget(
                             handler.invoke(
                                 PostAction.Like(
                                     isLiked = repliesDTO.actions.isLiked,
-                                    contentId = ContentId.Reply(replyId = repliesDTO.replyId, postId = repliesDTO.postId),
+                                    contentId = ContentId.Reply(
+                                        replyId = repliesDTO.replyId,
+                                        postId = repliesDTO.postId
+                                    ),
                                     userId = repliesDTO.creatorDetail.profile?.id ?: ""
                                 )
                             )
@@ -609,9 +641,12 @@ fun ReplyWidget(
                         isLiked = repliesDTO.actions.isLiked
                     )
 
-                    Row (verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)){
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
 
-                        if (repliesDTO.edited){
+                        if (repliesDTO.edited) {
                             AppLabelText("Edited")
                         }
 
@@ -627,7 +662,7 @@ fun ReplyWidget(
                                 ),
                             painter = painterResource(R.drawable.baseline_more_vert_24),
                             contentDescription = "Dots",
-                            tint =  MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -641,21 +676,25 @@ fun ReplyWidget(
 @Composable
 fun BottomTextInput(
     focusRequester: FocusRequester,
-    onFocusChange:(FocusState)->Unit,
-    onTextChange:(String)-> Unit,
+    onFocusChange: (FocusState) -> Unit,
+    onTextChange: (String) -> Unit,
     selectedVisibility: VisibilityMode,
-    onVisibilityChange:(VisibilityMode)-> Unit,
+    onVisibilityChange: (VisibilityMode) -> Unit,
     text: String,
-    onSubmitClick:()-> Unit,
+    onSubmitClick: () -> Unit,
     isLoading: Boolean,
     userImage: String
 ) {
 
-    Box(modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 12.dp, vertical = 10.dp),contentAlignment = Alignment.CenterStart){
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
 
-        Row (verticalAlignment = Alignment.CenterVertically){
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
 
             BasicTextField(
                 value = text,
@@ -702,9 +741,7 @@ fun BottomTextInput(
                 }
             ) {
                 if (isLoading) {
-                    CircularLoading(
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    CircularLoading()
                 } else {
                     Icon(
                         modifier = Modifier.size(22.dp),
@@ -725,7 +762,6 @@ fun BottomTextInput(
             modifier = Modifier.size(42.dp),
             userImage = userImage
         )
-
 
 
     }

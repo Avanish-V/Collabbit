@@ -1,24 +1,17 @@
 package com.iota.campusX.Feature.UserProfile.presentation
 
-import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.data.Campus
-import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
-import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Utils.UiState
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
@@ -27,22 +20,27 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class UserProfileViewModel(
-    private val userProfileRepo: UserProfileRepo,
+    private val userProfileRepo: UserProfileInterface,
     private val userProfileRepository: UserProfileRepository
 ):ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
 
-    val userBaseProfile: StateFlow<BaseProfileDTO?> = userProfileRepository.currentUser
+    val userBaseProfile = userProfileRepository.currentUser
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Lazily,
+            initialValue = null
+        )
 
-    val isLoading: StateFlow<Boolean> = userProfileRepository.isLoading
+    private val _isLoading : MutableStateFlow<UiState<Unit>> = MutableStateFlow(UiState.Idle)
+    val isLoading: StateFlow<UiState<Unit>> = _isLoading.asStateFlow()
 
 
     private val _universityData = MutableStateFlow<UiState<List<UniversityDTO>>>(UiState.Idle)
@@ -57,7 +55,21 @@ class UserProfileViewModel(
         userProfileRepository.loadCurrentUser()
     }
     fun refreshProfile() = viewModelScope.launch {
-        userProfileRepository.loadCurrentUser()
+        
+        _isLoading.value = UiState.Loading
+        
+       val result =  userProfileRepo.syncUserProfile()
+       
+        result.fold(
+            onSuccess = {
+
+                _isLoading.value = UiState.Success(Unit)
+            },
+            onFailure = {
+                _isLoading.value = UiState.Error(it.message ?: "Something went wrong")
+            }
+        )
+        
     }
 
 

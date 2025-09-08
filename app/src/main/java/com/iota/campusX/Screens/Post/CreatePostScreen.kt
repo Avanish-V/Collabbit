@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -86,6 +87,7 @@ import com.iota.campusX.Feature.Post.data.model.MediaType
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
 import com.iota.campusX.Feature.Post.data.model.Type
 import com.iota.campusX.Feature.Post.presentation.UploadState
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.HomeViewModel
@@ -100,6 +102,7 @@ import com.iota.campusX.ui.UIComponents.IconButtonWidget
 import com.iota.campusX.ui.UIComponents.SimpleDropDown
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.LightTheme_Blue
+import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -124,9 +127,17 @@ fun CreatePostScreen(
     val currentMode = postScreenViewModel.currentMode.collectAsState().value
     val uploadState by postCreationViewModel.uploadState.collectAsState()
     val isConsentAgree by consentAgreeViewModel.isAgree.collectAsState()
-    val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value
+    val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
     val feedModeState = homeViewModel.mode.collectAsState().value
 
+    val userProfile = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
 
     val feedMode = (feedModeState as? UiState.Success)?.data
 
@@ -437,7 +448,7 @@ fun CreatePostScreen(
 
                                         Text(
                                             text = "Write your question here.",
-                                            color = Black300
+                                            color = MaterialTheme.colorScheme.outline
                                         )
 
                                     }
@@ -451,7 +462,7 @@ fun CreatePostScreen(
                                         ) {
                                             Text(
                                                 text = "${poll.options.count()}/150",
-                                                color = Black300
+                                                color = MaterialTheme.colorScheme.outline
                                             )
                                         }
 
@@ -654,21 +665,17 @@ fun BottomBarComponent(
 
 
         Button(
-            modifier = Modifier.shadow(
-                ambientColor = LightTheme_Blue,
-                spotColor = LightTheme_Blue,
-                elevation = 20.dp,
-            ),
             onClick = {
                 onPostClick.invoke()
             },
-            enabled = true
+            enabled = true,
+            colors = ButtonDefaults.buttonColors(
+                contentColor = Color.White
+            )
 
         ) {
             if (isLoading){
-                CircularLoading(
-                    color = Color.White,
-                )
+                CircularLoading()
             }
             else{
                 Text(text = "Post")

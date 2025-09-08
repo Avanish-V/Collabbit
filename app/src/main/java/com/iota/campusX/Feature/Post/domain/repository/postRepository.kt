@@ -248,7 +248,9 @@ class PostRepository(
                if (post.postId == postId){
                    val updatedActions = post.postContent.poll?.copy(
                        votes = post.postContent.poll.votes + Vote(userId = "Random", optionId = optionId),
-                       hasVoted = true
+                       hasVoted = true,
+                       selectedOptionId = optionId
+
                    )
                    post.copy(postContent = post.postContent.copy(poll = updatedActions))
                }else{
@@ -269,6 +271,32 @@ class PostRepository(
                 }
             }
 
+        }
+        _campusPosts.update { pagingData ->
+            pagingData.map { post->
+                if (post.creatorDetail.profile?.id == userId){
+                    post.copy(creatorDetail = post.creatorDetail.copy(isFollow = isFollowing))
+                }else{
+                    post
+                }
+            }
+        }
+        _viewUserPost.update { pagingData ->
+            pagingData.map { post->
+                if (post.creatorDetail.profile?.id == userId){
+                    post.copy(creatorDetail = post.creatorDetail.copy(isFollow = isFollowing))
+                }else{
+                    post
+                }
+            }
+        }
+
+        _singlePost.update {
+            if (it is UiState.Success){
+                UiState.Success(it.data?.copy(creatorDetail = it.data.creatorDetail.copy(isFollow = isFollowing)))
+            }else{
+                it
+            }
         }
 
     }

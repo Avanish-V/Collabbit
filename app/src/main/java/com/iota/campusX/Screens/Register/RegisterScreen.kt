@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -63,17 +64,17 @@ fun SignInScreen(navHostController: NavHostController) {
         mutableStateOf(
             listOf(
                 OnBoardingContent(
-                    image = R.drawable.undraw_anonymous_feedback_wbrj,
+                    image = R.drawable.social_dark__1_,
                     heading = "Embrace Anonymity,\nExplore Freedom in Identity",
                     description = "Express yourself freely being anonymous, offering a shield of anonymity while engaging."
                 ),
                 OnBoardingContent(
-                    image = R.drawable.undraw_conference_call_ccsp, // Replace with Clubhouse-style image if available
+                    image = R.drawable.audio__room, // Replace with Clubhouse-style image if available
                     heading = "Real-time Audio Chats,\nConnect through Conversation",
                     description = "Join live audio rooms to share ideas, collaborate, or just hang out — all anonymously and effortlessly."
                 ),
                 OnBoardingContent(
-                    image = R.drawable.undraw_graduation_u7uc, // Replace with more relevant illustration if needed
+                    image = R.drawable.campus_dark, // Replace with more relevant illustration if needed
                     heading = "Simplify Campus Life,\nAll-in-One Student Hub",
                     description = "From events to communities, manage everything campus-related with a single sign-in using your college ID."
                 )
@@ -140,6 +141,9 @@ fun SignInScreen(navHostController: NavHostController) {
                         }
                     },
                     shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     if (pagerState.currentPage != onboardingList.count()-1){
                         Text("Next")
@@ -151,9 +155,7 @@ fun SignInScreen(navHostController: NavHostController) {
                             }
 
                             is AuthResult.Loading -> {
-                                CircularLoading(
-                                    color = Color.White
-                                )
+                                CircularLoading()
                             }
                             is AuthResult.SignedIn -> {
                                 navHostController.navigate(Routes.Main.Home.routes)

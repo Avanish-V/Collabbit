@@ -3,15 +3,14 @@ package com.iota.campusX.Feature.UserProfile.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
-class ConnectionRequestViewModel(private val userProfileRepo: UserProfileRepo): ViewModel() {
+class ConnectionRequestViewModel(private val userProfileRepo: UserProfileInterface): ViewModel() {
 
     private val _acceptRequestState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val acceptRequestState: StateFlow<UiState<Boolean>> = _acceptRequestState.asStateFlow()
@@ -76,7 +75,7 @@ class ConnectionRequestViewModel(private val userProfileRepo: UserProfileRepo): 
 
     fun removeConnectionFromList(userId: String){
         if (connections.value is UiState.Idle || connections.value is UiState.Loading) return
-        _connections.value = UiState.Success((connections.value as UiState.Success).data.filter { it.user.id != userId })
+        _connections.value = UiState.Success((connections.value as UiState.Success).data.filter { it.id != userId })
     }
 
 }

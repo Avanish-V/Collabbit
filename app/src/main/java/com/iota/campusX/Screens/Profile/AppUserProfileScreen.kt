@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -16,7 +18,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -43,7 +44,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
@@ -53,10 +53,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
-import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.UserReplyDTO
-import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.Reply.AppUserReplyViewModel
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
@@ -66,36 +65,35 @@ import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Home.LazyColumBottomHeader
+import com.iota.campusX.Screens.Home.PagingListFooter
+import com.iota.campusX.Screens.Home.RefreshBox
 import com.iota.campusX.Screens.Post.DataModel.ContentId
 import com.iota.campusX.Screens.Post.DataModel.ContentType
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
+import com.iota.campusX.Screens.Post.PostActions.PostAction
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
-import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
-import com.iota.campusX.Screens.Home.RefreshBox
 import com.iota.campusX.Screens.ReplyWidget
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.getTimeAgo
-import com.iota.campusX.Utils.timeMillsToString
-import com.iota.campusX.ui.UIComponents.AnonymousImage
+import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.CampusWidget
-import com.iota.campusX.ui.UIComponents.CircleImage
+import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.ConnectionComponent
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.EditProfileIconButton
 import com.iota.campusX.ui.UIComponents.EmptyState
 import com.iota.campusX.ui.UIComponents.ErrorScreen
-import com.iota.campusX.ui.UIComponents.PostBody
-import com.iota.campusX.ui.UIComponents.PostCard
-import com.iota.campusX.ui.UIComponents.PostHeader
+import com.iota.campusX.ui.UIComponents.FeedUI.Avatar
+import com.iota.campusX.ui.UIComponents.FeedUI.FeedBody
+import com.iota.campusX.ui.UIComponents.FeedUI.FeedHeader
+import com.iota.campusX.ui.UIComponents.FeedUI.FeedItem
 import com.iota.campusX.ui.UIComponents.ProfileContents
 import com.iota.campusX.ui.UIComponents.ProfileHeader
-import kotlinx.coroutines.launch
 import org.koin.compose.getKoin
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -130,12 +128,26 @@ fun AppUserProfile(
 
 
     // ✅ Collect profile states
-    val profile = profileViewModel.userBaseProfile.collectAsState().value
+    val profileState = profileViewModel.userBaseProfile.collectAsState().value
     val isLoading = profileViewModel.isLoading.collectAsState().value
 
     val appUserReplyState by appUserReplyViewModel.userReplies.collectAsState()
     val postState = postFeedViewModel.userPosts.collectAsLazyPagingItems()
 
+    LaunchedEffect(isLoading) {
+        if (isLoading is UiState.Error) {
+            snackBarHostState.showSnackbar(isLoading.message)
+        }
+    }
+
+    val profile = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -159,14 +171,14 @@ fun AppUserProfile(
                 scrollBehavior = scrollBehavior
             )
         },
-        snackbarHost = { SnackbarHost(snackBarHostState) },
+        snackbarHost = { SnackbarHost(modifier = Modifier.padding(bottom = 80.dp), hostState = snackBarHostState) },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { innerPadding ->
 
         RefreshBox(
             modifier = Modifier.padding(innerPadding),
             pullToRefreshState = pullToRefreshState,
-            isRefreshing = isLoading,
+            isRefreshing = isLoading is UiState.Loading,
             onRefresh = {
                 profileViewModel.refreshProfile()
             },
@@ -335,7 +347,7 @@ fun RepliesComponent(
 
             is UiState.Success<*> -> {
 
-                val data = (repliesState as UiState.Success<*>).data as List<UserReplyDTO>
+                val data = (repliesState as UiState.Success<*>).data as List<*>
 
                 item {
                     if (data.isEmpty()) {
@@ -349,107 +361,14 @@ fun RepliesComponent(
 
                 items(data) {
 
-                    Column {
+                    UserReplyItem(
+                        userReplyDTO = it as UserReplyDTO,
+                        handleAction = {
+                            postActionsViewModel.onAction(it)
+                        },
+                        postMenuState = postMenuState
+                    )
 
-                        Row {
-
-                            if (it.post.visibilityMode == VisibilityMode.USER){
-                                CircleImage(
-                                    image = it.post.creatorDetail.profile?.userImage ?: "",
-                                    modifier = Modifier.size(42.dp),
-                                    onClick = {
-                                        if (it.post.creatorDetail.isCurrentUser) return@CircleImage
-                                        navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
-                                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                                "USER_ID",
-                                                 userId
-                                            )
-                                        }
-                                    },
-                                    visibility = VisibilityMode.USER
-                                )
-                            }else{
-                                AnonymousImage(
-                                    modifier = Modifier.size(42.dp)
-
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column {
-
-                                PostHeader(
-                                    user = CreatorDetail(
-                                        profile = it.post.creatorDetail.profile,
-                                        isCurrentUser = it.post.creatorDetail.isCurrentUser,
-                                    ),
-                                    postedAt = getTimeAgo(it.post.createdAt?.toDate()?.time ?: 0L),
-                                    visibilityMode = it.post.visibilityMode,
-                                    isCurrentUser = it.post.creatorDetail.isCurrentUser,
-                                    feedMode = it.post.feedMode
-                                )
-
-                                Log.d(
-                                    "CREATED_AT",
-                                    "RepliesComponent: ${it.post.createdAt}"
-                                )
-
-                                PostBody(
-                                    type = it.post.type,
-                                    mediaType = it.post.mediaType,
-                                    postContent = it.post.postContent,
-                                    onPollSelect = {
-
-                                    },
-                                    onPostImageClick = {
-
-                                    },
-                                    onBodyClick ={
-                                        navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
-                                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                                "POST_ID",
-                                                it.post.postId
-                                            )
-
-                                        }
-                                    }
-                                )
-
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
-
-                        }
-
-
-
-                        Divider(modifier = Modifier.padding(start = 50.dp))
-
-                        Row(
-                            modifier = Modifier.padding(start = 50.dp)
-
-                        ) {
-                            ReplyWidget(
-                                repliesDTO = it.reply,
-                                onDotsClick = {
-                                    postMenuState.open(
-                                        FeedContent(
-                                            id = ContentId.Reply(postId = it.reply.postId,replyId = it.reply.replyId),
-                                            text = it.reply.content,
-                                            isOwner = it.reply.creatorDetail.isCurrentUser,
-                                            type = ContentType.REPLY
-                                        )
-                                    )
-                                },
-                                handler = {
-                                    postActionsViewModel.onAction(it)
-                                },
-
-                            )
-                        }
-
-
-                    }
                     Divider(modifier = Modifier.padding(vertical = 12.dp))
                 }
 
@@ -578,8 +497,8 @@ fun UserAbout(
                                             )
                                         },
                                         border = BorderStroke(
-                                            width = 1.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant
+                                            width = 0.5.dp,
+                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                                         ),
                                     )
                                 }
@@ -657,16 +576,19 @@ fun PostScreenComponent(
     }
 
 
+
+
     LazyColumn (
         modifier = Modifier.height(height = screenHeight),
         userScrollEnabled = pinned
     ){
 
+
         items(lazyPagingItems.itemCount) { post ->
             val item = lazyPagingItems[post]
             item?.let {
-                PostCard(
-                    post = item,
+                FeedItem(
+                    feedItem = item,
                     handlers = {
                         viewModel.onAction(it)
                     },
@@ -679,20 +601,128 @@ fun PostScreenComponent(
                                 type = ContentType.POST
                             )
                         )
-                    }
+                    },
+                    enableFeedMode = true
                 )
                 Divider()
             }
         }
 
         item {
-            LazyColumBottomHeader(
+            PagingListFooter(
                 items = lazyPagingItems,
-                isRefreshing = {
-
-                }
+                minItemsBeforeEnd = 16, // don’t show "No more" too early
+                loadingContent = {
+                    CircularLoading()
+                },
+                errorContent = { error -> AppLabelText("Error: ${error.message}") },
+                endContent = { AppLabelText("🎉 You’ve reached the end!") }
             )
         }
     }
 
+}
+
+
+@Composable
+fun UserReplyItem(
+    userReplyDTO: UserReplyDTO,
+    handleAction: (PostAction) -> Unit,
+    postMenuState: PostMenuState
+) {
+
+    Column (
+        modifier = Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = {
+                handleAction.invoke(
+                    PostAction.OpenPostDetail(postId = userReplyDTO.post.postId)
+                )
+            }
+        )
+    ){
+
+        Row {
+
+            Avatar(
+                imageUrl = userReplyDTO.post.creatorDetail.profile?.userImage ?: "",
+                visibilityMode = userReplyDTO.post.visibilityMode,
+                onAvatarClick = {
+                    Log.d("REPLY_USER", "UserReplyItem: ${userReplyDTO.post.creatorDetail.isCurrentUser}")
+                    Log.d("REPLY_USER", "UserReplyItem: ${userReplyDTO.post.creatorDetail.profile?.id}")
+                    if (userReplyDTO.post.creatorDetail.isCurrentUser) return@Avatar
+                    userReplyDTO.post.creatorDetail.profile?.let {
+                        handleAction.invoke(
+                            PostAction.OpenUserProfile(
+                                userId = it.id,
+                                isCurrentUser = userReplyDTO.post.creatorDetail.isCurrentUser
+                            )
+                        )
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column {
+
+                FeedHeader(
+                    creator = userReplyDTO.post.creatorDetail,
+                    postedAt = getTimeAgo(userReplyDTO.post.createdAt?.toDate()?.time ?: 0L),
+                    visibilityMode = userReplyDTO.post.visibilityMode,
+                    feedMode = userReplyDTO.post.feedMode,
+                    trailingComponent = {
+
+                    }
+                )
+
+                FeedBody(
+                    type = userReplyDTO.post.type,
+                    mediaType = userReplyDTO.post.mediaType,
+                    postContent = userReplyDTO.post.postContent,
+                    onPollSelect = {optionId->
+                        handleAction.invoke(
+                            PostAction.VotePoll(
+                                postId = userReplyDTO.post.postId,
+                                optionId = optionId,
+                                feedMode = userReplyDTO.post.feedMode
+                            )
+                        )
+                    },
+                    goToFeedViewer = {
+
+                    },
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+        }
+
+        Divider(modifier = Modifier.padding(start = 50.dp))
+
+        Row(
+            modifier = Modifier.padding(start = 50.dp)
+
+        ) {
+            ReplyWidget(
+                repliesDTO = userReplyDTO.reply,
+                onDotsClick = {
+                    postMenuState.open(
+                        FeedContent(
+                            id = ContentId.Reply(postId = userReplyDTO.reply.postId,replyId = userReplyDTO.reply.replyId),
+                            text = userReplyDTO.reply.content,
+                            isOwner = userReplyDTO.reply.creatorDetail.isCurrentUser,
+                            type = ContentType.REPLY
+                        )
+                    )
+                },
+                handler = {
+                    handleAction.invoke(it)
+                },
+
+            )
+        }
+    }
 }

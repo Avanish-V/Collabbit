@@ -24,6 +24,7 @@ fun CustomTextField(
     onValueChange: (Any) -> Unit,
     label: String,
     enabled: Boolean? = null,
+    maxLines: Int = 1,
     placeHolder: String,
     trailingIcon: @Composable (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions =  KeyboardOptions.Default.copy(
@@ -55,6 +56,7 @@ fun CustomTextField(
                     shape = MaterialTheme.shapes.small
                 ),
             value = value,
+            maxLines = maxLines,
             onValueChange = {
                 onValueChange(it)
             },

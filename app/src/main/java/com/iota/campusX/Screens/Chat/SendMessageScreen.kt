@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -193,20 +194,30 @@ fun SendMessageScreen(
             }
         },
         bottomBar = {
-            Column(modifier = Modifier, verticalArrangement = Arrangement.SpaceBetween){
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding() // handles nav bar
+                    .imePadding(),           // handles keyboard insets
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
                 Divider()
-                Row(modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom){
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
                     MessageInputBar(
                         modifier = Modifier.weight(1f),
                         messageText = messageText,
                         onMessageChange = { messageText = it },
-                        onSendClick = {
-
-                        }
+                        onSendClick = {}
                     )
+
                     FilledIconButton(
                         onClick = {
-
                             if (messageText.isBlank()) return@FilledIconButton
 
                             val messageId = FirestoreIdGenerator.generate()
@@ -215,14 +226,6 @@ fun SendMessageScreen(
                             val message = messageText
                             messageText = ""
 
-//                            chatsViewModel.updateChatRoomData(
-//                                ChatMessage(
-//                                    messageId = messageId,
-//                                    text = message,
-//                                    timestamp = localTime,
-//                                    senderId = currentUser,
-//                                )
-//                            )
                             scope.launch {
                                 chatsViewModel.sendMessages(
                                     message = message,
@@ -231,7 +234,7 @@ fun SendMessageScreen(
                                     timestamp = serverTime,
                                     receiverId = userUUID
                                 ).collect {
-                                    when(it){
+                                    when (it) {
                                         is ResultState.Loading -> {}
                                         is ResultState.Success -> {
                                             chatsViewModel.fetchRoomID(userUUID)
@@ -251,7 +254,7 @@ fun SendMessageScreen(
                     }
                 }
             }
-        },
+        }
     ) { padding ->
         ChatList(
             modifier = Modifier.padding(padding),
@@ -318,7 +321,7 @@ fun MessageInputBar(modifier :Modifier = Modifier, messageText: String, onMessag
             .border(
                 width = 0.5.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(6.dp)
+                shape = MaterialTheme.shapes.small
             )
             .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(6.dp))
             .imePadding()
@@ -400,9 +403,9 @@ fun HeaderLabel(text: String) {
     ) {
         Divider(modifier = Modifier.weight(1f))
         Box(Modifier
-            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))
             .padding(horizontal = 16.dp, vertical = 4.dp)) {
-            Text(text,color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelMedium)
+            Text(text,color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium)
         }
         Divider(modifier = Modifier.weight(1f))
     }

@@ -1,5 +1,7 @@
 package com.iota.campusX.ui.UIComponents
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -7,7 +9,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -87,7 +91,10 @@ fun AutoCompleteFieldOfStudyDropdown(
                 onFieldChange(it)
             },
             trailingIcon = {
-                IconButton(onClick = { expanded = !expanded }) {
+                IconButton(
+                    onClick = { expanded = !expanded },
+                    enabled = query.isNotEmpty()
+                ) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.ArrowDropDown,
                         contentDescription = "Toggle dropdown"
@@ -112,7 +119,8 @@ fun AutoCompleteFieldOfStudyDropdown(
             placeholder = {
                 Text(
                     text = "Ex-Computer Science & Engineering",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             },
             colors = TextFieldDefaults.colors(
@@ -174,16 +182,19 @@ fun  SimpleDropDown(
     }
 
 
-    Column(modifier = modifier,verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier = modifier) {
 
         Row (
             modifier = Modifier
                 .border(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     shape = RoundedCornerShape(5.dp)
-                )
-                .padding( 12.dp),
+                ).
+                    background(
+                        color = MaterialTheme.colorScheme.surface
+                    )
+                .padding( horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ){
             Text(currentMode)
@@ -199,12 +210,15 @@ fun  SimpleDropDown(
             )
         }
 
+        Spacer(Modifier.height(12.dp))
+
         DropdownMenu(
+            modifier= Modifier.padding(end = 12.dp),
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
         ) {
-            fieldOptions.forEach { suggestion ->
+            fieldOptions.forEachIndexed { index,suggestion ->
                 DropdownMenuItem(
                     onClick = {
                         onFieldChange(suggestion)
@@ -215,8 +229,11 @@ fun  SimpleDropDown(
                     text = {
                         Text(suggestion)
                     }
+
                 )
-                Divider()
+                if (index == 0){
+                    Divider()
+                }
 
             }
         }

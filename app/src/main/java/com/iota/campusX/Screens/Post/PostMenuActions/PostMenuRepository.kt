@@ -32,6 +32,7 @@ class FakePostMenuRepository (
         delay(300) // simulate network latency
         return try {
             when (action) {
+
                 MenuAction.Delete -> {
 
                   when(val id = content.id){
@@ -77,9 +78,13 @@ class FakePostMenuRepository (
                 }
 
             }
+
             Result.success(Unit)
+
         } catch (e: Exception) {
+
             Result.failure(e)
+
         }
     }
 

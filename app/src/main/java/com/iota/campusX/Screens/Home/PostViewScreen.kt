@@ -52,9 +52,9 @@ import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.Post.SharedVisualContentViewModel
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.UIComponents.PostActionsComponent
-import com.iota.campusX.ui.UIComponents.PostHeader
-import com.iota.campusX.ui.UIComponents.toMillis
+import com.iota.campusX.ui.UIComponents.FeedUI.Avatar
+import com.iota.campusX.ui.UIComponents.FeedUI.FeedHeader
+import com.iota.campusX.ui.UIComponents.FeedUI.toMillis
 import io.ktor.websocket.Frame.Text
 import org.koin.compose.koinInject
 
@@ -108,19 +108,18 @@ fun PostViewScreen(navHostController: NavHostController) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ){
-                        CircleImage(
-                            modifier = Modifier.size(48.dp),
-                            image = it.creatorDetail.profile?.userImage ?: "",
-                            onClick = {},
-                            visibility = it.visibilityMode
+                        Avatar(
+                            imageUrl = it.creatorDetail.profile?.userImage ?: "",
+                            visibilityMode = it.visibilityMode,
+                            onAvatarClick = {
+
+                            }
                         )
 
-                        PostHeader(
-                            user = it.creatorDetail,
-                            pod = null,
+                        FeedHeader(
+                            creator = it.creatorDetail,
                             postedAt = getTimeAgo(it.createdAt.toMillis()),
                             visibilityMode = it.visibilityMode,
-                            isCurrentUser = it.creatorDetail.isCurrentUser,
                             feedMode = it.feedMode
                         )
                     }
@@ -155,14 +154,10 @@ fun PostViewScreen(navHostController: NavHostController) {
 //                        }
 //                    )
 
-
                 }
             }
-
         }
-
     }
-
 
 }
 

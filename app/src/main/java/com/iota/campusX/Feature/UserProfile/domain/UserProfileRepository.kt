@@ -1,6 +1,8 @@
 package com.iota.campusX.Feature.UserProfile.domain
 
 import android.net.Uri
+import com.google.firebase.auth.FirebaseAuth
+import com.iota.campusX.Feature.UserProfile.OfflineSupport.UserProfileDao
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.Gender
@@ -9,62 +11,62 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import toDomain
 
 class UserProfileRepository (
-    private val userProfileRepo: UserProfileRepo
+    private val userProfileRepo: UserProfileInterface,
+    private val userProfileDao: UserProfileDao
 ){
 
-    private val _currentUser = MutableStateFlow<BaseProfileDTO?>(null)
-    val currentUser: StateFlow<BaseProfileDTO?> = _currentUser.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    private val _currentUser = MutableStateFlow<UiState<BaseProfileDTO>>(UiState.Idle)
+    val currentUser: StateFlow<UiState<BaseProfileDTO>> = _currentUser.asStateFlow()
 
 
     suspend fun loadCurrentUser() {
-        _isLoading.value = true
-        val result = userProfileRepo.getBaseProfile() // returns Result<BaseProfileDTO>
-        result.onSuccess { profile ->
-            _isLoading.value = false
-            _currentUser.value = profile
-        }.onFailure {
-            _currentUser.value = null // or keep previous value
+        _currentUser.value = UiState.Loading
+        userProfileDao.getProfile(FirebaseAuth.getInstance().currentUser!!.uid).collect{it->
+           if (it != null){
+               _currentUser.value = UiState.Success(it.toDomain())
+           }else{
+               _currentUser.value = UiState.Error("User not found")
+           }
         }
     }
 
-    fun updateNameLocally(name:String) {
-        _currentUser.update { profile->
-            profile?.copy(userName = name)
+
+    fun updateNameLocally(name: String) {
+        (_currentUser.value as? UiState.Success)?.data?.let { user ->
+            _currentUser.value = UiState.Success(user.copy(userName = name))
         }
     }
 
     fun updateAboutLocally(about:String) {
-        _currentUser.update { profile->
-            profile?.copy(userBio = about)
+        (_currentUser.value as? UiState.Success)?.data?.let { user ->
+            _currentUser.value = UiState.Success(user.copy(userBio = about))
         }
     }
 
     fun updateGenderLocally(gender:Gender) {
-        _currentUser.update { profile->
-            profile?.copy(userGender = gender)
+        (_currentUser.value as? UiState.Success)?.data?.let { user ->
+            _currentUser.value = UiState.Success(user.copy(userGender = gender))
         }
     }
 
     fun updateInterestLocally(interests: List<String>){
-        _currentUser.update { profile->
-            profile?.copy(interests = interests)
+        (_currentUser.value as? UiState.Success)?.data?.let { user ->
+            _currentUser.value = UiState.Success(user.copy(interests = interests))
         }
     }
 
     fun updateCampusLocally(campus: Campus){
-        _currentUser.update { profile->
-            profile?.copy(campus = campus)
+        (_currentUser.value as? UiState.Success)?.data?.let { user ->
+            _currentUser.value = UiState.Success(user.copy(campus = campus))
         }
     }
 
     fun updateImageLocally(imageUri: Uri){
-        _currentUser.update { profile->
-            profile?.copy(userImage = imageUri.toString())
+        (_currentUser.value as? UiState.Success)?.data?.let { user ->
+            _currentUser.value = UiState.Success(user.copy(userImage = imageUri.toString()))
         }
     }
 

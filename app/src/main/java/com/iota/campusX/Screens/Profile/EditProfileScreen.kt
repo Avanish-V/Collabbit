@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -82,6 +83,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.Gender
 import com.iota.campusX.Feature.UserProfile.data.University
@@ -130,10 +132,18 @@ fun EditProfileScreen(
     val editType = editProfileViewModel.editType.collectAsState()
 
 
-    val userProfile = userProfileViewModel.userBaseProfile.collectAsState().value
+    val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
     val modifyState = updateProfileViewModel.state.collectAsState().value
     val profileEditValue = navController.currentBackStackEntry?.savedStateHandle?.get<ProfileEdit>("PROFILE_EDIT")
 
+    val userProfile = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
 
     var isLoading by rememberSaveable { mutableStateOf(false) }
     val pickedImage = remember { mutableStateOf<Uri?>(null) }
@@ -254,9 +264,7 @@ fun EditProfileScreen(
                                 },
                                 ) {
                                     if (isLoading){
-                                        CircularLoading(
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                                        CircularLoading()
                                     }else{
                                         Icon(
                                             imageVector = Icons.Default.Check,
@@ -426,7 +434,8 @@ fun EditProfileScreen(
                     onValueChange = { editProfileViewModel.editAbout(it.toString()) },
                     label = "About",
                     placeHolder = "What about you?",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    maxLines = 6
                 )
             }
 
@@ -460,6 +469,19 @@ fun EditProfileScreen(
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Done
                         ),
+                        trailingIcon = {
+                            Button(
+                                modifier = Modifier.padding(end = 6.dp),
+                                onClick = {
+                                    if (interestText.value.trim().isEmpty()) return@Button
+                                    editProfileViewModel.addItem(interestText.value)
+                                    interestText.value = ""
+                                },
+                                shape = MaterialTheme.shapes.small
+                            ) {
+                                Text("Add")
+                            }
+                        },
                         keyboardActions = KeyboardActions(
                             onDone = {
 
@@ -559,7 +581,7 @@ fun EditProfileScreen(
                     value = editProfileViewModel.campus.value.collegeName?:"",
                     onValueChange = { editProfileViewModel.editCollege(it.toString()) },
                     label = "College",
-                    placeHolder = "Enter your college",
+                    placeHolder = "Enter Your College",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
@@ -569,7 +591,7 @@ fun EditProfileScreen(
                     onFieldChange = {
                         editProfileViewModel.editFieldOfStudy(it.toString())
                     },
-                    label = "Field of study"
+                    label = "Field Of Study"
                 )
 
                 CustomTextField(
@@ -782,7 +804,7 @@ fun EditPage(
                         contentAlignment = Alignment.Center
                     ) {
                         if (isLoading) {
-                            CircularLoading(MaterialTheme.colorScheme.primary)
+                            CircularLoading()
                         } else {
                             SubmitButton { onSubmitClick.invoke() }
                         }

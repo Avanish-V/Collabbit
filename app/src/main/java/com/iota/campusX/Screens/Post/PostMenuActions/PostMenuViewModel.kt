@@ -1,5 +1,6 @@
 package com.iota.campusX.Screens.Post.PostMenuActions
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
@@ -31,6 +32,7 @@ class PostMenuViewModel(
         }
     }
 
+
     fun onActionSelected(action: MenuAction,content: FeedContent,reportReason: ReportReason? = null) {
         viewModelScope.launch {
 
@@ -40,6 +42,7 @@ class PostMenuViewModel(
 
            _actionResult.value =  result.fold(
                 onSuccess = {
+
                   UiState.Success(Unit)
                 },
                 onFailure = {

@@ -13,22 +13,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalBottomSheetDefaults
-import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -50,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -61,7 +57,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -71,22 +66,24 @@ import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestState
 import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestViewModel
-import com.iota.campusX.Feature.UserProfile.presentation.ConnectionState
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Screens.Home.PagingListFooter
+import com.iota.campusX.Screens.Home.PagingListHeader
 import com.iota.campusX.Screens.Home.RefreshBox
 import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.getTimeAgo
+import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
-import com.iota.campusX.ui.UIComponents.LikeRail
-import com.iota.campusX.ui.UIComponents.PostHeader
-import com.iota.campusX.ui.UIComponents.toMillis
+import com.iota.campusX.ui.UIComponents.ErrorScreen
+import com.iota.campusX.ui.UIComponents.FeedUI.LikeRail
+import com.iota.campusX.ui.UIComponents.FeedUI.toMillis
 import kotlinx.coroutines.CoroutineScope
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -169,7 +166,7 @@ fun NotificationScreen(
 
         RefreshBox(
             modifier = Modifier.padding(innerPadding),
-            isRefreshing = notificationPageData.loadState.refresh == LoadState.Loading && notificationPageData.itemCount > 0,
+            isRefreshing = notificationPageData.loadState.refresh is LoadState.Loading,
             onRefresh = {
                 notificationPageData.refresh()
             },
@@ -177,10 +174,9 @@ fun NotificationScreen(
         ) {
 
 
-            if (notificationPageData.loadState.refresh == LoadState.Loading && notificationPageData.itemCount == 0 ){
-                LoadingUI()
-            }
-
+            PagingListHeader(
+                items = notificationPageData,
+            )
 
             LazyColumn(
                 state = lazyState,
@@ -236,10 +232,12 @@ fun NotificationScreen(
                     }
 
                 }
+
                 item {
-                    if (notificationPageData.loadState.append == LoadState.Loading) {
-                        CircularLoading(color = MaterialTheme.colorScheme.primary)
-                    }
+                    PagingListFooter(
+                        items = notificationPageData,
+                        minItemsBeforeEnd = 16, // don’t show "No more" too early
+                    )
                 }
             }
 
@@ -348,7 +346,7 @@ fun NotificationItem(
                                 shape = MaterialTheme.shapes.small
                             )
                             .border(
-                                width = 1.dp,
+                                width = 0.5.dp,
                                 color = MaterialTheme.colorScheme.outlineVariant,
                                 shape = MaterialTheme.shapes.small
                             )
@@ -362,22 +360,18 @@ fun NotificationItem(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
 
-                        if (notificationItem.postContent?.text.isNullOrEmpty() && notificationItem.postContent?.text.isNullOrEmpty()){
+                        if (notificationItem.postContent == null){
                             Text("Content no longer available.",color = MaterialTheme.colorScheme.outline)
                             return
                         }
 
-                        if (notificationItem.postContent.image.isNotEmpty()) {
-
+                        if (notificationItem.postContent.image.isNotEmpty()){
                             AsyncImage(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(6.dp)),
+                                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
                                 model = notificationItem.postContent.image.toString(),
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                             )
-
                         }
 
                         if (notificationItem.postContent.text.isNotEmpty()) {
@@ -403,15 +397,10 @@ fun NotificationItem(
                     )
 
                 }
-
-
-
             }
-
         }
 
         is GetNotification.CommentNotification -> {
-
 
             Row(
                 Modifier.fillMaxWidth(),
@@ -485,6 +474,11 @@ fun NotificationItem(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+
+                        if (notificationItem.postContent == null){
+                            Text("Content no longer available.",color = MaterialTheme.colorScheme.outline)
+                            return
+                        }
 
                         if (!notificationItem.postContent?.image.isNullOrEmpty()) {
 
@@ -586,7 +580,7 @@ fun NotificationItem(
                         ) {
                             when (acceptState) {
                                 is UiState.Loading -> {
-                                    CircularLoading(Color.White)
+                                    CircularLoading()
                                 }
 
                                 is UiState.Success -> {

@@ -82,7 +82,8 @@ fun BottomAppBar(
 
                                 painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
                                 contentDescription = null,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(22.dp),
+                                tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     } else {
@@ -129,10 +130,9 @@ fun BottomAppBar(
 
 fun isPollExpired(createdAt: Long, durationMillis: Long = 24 * 60 * 60 * 1000L): Boolean {
     // Convert Firestore timestamp to milliseconds
-    val createdAtMillis = createdAt
     val currentTime = System.currentTimeMillis()
 
-    val expired = createdAtMillis + durationMillis <= currentTime
+    val expired = createdAt + durationMillis >= currentTime
     // Update local isActive flag
     return expired
 }

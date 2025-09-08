@@ -1,18 +1,24 @@
+
 package com.iota.campusX.Feature.Society.presentation.Screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,17 +28,31 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.DropShadowScope
+import androidx.compose.ui.draw.ShadowScope
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
+import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyData
+import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyMenuOptions
+import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyOptionBar
+import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyOptionsViewModel
+import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyState
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Navigation.HideBottomBar
+import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingUI
@@ -43,26 +63,36 @@ import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.CircularLoading
 import org.koin.compose.koinInject
+import kotlin.collections.emptyList
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SocietyScreen(
     navHostController: NavHostController,
     societyViewModel: SocietyViewModel = koinInject(),
-    userProfileViewModel: UserProfileViewModel = koinInject()
+    userProfileViewModel: UserProfileViewModel = koinInject(),
+    navigationViewModel: NavigationViewModel = koinInject()
 ) {
+    val lazyListState = rememberLazyListState()
     val state = societyViewModel.getSocietyState.collectAsStateWithLifecycle()
     val userSociety = societyViewModel.userSocietyState.collectAsStateWithLifecycle()
-    val profile = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
+    val profileState = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
     val context = LocalContext.current
 
+    val profile = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
 
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
     val tabList = listOf("Society", "By You")
 
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showDeleteButton by remember { mutableStateOf(false) }
-    var selectedRoomId by remember { mutableStateOf("") }
+
+    var showSocietyOptions by remember { mutableStateOf<SocietyState?>(null) }
 
     // Initial fetch
     LaunchedEffect(profile?.campus?.campusCode) {
@@ -71,59 +101,60 @@ fun SocietyScreen(
 
 
     BackHandler() {
-        showDeleteButton = false
-        selectedRoomId = ""
+        showSocietyOptions = null
         context.vibrate()
     }
 
+    HideBottomBar(
+        navigationViewModel = navigationViewModel,
+        lazyState = lazyListState
+    )
 
+    val societyOptionsViewModel: SocietyOptionsViewModel = koinInject()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Society", style = MaterialTheme.typography.headlineMedium) },
                 actions = {
-//                    IconButton(onClick = { /* TODO: Add search */ }) {
-//                        Icon(
-//                            painter = painterResource(R.drawable.search_normal),
-//                            contentDescription = "Search"
-//                        )
-//                    }
 
-                    AnimatedVisibility(
-                        visible = showDeleteButton,
-                        enter = slideInHorizontally(
-                            initialOffsetX = { it }, // starts from right side
-                            animationSpec = spring(
-                                stiffness = Spring.StiffnessMedium, // adjust bounce
-                                dampingRatio = Spring.DampingRatioMediumBouncy
-                            )
-                        ),
-                        exit = slideOutHorizontally(
-                            targetOffsetX = { it }, // slides out to right side
-                            animationSpec = spring(
-                                stiffness = Spring.StiffnessMedium,
-                                dampingRatio = Spring.DampingRatioNoBouncy
-                            )
+                    showSocietyOptions?.let {
+
+                        SocietyOptionBar(
+                            showOptions = showSocietyOptions!!.showSocietyOptions,
+                            societyData = showSocietyOptions!!.societyData!!,
+                            societyOptionsViewModel = societyOptionsViewModel
                         )
-                    ) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.trash),
-                                contentDescription = "Delete"
-                            )
-                        }
+
                     }
+
+
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         floatingActionButton = {
-            if (pagerState.currentPage == 1) {
-                FloatingActionButton(onClick = { navHostController.navigate(Routes.Main.CreateSociety.routes) }) {
-                    Icon(Icons.Default.Add, contentDescription = "Create Society")
+            when(userSociety.value){
+                is UiState.Success<*> -> {
+                    val userSocieties = (userSociety.value as UiState.Success<List<GetSocietyDTO>>).data
+                    if (!userSocieties.isEmpty()){
+                        AnimatedVisibility(
+                            visible = pagerState.currentPage == 1 ,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            FloatingActionButton(
+                                modifier = Modifier.padding(bottom = 80.dp),
+                                onClick = { navHostController.navigate(Routes.Main.CreateSociety.routes) }
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Create Society")
+                            }
+                        }
+                    }
                 }
+                else -> {}
             }
+
         }
     ) { padding ->
 
@@ -133,77 +164,62 @@ fun SocietyScreen(
 
             HorizontalPager(state = pagerState) { page ->
                 when (page) {
-                    0 -> SocietyList(
+                    0 -> SocietyUIRender(
                         state = state.value,
+                        lazyListState = lazyListState,
                         campusId = profile?.campus?.campusCode,
                         navHostController = navHostController,
-                        onLongClick = { roomId ->
-                            showDeleteButton = true
-                            selectedRoomId = roomId
+                        onLongClick = { data ->
+                            showSocietyOptions = SocietyState(
+                                showSocietyOptions = true,
+                                societyData = SocietyData(
+                                   roomId =  data.roomId,
+                                   isOwner = data.createdBy.id == profile?.id,
+                                   ownerId = data.createdBy.id
+                                )
+                            )
                             context.vibrate()
+                        }
+                    )
+                    1 -> {
 
+                        LaunchedEffect(Unit) {
+                            profile?.id?.let { societyViewModel.fetchUserSocieties(userId = it) }
                         }
-                    )
-                    1 -> MySocietyList(
-                        state = userSociety.value,
-                        navHostController = navHostController,
-                        onLongClick = { roomId ->
-                            showDeleteButton = true
-                            selectedRoomId = roomId
-                            context.vibrate()
-                        },
-                        fetchUserSociety = {
-                            profile?.id?.let {
-                                societyViewModel.fetchUserSocieties(userId = it)
+
+                        SocietyUIRender(
+                            state = userSociety.value,
+                            lazyListState = lazyListState,
+                            campusId = profile?.campus?.campusCode,
+                            navHostController = navHostController,
+                            onLongClick = { data ->
+                                showSocietyOptions = SocietyState(
+                                    showSocietyOptions = true,
+                                    societyData = SocietyData(
+                                        roomId =  data.roomId,
+                                        isOwner = data.createdBy.id == profile?.id,
+                                        ownerId = data.createdBy.id
+                                    )
+                                )
+                                context.vibrate()
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
-
-            if (showDeleteDialog) {
-                AlertDialog(
-                    onDismissRequest = {
-                        showDeleteDialog = false
-                        showDeleteButton = false
-                        selectedRoomId = ""
-                    },
-                    title = { Text("Delete Society") },
-                    text = { Text("Are you sure you want to delete this society?") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            societyViewModel.deleteSociety(selectedRoomId)
-                            showDeleteDialog = false
-                            showDeleteButton = false
-                            selectedRoomId = ""
-                        }) {
-                            Text("Delete")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = {
-                            showDeleteDialog = false
-                            showDeleteButton = false
-                            selectedRoomId = ""
-                        }) {
-                            Text("Cancel")
-                        }
-                    }
-                )
-            }
-
         }
-
-
     }
 }
 
+
+
 @Composable
-private fun SocietyList(
+private fun SocietyUIRender(
     state: UiState<List<GetSocietyDTO>>,
+    lazyListState: LazyListState,
     campusId: String?,
     navHostController: NavHostController,
-    onLongClick: (String) -> Unit
+    onLongClick: (GetSocietyDTO) -> Unit
 ) {
     when (state) {
         is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -219,7 +235,7 @@ private fun SocietyList(
                 return
             }
 
-            val societies = state.data as List<GetSocietyDTO>
+            val societies = state.data as List<*>
 
             if (societies.isEmpty()){
                 EmptyState(navHostController)
@@ -227,13 +243,14 @@ private fun SocietyList(
             }
             else
             LazyColumn(
+                state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(societies) { society ->
                     SocietyCard(
-                        getSocietyDTO = society,
+                        getSocietyDTO = society as GetSocietyDTO,
                         onCardClick = {
                             navHostController.navigate(Routes.Main.JoinSociety.routes).apply {
                                 navHostController.currentBackStackEntry?.savedStateHandle?.set("CREATOR_ID", society.createdBy.id)
@@ -242,10 +259,12 @@ private fun SocietyList(
                             }
                         },
                         onLongClick = {
-                            if (society.isCurrentUser) onLongClick(society.roomId)
-
+                            onLongClick(society)
                         }
                     )
+                }
+                item {
+                    Spacer(Modifier.height(80.dp))
                 }
             }
 
@@ -256,61 +275,6 @@ private fun SocietyList(
     }
 }
 
-@Composable
-private fun MySocietyList(
-    state: UiState<List<GetSocietyDTO>>,
-    navHostController: NavHostController,
-    onLongClick: (String) -> Unit,
-    fetchUserSociety:()-> Unit
-) {
-
-    LaunchedEffect(Unit){
-        fetchUserSociety()
-    }
-
-    when (state) {
-        is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularLoading(MaterialTheme.colorScheme.primary)
-        }
-
-        is UiState.Success<*> -> {
-
-            val societies = state.data as? List<GetSocietyDTO> ?: emptyList()
-
-            if (societies.isEmpty())
-
-                EmptyState(navHostController)
-
-            else
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(societies) { society ->
-                        SocietyCard(
-                            getSocietyDTO = society,
-                            onCardClick = {
-                                navHostController.navigate(Routes.Main.JoinSociety.routes).apply {
-                                    navHostController.currentBackStackEntry?.savedStateHandle?.set("CREATOR_ID", society.createdBy.id)
-                                    navHostController.currentBackStackEntry?.savedStateHandle?.set("ROOM_ID", society.roomId)
-                                }
-                            },
-                            onLongClick = {
-                                if (society.isCurrentUser) onLongClick(society.roomId)
-
-                            }
-                        )
-                    }
-                }
-
-        }
-
-        is UiState.Error -> ErrorState()
-        else -> {}
-    }
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -323,16 +287,21 @@ fun SocietyCard(
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
+
             .combinedClickable(
                 onClick = { onCardClick.invoke() },
                 onLongClick = {
                     onLongClick.invoke()
-
                 },
                 interactionSource = remember { MutableInteractionSource() },
-                indication = LocalIndication.current
+                indication = null
+            )
+            .shadow(
+                elevation = 6.dp,
+                spotColor = MaterialTheme.colorScheme.primary,
+                ambientColor = MaterialTheme.colorScheme.primary
             ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(getSocietyDTO.societyName, style = MaterialTheme.typography.titleMedium)
@@ -416,7 +385,7 @@ fun CampusEmptyState(onUpdateClick: () -> Unit = {}) {
             Icon(
                 painter = painterResource(R.drawable.school__1_),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                tint = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.size(64.dp)
             )
 
@@ -435,10 +404,14 @@ fun CampusEmptyState(onUpdateClick: () -> Unit = {}) {
             )
 
             // (Optional) A retry / action button
-            TextButton(
+            OutlinedButton(
                 onClick = { onUpdateClick.invoke() },
                 shape = RoundedCornerShape(50),
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 8.dp),
+                border = BorderStroke(
+                    width = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
             ) {
                 Text("Update")
             }

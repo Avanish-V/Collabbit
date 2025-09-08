@@ -18,8 +18,9 @@ sealed class State{
     object Channel_joined: State()
     object Room_Joined: State()
 
-    object ChannelLeave:State()
+    data class ChannelLeave(val roomId: String):State()
     data class isSpeaking(val value: Int): State()
     data class isMicrophone(val value: Boolean): State()
+
     data class error(val error: String) : State()
 }

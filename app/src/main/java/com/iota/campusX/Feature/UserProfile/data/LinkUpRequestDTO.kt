@@ -1,8 +1,10 @@
+import androidx.annotation.Keep
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ServerTimestamp
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
+@Keep
 @Serializable
 data class LinkUpRequestDTO(
     var senderId: String = "",

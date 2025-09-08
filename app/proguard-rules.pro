@@ -18,6 +18,8 @@
 # Post-related DTOs (already mostly present)
 -keep class com.iota.campusX.Feature.Post.data.model.** { *; }
 -keep class com.iota.campusX.Feature.UserProfile.data.** { *; }
+-keep class com.iota.campusX.Feature.Search.Domain.Models.** { *; }
+-keep class com.iota.campusX.Feature.Society.domain.models.** { *; }
 
 
 

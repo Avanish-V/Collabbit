@@ -28,9 +28,7 @@ fun LoadingUI(isLoading:Boolean?=null,modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ){
-        CircularLoading(
-            MaterialTheme.colorScheme.primary
-        )
+        CircularLoading()
     }
 
 }

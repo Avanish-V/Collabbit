@@ -38,8 +38,6 @@ data class UserBasicDetail(
     val id: String = "",
     val userImage: String = "",
     val userBio: String = "",
-    val designation: String?=null,
-    val isCurrentUser: Boolean = false
 )
 
 

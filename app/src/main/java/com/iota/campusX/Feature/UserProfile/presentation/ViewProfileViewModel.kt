@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepo
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 
-class ViewProfileViewModel(private val userProfileRepo: UserProfileRepo):ViewModel() {
+class ViewProfileViewModel(private val userProfileRepo: UserProfileInterface):ViewModel() {
 
     private val _profileById = MutableStateFlow<UiState<BaseProfileDTO>>(UiState.Idle)
     val profileById: StateFlow<UiState<BaseProfileDTO>> = _profileById.asStateFlow()

@@ -49,6 +49,7 @@ import com.iota.campusX.Utils.LoadingUI
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AppLabelText
+import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.theme.Black300
 import com.iota.campusX.ui.theme.LightBlack
@@ -114,9 +115,9 @@ fun ChatScreen(
                                 navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_NAME",it.userName)
                                 navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_IMAGE",it.userImage)
                                 navHostController.currentBackStackEntry?.savedStateHandle?.set("ROOM_ID",it.roomId)
-
                             }
                         }
+                        Divider()
                     }
                 }
 

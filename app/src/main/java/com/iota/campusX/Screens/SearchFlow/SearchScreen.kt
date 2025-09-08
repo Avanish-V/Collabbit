@@ -119,9 +119,9 @@ fun SearchScreen(navHostController: NavHostController) {
                     val result = (searchResults as UiState.Success<*>).data
 
                     LazyColumn{
-                        items(result as List<UserSearchDTO>){
+                        items(result as List<*>){
                             MentorSingleCard(
-                                user = it,
+                                user = it as UserSearchDTO,
                                 onClick = {
                                     navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
                                         navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID",it.id)

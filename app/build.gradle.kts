@@ -1,3 +1,5 @@
+import org.codehaus.groovy.runtime.ArrayTypeUtils.dimension
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,10 +7,19 @@ plugins {
     kotlin("plugin.serialization") version "1.9.0"
     id("kotlin-parcelize")
     alias(libs.plugins.google.gms.google.services)
+    id("com.google.devtools.ksp")
 }
 
 
 android {
+    signingConfigs {
+        create("release") {
+            storeFile = file("D:\\SHA Keys\\CampusX_new_key")
+            storePassword = "iotabuild"
+            keyPassword = "iotabuild"
+            keyAlias = "key0"
+        }
+    }
     namespace = "com.iota.campusX"
     compileSdk = 35
 
@@ -16,11 +27,28 @@ android {
         applicationId = "com.iota.campusX"
         minSdk = 24
         targetSdk = 35
-        versionCode = 18
-        versionName = "1.0.8"
+        versionCode = 19
+        versionName = "1.0.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    flavorDimensions += "env"
+
+    productFlavors {
+        create("dev") {
+            dimension = "env"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+        create("prod") {
+            dimension = "env"
+        }
+    }
+
+
+
+
 
     buildTypes {
         release {
@@ -29,12 +57,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
 
-        getByName("debug") {
-            isMinifyEnabled = true  // Enable ProGuard in debug mode
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-        }
+//        getByName("debug") {
+//            isShrinkResources = true
+//            isMinifyEnabled = true  // Enable ProGuard in debug mode
+//            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+//        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -125,4 +155,8 @@ dependencies {
 
     implementation("io.github.alihaider63:richlinkpreview:1.0.0")
     //implementation ("org.jsoup:jsoup:1.12.1")
+
+    implementation("androidx.room:room-runtime:2.7.2")
+    ksp("androidx.room:room-compiler:2.7.2")
+    implementation("androidx.room:room-ktx:2.7.2")
 }

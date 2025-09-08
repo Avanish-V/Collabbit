@@ -45,10 +45,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
+import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Utils.Setting
 import com.iota.campusX.Utils.ThemeMode.ThemePreference
+import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.UIComponents.AppLabelText
 //import com.iota.campusX.ui.theme.Black800
@@ -62,7 +64,7 @@ fun SettingScreen(
     userProfileViewModel: UserProfileViewModel,
     themePreference: ThemePreference = koinInject()
 ) {
-    val userData = userProfileViewModel.userBaseProfile.collectAsState().value
+    val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
     var screenValue by rememberSaveable { mutableStateOf(Setting.SETTING_SCREEN) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -71,6 +73,14 @@ fun SettingScreen(
         themePreference.getThemeMode(context).collectAsState(initial = ThemeMode.LIGHT)
     var showAlert by remember { mutableStateOf(false) }
 
+    val userData = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
 
 
     when (screenValue) {
@@ -131,20 +141,6 @@ fun SettingScreen(
                             }
                         }
 
-                        item {
-                            ThemeSwitch(
-                                currentMode = currentThemeMode.value,
-                                onThemeChange = {
-                                    scope.launch {
-                                        themePreference.setThemeMode(context, it)
-                                    }
-                                },
-                                isDynamicColor = false,
-                                onDynamicColorChange = {
-
-                                }
-                            )
-                        }
                     }
 
                     Box(

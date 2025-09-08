@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "446123587571",
+    "project_id": "campuscircle-ea7ca",
+    "storage_bucket": "campuscircle-ea7ca.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:446123587571:android:bbc055cf352a8a58fd4486",
+        "android_client_info": {
+          "package_name": "com.iota.campusX"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "446123587571-1jq9t1ev2n2i913du7b3p1sp6pblf1u4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.iota.campusX",
+            "certificate_hash": "d6399592930cff7442c82e4c749b2f9ea912161c"
+          }
+        },
+        {
+          "client_id": "446123587571-ruihpipupo4ti7d3clpegr418tr2mdbm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfcCHJY0Eo1ucHC1G69YO-uHGgUnMnxCc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "446123587571-ruihpipupo4ti7d3clpegr418tr2mdbm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

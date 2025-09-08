@@ -1,10 +1,12 @@
 package com.iota.campusX.Screens.Post.PostMenuActions
 
+import android.util.Log
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,6 +21,7 @@ import com.iota.campusX.Screens.Post.DataModel.ContentId
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.ReportContent
+import com.iota.campusX.ui.UIComponents.ReportSuccess
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,6 +31,7 @@ fun ActionHandler(
     action: MenuAction?,
     viewModel: PostMenuViewModel,
     onDismiss: () -> Unit,
+    snackBar : SnackbarHostState,
     postMenuState: PostMenuState = koinInject(),
     reportViewModel: ReportViewModel = koinInject()
 ) {
@@ -89,44 +93,30 @@ fun ActionHandler(
             )
         }
         MenuAction.Report -> {
+
             ModalBottomSheet(onDismissRequest = onDismiss) {
                 ReportContent {
                     viewModel.onActionSelected(action, content,reportReason = it)
                     onDismiss()
                 }
             }
+
             val state by  viewModel.actionResult.collectAsState()
+
             when(state){
                 is UiState.Success<*> ->{
-                    Text("Success")
+                    ModalBottomSheet(onDismissRequest = onDismiss) {
+                        Log.d("PostMenuViewModel", "onActionSelected: Success")
+                        ReportSuccess()
+
+                    }
                 }
                 else -> {}
             }
+
         }
-//        MenuAction.BlockUser -> {
-//            AlertDialog(
-//                onDismissRequest = onDismiss,
-//                title = { Text("Block User") },
-//                text = { Text("Are you sure you want to block this user?") },
-//                confirmButton = {
-//                    TextButton(onClick = {
-//                        viewModel.onActionSelected(postId, action)
-//                        onDismiss()
-//                    }) { Text("Block") }
-//                },
-//                dismissButton = {
-//                    TextButton(onClick = onDismiss) { Text("Cancel") }
-//                }
-//            )
-//        }
-//        MenuAction.CopyLink, MenuAction.Share, MenuAction.MuteUser -> {
-//            // Instant actions (no UI needed)
-//            LaunchedEffect(action) {
-//                viewModel.onActionSelected(postId, action!!)
-//                onDismiss()
-//            }
-//        }
-        null -> {} // nothing selected
+
+        null -> {}
     }
 }
 

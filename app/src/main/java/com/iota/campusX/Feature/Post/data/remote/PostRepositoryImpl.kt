@@ -146,8 +146,6 @@ class PostRemoteDataSource(
 
     override suspend fun fetchCampusPosts(feedMode: FeedMode, campusId: String?): Flow<PagingData<GetPostDTO>> {
 
-        if (campusId.isNullOrEmpty()) return emptyFlow()
-
         val query = firestore.collection("Posts")
             .whereEqualTo("campusId", campusId)
             .whereEqualTo("feedMode", feedMode)
@@ -206,6 +204,15 @@ class PostRemoteDataSource(
                                 .await()
                                 .size()
                         }
+                        val isFollowDeferred = async {
+                            firestore.collection("Users")
+                                .document(post.creatorId)
+                                .collection("Followers")
+                                .document(auth.currentUser?.uid ?: "")
+                                .get()
+                                .await()
+                                .exists()
+                        }
 
                         val user = userDeferred.await()
                         val likes = likesDeferred.await()
@@ -227,7 +234,8 @@ class PostRemoteDataSource(
                                     hasVoted = post.poll.votes.any { it.userId == auth.currentUser?.uid },
                                     isActive = isPollExpired(
                                         createdAt = post.createdAt.toDate().time,
-                                    )
+                                    ),
+                                    selectedOptionId = post.poll.votes.firstOrNull { it.userId == auth.currentUser?.uid }?.optionId
                                 )
                             )
                             Type.Media -> {
@@ -247,6 +255,7 @@ class PostRemoteDataSource(
                                 isCurrentUser = isCurrentUser,
                                 isVerified = user?.metaData?.verified ?: false,
                                 isPremium = user?.metaData?.premium ?: false,
+                                isFollow = isFollowDeferred.await(),
                                 profile = UserBasicDetail(
                                     id = post.creatorId,
                                     userName = profile.first,
@@ -254,6 +263,7 @@ class PostRemoteDataSource(
                                     userBio = user?.userBio ?: ""
                                 )
                             ),
+
                             campusId = post.campusId,
                             feedMode = post.feedMode,
                             reference = post.reference,

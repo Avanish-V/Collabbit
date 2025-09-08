@@ -57,6 +57,7 @@ class FirestorePagingSource(
             LoadResult.Error(e)
         }
     }
+
 }
 
 private suspend fun fetchPosts(
@@ -128,7 +129,8 @@ private suspend fun fetchPosts(
                 hasVoted = post.poll.votes.any { it.userId == auth.currentUser?.uid },
                 isActive = isPollExpired(
                     createdAt = post.createdAt.toDate().time,
-                )
+                ),
+                selectedOptionId = post.poll.votes.firstOrNull { it.userId == auth.currentUser?.uid }?.optionId
             )
 
             GetPostDTO(

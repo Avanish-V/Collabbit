@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +17,8 @@ import org.apache.http.auth.AuthState
 
 class GoogleSignInViewModel (
     private val dataSource: CredentialAuthDataSource,
-    private val verifyUserRepository: VerifyUserRepository
+    private val verifyUserRepository: VerifyUserRepository,
+    private val userProfileRepository: UserProfileInterface
 ) : ViewModel() {
 
     private val _state : MutableStateFlow<AuthResult> = MutableStateFlow(AuthResult.Idle)
@@ -44,6 +47,7 @@ class GoogleSignInViewModel (
                 val result = verifyUserRepository.verifyUser(uid, credential.idToken)
                 result.fold(
                     onSuccess = {
+                        userProfileRepository.syncUserProfile()
                         _state.value = AuthResult.SignedIn
                     },
                     onFailure = {

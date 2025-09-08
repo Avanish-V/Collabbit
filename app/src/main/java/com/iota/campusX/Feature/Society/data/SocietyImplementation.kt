@@ -12,14 +12,16 @@ import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
 import com.iota.campusX.Feature.Society.domain.models.SetJoinRequestDTO
 import com.iota.campusX.Feature.Society.domain.models.Status
-import com.iota.campusX.Feature.Society.domain.repository.SocietyRepository
+import com.iota.campusX.Feature.Society.domain.models.GetChatMessage
+import com.iota.campusX.Feature.Society.domain.models.SetChatMessage
+import com.iota.campusX.Feature.Society.domain.repository.SocietyInterface
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-class SocietyImplementation(private val fireStore: FirebaseFirestore,private val auth: FirebaseAuth):SocietyRepository{
+class SocietyImplementation(private val fireStore: FirebaseFirestore,private val auth: FirebaseAuth):SocietyInterface{
 
     override suspend fun createSociety(createSocietyDTO: CreateSocietyDTO): Result<Unit> {
 
@@ -375,6 +377,65 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                 .await()
             Result.success(Unit)
 
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun sendMessage(roomId: String, message: SetChatMessage): Result<Unit> {
+
+        return try {
+
+            fireStore.collection("Society")
+                .document(roomId)
+                .collection("Messages")
+                .add(message)
+                .await()
+            Result.success(Unit)
+
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+
+    }
+
+    override suspend fun listenForMessages(roomId: String): Flow<Result<List<GetChatMessage>>> {
+        return callbackFlow {
+            try {
+
+                val listener = fireStore.collection("Society").document(roomId).collection("Messages")
+                    .addSnapshotListener { value, error ->
+                        if (error != null || value == null) return@addSnapshotListener
+                        launch {
+                            val messages = value.documents.mapNotNull { doc ->
+                                doc.toObject(GetChatMessage::class.java)
+                            }
+                            trySend(Result.success(messages))
+                        }
+                    }
+
+                awaitClose {
+                    listener.remove()
+                }
+
+            }catch (e: Exception){
+                trySend(Result.failure(e))
+            }
+        }
+    }
+
+    override suspend fun deleteMessageRoom(roomId: String): Result<Unit> {
+        return try {
+
+            fireStore.collection("Society")
+                .document(roomId)
+                .collection("Messages")
+                .get()
+                .await()
+                .documents.forEach {
+                    it.reference.delete()
+                }
+            Result.success(Unit)
         }catch (e: Exception){
             Result.failure(e)
         }

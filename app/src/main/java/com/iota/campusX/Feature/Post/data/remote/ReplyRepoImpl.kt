@@ -348,39 +348,72 @@ private suspend fun mapReplyDocumentToDTO(
 }
 
 
-private suspend fun fetchPostDTO(postId: String, firestore: FirebaseFirestore,firebaseAuth: FirebaseAuth): GetPostDTO? {
+suspend fun fetchPostDTO(
+    postId: String,
+    firestore: FirebaseFirestore,
+    firebaseAuth: FirebaseAuth
+): GetPostDTO? = coroutineScope {
+    try {
+        // Launch post fetch
+        val postDeferred = async {
+            firestore.collection("Posts").document(postId).get().await()
+        }
 
-    val postDoc = firestore.collection("Posts").document(postId).get().await()
-    val postData = postDoc.toObject(CreatePostDTO::class.java) ?: return null
+        // Wait for post before fetching user (since we need creatorId)
+        val postDoc = postDeferred.await()
+        if (!postDoc.exists()) return@coroutineScope null
 
-    val postUserDoc = firestore.collection("Users").document(postData.creatorId).get().await()
-    val postUserName = postUserDoc.getString("userName") ?: return null
-    val postUserImage = postUserDoc.getString("userImage") ?: return null
+        val postData = postDoc.toObject(CreatePostDTO::class.java) ?: return@coroutineScope null
 
-    val isCurrentUser = firebaseAuth.currentUser?.uid == postData.creatorId
+        // Now fetch user in parallel (as soon as we know creatorId)
+        val userDeferred = async {
+            firestore.collection("Users").document(postData.creatorId).get().await()
+        }
 
-    return GetPostDTO(
-        postId = postData.postId,
-        createdAt = postData.createdAt,
-        creatorDetail = CreatorDetail(
-            isCurrentUser = isCurrentUser,
-            isVerified = postUserDoc.getBoolean("verified") ?: false,
-            isPremium = false,
-            profile = UserBasicDetail(
-                userName = postUserName,
-                userImage = postUserImage
-            )
-        ),
-        feedMode = postData.feedMode,
-        reference = null,
-        visibilityMode = postData.visibilityMode,
-        campusId = postData.campusId,
-        postContent = PostContent(
-            postText = postData.postText,
-            postImage = postData.image,
-            poll = postData.poll
-        ),
-        type = postData.type,
-        mediaType = postData.mediaType
-    )
+        val isFollowDeferred = async {
+            firestore.collection("Users")
+                .document(postDeferred.await().getString("creatorId").orEmpty())
+                .collection("Followers")
+                .document(firebaseAuth.currentUser?.uid ?: "")
+                .get()
+                .await()
+                .exists()
+        }
+
+        val postUserDoc = userDeferred.await()
+        if (!postUserDoc.exists()) return@coroutineScope null
+
+        val postUserName = postUserDoc.getString("userName").orEmpty()
+        val postUserImage = postUserDoc.getString("userImage").orEmpty()
+        val isVerified = postUserDoc.getBoolean("verified") ?: false
+
+        GetPostDTO(
+            postId = postData.postId,
+            createdAt = postData.createdAt,
+            creatorDetail = CreatorDetail(
+                isCurrentUser = firebaseAuth.currentUser?.uid == postData.creatorId,
+                isVerified = isVerified,
+                isFollow = isFollowDeferred.await(),
+                isPremium = false,
+                profile = UserBasicDetail(
+                    id = postData.creatorId,
+                    userName = postUserName,
+                    userImage = postUserImage
+                )
+            ),
+            feedMode = postData.feedMode,
+            reference = null,
+            visibilityMode = postData.visibilityMode,
+            campusId = postData.campusId,
+            postContent = PostContent(
+                postText = postData.postText,
+                postImage = postData.image,
+                poll = postData.poll
+            ),
+            type = postData.type,
+            mediaType = postData.mediaType
+        )
+    } catch (e: Exception) {
+        null
+    }
 }

@@ -18,7 +18,7 @@ sealed class GetNotification {
         override val createdAt: Timestamp? = null,
         override val isRead: Boolean = false,
         val postId: String = "",
-        val postContent: PostContent? = null,
+        val postContent: PostContent? = PostContent(),
         val likes: List<UserPayload> = emptyList(),// List of user IDs who liked the post
         val likesCount: Int
     // the post they liked

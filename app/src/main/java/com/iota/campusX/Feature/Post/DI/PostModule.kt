@@ -100,7 +100,7 @@ val postModule = module {
     // Post menu
     single<PostMenuRepository> { FakePostMenuRepository(get(), get(), get()) }
     single { PostMenuState() }
-    factory { PostMenuViewModel(get()) }
+    single { PostMenuViewModel(get()) }
     single { SharedVisualContentViewModel() }
 
     viewModel { LinkPreviewViewModel() }

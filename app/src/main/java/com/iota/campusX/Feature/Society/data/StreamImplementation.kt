@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.callbackFlow
 class StreamImplementation : StreamRepository {
 
     private var mRtcEngine: RtcEngine? = null
+    private var roomId: String? = null
 
 
     override fun initialize(baseContext:Context): Flow<State> = callbackFlow{
@@ -30,7 +31,7 @@ class StreamImplementation : StreamRepository {
 
         val iRtcEngineEventHandler = object : IRtcEngineEventHandler() {
             override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
-
+                roomId = channel
                 trySend(State.Channel_joined)
             }
 
@@ -58,8 +59,8 @@ class StreamImplementation : StreamRepository {
             }
 
             override fun onLeaveChannel(stats: RtcStats?) {
+                trySend(State.ChannelLeave(roomId = roomId?:""))
 
-                trySend(State.ChannelLeave)
             }
 
             override fun onError(err: Int) {
@@ -130,6 +131,7 @@ class StreamImplementation : StreamRepository {
     }
 
     override fun leaveChannel() {
+        Log.d("AgoraRepoImpl", "leaveChannel: Called ")
         mRtcEngine?.leaveChannel()
         if (mRtcEngine != null){
             mRtcEngine = null

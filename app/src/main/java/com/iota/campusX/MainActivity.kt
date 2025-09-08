@@ -2,6 +2,7 @@ package com.iota.campusX
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResult
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -66,6 +69,10 @@ import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
+import com.google.firebase.BuildConfig
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleSignInViewModel
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Feature.Follow.di.followModule
@@ -111,6 +118,9 @@ import com.iota.campusX.Navigation.navScreen
 import com.iota.campusX.Navigation.shouldShowBottomBar
 import com.iota.campusX.Feature.Follow.presentation.Followers
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.NetworkMonitor.ConnectivityUiState
+import com.iota.campusX.NetworkMonitor.ConnectivityViewModel
+import com.iota.campusX.NetworkMonitor.networkModule
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuSheet
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuViewModel
@@ -128,9 +138,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.context.GlobalContext.startKoin
 import org.koin.core.context.stopKoin
+
 
 class MainActivity : ComponentActivity() {
 
@@ -143,9 +155,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         actionBar?.hide()
 
-        //WindowCompat.setDecorFitsSystemWindows(window, true)
+        WindowCompat.setDecorFitsSystemWindows(window, true)
 
         initCloudinary(this)
+
 
         startKoin {
             androidContext(this@MainActivity)
@@ -164,26 +177,28 @@ class MainActivity : ComponentActivity() {
                 replyModule,
                 cloudinaryModule,
                 themeMode,
-                followModule
+                followModule,
+                networkModule
             )
         }
-//
-//        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-//            if (task.isSuccessful) {
-//                val token = task.result
-//                FirebaseAuth.getInstance().currentUser?.let {
-//                    FirebaseFirestore.getInstance().collection("Users")
-//                        .document(it.uid)
-//                        .update("token", token)
-//                }
-//            }
-//        }
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                FirebaseAuth.getInstance().currentUser?.let {
+                    FirebaseFirestore.getInstance().collection("Users")
+                        .document(it.uid)
+                        .update("token", token)
+                }
+            }
+        }
         setContent {
 
             val themeMode by ThemePreference.getThemeMode(this).collectAsState(initial = ThemeMode.LIGHT)
 
             val postMenuState: PostMenuState = koinInject()
             val authViewModel = koinInject<GoogleSignInViewModel>()
+            val viewModel: ConnectivityViewModel = koinViewModel()
 
             val snackBarHostState = remember { SnackbarHostState() }
             val navHostController = rememberNavController()
@@ -191,20 +206,23 @@ class MainActivity : ComponentActivity() {
             val destination = navBackStackEntry?.destination?.route
             val connectivityState = connectivityState()
             val userProfileViewModel: UserProfileViewModel = koinInject()
+            val state by viewModel.uiState.collectAsState()
 
             LaunchedEffect(connectivityState.value) {
-                if (connectivityState.value == ConnectionState.Unavailable) {
-                    snackBarHostState.showSnackbar(
-                        "No Internet Connection",
-                        actionLabel = "OK",
-                        withDismissAction = true
-                    )
-                }else{
-                    userProfileViewModel.refreshProfile()
+
+                when (state) {
+                    ConnectivityUiState.Offline ->
+                        snackBarHostState.showSnackbar("No network connection", withDismissAction = true)
+                    ConnectivityUiState.ConnectedNoInternet ->
+                        snackBarHostState.showSnackbar("Wi-Fi connected but no internet", withDismissAction = true)
+                    ConnectivityUiState.CaptivePortal ->
+                            snackBarHostState.showSnackbar("Captive portal — sign in required")
+                    ConnectivityUiState.Online -> {}
                 }
+
             }
 
-            AppTheme(themeMode = themeMode) {
+            AppTheme() {
 
                 Column {
 
@@ -497,7 +515,6 @@ fun UpdateSnackBar(
     DisposableEffect(Unit) {
         val listener = InstallStateUpdatedListener { state ->
             if (state.installStatus() == InstallStatus.DOWNLOADED) {
-                // Show Compose Snackbar when download completed
                 CoroutineScope(Dispatchers.Main).launch {
                     val result = snackHostState.showSnackbar(
                         message = "An update has just been downloaded.",
