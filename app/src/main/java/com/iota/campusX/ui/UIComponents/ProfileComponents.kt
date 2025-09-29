@@ -66,6 +66,7 @@ import com.iota.campusX.Feature.UserProfile.data.Campus
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
+import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.theme.LightBlack
 import com.iota.campusX.ui.theme.LightTheme_Gray
@@ -166,7 +167,7 @@ fun ProfileHeader(
 
 @Composable
 fun ProfileAction(
-    onLinkUpRequestClick: (() -> Unit)? = null,
+    onLinkUpRequestClick: ((isConnected: Boolean?) -> Unit)? = null,
     onMessageClick: (() -> Unit)? = null,
     hasConnectionState: UiState<Boolean?>,
     snackBarHostState: SnackbarHostState
@@ -179,7 +180,7 @@ fun ProfileAction(
 
     Row (modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)){
         Button(
-            onClick = { onLinkUpRequestClick?.invoke() },
+            onClick = { onLinkUpRequestClick?.invoke(hasConnection) },
             modifier = Modifier.weight(1f).height(40.dp),
             shape = MaterialTheme.shapes.small
         ) {
@@ -202,7 +203,7 @@ fun ProfileAction(
                 }
 
                 is UiState.Loading -> {
-                    CircularLoading()
+                    CircularLoading(Color.White)
                 }
 
                 is UiState.Error -> {
@@ -400,7 +401,7 @@ fun CampusWidget(
 
                     if (campus.duration?.current ?: false){
                         Text(
-                            text = " ${campus.duration.start } - Current",
+                            text = "${campus.duration.start } - Current",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -509,8 +510,8 @@ fun ConnectionComponent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Text(text = followersCount.toString())
-            Text(text = "Followers")
+            Text(text = followersCount.toString(), style = MaterialTheme.typography.titleMedium)
+            Text(text = "Followers", style = MaterialTheme.typography.bodyMedium)
 
         }
 
@@ -535,8 +536,8 @@ fun ConnectionComponent(
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = connectionCount.toString())
-            Text(text = "Connections")
+            Text(text = connectionCount.toString(), style = MaterialTheme.typography.titleMedium)
+            Text(text = "Connections", style = MaterialTheme.typography.bodyMedium)
         }
 
         VerticalDivider(
@@ -558,8 +559,8 @@ fun ConnectionComponent(
             ,horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Text(text = postsCountCount.toString())
-            Text(text = "Posts")
+            Text(text = postsCountCount.toString(), style = MaterialTheme.typography.titleMedium)
+            Text(text = "Posts", style = MaterialTheme.typography.bodyMedium)
 
         }
 

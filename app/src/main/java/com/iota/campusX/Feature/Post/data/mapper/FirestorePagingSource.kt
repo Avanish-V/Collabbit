@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Post.data.mapper
 
+import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.google.firebase.auth.FirebaseAuth
@@ -54,6 +55,11 @@ class FirestorePagingSource(
                 nextKey = nextPage
             )
         } catch (e: Exception) {
+            Log.e(
+                "FirestorePagingSource",
+                "Error loading page: ${e.message}",
+                e
+            )
             LoadResult.Error(e)
         }
     }

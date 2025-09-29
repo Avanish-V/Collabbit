@@ -66,6 +66,9 @@ class FollowRepositoryImpl(
                  .get()
                  .await()
 
+
+             val isCurrentUser = userId == auth.currentUser?.uid
+
              val followersList = followers.map {
 
                 val userId =  it.get("userId") as String
@@ -76,11 +79,12 @@ class FollowRepositoryImpl(
                      .await()
                      .toObject(BaseProfileDTO::class.java)
 
+
                  ConnectionsDTO(
                      userName = userData?.userName ?: "",
                      id = userId,
                      userImage = userData?.userImage ?: "",
-                     isCurrentUser = false
+                     isCurrentUser = isCurrentUser
                  )
 
              }

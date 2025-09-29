@@ -20,7 +20,7 @@ class TokenServices(private val context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Load from assets instead of raw
-                val inputStream = context.assets.open("campusx-87d84-firebase-adminsdk-fbsvc-ab7a537686.json")
+                val inputStream = context.assets.open("campuscircle-ea7ca-firebase-adminsdk-fbsvc-d968d72f2f.json")
 
                 val googleCredentials = GoogleCredentials
                     .fromStream(inputStream)

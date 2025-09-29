@@ -68,7 +68,8 @@ import com.iota.campusX.Feature.UserProfile.presentation.ViewProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.R
+import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AppTabRow
@@ -76,6 +77,7 @@ import com.iota.campusX.ui.UIComponents.CampusWidget
 import com.iota.campusX.ui.UIComponents.ConnectionComponent
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.EmptyState
+import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.ProfileAction
 import com.iota.campusX.ui.UIComponents.ProfileContents
 import com.iota.campusX.ui.UIComponents.ProfileHeader
@@ -104,13 +106,11 @@ fun ViewProfile(
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackBarHostState = remember { SnackbarHostState() }
 
 
     val profileByIdState by viewProfileViewModel.profileById.collectAsState()
-    val connectionsCountState by viewProfileViewModel.connectionCount.collectAsState()
     val hasConnectionState by viewProfileViewModel.hasConnection.collectAsState()
     val linkupRequestState by viewProfileViewModel.sendLinkUpRequestState.collectAsState()
 
@@ -121,7 +121,7 @@ fun ViewProfile(
 
     when(profileByIdState){
         is UiState.Loading -> {
-            LoadingUI(isLoading = true)
+            LoadingScreen()
         }
         is UiState.Success -> {
             viewProfileData = (profileByIdState as UiState.Success).data
@@ -149,21 +149,17 @@ fun ViewProfile(
         }
     }
 
-    LaunchedEffect(useridByFeed) {
-        useridByFeed?.let { viewProfileViewModel.getConnectionCount(it) }
-    }
+
     LaunchedEffect(useridByFeed) {
         useridByFeed?.let { viewProfileViewModel.hasConnection(it) }
     }
 
 
     // ✅ Other UI states
-    val isConnected = (hasConnectionState as? UiState.Success)?.data
-    val isLoading = remember { mutableStateOf(false) }
-    val isAlertDialogVisible = remember { mutableStateOf(false) }
+
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val density = LocalDensity.current
+
 
     var headerHeightDp by remember { mutableStateOf(0.dp) }
     var tabRowHeightDp by remember { mutableStateOf(0.dp) }
@@ -205,207 +201,164 @@ fun ViewProfile(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { innerPadding ->
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            state = postLazyColumnState
-        ) {
 
-            item {
-                ProfileHeader(
-                    modifier = Modifier.fillMaxSize(),
-                    headerHeight = { },
-                    user = viewProfileData,
-                )
-            }
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)){
 
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-            }
+            when(profileByIdState){
 
-            item {
-                useridByFeed?.let {
-                    ConnectionComponent(
-                        navHostController = navHostController,
-                        pagerState = pagerState,
-                        followersCount = viewProfileData?.count?.followers?:0,
-                        connectionCount = viewProfileData?.count?.connections?:0,
-                        postsCountCount = viewProfileData?.count?.posts?:0,
-                        userId = it
-                    )
+                is UiState.Loading -> {
+                    LoadingScreen()
                 }
-            }
+                is UiState.Success -> {
 
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-            }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        state = postLazyColumnState
+                    ) {
 
-            item {
-                ProfileAction(
-                    onLinkUpRequestClick = {
-                        scope.launch {
-                            viewProfileData?.let {
-                                viewProfileViewModel.sendLinkUpRequest(
-                                    requestUserId = it.id,
-                                    currentState = isConnected
+                        item {
+                            ProfileHeader(
+                                modifier = Modifier.fillMaxSize(),
+                                headerHeight = { },
+                                user = viewProfileData,
+                            )
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+
+                        item {
+                            useridByFeed?.let {
+                                ConnectionComponent(
+                                    navHostController = navHostController,
+                                    pagerState = pagerState,
+                                    followersCount = viewProfileData?.count?.followers?:0,
+                                    connectionCount = viewProfileData?.count?.connections?:0,
+                                    postsCountCount = viewProfileData?.count?.posts?:0,
+                                    userId = it
                                 )
                             }
                         }
-                    },
-                    onMessageClick ={
-                        navHostController.navigate(Routes.Main.SendMessage.routes).apply {
-                            navHostController.currentBackStackEntry?.savedStateHandle?.apply {
-                                set("USER_ID", viewProfileData?.id)
-                                set("USER_NAME", viewProfileData?.userName)
-                                set("USER_IMAGE", viewProfileData?.userImage)
-                            }
+
+                        item {
+                            Spacer(modifier = Modifier.height(24.dp))
                         }
-                    },
-                    hasConnectionState = hasConnectionState,
-                    snackBarHostState = snackBarHostState
-                )
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    thickness = 12.dp
-                )
-            }
-
-            stickyHeader {
-                AppTabRow(pagerState = pagerState,tabList = listOf("About","Posts","Replies"))
-            }
-
-            item {
-                ProfileContents(
-                    pagerState = pagerState,
-                    screenHeight = screenHeight,
-                    headerPinned = headerPinned,
-                    content = {
-                        when (it) {
-
-                            0 -> {
-                                viewProfileData?.let { userBasicProfileDTO ->
-                                    ViewUserAbout(
-                                        screenHeight = screenHeight,
-                                        pinned = headerPinned,
-                                        userBasicProfileDTO = userBasicProfileDTO,
-                                        navHostController = navHostController
-                                    )
-                                }
-                            }
-
-                            1 ->{
-
-                                useridByFeed?.let { userId ->
-                                    PostScreenComponent(
-                                        screenHeight = screenHeight,
-                                        pinned = headerPinned,
-                                        navHostController = navHostController,
-                                        lazyPagingItems = postState,
-                                        onPageActive = {
-                                            viewUserPostViewModel.fetchViewUserPosts(userId = userId,)
-                                        },
-                                        onRetryClick = {},
-                                    )
-                                }
-                            }
-
-                            2 -> {
-                                useridByFeed?.let { userId ->
-                                    RepliesComponent(
-                                        screenHeight = screenHeight,
-                                        pinned = headerPinned,
-                                        userId = userId,
-                                        repliesState = replyState,
-                                        navHostController = navHostController,
-                                        onRetryClick = {
-                                            viewUserReplyViewModel.getUserReplies(userId)
-                                        },
-                                        onPageActive = {
-                                            viewUserReplyViewModel.getUserReplies(userId)
+                        item {
+                            ProfileAction(
+                                onLinkUpRequestClick = {hasConnection->
+                                    scope.launch {
+                                        viewProfileData?.let {
+                                            viewProfileViewModel.sendLinkUpRequest(
+                                                requestUserId = it.id,
+                                                currentState = hasConnection
+                                            )
                                         }
-                                    )
+                                    }
+                                },
+                                onMessageClick ={
+                                    navHostController.navigate(Routes.Main.SendMessage.routes).apply {
+                                        navHostController.currentBackStackEntry?.savedStateHandle?.apply {
+                                            set("USER_ID", viewProfileData?.id)
+                                            set("USER_NAME", viewProfileData?.userName)
+                                            set("USER_IMAGE", viewProfileData?.userImage)
+                                        }
+                                    }
+                                },
+                                hasConnectionState = hasConnectionState,
+                                snackBarHostState = snackBarHostState
+                            )
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                thickness = 12.dp
+                            )
+                        }
+
+                        stickyHeader {
+                            AppTabRow(pagerState = pagerState,tabList = listOf("About","Posts","Replies"))
+                        }
+
+                        item {
+                            ProfileContents(
+                                pagerState = pagerState,
+                                screenHeight = screenHeight,
+                                headerPinned = headerPinned,
+                                content = {
+                                    when (it) {
+
+                                        0 -> {
+                                            viewProfileData?.let { userBasicProfileDTO ->
+                                                ViewUserAbout(
+                                                    screenHeight = screenHeight,
+                                                    pinned = headerPinned,
+                                                    userBasicProfileDTO = userBasicProfileDTO,
+                                                    navHostController = navHostController
+                                                )
+                                            }
+                                        }
+
+                                        1 ->{
+
+                                            useridByFeed?.let { userId ->
+                                                PostScreenComponent(
+                                                    screenHeight = screenHeight,
+                                                    pinned = headerPinned,
+                                                    navHostController = navHostController,
+                                                    lazyPagingItems = postState,
+                                                    onPageActive = {
+                                                        viewUserPostViewModel.fetchViewUserPosts(userId = userId,)
+                                                    },
+                                                    onRetryClick = {},
+                                                )
+                                            }
+                                        }
+
+                                        2 -> {
+                                            useridByFeed?.let { userId ->
+                                                RepliesComponent(
+                                                    screenHeight = screenHeight,
+                                                    pinned = headerPinned,
+                                                    userId = userId,
+                                                    repliesState = replyState,
+                                                    navHostController = navHostController,
+                                                    onRetryClick = {
+                                                        viewUserReplyViewModel.getUserReplies(userId)
+                                                    },
+                                                    onPageActive = {
+                                                        viewUserReplyViewModel.getUserReplies(userId)
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
-                            }
+                            )
                         }
                     }
-                )
-            }
-        }
 
-//        PostDotOptionBottomSheet(
-//            isBottomSheet = bottomSheetData.isBottomSheet,
-//            bottomSheetViewModel = bottomSheetViewModel,
-//            replyViewModel = replyViewModel,
-//            postFeedViewModel = postViewModel,
-//            onDismiss = {},
-//            isCurrentUser = bottomSheetData.isCurrentUser,
-//            onDeleteClick = { isAlertDialogVisible.value = true },
-//            onEditClick = {},
-//            onHideBottomSheet = {}
-//        )
-
-        if (isAlertDialogVisible.value) {
-            BasicAlertDialog(
-                onDismissRequest = { isAlertDialogVisible.value = false },
-            ) {
-                Surface(shape = RoundedCornerShape(6.dp)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "Delete Post",
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 12.dp)
-                        )
-                        Text(
-                            "Are you sure you want to delete this post?",
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                        HorizontalDivider()
-                        Row(Modifier.fillMaxWidth()) {
-                            Box(
-                                Modifier
-                                    .weight(1f)
-                                    .clickable(
-                                        onClick = { isAlertDialogVisible.value = false },
-                                        indication = null,
-                                        interactionSource = remember { MutableInteractionSource() })
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Cancel")
-                            }
-                            VerticalDivider(modifier = Modifier.height(48.dp))
-                            Box(
-                                Modifier
-                                    .weight(1f)
-                                    .clickable(
-                                        onClick = {
-                                            context.vibrate()
-                                            // Delete post logic here
-                                        },
-                                        indication = null,
-                                        interactionSource = remember { MutableInteractionSource() })
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isLoading.value)
-                                    CircularProgressIndicator(
-                                        color = LightTheme_Blue,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                else
-                                    Text("Delete", color = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
                 }
+                is UiState.Error -> {
+
+                    ErrorScreen(
+                        text = "Something went wrong!",
+                        image = R.drawable.undraw_page_not_found_6wni,
+                        onReTry = {
+                            useridByFeed?.let { viewProfileViewModel.getUserById(it) }
+                        },
+                        buttonText = "Retry"
+                    )
+
+                }
+                else -> {}
             }
+
         }
+
     }
 }
 

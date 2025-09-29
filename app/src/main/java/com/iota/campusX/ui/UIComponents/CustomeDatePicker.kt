@@ -107,10 +107,9 @@ fun CourseDurationPicker(
         ) {
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 Text(
-                    text = startDate?.let { "Start: ${dateFormat.format(it)}" }
-                        ?: "Select Start Date",
+                    text = startDate?.let { "Start: ${dateFormat.format(it)}" } ?: "Select Start Date",
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = if (startDate != null) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             }
@@ -153,7 +152,7 @@ fun CourseDurationPicker(
                         text = endDate?.let { "End: ${dateFormat.format(it)}" }
                             ?: "Select End Date",
                         style = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = if (endDate != null) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     )
                 }

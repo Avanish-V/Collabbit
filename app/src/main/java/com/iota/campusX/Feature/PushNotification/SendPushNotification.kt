@@ -1,15 +1,23 @@
+import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.PushNotification.FcmNotificationSender
+import com.iota.campusX.Feature.PushNotification.TokenServices
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 
 class SendPushNotification(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val context: Context
 ) {
 
-    fun messageNotification(notificationReceiverId: String, notificationType: String) {
+    fun messageNotification(
+        notificationReceiverId: String,
+        notificationType: String,
+        visibilityMode: VisibilityMode? = null
+    ) {
 
         if (auth.currentUser == null) return
 
@@ -25,11 +33,18 @@ class SendPushNotification(
 
                 if (fcmToken != null && userNameResponse.status) {
                     val messageNotify = FcmNotificationSender(
-                        userFcmToken = fcmToken,
-                        title = notificationText(notificationType,userNameResponse.userName).title,
-                        body = notificationText(notificationType).body
+                        context = context
                     )
-                    messageNotify.sendNotification()
+                    messageNotify.sendFcmNotification(
+                        userFcmToken = fcmToken,
+                        title = notificationText(
+                            notificationType =  notificationType,
+                            userName = userNameResponse.userName).title,
+                        bodyText = notificationText(
+                            notificationType = notificationType,
+                            visibilityMode = visibilityMode,
+                            userName = userNameResponse.userName).body,
+                    )
                 }
 
             } catch (e: Exception) {
@@ -39,46 +54,92 @@ class SendPushNotification(
         }
     }
 
-fun notificationText(notificationType: String,userName:String?=null): NotificationTextDTO{
+    fun sendNotificationToSubscriber(topic: String, title: String, body: String){
 
-        return when(notificationType){
+        val messageNotify = FcmNotificationSender(
 
-            "MESSAGE" -> {
-                NotificationTextDTO(
-                    title = userName.toString(),
-                    body = "Sent a message."
-                )
-            }
-            "LIKE_POST" -> {
-                NotificationTextDTO(
-                    title = "Liked",
-                    body = "Someone upvoted your post."
-                )}
-            "LIKE_REPLY" -> {
-                NotificationTextDTO(
-                    title = "Liked",
-                    body = "Someone upvoted your reply."
-                )
-            }
-            "COMMENTED" -> {
-                NotificationTextDTO(
-                    title = "Comment",
-                    body = "Someone commented on your post."
-                )
-            }
-            "REQUEST" -> {
-                NotificationTextDTO(
-                    title = "Request",
-                    body = "Someone sent you a connection request."
-                )
-            }
+            context = context
+        )
 
-            else -> {
-                NotificationTextDTO()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                messageNotify.sendToSubscriber(
+                    topic = topic,
+                    title = title,
+                    bodyText = body,
+                )
+            }catch (e:Exception){
+                e.printStackTrace()
             }
         }
 
     }
+
+
+fun notificationText(
+    notificationType: String,
+    userName:String="",
+    visibilityMode: VisibilityMode?=null
+): NotificationTextDTO{
+
+    return when (notificationType) {
+        "MESSAGE" -> {
+            NotificationTextDTO(
+                title = "New Message",
+                body = "$userName sent you a message."
+            )
+        }
+        "LIKE_POST" -> {
+            NotificationTextDTO(
+                title = "Post Upvote",
+                body = "$userName upvoted your post."
+            )
+        }
+        "LIKE_REPLY" -> {
+            NotificationTextDTO(
+                title = "Reply Upvote",
+                body = "$userName upvoted your reply."
+            )
+        }
+        "COMMENTED" -> {
+            if (visibilityMode != null){
+
+                if (visibilityMode == VisibilityMode.USER){
+                    NotificationTextDTO(
+                        title = "New Comment",
+                        body = "$userName commented on your post."
+                    )
+                }else{
+                    NotificationTextDTO(
+                        title = "New Comment",
+                        body = "Anonymous commented on your post."
+                    )
+                }
+
+            }else{
+                NotificationTextDTO(
+                    title = "New Comment",
+                    body = "$userName commented on your post."
+                )
+            }
+
+        }
+        "REQUEST" -> {
+            NotificationTextDTO(
+                title = "Connection Request",
+                body = "$userName wants to connect with you."
+            )
+        }
+        else -> {
+            NotificationTextDTO(
+                title = "Notification",
+                body = "You have a new update."
+            )
+        }
+    }
+
+
+}
 
 
     // Suspend function to get user name

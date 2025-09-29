@@ -5,10 +5,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.iota.campusX.MainActivity
@@ -30,7 +32,7 @@ class PushNotificationService : FirebaseMessagingService() {
         super.onMessageReceived(message)
 
         if (isAppRunning){
-            applicationContext.vibrate()
+           // applicationContext.vibrate()
             return
         }
 
@@ -41,6 +43,11 @@ class PushNotificationService : FirebaseMessagingService() {
     }
 
     private fun showNotification(title: String?, body: String?) {
+
+
+        val soundUri = "android.resource://${applicationContext.packageName}/${R.raw.notification}".toUri()
+
+
         val channelId = "default_channel"
         val channelName = "Default Channel"
 
@@ -67,7 +74,14 @@ class PushNotificationService : FirebaseMessagingService() {
             .setContentIntent(pendingIntent)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(R.drawable.app_logo)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setLargeIcon(
+                androidx.core.graphics.drawable.IconCompat.createWithResource(
+                    this,
+                    R.drawable.notification_icon
+                ).toIcon()
+            )
+            .setSound(soundUri)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()

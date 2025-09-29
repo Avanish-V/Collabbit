@@ -5,7 +5,6 @@ import ConsentAgreeViewModel
 import ConsentBottomSheet
 import android.os.Build
 import android.util.Log
-import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -20,7 +19,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,8 +27,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.foundation.layout.safeGesturesPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -52,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -68,6 +65,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -101,15 +99,15 @@ import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.Post.VisibilityModeChanger
+import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.FirestoreIdGenerator
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AnonymousImage
 import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.FeedUI.AnimatedLikeButton
 import com.iota.campusX.ui.UIComponents.FeedUI.FeedHeader
@@ -155,26 +153,17 @@ fun PostReplyScreen(
         }
     }
 
-
-    // val editPostState = postViewModel.editPostState
-//    val deleteReplyState = replyViewModel.deleteReplyState.collectAsState()
     val createReplyState = replyViewModel.createReplyState.collectAsState()
-    //  val deletePostState = postViewModel.deletePostState.collectAsState()
-
 
     val singlePost = postViewModel.singlePost.collectAsState().value
 
-    val mode = homeViewModel.mode.collectAsState().value
-
-
     val keyboard = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
-    val context = LocalContext.current
+
     val scope = rememberCoroutineScope()
 
     var replyText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    var isFocused by remember { mutableStateOf(false) }
     var visibilityMode by remember { mutableStateOf(VisibilityMode.USER) }
     val snackBarHostState = remember { SnackbarHostState() }
 
@@ -185,6 +174,13 @@ fun PostReplyScreen(
     LaunchedEffect(postId) {
         postId.let {
             postViewModel.fetchSinglePost(it ?: "")
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            postViewModel.clearSinglePost()
+            replyViewModel.clearPostReplies()
         }
     }
 
@@ -231,7 +227,6 @@ fun PostReplyScreen(
                 BottomTextInput(
                     focusRequester = focusRequester,
                     onFocusChange = {
-                        isFocused = it.isFocused
                     },
                     text = replyText,
                     onTextChange = {
@@ -302,7 +297,7 @@ fun PostReplyScreen(
         when (singlePost) {
 
             is UiState.Loading -> {
-                LoadingUI(true)
+                LoadingScreen()
             }
 
             is UiState.Success -> {
@@ -367,7 +362,7 @@ fun PostReplyScreen(
                     when (postRepliesState) {
                         is UiState.Loading -> {
                             item {
-                                LoadingUI(true)
+                                LoadingScreen()
                             }
                         }
 
@@ -395,8 +390,7 @@ fun PostReplyScreen(
 
                         is UiState.Success -> {
 
-                            val orderedReplies =
-                                postRepliesState.data.sortedByDescending { it.repliedAt }
+                            val orderedReplies = postRepliesState.data
 
                             if (orderedReplies.isEmpty()) {
 
@@ -741,7 +735,7 @@ fun BottomTextInput(
                 }
             ) {
                 if (isLoading) {
-                    CircularLoading()
+                    CircularLoading(MaterialTheme.colorScheme.primary)
                 } else {
                     Icon(
                         modifier = Modifier.size(22.dp),

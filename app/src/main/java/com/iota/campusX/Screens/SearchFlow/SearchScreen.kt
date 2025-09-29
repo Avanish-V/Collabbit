@@ -1,11 +1,13 @@
 package com.voxcii.voxcii.Screens.SearchFlow
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -44,13 +46,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Search.Domain.Models.UserSearchDTO
 import com.iota.campusX.Feature.Search.Presentation.SearchViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.Divider
+import com.iota.campusX.ui.UIComponents.FeedUI.Avatar
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class,)
@@ -69,7 +73,15 @@ fun SearchScreen(navHostController: NavHostController) {
     Scaffold(
         topBar = {
             TextField(
-                modifier = Modifier.statusBarsPadding().padding(horizontal = 10.dp, vertical = 10.dp).fillMaxWidth(),
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .padding(horizontal = 10.dp, vertical = 10.dp)
+                    .fillMaxWidth()
+                    .border(
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = CircleShape
+                    ),
                 value = searchValue,
                 onValueChange = {
                     searchValue = it.replaceFirstChar { it.uppercase()
@@ -112,7 +124,7 @@ fun SearchScreen(navHostController: NavHostController) {
         Box(modifier = Modifier.padding(it)){
             when(searchResults){
                 is UiState.Loading -> {
-                    LoadingUI(isLoading = true)
+                    LoadingScreen()
                 }
                 is UiState.Success -> {
 
@@ -159,15 +171,10 @@ fun MentorSingleCard(user: UserSearchDTO, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape),
-                model = user.userImage,
-                contentDescription = null,
-                contentScale = ContentScale.Crop
-            )
-
+            Avatar(
+                imageUrl = user.userImage,
+                visibilityMode = VisibilityMode.USER
+            ) { }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
@@ -180,7 +187,7 @@ fun MentorSingleCard(user: UserSearchDTO, onClick: () -> Unit) {
 
                 )
                 if (user.userBio.isNotEmpty()){
-                    Spacer(modifier = Modifier.padding(6.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         user.userBio,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

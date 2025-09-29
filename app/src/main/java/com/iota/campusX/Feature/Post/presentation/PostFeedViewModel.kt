@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Post.presentation
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
@@ -21,9 +22,9 @@ class PostFeedViewModel(
     val campusPosts: StateFlow<PagingData<GetPostDTO>> = repository.campusPosts
     val userPosts: StateFlow<PagingData<GetPostDTO>> = repository.postById
 
-    val singlePost = repository.singlePost
-        .map { it }
-        .stateIn(viewModelScope, SharingStarted.Companion.WhileSubscribed(), UiState.Idle)
+    val singlePost  = repository.singlePost.map {
+        it
+    }.stateIn(viewModelScope, SharingStarted.Lazily, UiState.Idle)
 
     //---------------------------------FETCH THE DATA----------------------------------
 
@@ -33,6 +34,12 @@ class PostFeedViewModel(
     }
     fun fetchCampusPost(campusId: String) = viewModelScope.launch { repository.fetchCampusPosts(viewModelScope,campusId) }
     fun fetchUserPost(userId: String) = viewModelScope.launch { repository.fetchUserPosts(viewModelScope,userId) }
-    fun fetchSinglePost(postId: String) = viewModelScope.launch { repository.fetchSinglePost(postId) }
+    fun fetchSinglePost(postId: String) = viewModelScope.launch {
+        repository.fetchSinglePost(postId)
+    }
+
+    fun clearSinglePost() = viewModelScope.launch {
+        repository.clearSinglePost()
+    }
 
 }

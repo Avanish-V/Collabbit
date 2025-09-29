@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,7 +65,8 @@ fun SocietyOptionBar(
                 ) {
                     Icon(
                         painter = painterResource(it.icon),
-                        contentDescription = "Delete"
+                        contentDescription = "Delete",
+                        tint = if (it.label == "Delete") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground
                     )
                 }
 

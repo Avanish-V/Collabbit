@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Reply
 
+import android.util.Log
 import com.iota.campusX.Feature.Post.data.remote.visibilityMode
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.collections.emptyList
 
 class ReplyRepository (
     private val getRepliesUseCase: GetRepliesUseCase,
@@ -46,14 +48,21 @@ class ReplyRepository (
 
     }
 
-    suspend fun getPostReplies(postId: String){
+    suspend fun getPostReplies(postId: String) {
+
         _postRepliesState.value = UiState.Loading
-        val result = getRepliesUseCase(postId,null, FeedMode.CAMPUS)
+
+        val result = getRepliesUseCase(postId, null, FeedMode.CAMPUS)
+
         _postRepliesState.value = result.fold(
-            onSuccess = { UiState.Success(it.sortedByDescending { it.repliedAt }) },
+            onSuccess = {
+                if (postRepliesState.value is UiState.Success){
+                   _postRepliesState.value = UiState.Idle
+                }
+                UiState.Success(it.sortedByDescending { it.repliedAt })
+            },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
-
     }
 
 
@@ -217,22 +226,30 @@ class ReplyRepository (
         }
     }
 
-    private fun createReplyLocally(reply: GetRepliesDTO,userReply: UserReplyDTO) {
+    private fun createReplyLocally(reply: GetRepliesDTO, userReply: UserReplyDTO) {
         _postRepliesState.update { currentState ->
             if (currentState is UiState.Success) {
-                UiState.Success(currentState.data + reply)
+                val merged = (listOf(reply) + currentState.data)
+                    .sortedByDescending { it.repliedAt }
+                UiState.Success(merged)
             } else {
+                // If not success, just discard — next fetch will bring fresh replies
                 currentState
             }
         }
+
         _userRepliesState.update { currentState ->
             if (currentState is UiState.Success) {
-                UiState.Success(currentState.data + userReply)
+                val merged = (listOf(userReply) + currentState.data)
+                    .sortedByDescending { it.reply.repliedAt }
+                UiState.Success(merged)
             } else {
                 currentState
             }
         }
     }
+
+
 
     private fun buildReplyDTO(replyId: String, postId: String, content: String, visibilityMode: VisibilityMode, creatorDetail: CreatorDetail): GetRepliesDTO {
 
@@ -269,6 +286,11 @@ class ReplyRepository (
             reply = reply,
             post = postDTO
         )
+    }
+
+    suspend fun clearPostReplies(){
+        _postRepliesState.value = UiState.Success(emptyList())
+        _postRepliesState.value = UiState.Idle
     }
 
 

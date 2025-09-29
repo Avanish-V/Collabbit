@@ -20,6 +20,8 @@ android {
             keyAlias = "key0"
         }
     }
+
+    
     namespace = "com.iota.campusX"
     compileSdk = 35
 
@@ -27,8 +29,8 @@ android {
         applicationId = "com.iota.campusX"
         minSdk = 24
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.0.9"
+        versionCode = 22
+        versionName = "1.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -48,11 +50,9 @@ android {
 
 
 
-
-
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -159,4 +159,6 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.2")
     ksp("androidx.room:room-compiler:2.7.2")
     implementation("androidx.room:room-ktx:2.7.2")
+
+    debugImplementation ("com.squareup.leakcanary:leakcanary-android:2.14")
 }

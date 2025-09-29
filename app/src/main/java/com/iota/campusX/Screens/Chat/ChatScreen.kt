@@ -27,17 +27,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -45,18 +42,14 @@ import com.iota.campusX.Feature.Chats.data.UserChatsDTO
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.ErrorScreen
-import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.LightBlack
-import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.LightTheme_Black
 import com.iota.campusX.ui.theme.White
-import com.iota.campusX.ui.theme.LightTheme_Blue
+
 //import com.iota.campusX.ui.theme.typography
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,7 +86,7 @@ fun ChatScreen(
 
         when(chatList){
             is UiState.Loading -> {
-                LoadingUI(isLoading = true)
+                LoadingScreen()
             }
             is UiState.Success<*> -> {
 

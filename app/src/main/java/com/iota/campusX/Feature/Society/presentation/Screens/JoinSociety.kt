@@ -54,9 +54,10 @@ import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Chat.MessageInputBar
 import com.iota.campusX.Screens.Chat.convertTimestampToTime
+import com.iota.campusX.Utils.CircularLoading
+import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.FeedUI.Avatar
 import com.iota.campusX.ui.UIComponents.FeedUI.LinkPreviewCard
 import com.iota.campusX.ui.UIComponents.FeedUI.extractUrlFromText
@@ -109,6 +110,10 @@ fun JoinSocietyScreen(
     val joiningRequests by audioRoomViewModel.joinRequests.collectAsStateWithLifecycle()
     val agoraStates by streamViewModel.audioRoomState.collectAsStateWithLifecycle()
     val audioRoomState by audioRoomViewModel.society.collectAsStateWithLifecycle()
+    val subscribers by audioRoomViewModel.subscribers.collectAsStateWithLifecycle()
+    val isRoomActive by audioRoomViewModel.isRoomActive.collectAsStateWithLifecycle()
+    val chatsCount by audioRoomViewModel.chatsCount.collectAsStateWithLifecycle()
+    val uerChatsCount by audioRoomViewModel.userChatsCount.collectAsStateWithLifecycle()
 
 
     val sendMessageState by audioRoomViewModel.sendMessageState.collectAsStateWithLifecycle()
@@ -130,6 +135,24 @@ fun JoinSocietyScreen(
     var isBottomSheet by remember { mutableStateOf(false) }
     var messageText by remember { mutableStateOf("") }
     //-------------------------------------EFFECTS--------------------------------------------------
+
+    LaunchedEffect(roomId) {
+        audioRoomViewModel.listenChatCount(roomId = roomId.orEmpty())
+    }
+
+    when(chatsCount){
+        is UiState.Success<*> -> {
+            val count = (chatsCount as UiState.Success<Int>).data
+            LaunchedEffect(count) {
+               audioRoomViewModel.getUserChatsCount(
+                   roomId = roomId.orEmpty(),
+                   currentChatCount = count
+               )
+            }
+
+        }
+        else -> {}
+    }
 
     LaunchedEffect(audioRoomState) {
         when (audioRoomState) {
@@ -248,59 +271,123 @@ fun JoinSocietyScreen(
 
     }
 
-    LaunchedEffect(userState?.muted) {
+    LaunchedEffect(roomId,userState,userState?.muted,) {
 
         if (userState?.muted == true){
             streamViewModel.muteAudio(true)
-            streamViewModel.disableAudio()
+
         }
 
         if (userState?.muted == false){
             streamViewModel.muteAudio(false)
-            streamViewModel.enableAudio()
         }
 
     }
 
-    LaunchedEffect(isHost) {
-        if (isHost){
-            audioRoomViewModel.roomState(
-                AudioRoomState.IsRoomActive(
-                    roomId = roomId.orEmpty(),
-                    isActive = true
-                )
+    LaunchedEffect(roomId,isRoomActive,subscribers) {
+
+        if (!isHost) return@LaunchedEffect
+
+        audioRoomViewModel.roomState(
+            AudioRoomState.IsRoomActive(
+                roomId = roomId.orEmpty(),
             )
+        )
+
+
+
+    }
+    LaunchedEffect(isRoomActive) {
+
+        when(isRoomActive){
+            is UiState.Success<*> -> {
+                val isActive = (isRoomActive as UiState.Success<Boolean>).data
+                if (!isActive){
+
+                    roomId?.let {
+                        audioRoomViewModel.roomState(
+                            AudioRoomState.GetSubscribers(
+                                roomId = it
+                            )
+                        )
+                    }
+
+                }
+            }
+            else -> {}
+        }
+
+
+    }
+    LaunchedEffect(subscribers) {
+        when(subscribers){
+            is UiState.Success<*> -> {
+                val subscriber = (subscribers as UiState.Success<List<String>>).data
+                audioRoomViewModel.roomState(
+                    AudioRoomState.SendNotificationTOSubscriber(
+                        subscriber = subscriber,
+                        roomTitle = title.orEmpty(),
+                        message = "🎙️ $title is now live! Join the conversation."
+                    )
+                )
+                audioRoomViewModel.roomState(
+                    AudioRoomState.SetRoomActive(
+                        roomId = roomId.orEmpty(),
+                        isActive = true
+                    )
+                )
+            }
+            else -> {}
         }
     }
 
     LaunchedEffect(agoraStates) {
         when (val state = agoraStates) {
             is State.isSpeaking -> {
-                profile?.id?.let { userId ->
-                    audioRoomViewModel.uiControls(
-                        UiControls.IsSpeaking(
-                            roomId = roomId.orEmpty(),
-                            isSpeaking = state.value > 0,
-                            feedMode = FeedMode.GLOBAL,
-                            campusId = null
+                val micEnabled = userState?.muted == false
+                if (micEnabled) {
+                    profile?.id?.let { userId ->
+                        audioRoomViewModel.uiControls(
+                            UiControls.IsSpeaking(
+                                roomId = roomId.orEmpty(),
+                                isSpeaking = state.value > 0,
+                                feedMode = FeedMode.OPEN,
+                                campusId = null
+                            )
                         )
-                    )
+                    }
+                } else {
+                    // If muted → force isSpeaking = false
+                    profile?.id?.let { userId ->
+                        audioRoomViewModel.uiControls(
+                            UiControls.IsSpeaking(
+                                roomId = roomId.orEmpty(),
+                                isSpeaking = false,
+                                feedMode = FeedMode.OPEN,
+                                campusId = null
+                            )
+                        )
+                    }
                 }
             }
+
             is State.ChannelLeave -> {
 
                 if (isHost){
+
                     audioRoomViewModel.roomState(
-                        AudioRoomState.IsRoomActive(
+                        AudioRoomState.SetRoomActive(
                             roomId = roomId.orEmpty(),
                             isActive = false
                         )
                     )
+
                     audioRoomViewModel.roomState(
                         AudioRoomState.DeleteMessageRoom(
                             roomId = roomId.orEmpty(),
                         )
                     )
+
                 }
 
                 navController.popBackStack()
@@ -312,6 +399,7 @@ fun JoinSocietyScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
+
                 Lifecycle.Event.ON_STOP -> {
                     // App in background → keep alive
                     streamViewModel.startForegroundKeepAlive(
@@ -324,6 +412,7 @@ fun JoinSocietyScreen(
                     // App back in foreground → stop service if you want
                     streamViewModel.stopForegroundKeepAlive()
                 }
+
                 Lifecycle.Event.ON_DESTROY -> {
                     audioRoomViewModel.roomState(
                         AudioRoomState.deleteJoinRequest(
@@ -335,12 +424,16 @@ fun JoinSocietyScreen(
                 }
 
                 else -> {}
+
             }
         }
+
         lifecycleOwner.lifecycle.addObserver(observer)
+
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
+
     }
 
     LaunchedEffect(roomId){
@@ -400,7 +493,7 @@ fun JoinSocietyScreen(
                                 UiControls.MuteMicrophone(
                                     roomId = roomId.orEmpty(),
                                     muted = it,
-                                    feedMode = FeedMode.GLOBAL,
+                                    feedMode = FeedMode.OPEN,
                                     campusId = null
                                 )
                             )
@@ -421,7 +514,7 @@ fun JoinSocietyScreen(
                                 UiControls.MuteMicrophone(
                                     roomId = roomId.orEmpty(),
                                     muted = it,
-                                    feedMode = FeedMode.GLOBAL,
+                                    feedMode = FeedMode.OPEN,
                                     campusId = null
                                 )
                             )
@@ -432,7 +525,7 @@ fun JoinSocietyScreen(
                                     UiControls.AskToSpeak(
                                         roomId = it1,
                                         isRaiseHand = !it,
-                                        feedMode = FeedMode.GLOBAL,
+                                        feedMode = FeedMode.OPEN,
                                         campusId = null
                                     )
                                 )
@@ -455,13 +548,50 @@ fun JoinSocietyScreen(
                 containerColor = Yellow,
                 contentColor = White,
                 shape = CircleShape,
-                onClick = {isBottomSheet = true}
+                onClick = {
+                    isBottomSheet = true
+                    when(chatsCount){
+                        is UiState.Success<*> -> {
+
+                            val count = (chatsCount as UiState.Success<Int>).data
+
+                            audioRoomViewModel.updateChatsCount(
+                                roomId = roomId.orEmpty(),
+                                chatCount = count
+                            )
+
+                            audioRoomViewModel.getUserChatsCount(
+                                roomId = roomId.orEmpty(),
+                                currentChatCount = count
+                            )
+
+                        }
+                        else -> {}
+                    }
+                }
             ) {
-                Icon(
-                    modifier = Modifier.size(24.dp),
-                    painter = painterResource(R.drawable.chatbubble_outline),
-                    contentDescription = "Chats"
-                )
+                BadgedBox(
+                    badge = {
+                        when(uerChatsCount){
+                            is UiState.Success<*> -> {
+                                val userChatCount = (uerChatsCount as UiState.Success<Int>).data
+                                if (userChatCount > 0){
+                                    Badge {
+                                        Text(text = (userChatCount).toString())
+                                    }
+                                }
+                            }
+                            else -> {}
+                        }
+                    }
+                ) {
+                    Icon(
+                        modifier = Modifier.size(24.dp),
+                        painter = painterResource(R.drawable.chatbubble_outline),
+                        contentDescription = "Chats"
+                    )
+                }
+
             }
         },
         floatingActionButtonPosition = FabPosition.End
@@ -503,7 +633,7 @@ fun JoinSocietyScreen(
                                 AudioRoomState.StageDown(
                                     roomId = roomId.orEmpty(),
                                     requestId = request.requestId,
-                                    feedMode = FeedMode.GLOBAL,
+                                    feedMode = FeedMode.OPEN,
                                     campusId = null
                                 )
                             )
@@ -528,7 +658,7 @@ fun JoinSocietyScreen(
                                 AudioRoomState.StageUp(
                                     roomId = it,
                                     requestId = request.requestId,
-                                    feedMode = FeedMode.GLOBAL,
+                                    feedMode = FeedMode.OPEN,
                                     campusId = null
                                 )
                             )
@@ -560,7 +690,7 @@ fun JoinSocietyScreen(
 
                             is UiState.Loading -> {
                                 item {
-                                    CircularLoading()
+                                    LoadingScreen()
                                 }
 
                             }
@@ -689,7 +819,7 @@ fun JoinSocietyScreen(
                                     messageText = ""
                                 }
                                 is UiState.Loading -> {
-                                    CircularLoading()
+                                    CircularLoading(Color.White)
                                 }
                                 else -> {
                                     Icon(
@@ -1080,7 +1210,7 @@ fun SpeakerPhoneToggle(
         Icon(
             modifier = Modifier.size(22.dp),
             painter = painterResource(
-                if (isSpeakerEnabled) R.drawable.outline_mobile_sound_off_24 else R.drawable.outline_mobile_sound_24
+                if (isSpeakerEnabled) R.drawable.round_volume_up_24 else R.drawable.round_volume_off_24
             ),
             contentDescription = null
         )

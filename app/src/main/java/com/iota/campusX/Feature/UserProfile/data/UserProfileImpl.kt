@@ -5,11 +5,14 @@ import android.net.Uri
 import android.util.Log
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.UploadCallback
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.messaging.messaging
 import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Feature.Notification.data.CreateNotification
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
@@ -32,6 +35,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -51,10 +55,10 @@ class UserProfileImpl(
 ) : UserProfileInterface {
 
     override suspend fun getUserProfile(): Flow<BaseProfileDTO?> {
-
-        return userProfileDao.getProfile(auth.currentUser!!.uid).map { it?.toDomain() }
-
+        val uid = auth.currentUser?.uid ?: return flowOf(null) // no user logged in, emit null instead of crashing
+        return userProfileDao.getProfile(uid).map { it?.toDomain() }
     }
+
 
     override suspend fun syncUserProfile(): Result<Unit> {
         return try {
@@ -117,6 +121,7 @@ class UserProfileImpl(
             Result.failure(e)
         }
     }
+
 
     override suspend fun getBaseProfile(): Result<BaseProfileDTO> {
         return try {
@@ -345,6 +350,7 @@ class UserProfileImpl(
     }
 
     override suspend fun sendLinkUpRequest(requestUserId: String, currentState: Boolean?): Result<Boolean> {
+
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
         if (userId == requestUserId) return Result.failure(Exception("You cannot send a request to yourself"))
         if (requestUserId.isEmpty()) return Result.failure(Exception("Invalid user ID"))
@@ -376,6 +382,7 @@ class UserProfileImpl(
             )
 
             if (currentState == null) {
+
                 firestore.runBatch { batch ->
                     batch.set(senderRef, senderData)
                     batch.set(receiverRef, receiverData)
@@ -434,7 +441,6 @@ class UserProfileImpl(
 
             Result.success(true)
         } catch (e: Exception) {
-            Log.d("UserProfileImpl", "acceptLinkUpRequest: ${e.message}")
             Result.failure(e)
         }
     }

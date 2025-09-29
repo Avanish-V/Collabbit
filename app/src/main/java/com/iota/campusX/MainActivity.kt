@@ -192,6 +192,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        FirebaseAuth.getInstance().currentUser?.getIdToken(true)
+            ?.addOnSuccessListener { result ->
+                val token = result.token
+                Log.d("TOKEN", token.toString())
+            }
+
+
         setContent {
 
             val themeMode by ThemePreference.getThemeMode(this).collectAsState(initial = ThemeMode.LIGHT)

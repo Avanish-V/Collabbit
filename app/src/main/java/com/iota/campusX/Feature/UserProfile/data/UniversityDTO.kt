@@ -8,5 +8,5 @@ import kotlinx.serialization.Serializable
 data class UniversityDTO(
     val name: String = "",
     val domain: String = "",
-    val logo: String = ""
+    val logo: String? = null // nullable, can accept JSON null
 )

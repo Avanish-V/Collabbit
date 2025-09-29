@@ -22,8 +22,8 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.iota.campusX" />
-                  <option name="mobileSdkAppId" value="1:1083272757839:android:b2a327225b67429b68a03a" />
+                  <option name="appId" value="com.iota.campusX.dev" />
+                  <option name="mobileSdkAppId" value="1:1083272757839:android:653fc65c092a595c68a03a" />
                   <option name="projectId" value="campusx-87d84" />
                   <option name="projectNumber" value="1083272757839" />
                 </ConnectionSetting>

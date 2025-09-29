@@ -66,6 +66,7 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.PagingListFooter
+import com.iota.campusX.Screens.Home.PagingListHeader
 import com.iota.campusX.Screens.Home.RefreshBox
 import com.iota.campusX.Screens.Post.DataModel.ContentId
 import com.iota.campusX.Screens.Post.DataModel.ContentType
@@ -74,7 +75,8 @@ import com.iota.campusX.Screens.Post.PostActions.PostAction
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.ReplyWidget
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.CircularLoading
+import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
@@ -82,7 +84,6 @@ import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.CampusWidget
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.ConnectionComponent
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.EditProfileIconButton
@@ -97,6 +98,7 @@ import com.iota.campusX.ui.UIComponents.ProfileHeader
 import org.koin.compose.getKoin
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import kotlin.div
 
 // AppUserProfileScreen.kt
 @SuppressLint("ConfigurationScreenWidthHeight")
@@ -302,12 +304,8 @@ fun AppUserProfile(
                         }
                     )
                 }
-
             }
-
         }
-
-
     }
 }
 
@@ -341,7 +339,7 @@ fun RepliesComponent(
 
             is UiState.Loading -> {
                 item {
-                    LoadingUI(modifier = Modifier.height(screenHeight/2))
+                    LoadingScreen(modifier = Modifier.height(screenHeight/2))
                 }
             }
 
@@ -352,9 +350,10 @@ fun RepliesComponent(
                 item {
                     if (data.isEmpty()) {
                         StatusScreen(
-                            modifier = Modifier.height(300.dp),
-                            text = "No Replies Yet",
-                            image = null
+                            modifier =  Modifier.height(screenHeight/2),
+                            text = "No replies yet.",
+                            description = "The posts are waiting for your input.",
+                            image = R.drawable.undraw_no_data_ig65,
                         )
                     }
                 }
@@ -576,12 +575,25 @@ fun PostScreenComponent(
     }
 
 
-
-
     LazyColumn (
         modifier = Modifier.height(height = screenHeight),
         userScrollEnabled = pinned
     ){
+
+        item {
+            PagingListHeader(
+                items = lazyPagingItems,
+                emptyContent = {
+                    StatusScreen(
+                        modifier =  Modifier.height(screenHeight/2),
+                        text = "No posts yet.",
+                        image = R.drawable.undraw_no_data_ig65,
+                        description = "Nothing here yet — share your thoughts and updates!"
+                    )
+                },
+                screenHeight = screenHeight
+            )
+        }
 
 
         items(lazyPagingItems.itemCount) { post ->
@@ -612,9 +624,6 @@ fun PostScreenComponent(
             PagingListFooter(
                 items = lazyPagingItems,
                 minItemsBeforeEnd = 16, // don’t show "No more" too early
-                loadingContent = {
-                    CircularLoading()
-                },
                 errorContent = { error -> AppLabelText("Error: ${error.message}") },
                 endContent = { AppLabelText("🎉 You’ve reached the end!") }
             )

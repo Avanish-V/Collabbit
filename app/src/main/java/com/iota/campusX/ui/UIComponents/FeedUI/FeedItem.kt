@@ -261,7 +261,6 @@ fun FeedHeader(
                 // Posted time
                 if (!postedAt.isNullOrEmpty()) {
                     Text(
-                        modifier = Modifier.alpha(0.7f),
                         text = "• $postedAt",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -273,7 +272,6 @@ fun FeedHeader(
                 creator.profile?.userBio?.takeIf { it.isNotEmpty() }?.let { bio ->
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        modifier = Modifier.alpha(0.7f),
                         text = bio,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

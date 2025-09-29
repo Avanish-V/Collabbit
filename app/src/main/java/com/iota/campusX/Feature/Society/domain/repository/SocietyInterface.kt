@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Society.domain.repository
 
+import android.net.Uri
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetChatMessage
@@ -11,13 +12,11 @@ import kotlinx.coroutines.flow.Flow
 
 interface SocietyInterface {
 
-    suspend fun createSociety(createSocietyDTO: CreateSocietyDTO): Result<Unit>
+    suspend fun createSociety(createSocietyDTO: CreateSocietyDTO,imageUri: Uri? = null): Result<Unit>
 
     suspend fun fetchSocieties(feedMode: FeedMode,campusId: String?): Result<List<GetSocietyDTO>>
 
     suspend fun fetchUserSocieties(userId: String): Result<List<GetSocietyDTO>>
-
-    suspend fun updateRoom( roomId: String,isActive:Boolean,feedMode: FeedMode,campusId: String?) : Result<Unit>
 
     suspend fun requestToJoin(roomId: String, role:String, status: Status, feedMode: FeedMode, campusId: String?) : Result<Int>
 
@@ -39,12 +38,30 @@ interface SocietyInterface {
 
     suspend fun audioRoomStatus(isActive: Boolean,roomId: String): Result<Unit>
 
+    suspend fun isRoomActive(roomId: String): Result<Boolean>
 
     suspend fun sendMessage(roomId: String, message: SetChatMessage): Result<Unit>
 
     suspend fun listenForMessages(roomId: String): Flow<Result<List<GetChatMessage>>>
 
     suspend fun deleteMessageRoom(roomId: String): Result<Unit>
+
+    suspend fun getChatsCount(roomId: String): Flow<Result<Int>>
+
+    suspend fun updateUserChatsCount(roomId: String,chatCount: Int): Result<Unit>
+
+    suspend fun getUserChatCount(roomId: String,currentMessageCount: Int): Result<Int>
+
+
+    suspend fun subscribeRoom(roomId: String): Result<Unit>
+
+    suspend fun unsubscribeRoom(roomId: String): Result<Unit>
+
+    suspend fun subscribers(roomId: String): Result<List<String>>
+
+    suspend fun hasSubscribed(roomId: String): Result<Boolean>
+
+
 
 }
 

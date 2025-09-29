@@ -10,6 +10,7 @@
 # Notification-related DTOs
 -keep class com.iota.campusX.Feature.Notification.data.** { *; }
 -keep class com.iota.campusX.Feature.Notification.domain.** { *; }
+-keep class com.iota.campusX.Feature.PushNotification.Models.** { *; }
 -keep class com.iota.campusX.Screens.Setting.** { *; }
 
 # Referenced User model

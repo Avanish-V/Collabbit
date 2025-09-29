@@ -8,49 +8,20 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1083272757839:android:b2a327225b67429b68a03a",
-        "android_client_info": {
-          "package_name": "com.iota.campusX"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "1083272757839-gq22u9p7chr12pphldasok11t9ku6e7a.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.iota.campusX",
-            "certificate_hash": "9c822cfecd8c933a9e82f9c1fd32c36432b455bb"
-          }
-        },
-        {
-          "client_id": "1083272757839-jgnafarj06d7e4em1jo4ba69df0na3mg.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAzb3s8hCxSykMD_DtdMB592kIhyi_VXSM"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1083272757839-jgnafarj06d7e4em1jo4ba69df0na3mg.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
         "mobilesdk_app_id": "1:1083272757839:android:653fc65c092a595c68a03a",
         "android_client_info": {
           "package_name": "com.iota.campusX.dev"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "1083272757839-ait7bhmbijihoj7niab8ridmvddmi8bh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.iota.campusX.dev",
+            "certificate_hash": "9c822cfecd8c933a9e82f9c1fd32c36432b455bb"
+          }
+        },
         {
           "client_id": "1083272757839-jgnafarj06d7e4em1jo4ba69df0na3mg.apps.googleusercontent.com",
           "client_type": 3

@@ -3,6 +3,7 @@ package com.iota.campusX.Feature.Society.presentation.ViewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.PushNotification.FcmNotificationSender
 import com.iota.campusX.Feature.Society.domain.models.GetJoinRequestDTO
 import com.iota.campusX.Feature.Society.domain.models.Status
 import com.iota.campusX.Feature.Society.domain.models.GetChatMessage
@@ -17,27 +18,44 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class AudioRoomViewModel(private val societyRepository: SocietyInterface): ViewModel() {
+class AudioRoomViewModel(
+    private val societyRepository: SocietyInterface,
+    private val notificationSender: FcmNotificationSender
+): ViewModel() {
 
 
-    private val _joinRequests = MutableStateFlow<UiState<List<GetJoinRequestDTO>>>(UiState.Idle)
+    private val _joinRequests = MutableStateFlow<UiState<List<GetJoinRequestDTO>>>(Idle)
     val joinRequests: StateFlow<UiState<List<GetJoinRequestDTO>>> = _joinRequests.asStateFlow()
 
     private val _society = MutableStateFlow<UiState<Unit>>(Idle)
     val society: StateFlow<UiState<Unit>> = _society.asStateFlow()
 
-    private val _chatMessages = MutableStateFlow<UiState<List<GetChatMessage>>>(UiState.Idle)
+    private val _chatMessages = MutableStateFlow<UiState<List<GetChatMessage>>>(Idle)
     val chatMessages: StateFlow<UiState<List<GetChatMessage>>> = _chatMessages.asStateFlow()
 
-    private val _sendMessageState : MutableStateFlow<UiState<Unit>> = MutableStateFlow(UiState.Idle)
+    private val _sendMessageState : MutableStateFlow<UiState<Unit>> = MutableStateFlow(Idle)
     val sendMessageState : StateFlow<UiState<Unit>> = _sendMessageState.asStateFlow()
+
+    private val _chatsCount : MutableStateFlow<UiState<Int>> = MutableStateFlow(Idle)
+    val chatsCount : StateFlow<UiState<Int>> = _chatsCount.asStateFlow()
+
+
+    private val _userChatsCount : MutableStateFlow<UiState<Int>> = MutableStateFlow(Idle)
+    val userChatsCount : StateFlow<UiState<Int>> = _userChatsCount.asStateFlow()
+
+
+    private val _subscribers : MutableStateFlow<UiState<List<String>>> = MutableStateFlow(Idle)
+    val subscribers : StateFlow<UiState<List<String>>> = _subscribers.asStateFlow()
+
+    private val _isRoomActive : MutableStateFlow<UiState<Boolean>> = MutableStateFlow(Idle)
+    val isRoomActive : StateFlow<UiState<Boolean>> = _isRoomActive.asStateFlow()
 
 
     //--------------------------------------------Audio Room State----------------------------------------------------------------------
 
     fun sendChatMessage(chatMessage: SetChatMessage, roomId: String){
         viewModelScope.launch {
-            _sendMessageState.value = UiState.Loading
+            _sendMessageState.value = Loading
              val result =   societyRepository.sendMessage(roomId = roomId, message = chatMessage)
             _sendMessageState.value = result.fold(
                 onSuccess = {
@@ -48,35 +66,81 @@ class AudioRoomViewModel(private val societyRepository: SocietyInterface): ViewM
                 }
             )
             delay(2000)
-            _sendMessageState.value = UiState.Idle
+            _sendMessageState.value = Idle
         }
     }
 
     fun fetchChatMessages(roomId: String){
         viewModelScope.launch {
-            _chatMessages.value = UiState.Loading
+            _chatMessages.value = Loading
             val result = societyRepository.listenForMessages(roomId)
              result.collect { chat->
                 chat.fold(
                     onSuccess = {chatMessage->
-                       _chatMessages.value = UiState.Success(chatMessage.sortedByDescending { it.createdAt})
+                       _chatMessages.value = Success(chatMessage.sortedByDescending { it.createdAt})
                     },
                     onFailure = {
-                        _chatMessages.value = UiState.Error(it.message.toString())
+                        _chatMessages.value = Error(it.message.toString())
                     }
                 )
             }
         }
     }
 
+    fun listenChatCount(roomId: String){
+        viewModelScope.launch {
+            _chatsCount.value = Loading
 
+            val result = societyRepository.getChatsCount(roomId)
+            result.collect {
+                _chatsCount.value = it.fold(
+                    onSuccess = {
+                        Success(it)
+                    },
+                    onFailure = {
+                        Error(it.message.toString())
+                    }
+                )
+            }
+        }
+    }
+
+    fun updateChatsCount(roomId: String,chatCount: Int){
+        viewModelScope.launch {
+            societyRepository.updateUserChatsCount(roomId, chatCount)
+        }
+    }
+
+    fun getUserChatsCount(roomId: String,currentChatCount: Int){
+        viewModelScope.launch {
+            _userChatsCount.value = Loading
+            val result = societyRepository.getUserChatCount(roomId,currentChatCount)
+            _userChatsCount.value = result.fold(
+                onSuccess = {
+                    Success(it)
+                },
+                onFailure = {
+                    Error(it.message.toString())
+                }
+            )
+        }
+
+    }
 
     fun roomState(audioRoomState: AudioRoomState) = viewModelScope.launch {
 
         when(audioRoomState){
 
-            is AudioRoomState.IsRoomActive -> {
+            is AudioRoomState.SetRoomActive -> {
                 val result = societyRepository.audioRoomStatus(roomId = audioRoomState.roomId, isActive = audioRoomState.isActive)
+                _society.value = result.fold(
+                    onSuccess = {
+                        Success(Unit)
+                    },
+                    onFailure = {
+                        Error(it.message.toString())
+                    }
+                )
             }
 
             is AudioRoomState.StartListening -> {
@@ -146,6 +210,45 @@ class AudioRoomViewModel(private val societyRepository: SocietyInterface): ViewM
             is AudioRoomState.DeleteMessageRoom -> {
                 val result = societyRepository.deleteMessageRoom(audioRoomState.roomId)
             }
+
+            is AudioRoomState.GetSubscribers -> {
+
+                val result = societyRepository.subscribers(audioRoomState.roomId)
+                _subscribers.value = result.fold(
+                    onSuccess = {
+                        Success(it)
+                    },
+                    onFailure = {
+                         Error(it.message.toString())
+                    }
+                )
+            }
+
+            is AudioRoomState.SendNotificationTOSubscriber -> {
+
+                if (audioRoomState.subscriber.isNotEmpty()){
+
+                    audioRoomState.subscriber.forEach { subscriber->
+                        notificationSender.sendFcmNotification(
+                            userFcmToken = subscriber,
+                            bodyText = audioRoomState.message,
+                            title = audioRoomState.roomTitle
+                        )
+                    }
+                }
+            }
+
+            is AudioRoomState.IsRoomActive -> {
+                val result = societyRepository.isRoomActive(audioRoomState.roomId)
+                result.fold(
+                    onSuccess = {
+                        _isRoomActive.value = Success(it)
+                    },
+                    onFailure = {
+                        _isRoomActive.value = Error(it.message.toString())
+                    }
+                )
+            }
         }
 
     }
@@ -173,7 +276,9 @@ class AudioRoomViewModel(private val societyRepository: SocietyInterface): ViewM
 
 sealed class AudioRoomState {
 
-    data class IsRoomActive(val roomId: String,val isActive: Boolean) : AudioRoomState()
+    data class SetRoomActive(val roomId: String, val isActive: Boolean) : AudioRoomState()
+
+    data class IsRoomActive(val roomId: String) : AudioRoomState()
 
     data class StartListening(val roomId: String) : AudioRoomState()
 
@@ -188,6 +293,10 @@ sealed class AudioRoomState {
     data class ClearAudioRoom(val roomId: String) : AudioRoomState()
 
     data class DeleteMessageRoom(val roomId: String) : AudioRoomState()
+
+    data class GetSubscribers(val roomId: String) : AudioRoomState()
+
+    data class SendNotificationTOSubscriber(val subscriber: List<String>,val roomTitle: String, val message: String) : AudioRoomState()
 
 }
 

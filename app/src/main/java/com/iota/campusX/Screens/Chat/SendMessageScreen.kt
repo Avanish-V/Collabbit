@@ -188,7 +188,7 @@ fun SendMessageScreen(
     Scaffold(
         topBar = {
             ChatTopBar(userName, userImage, isActive,navHostController) {
-                navHostController.navigate(Routes.Main.Profile.toString()).apply {
+                navHostController.navigate(Routes.Main.ProfileByID.routes).apply {
                     navHostController.currentBackStackEntry?.savedStateHandle?.set("USER_ID", userUUID)
                 }
             }

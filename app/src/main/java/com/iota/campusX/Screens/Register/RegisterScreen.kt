@@ -52,7 +52,7 @@ import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardin
 import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardingScreen
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.ui.UIComponents.CircularLoading
+import com.iota.campusX.Utils.CircularLoading
 import org.koin.compose.koinInject
 
 @Composable
@@ -155,7 +155,7 @@ fun SignInScreen(navHostController: NavHostController) {
                             }
 
                             is AuthResult.Loading -> {
-                                CircularLoading()
+                                CircularLoading(Color.White)
                             }
                             is AuthResult.SignedIn -> {
                                 navHostController.navigate(Routes.Main.Home.routes)

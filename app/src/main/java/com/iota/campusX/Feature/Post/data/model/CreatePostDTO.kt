@@ -14,7 +14,7 @@ data class CreatePostDTO(
     val creatorId: String = "",
     val reference: Reference? = null,
     val campusId: String? = null,
-    val feedMode: FeedMode = FeedMode.GLOBAL,
+    val feedMode: FeedMode = FeedMode.OPEN,
     val type: Type = Type.Media,
     val mediaType: MediaType = MediaType.Image,
     val postText: String = "",
@@ -24,11 +24,11 @@ data class CreatePostDTO(
 )
 
 
-data class Campus(
-    val campusId: String = "",
-    val campusName: String = "",
-    val campusImage: String = ""
-)
+//data class Campus(
+//    val campusId: String = "",
+//    val campusName: String = "",
+//    val campusImage: String = ""
+//)
 
 
 @Serializable

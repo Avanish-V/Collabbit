@@ -1,6 +1,10 @@
 package com.iota.campusX.Feature.Post.presentation
 
+import SendPushNotification
 import android.net.Uri
+import android.util.Log
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cloudinary.android.MediaManager
@@ -10,6 +14,7 @@ import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.MediaType
+import com.iota.campusX.Feature.Post.data.model.Poll
 import com.iota.campusX.Feature.Post.data.model.PostActions
 import com.iota.campusX.Feature.Post.data.model.PostContent
 import com.iota.campusX.Feature.Post.data.model.PostType
@@ -20,10 +25,9 @@ import com.iota.campusX.Feature.Post.domain.UseCases.CreatePollUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePostUseCase
 import com.iota.campusX.Feature.Post.domain.repository.PostRepository
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
-import com.iota.campusX.Feature.Post.data.model.Poll
 import com.iota.campusX.Utils.FirestoreIdGenerator
-import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,18 +38,27 @@ class PostCreationViewModel(
     private val createPostUseCase: CreatePostUseCase,
     private val createPollUseCase: CreatePollUseCase,
     private val postRepository: PostRepository,
-    private val userProfileRepository: UserProfileRepository,
-    private val mediaManager: MediaManager
+    private val profileRepository: UserProfileRepository,
+    private val mediaManager: MediaManager,
+    private val sendPushNotification: SendPushNotification,
+    private val profileInterface: UserProfileInterface
+
 ) : ViewModel() {
 
-    val profile: StateFlow<UiState<BaseProfileDTO>> = userProfileRepository.currentUser
+    private var currentUser: MutableState<BaseProfileDTO?> = mutableStateOf(null)
 
-    val currentUser = when(profile.value){
-        is UiState.Success<*> -> {
-            (profile.value as UiState.Success<BaseProfileDTO>).data
+
+    init {
+
+        viewModelScope.launch {
+            val user = profileInterface.getUserProfile()
+            user.collect {
+                currentUser.value = it
+            }
         }
-        else -> null
     }
+
+
     private val _uploadState = MutableStateFlow<UploadState>(UploadState.Idle)
     val uploadState: StateFlow<UploadState> = _uploadState
 
@@ -107,12 +120,15 @@ class PostCreationViewModel(
 
                 is PostType.MediaPost -> {
 
+                    Log.d("CREATOR_DETAIL", "uploadPost: ${currentUser.value}")
+
                    val result =  createPostUseCase.invoke(postType)
 
                    result.collect {
                        _uploadState.value = it
                        when(it){
                            is UploadState.Success -> {
+                               Log.d("CREATOR_DETAIL", "uploadPost: ${postType.postId}")
                                val millis: Long = System.currentTimeMillis()
                                val timestamp = Timestamp(Date(millis))
                                postRepository.addPostLocally(
@@ -121,13 +137,13 @@ class PostCreationViewModel(
                                        createdAt = timestamp,
                                        creatorDetail = CreatorDetail(
                                            profile = UserBasicDetail(
-                                               userName = currentUser?.userName ?: "",
-                                               id = currentUser?.id ?: "",
-                                               userImage = currentUser?.userImage ?: "",
-                                               userBio = currentUser?.userBio ?: "",
+                                               userName = currentUser.value?.userName ?: "",
+                                               id = currentUser.value?.id ?: "",
+                                               userImage = currentUser.value?.userImage ?: "",
+                                               userBio = currentUser.value?.userBio ?: "",
                                            ),
                                            isCurrentUser = true,
-                                           isVerified = currentUser?.metaData?.verified ?: false
+                                           isVerified = currentUser.value?.metaData?.verified ?: false
                                        ),
                                        feedMode = postType.feedMode,
                                        visibilityMode = postType.visibilityMode,
@@ -141,6 +157,15 @@ class PostCreationViewModel(
                                        mediaType = postType.mediaType
                                    )
                                )
+
+                               if (postType.feedMode == FeedMode.CAMPUS){
+                                   sendPushNotification.sendNotificationToSubscriber(
+                                       topic = postType.campusId,
+                                       title = "📢 New Campus Post",
+                                       body = shortenContent(postType.postText,30)
+                                   )
+                               }
+
                                resetState()
                            }
                            is UploadState.Error -> {
@@ -148,14 +173,10 @@ class PostCreationViewModel(
                            }
                            else -> {}
                        }
-
-
                    }
                 }
                 is PostType.PollPost -> {
-
                     val result = createPollUseCase.invoke(postType)
-
                     result.fold(
                         onSuccess = {
                             val millis: Long = System.currentTimeMillis()
@@ -166,19 +187,19 @@ class PostCreationViewModel(
                                     createdAt = timestamp,
                                     creatorDetail = CreatorDetail(
                                         profile = UserBasicDetail(
-                                            userName = currentUser?.userName ?: "",
-                                            id = currentUser?.id ?: "",
-                                            userImage = currentUser?.userImage ?: "",
-                                            userBio = currentUser?.userBio ?: "",
+                                            userName = currentUser.value?.userName ?: "",
+                                            id = currentUser.value?.id ?: "",
+                                            userImage = currentUser.value?.userImage ?: "",
+                                            userBio = currentUser.value?.userBio ?: "",
                                         ),
                                         isCurrentUser = true,
-                                        isVerified = currentUser?.metaData?.verified ?: false
+                                        isVerified = currentUser.value?.metaData?.verified ?: false
                                     ),
                                     feedMode = postType.feedMode,
                                     visibilityMode = postType.visibilityMode,
                                     campusId = postType.campusId,
                                     postContent = PostContent(
-                                       poll = postType.poll
+                                        poll = postType.poll
                                     ),
                                     postActions = PostActions(),
                                     type = postType.type,
@@ -231,3 +252,9 @@ sealed class UploadState {
 }
 
 
+fun shortenContent(content: String, maxLength: Int = 80): String {
+    val clean = content.replace("\n", " ") // remove line breaks
+    return if (clean.length > maxLength) {
+        clean.take(maxLength) + "…"
+    } else clean
+}

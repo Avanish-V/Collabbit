@@ -39,13 +39,7 @@ class ReplyRepoImpl(
     private val firestore: FirebaseFirestore,
 ) : ReplyRepositoryInterface {
 
-    override suspend fun createReply(
-        replyId: String,
-        postId: String,
-        content: String,
-        postCreatorId: String,
-        visibilityMode: VisibilityMode
-    ): Result<Unit> {
+    override suspend fun createReply(replyId: String, postId: String, content: String, postCreatorId: String, visibilityMode: VisibilityMode): Result<Unit> {
         return try {
 
             val currentUserId = auth.currentUser?.uid ?: return Result.failure(
@@ -104,7 +98,9 @@ class ReplyRepoImpl(
 
 
                 sendPushNotification.messageNotification(
-                    notificationReceiverId = postCreatorId, notificationType = "COMMENTED"
+                    notificationReceiverId = postCreatorId,
+                    notificationType = "COMMENTED",
+                    visibilityMode = visibilityMode
                 )
             }
 
@@ -114,9 +110,7 @@ class ReplyRepoImpl(
         }
     }
 
-    override suspend fun getReplies(
-        postId: String, campusId: String?, feedMode: FeedMode
-    ): Result<List<GetRepliesDTO>> {
+    override suspend fun getReplies(postId: String, campusId: String?, feedMode: FeedMode): Result<List<GetRepliesDTO>> {
         return try {
             val baseCollection = firestore.collection("Posts")
             val repliesSnapshot = baseCollection.document(postId).collection("Replies").get().await()
@@ -142,13 +136,7 @@ class ReplyRepoImpl(
         }
     }
 
-
-    override suspend fun likeReply(
-        repliedById: String,
-        postId: String,
-        replyId: String,
-        isLiked: Boolean,
-    ): Result<Unit> = suspendCoroutine { cont ->
+    override suspend fun likeReply(repliedById: String, postId: String, replyId: String, isLiked: Boolean, ): Result<Unit> = suspendCoroutine { cont ->
 
         //val baseCollection = getBaseCollection(feedMode = feedMode, campusId = campusId, firestore = firestore)
         val baseCollection = firestore.collection("Posts")
@@ -232,13 +220,24 @@ class ReplyRepoImpl(
     override suspend fun fetchUserReplies(userId: String): Result<List<UserReplyDTO>> {
         return try {
 
-            val repliesSnapshot = firestore.collection("Users")
-                .document(userId)
-                .collection("Replies")
-                .get()
-                .await()
+            val repliesSnapshot = if (userId == auth.currentUser?.uid){
+                firestore.collection("Users")
+                    .document(userId)
+                    .collection("Replies")
+                    .get()
+                    .await()
+            }else{
+                firestore.collection("Users")
+                    .document(userId)
+                    .collection("Replies")
+                    .whereEqualTo("visibility", VisibilityMode.USER)
+                    .get()
+                    .await()
+            }
+
 
             val baseCollection = firestore.collection("Posts")
+
             val currentUserId = auth.currentUser?.uid
 
             val data = coroutineScope {
@@ -283,8 +282,8 @@ class ReplyRepoImpl(
             Result.failure(e)
         }
     }
-}
 
+}
 private suspend fun mapReplyDocumentToDTO(
     replyDoc: DocumentSnapshot,
     baseCollection: CollectionReference,
@@ -387,6 +386,12 @@ suspend fun fetchPostDTO(
         val postUserImage = postUserDoc.getString("userImage").orEmpty()
         val isVerified = postUserDoc.getBoolean("verified") ?: false
 
+        val visibility = visibilityMode(
+            visibilityMode = postData.visibilityMode,
+            userImage = postUserImage,
+            userName = postUserName
+        )
+
         GetPostDTO(
             postId = postData.postId,
             createdAt = postData.createdAt,
@@ -397,8 +402,8 @@ suspend fun fetchPostDTO(
                 isPremium = false,
                 profile = UserBasicDetail(
                     id = postData.creatorId,
-                    userName = postUserName,
-                    userImage = postUserImage
+                    userName = visibility.first,
+                    userImage = visibility.second
                 )
             ),
             feedMode = postData.feedMode,

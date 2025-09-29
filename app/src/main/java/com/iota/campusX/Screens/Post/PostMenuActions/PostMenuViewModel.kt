@@ -7,6 +7,7 @@ import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.ReportReason
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -42,13 +43,14 @@ class PostMenuViewModel(
 
            _actionResult.value =  result.fold(
                 onSuccess = {
-
                   UiState.Success(Unit)
                 },
                 onFailure = {
                     UiState.Error(it.message.toString())
                 }
             )
+            delay(2000)
+            _actionResult.value = UiState.Idle
 
         }
     }

@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -12,11 +11,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,9 +24,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -61,14 +57,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -93,11 +87,12 @@ import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.CircularLoading
+import com.iota.campusX.Utils.LoadingScreen
+import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AppLabelText
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.FeedUI.FeedItem
@@ -131,7 +126,7 @@ fun MainScreen(
     val switchState = homeViewModel.mode.collectAsState().value
     val chatBadgeCount by notificationViewModel.chatCount.collectAsState()
 
-    val tabs by remember { mutableStateOf(listOf("Global", "Campus")) }
+    val tabs by remember { mutableStateOf(listOf("Open", "Campus")) }
 
     LaunchedEffect(Unit) {
         notificationViewModel.getChatCount()
@@ -147,8 +142,8 @@ fun MainScreen(
                     Image(
                         painter = painterResource(if (isSystemInDarkTheme()) R.drawable.app_logo else R.drawable.app_logo),
                         contentDescription = "Logo",
-                        modifier = Modifier.size(42.dp),
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                        modifier = Modifier.size(32.dp),
+                       // colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
                     )
                 },
                 actions = {
@@ -159,20 +154,11 @@ fun MainScreen(
                         BadgedBox(
                             badge = {
                                 if (chatBadgeCount != 0) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(14.dp)
-                                            .background(Color.Red, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                                    Badge {
                                         Text(
-                                            chatBadgeCount.toString(),
-                                            color = Color.White,
-                                            fontSize = 8.sp,
-                                            lineHeight = 10.sp
+                                            text = chatBadgeCount.toString(),
                                         )
                                     }
-
                                 }
                             }
                         ) {
@@ -181,9 +167,12 @@ fun MainScreen(
                             ) {
                                 Icon(
 
-                                    modifier = Modifier.size(22.dp).rotate(-45f),
-                                    painter = painterResource(R.drawable.send_solid),
-                                    contentDescription = "Message"
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .rotate(-45f),
+                                    painter = painterResource(R.drawable.send_regular),
+                                    contentDescription = "Message",
+                                    tint = MaterialTheme.colorScheme.onBackground
                                 )
                             }
                         }
@@ -204,11 +193,13 @@ fun MainScreen(
         },
     ) { innerPadding ->
 
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)) {
             when {
                 feedMode != null -> {
 
-                    val currentPage = if (feedMode == FeedMode.GLOBAL) 0 else 1
+                    val currentPage = if (feedMode == FeedMode.OPEN) 0 else 1
 
                     val pagerState = rememberPagerState(
                         initialPage = currentPage,
@@ -216,7 +207,7 @@ fun MainScreen(
                     )
 
                     LaunchedEffect(pagerState.currentPage) {
-                        val selectedMode = if (pagerState.currentPage == 0) FeedMode.GLOBAL else FeedMode.CAMPUS
+                        val selectedMode = if (pagerState.currentPage == 0) FeedMode.OPEN else FeedMode.CAMPUS
                         homeViewModel.saveSwitchState(selectedMode)
                     }
 
@@ -358,7 +349,7 @@ fun FeedComponent(
 
     LaunchedEffect(feedMode,profileData) {
         when (feedMode) {
-            FeedMode.GLOBAL -> {
+            FeedMode.OPEN -> {
                 if (globalPostState.itemCount == 0){
                     postFeedViewModel.fetchGlobalPost()
                 }
@@ -384,7 +375,7 @@ fun FeedComponent(
         1 -> {
             when(profileState){
                 is UiState.Loading -> {
-                    LoadingUI()
+                    LoadingScreen()
                 }
                 is UiState.Success->{
                     if (profileData?.campus?.campusCode.isNullOrEmpty()){
@@ -478,6 +469,14 @@ fun FeedUiRenderer(
 
         PagingListHeader(
             items = feedData,
+            emptyContent = {
+                StatusScreen(
+                    modifier =  Modifier.fillMaxSize(),
+                    text = "No posts yet.",
+                    image = R.drawable.undraw_no_data_ig65,
+                    description = "Share your thoughts or updates to let the world\nknow more about you!"
+                )
+            }
         )
 
         LazyColumn(
@@ -537,7 +536,7 @@ fun <T : Any> PagingListFooter(
     modifier: Modifier = Modifier,
     minItemsBeforeEnd: Int = 0, // show "No more" only after some data is loaded
     loadingContent: @Composable (() -> Unit)? = {
-        CircularLoading()
+        CircularLoading(MaterialTheme.colorScheme.primary)
     },
     errorContent: @Composable ((Throwable) -> Unit)? = { error ->
         AppLabelText(text = error.localizedMessage ?: "Something went wrong.")
@@ -573,16 +572,17 @@ fun <T : Any> PagingListFooter(
 fun <T : Any> PagingListHeader(
     items: LazyPagingItems<T>,
     modifier: Modifier = Modifier,
+    screenHeight: Dp? = null,
     loadingContent: @Composable (() -> Unit)? = {
         if (items.itemCount == 0){
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularLoading()
-            }
+            LoadingScreen(
+                modifier = if (screenHeight == null) Modifier.fillMaxSize() else Modifier.height(screenHeight/2),
+            )
         }
     },
     errorContent: @Composable ((Throwable) -> Unit)? = { error ->
         ErrorScreen(
-            text = error.localizedMessage ?: "Something went wrong.",
+            text = "Something went wrong.",
             image = R.drawable.undraw_page_not_found_6wni,
             onReTry = {
                 items.retry()
@@ -591,28 +591,27 @@ fun <T : Any> PagingListHeader(
         )
 
     },
-    emptyContent: @Composable (() -> Unit)? = {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            AppLabelText(text = "No data available.")
-        }
-
-    }
+    emptyContent: @Composable (() -> Unit)? = {}
 ) {
     Box(
-        modifier = modifier.fillMaxWidth().heightIn(min = 62.dp),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         when (val refresh = items.loadState.refresh) {
-            is LoadState.Loading -> loadingContent?.invoke()
+            is LoadState.Loading -> {
+                loadingContent?.invoke()
+            }
             is LoadState.Error -> {
                 errorContent?.invoke(refresh.error)
                 return
             }
             is LoadState.NotLoading -> {
-                if (items.itemCount == 0) {
+                val endOfPaginationReached = items.loadState.append.endOfPaginationReached
+                if (items.itemCount == 0 && endOfPaginationReached) {
                     emptyContent?.invoke()
                 }
             }
         }
+
     }
 }

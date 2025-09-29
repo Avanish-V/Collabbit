@@ -14,8 +14,7 @@ import kotlinx.coroutines.launch
 
 class FollowersViewModel(private val followersRepository: FollowRepositoryInterface): ViewModel() {
 
-    private val _followersState : MutableStateFlow<UiState<List<ConnectionsDTO>>> =
-        MutableStateFlow(UiState.Idle)
+    private val _followersState : MutableStateFlow<UiState<List<ConnectionsDTO>>> = MutableStateFlow(UiState.Idle)
     val followersState : StateFlow<UiState<List<ConnectionsDTO>>> = _followersState.asStateFlow()
 
     private val followState : MutableState<UiState<Boolean>> = mutableStateOf(UiState.Idle)
@@ -26,6 +25,22 @@ class FollowersViewModel(private val followersRepository: FollowRepositoryInterf
         followState.value = UiState.Loading
 
         val result = followersRepository.follow(userId)
+
+        result.fold(
+            onSuccess = {
+                followState.value = UiState.Success(it)
+            },
+            onFailure = {
+                followState.value = UiState.Error(it.message.toString())
+            }
+        )
+
+    }
+    fun unfollowUser(userId: String) = viewModelScope.launch {
+
+        followState.value = UiState.Loading
+
+        val result = followersRepository.unfollow(userId)
 
         result.fold(
             onSuccess = {

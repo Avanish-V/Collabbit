@@ -10,7 +10,7 @@ data class GetPostDTO(
     @Contextual
     val createdAt: Timestamp? = null, // or Date with Contextual
     val creatorDetail: CreatorDetail = CreatorDetail(),
-    val feedMode: FeedMode = FeedMode.GLOBAL,
+    val feedMode: FeedMode = FeedMode.OPEN,
     val reference: Reference?=null,
     val visibilityMode: VisibilityMode = VisibilityMode.USER,
     val campusId: String?=null,

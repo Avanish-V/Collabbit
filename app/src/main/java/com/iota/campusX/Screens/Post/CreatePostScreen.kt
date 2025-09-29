@@ -67,7 +67,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -91,18 +90,15 @@ import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.HomeViewModel
+import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AnimatedStatus
 import com.iota.campusX.ui.UIComponents.AnonymousImage
 import com.iota.campusX.ui.UIComponents.AppLabelText
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.IconButtonWidget
 import com.iota.campusX.ui.UIComponents.SimpleDropDown
-import com.iota.campusX.ui.theme.Black300
-import com.iota.campusX.ui.theme.LightTheme_Blue
-import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -223,12 +219,12 @@ fun CreatePostScreen(
                     feedMode?.let {
                         SimpleDropDown(
                             modifier = Modifier.padding(end = 12.dp),
-                            fieldOptions = listOf("Campus", "Global"),
+                            fieldOptions = listOf("Campus", "Open"),
                             currentMode = it,
                             selectedField = selectedFeedMode,
                             onFieldChange = {
                                 selectedFeedMode = it
-                                val newMode = if (it == "Campus") FeedMode.CAMPUS else FeedMode.GLOBAL
+                                val newMode = if (it == "Campus") FeedMode.CAMPUS else FeedMode.OPEN
                                 homeViewModel.saveSwitchState(newMode)
                                 context.vibrate()
                             },
@@ -311,7 +307,7 @@ fun CreatePostScreen(
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(text = "Visibility", style = MaterialTheme.typography.titleMedium)
-                    AppLabelText(text = if (feedMode?.name == FeedMode.GLOBAL.name) "This post will be visible to all campuses." else "Only campus users can see.",)
+                    AppLabelText(text = if (feedMode?.name == FeedMode.OPEN.name) "This post will be visible to all campuses." else "Only campus users can see.",)
                 }
             }
 
@@ -675,7 +671,7 @@ fun BottomBarComponent(
 
         ) {
             if (isLoading){
-                CircularLoading()
+                CircularLoading(Color.White)
             }
             else{
                 Text(text = "Post")

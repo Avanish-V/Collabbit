@@ -33,8 +33,7 @@ import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
 import com.iota.campusX.Navigation.Routes
-import com.iota.campusX.Screens.ConnectionsItemView
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.CircleImage
@@ -100,7 +99,7 @@ fun Followers(
                             },
                             connectionData = it,
                             onRejectClick = {
-
+                                followersViewModel.unfollowUser(it)
                             },
                             title = "Unfollow"
                         )
@@ -109,7 +108,7 @@ fun Followers(
                 }
             }
             is UiState.Loading -> {
-                LoadingUI()
+                LoadingScreen()
             }
             is UiState.Error -> {
                 ErrorScreen(
@@ -129,7 +128,7 @@ fun Followers(
 fun FollowersItemView(
     onItemClick: () -> Unit,
     connectionData: ConnectionsDTO,
-    onRejectClick: () -> Unit,
+    onRejectClick: (String) -> Unit,
     title : String
 ) {
     Card(
@@ -172,6 +171,11 @@ fun FollowersItemView(
 
             }
 
+//            if (connectionData.isCurrentUser){
+//                TextButton(onClick = {onRejectClick.invoke(connectionData.id)}) {
+//                    Text(text = title, style = typography.titleSmall)
+//                }
+//            }
         }
     }
 }

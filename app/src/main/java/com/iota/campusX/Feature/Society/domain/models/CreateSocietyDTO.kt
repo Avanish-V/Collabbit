@@ -9,11 +9,10 @@ data class CreateSocietyDTO(
     val createdBy: String = "",
     val roomId: String = "",
     val joined: List<String> = emptyList(),
-    val mode: FeedMode = FeedMode.GLOBAL,
+    val mode: FeedMode = FeedMode.OPEN,
     val campusId: String? = null,
     val active: Boolean = false,
-
-
+    val imageUrl:String  = ""
 )
 
 data class GetSocietyDTO(
@@ -22,9 +21,10 @@ data class GetSocietyDTO(
     val roomId: String = "",
     val createdBy: UserBasicDetail = UserBasicDetail(),
     val joined: List<String> = emptyList(),
-    val mode: FeedMode = FeedMode.GLOBAL,
+    val mode: FeedMode = FeedMode.OPEN,
     val campusId: String? = null,
     val active: Boolean = false,
-    val isCurrentUser: Boolean = false
+    val isCurrentUser: Boolean = false,
+    val imageUrl:String  = ""
 )
 

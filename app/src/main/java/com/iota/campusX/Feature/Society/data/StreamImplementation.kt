@@ -27,7 +27,7 @@ class StreamImplementation : StreamRepository {
         if (mRtcEngine != null) {
 
         }
-        val myAppId = "8be7292d7bb44b46b541bc72316ebc5a"
+        val myAppId = "6d585e965b494e3fad2e6c854a15ef8d"
 
         val iRtcEngineEventHandler = object : IRtcEngineEventHandler() {
             override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {

@@ -10,7 +10,7 @@ data class CreateReplyDTO(
     val content: String = "",
     val isEdited: Boolean = false,
     val visibility: VisibilityMode = VisibilityMode.USER,
-    val feedMode: FeedMode = FeedMode.GLOBAL,
+    val feedMode: FeedMode = FeedMode.OPEN,
     val repliedAt: Long = 0L
 )
 
@@ -22,7 +22,7 @@ data class GetRepliesDTO(
     val creatorDetail: CreatorDetail = CreatorDetail(),
     val content: String = "",
     val visibility: VisibilityMode = VisibilityMode.USER,
-    val feedMode: FeedMode = FeedMode.GLOBAL,
+    val feedMode: FeedMode = FeedMode.OPEN,
     val actions: PostActions = PostActions(),
     val repliedAt: Long = 0L
 )

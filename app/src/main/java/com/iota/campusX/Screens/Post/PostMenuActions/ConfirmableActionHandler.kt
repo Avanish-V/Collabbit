@@ -51,7 +51,8 @@ fun ActionHandler(
                 dismissButton = {
                     TextButton(onClick = onDismiss) { Text("Cancel") }
                 },
-                shape = MaterialTheme.shapes.small
+                shape = MaterialTheme.shapes.small,
+                containerColor = MaterialTheme.colorScheme.background
             )
         }
         MenuAction.Edit -> {

@@ -1,20 +1,34 @@
 package com.iota.campusX.Feature.UserProfile.presentation
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.messaging.messaging
+import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
 import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Utils.UiState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class UpdateProfileViewModel(
     private val userProfileRepo: UserProfileInterface,
     private val userProfileRepository: UserProfileRepository
@@ -25,6 +39,13 @@ class UpdateProfileViewModel(
 
     private val _events = Channel<Event>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
+
+
+    private val searchQuery = MutableStateFlow("")
+
+    private val _universityData = MutableStateFlow<UiState<List<UniversityDTO>>>(UiState.Idle)
+    val universityData: StateFlow<UiState<List<UniversityDTO>>> = _universityData.asStateFlow()
+
 
 
     sealed class Event {
@@ -41,8 +62,7 @@ class UpdateProfileViewModel(
 
         data class SocialAccount(val value: String) : ProfileMutation()
         data class Interests(val value: List<String>) : ProfileMutation()
-        data class Campus(val value: com.iota.campusX.Feature.UserProfile.data.Campus) :
-            ProfileMutation()
+        data class Campus(val value: com.iota.campusX.Feature.UserProfile.data.Campus,val oldCampusId: String?) : ProfileMutation()
 
         data class ProfileImage(val uri: Uri) : ProfileMutation()
         object DeleteAccount : ProfileMutation()
@@ -101,6 +121,7 @@ class UpdateProfileViewModel(
 
         result.fold(
             onSuccess = {
+                userProfileRepo.syncUserProfile()
                 _state.value = UiState.Success(Unit)
                 delay(1000)
                 _state.value = UiState.Idle
@@ -118,8 +139,18 @@ class UpdateProfileViewModel(
 
                 _events.send(Event.ShowMessage(message))
 
-                if (mutation is ProfileMutation.DeleteAccount) {
-                    _events.send(Event.NavigateToBack)
+                if (mutation is ProfileMutation.Campus) {
+                    if (mutation.oldCampusId == mutation.value.campusCode){
+                        mutation.value.campusCode?.let { topic -> Firebase.messaging.subscribeToTopic(topic) }
+                    }else{
+
+                        mutation.oldCampusId?.let {
+                            topic -> Firebase.messaging.unsubscribeFromTopic(topic).addOnSuccessListener {}
+                        }
+                        mutation.value.campusCode?.let {
+                            topic -> Firebase.messaging.subscribeToTopic(topic).addOnSuccessListener {}
+                        }
+                    }
                 }
             },
             onFailure = { e ->
@@ -130,10 +161,50 @@ class UpdateProfileViewModel(
         )
     }
 
+    fun onUniversityQueryChanged(query: String) {
+        searchQuery.value = query
+    }
+
+    init {
+        viewModelScope.launch {
+            searchQuery
+                .debounce(1000) // 500ms debounce delay
+                .filter { it.isNotBlank() && it.length > 3 }
+                .distinctUntilChanged()
+                .flatMapLatest { query ->
+                    userProfileRepo.updateUniversity(query)
+                }
+                .onStart { _universityData.value = UiState.Loading }
+                .catch { e ->
+                    _universityData.value = UiState.Error("Unexpected error: ${e.localizedMessage ?: "Unknown"}")
+                }
+                .collect { result ->
+                    _universityData.value = result
+                }
+        }
+    }
+
+    fun resetUniversityData() {
+        if (_universityData.value is UiState.Success){
+            _universityData.value = (_universityData.value as UiState.Success<List<UniversityDTO>>).copy(data = emptyList())
+            _universityData.value = UiState.Idle
+        }else{
+            _universityData.value = UiState.Idle
+        }
+    }
+
     // ✅ Centralized validation rules
     private fun validate(mutation: ProfileMutation): String? = when (mutation) {
         is ProfileMutation.Name -> if (mutation.value.isBlank()) "Name cannot be empty" else null
-        is ProfileMutation.About -> if (mutation.value.length > 200 || mutation.value.isBlank()) "About is too long" else null
+        is ProfileMutation.About -> {
+            if (mutation.value.length > 500){
+                "About cannot be more than 500 characters"
+            }else if (mutation.value.isBlank()){
+                "About cannot be empty"
+            }else{
+                null
+            }
+        }
         is ProfileMutation.Gender -> if (mutation.value == null) "Please select a gender" else null
         is ProfileMutation.SocialAccount -> if (mutation.value.isBlank()) "Social account cannot be empty" else null
         is ProfileMutation.Interests -> {

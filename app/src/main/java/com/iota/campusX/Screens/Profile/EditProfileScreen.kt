@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -91,13 +93,13 @@ import com.iota.campusX.Feature.UserProfile.data.UniversityDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UpdateProfileViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
 import com.iota.campusX.R
+import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.CustomTextFieldWithLeadingIcon
 import com.iota.campusX.Utils.ProfileEdit
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AutoCompleteFieldOfStudyDropdown
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.CourseDurationPicker
 import com.iota.campusX.ui.UIComponents.EditProfileIconButton
 import com.iota.campusX.ui.UIComponents.SubmitButton
@@ -131,6 +133,7 @@ fun EditProfileScreen(
     val editProfileViewModel: EditProfileViewModel = viewModel()
     val editType = editProfileViewModel.editType.collectAsState()
 
+    val universityListState by updateProfileViewModel.universityData.collectAsState()
 
     val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
     val modifyState = updateProfileViewModel.state.collectAsState().value
@@ -150,6 +153,7 @@ fun EditProfileScreen(
 
 
     val imageCropper = rememberImageCropper()
+
     val imagePicker = rememberImagePicker(onImage = { uri ->
         scope.launch {
             val result = imageCropper.crop(uri, context)
@@ -166,7 +170,6 @@ fun EditProfileScreen(
             }
         }
     })
-    
 
     LaunchedEffect(modifyState) {
         when (modifyState) {
@@ -201,6 +204,9 @@ fun EditProfileScreen(
             editProfileViewModel.editType(EditProfileType.UserImage(it))
         }
     }
+
+
+
 
     when (profileEditValue) {
 
@@ -264,7 +270,7 @@ fun EditProfileScreen(
                                 },
                                 ) {
                                     if (isLoading){
-                                        CircularLoading()
+                                        CircularLoading(MaterialTheme.colorScheme.primary)
                                     }else{
                                         Icon(
                                             imageVector = Icons.Default.Check,
@@ -377,7 +383,10 @@ fun EditProfileScreen(
                         topBar = {
 
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth()
+                                    .background(
+                                        color = MaterialTheme.colorScheme.background
+                                    ),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -386,18 +395,24 @@ fun EditProfileScreen(
                                         scope.launch {
                                             it.done(false)
                                         }
+                                    },
 
-                                    }
                                 ) {
                                     Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null)
                                 }
                                 Text(text = "Crop")
-                                IconButton(onClick = {
+                                IconButton(
+                                    onClick = {
                                     scope.launch {
                                         it.done(true)
                                     }
-                                }) {
-                                    Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                                },
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             }
 
@@ -429,7 +444,7 @@ fun EditProfileScreen(
                 snackBarHostState = snackBarHostState
             ) {
                 CustomTextField(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 180.dp),
                     value = editProfileViewModel.about.value,
                     onValueChange = { editProfileViewModel.editAbout(it.toString()) },
                     label = "About",
@@ -437,6 +452,16 @@ fun EditProfileScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     maxLines = 6
                 )
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Text(
+                        text = "${editProfileViewModel.about.value.count()}/500",
+                        color = if (editProfileViewModel.about.value.count() > 500) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSecondaryContainer,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
             }
 
         }
@@ -492,8 +517,6 @@ fun EditProfileScreen(
                         )
                     )
 
-
-
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -548,7 +571,10 @@ fun EditProfileScreen(
                 onCancelClick = { navController.popBackStack() },
                 onSubmitClick = {
                     updateProfileViewModel.modifyProfile(
-                        mutation = UpdateProfileViewModel.ProfileMutation.Campus(value = editProfileViewModel.campus.value)
+                        mutation = UpdateProfileViewModel.ProfileMutation.Campus(
+                            value = editProfileViewModel.campus.value,
+                            oldCampusId = userProfile?.campus?.campusCode
+                        )
                     )
                 },
                 isLoading = isLoading,
@@ -556,25 +582,6 @@ fun EditProfileScreen(
                 snackBarHostState = snackBarHostState
             ) {
 
-                UniversityDropdown(
-                    userProfileViewModel = userProfileViewModel,
-                    selectedUniversity = editProfileViewModel.campus.value.university,
-                    onUniversitySelected = {
-                        editProfileViewModel.editUniversity(
-                            University(
-                                university = it.university,
-                                logo = it.logo
-                            )
-                        )
-                    },
-                    onFieldChange = {
-                        editProfileViewModel.editUniversity(University(university = it))
-                        userProfileViewModel.onUniversityQueryChanged(it)
-                    },
-                    onClearClick = {
-                        editProfileViewModel.editUniversity(null)
-                    }
-                )
 
                 CustomTextField(
                     modifier = Modifier.fillMaxWidth(),
@@ -584,6 +591,30 @@ fun EditProfileScreen(
                     placeHolder = "Enter Your College",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
+
+
+                UniversityDropdown(
+                    selectedUniversity = editProfileViewModel.campus.value.university,
+                    universityListState = universityListState,
+                    onUniversitySelected = {
+                        editProfileViewModel.editUniversity(
+                            University(
+                                university = it.university,
+                                logo = it.logo
+                            )
+                        )
+                        updateProfileViewModel.resetUniversityData()
+                    },
+                    onFieldChange = {
+                        editProfileViewModel.editUniversity(University(university = it))
+                        updateProfileViewModel.onUniversityQueryChanged(it)
+                    },
+                    onClearClick = {
+                        editProfileViewModel.editUniversity(null)
+                        updateProfileViewModel.resetUniversityData()
+                    }
+                )
+
 
                 AutoCompleteFieldOfStudyDropdown(
                     fieldOptions = fieldsOfStudy,
@@ -662,14 +693,12 @@ val fieldsOfStudy = listOf(
 @Composable
 fun UniversityDropdown(
     selectedUniversity : University?,
-    userProfileViewModel: UserProfileViewModel,
+    universityListState:  UiState<List<UniversityDTO>>,
     onFieldChange: (String) -> Unit,
     onUniversitySelected: (University) -> Unit,
     onClearClick:()-> Unit
 ) {
 
-
-    val universityListState by userProfileViewModel.universityData.collectAsState()
 
     var expanded by remember { mutableStateOf(false) }
 
@@ -712,28 +741,29 @@ fun UniversityDropdown(
             keyboardActions = KeyboardActions { }
         )
 
-        ExposedDropdownMenu(
-            containerColor = MaterialTheme.colorScheme.surface,
-            expanded = universityListState is UiState.Success,
-            onDismissRequest = { expanded = false }
-        ) {
+        when(universityListState){
 
-            when(universityListState){
+            is UiState.Success -> {
 
-                is UiState.Success -> {
+                val universityList = universityListState.data
 
-                    val universityList = (universityListState as UiState.Success<List<UniversityDTO>>).data
-
+                ExposedDropdownMenu(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    expanded = universityList.isNotEmpty(),
+                    onDismissRequest = {
+                        onClearClick.invoke()
+                    }
+                ) {
                     universityList.forEach { selectionOption ->
                         DropdownMenuItem(
                             onClick = {
                                 onUniversitySelected(
                                     University(
                                         university = selectionOption.name,
-                                        logo = selectionOption.logo
+                                        logo = selectionOption.logo ?: ""
                                     )
                                 )
-                                userProfileViewModel.resetUniversityData()
+
                             },
                             text = {
                                 Text(text = selectionOption.name, style = MaterialTheme.typography.bodyMedium)
@@ -750,25 +780,23 @@ fun UniversityDropdown(
                             }
                         )
                     }
-                }
-                is UiState.Error -> {
-
-                    Text(text = (universityListState as UiState.Error).toString())
 
                 }
-                is UiState.Loading -> {
 
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = LightTheme_Blue,
-                        strokeWidth = 2.dp
-                    )
-
-                }
-                else -> {}
             }
+            is UiState.Error -> {
 
+                Log.d("UNIVERSITY_ERROR_LIST", "UniversityDropdown: ${universityListState.message}")
+
+            }
+            is UiState.Loading -> {
+
+
+            }
+            else -> {}
         }
+
+
     }
 
 }
@@ -804,7 +832,7 @@ fun EditPage(
                         contentAlignment = Alignment.Center
                     ) {
                         if (isLoading) {
-                            CircularLoading()
+                            CircularLoading(MaterialTheme.colorScheme.primary)
                         } else {
                             SubmitButton { onSubmitClick.invoke() }
                         }

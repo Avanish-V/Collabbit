@@ -76,14 +76,26 @@ class PostRepository(
             }
     }
     suspend fun fetchSinglePost(postId: String) {
+
         _singlePost.value = UiState.Loading
+
         val result = postRepository.fetchSinglePost(postId)
+
         _singlePost.value = result.fold(
-            onSuccess = { UiState.Success(it) },
+            onSuccess = {
+                UiState.Success(null)
+                UiState.Success(it)
+            },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
+
+
     }
 
+    suspend fun clearSinglePost(){
+        _singlePost.value = UiState.Success(null)
+        _singlePost.value = UiState.Idle
+    }
     fun getViewUserPost(userId: String,scope: CoroutineScope){
         scope.launch {
             postRepository.getPostsById(userId = userId)
@@ -229,7 +241,8 @@ class PostRepository(
         }
     }
     suspend fun addPostLocally(post: GetPostDTO) {
-        val postMode = if (post.feedMode == FeedMode.GLOBAL) _globalPosts else _campusPosts
+
+        val postMode = if (post.feedMode == FeedMode.OPEN) _globalPosts else _campusPosts
 
         postMode.update { pagingData ->
             pagingData.insertHeaderItem(item = post) // Add new post at top
@@ -241,7 +254,7 @@ class PostRepository(
     }
     suspend fun updateVoteLocally(postId: String, optionId: String,feedMode: FeedMode){
 
-        val posts =  if (feedMode == FeedMode.GLOBAL) _globalPosts else _campusPosts
+        val posts =  if (feedMode == FeedMode.OPEN) _globalPosts else _campusPosts
 
         posts.update { pagingData ->
            pagingData.map { post->

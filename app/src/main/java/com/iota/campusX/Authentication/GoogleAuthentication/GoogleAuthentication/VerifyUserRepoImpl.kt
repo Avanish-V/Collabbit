@@ -34,6 +34,7 @@ class VerifyUserRepoImpl(
                     userName = currentUser.displayName?.replaceFirstChar { it.uppercase() } ?: "Unknown",
                     userImage = currentUser.photoUrl?.toString() ?: "",
                     userEmail = currentUser.email ?: "",
+                    phoneNumber = currentUser.phoneNumber ?: "",
                     metaData = MetaData(
                         premium = false,
                         firstUser = true,

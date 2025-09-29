@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -66,24 +67,18 @@ fun BottomAppBar(
                         BadgedBox(
                             badge = {
                                 if (badgeCount != 0) {
-                                    Box(modifier = Modifier.size(12.dp).background(Color.Red, CircleShape),contentAlignment = Alignment.Center){
+                                    Badge {
                                         Text(
-                                            badgeCount.toString(),
-                                            fontSize = 8.sp,
-                                            lineHeight = 10.sp,
-                                            color = White
+                                            text = badgeCount.toString(),
                                         )
                                     }
-
                                 }
                             }
                         ) {
                             Icon(
-
                                 painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
                                 contentDescription = null,
                                 modifier = Modifier.size(22.dp),
-                                tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     } else {
@@ -91,7 +86,6 @@ fun BottomAppBar(
                             painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
                             contentDescription = null,
                             modifier = Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
 
@@ -119,6 +113,8 @@ fun BottomAppBar(
                 colors = NavigationBarItemDefaults.colors(
                     indicatorColor = Color.Transparent,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedIconColor = MaterialTheme.colorScheme.onBackground,
                     selectedTextColor = MaterialTheme.colorScheme.onBackground,
                 )
 

@@ -1,9 +1,14 @@
 package com.iota.campusX.Feature.Society.data
 
+import android.net.Uri
 import android.util.Log
 import com.google.api.client.util.Data.mapOf
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Society.AgoraTokenBuilder.generateDigitRandom
@@ -21,15 +26,31 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-class SocietyImplementation(private val fireStore: FirebaseFirestore,private val auth: FirebaseAuth):SocietyInterface{
+class SocietyImplementation(
+    private val fireStore: FirebaseFirestore,
+    private val auth: FirebaseAuth,
+    private val fireStorage: FirebaseStorage
+):SocietyInterface{
 
-    override suspend fun createSociety(createSocietyDTO: CreateSocietyDTO): Result<Unit> {
+    override suspend fun createSociety(createSocietyDTO: CreateSocietyDTO,imageUri: Uri?): Result<Unit> {
 
         val currentUser = auth.currentUser ?: return Result.failure(Exception("User not authenticated"))
 
         return try {
 
-            fireStore.collection("Society").document(createSocietyDTO.roomId).set(createSocietyDTO).await()
+            imageUri?.let {
+                val fileName = "${createSocietyDTO.roomId}_${System.currentTimeMillis()}.jpg"
+
+               val upload =  fireStorage.reference.child("SocietyImages/$fileName").putFile(it).await()
+
+               val downloadUrl = upload.storage.downloadUrl.await()
+
+                fireStore.collection("Society")
+                    .document(createSocietyDTO.roomId)
+                    .set(createSocietyDTO.copy(imageUrl = downloadUrl.toString()))
+                    .await()
+
+            }
 
             Result.success(Unit)
 
@@ -76,7 +97,8 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                     mode = society.mode,
                     roomId = society.roomId,
                     isCurrentUser = isCurrentUser,
-                    active = society.active
+                    active = society.active,
+                    imageUrl = society.imageUrl
                 )
 
             }
@@ -119,32 +141,14 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
                     joined = society.joined,
                     mode = society.mode,
                     roomId = society.roomId,
-                    isCurrentUser = isCurrentUser
+                    isCurrentUser = isCurrentUser,
+                    imageUrl = society.imageUrl
                 )
 
             }
 
             Result.success(societyList)
 
-        }catch (e: Exception){
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun updateRoom(roomId: String,isActive:Boolean,feedMode: FeedMode,campusId: String?): Result<Unit> {
-        return try {
-
-            val path = if (feedMode == FeedMode.CAMPUS && campusId != null){
-                "CampusSociety"
-            }else{
-                "GlobalSociety"
-            }
-
-            val data = mapOf(
-                "isActive" to isActive
-            )
-            fireStore.collection("Society").document(roomId).update(data).await()
-            Result.success(Unit)
         }catch (e: Exception){
             Result.failure(e)
         }
@@ -192,11 +196,7 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
 
     override suspend fun deleteJoinRequest(roomId: String, feedMode: FeedMode, campusId: String?): Result<Unit> {
         return try {
-            val path = if (feedMode == FeedMode.CAMPUS && campusId != null){
-                "CampusSociety"
-            }else{
-                "GlobalSociety"
-            }
+
             fireStore.collection("Society").document(roomId)
                 .collection("JoinRequests")
                 .document(auth.currentUser?.uid ?: "")
@@ -382,6 +382,21 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
         }
     }
 
+    override suspend fun isRoomActive(roomId: String): Result<Boolean> {
+        return try {
+            fireStore.collection("Society")
+                .document(roomId)
+                .get()
+                .await()
+                .getBoolean("active")
+                ?.let { Result.success(it) }
+                ?: Result.failure(Exception("Room not found"))
+
+        }catch (e: Exception){
+            Result.failure(e)
+        }
+    }
+
     override suspend fun sendMessage(roomId: String, message: SetChatMessage): Result<Unit> {
 
         return try {
@@ -440,6 +455,133 @@ class SocietyImplementation(private val fireStore: FirebaseFirestore,private val
             Result.failure(e)
         }
     }
+
+    override suspend fun getChatsCount(roomId: String): Flow<Result<Int>> {
+        return callbackFlow {
+            try {
+                fireStore.collection("Society")
+                    .document(roomId)
+                    .collection("Messages")
+                    .where(Filter.notEqualTo("senderId",auth.currentUser?.uid ?: ""))
+                    .addSnapshotListener { value, error ->
+                        if (error != null || value == null) return@addSnapshotListener
+                        launch {
+                            trySend(Result.success(value.documents.size))
+                        }
+
+                    }
+            }catch (e: Exception){
+                trySend(Result.failure(e))
+            }
+            awaitClose {
+                close()
+            }
+        }
+    }
+
+    override suspend fun updateUserChatsCount(roomId: String,chatCount: Int): Result<Unit> {
+        try {
+
+            fireStore.collection("Society")
+                .document(roomId)
+                .collection("JoinRequests")
+                .document(auth.currentUser?.uid ?: "")
+                .update("chatsCount", chatCount)
+                .await()
+            return Result.success(Unit)
+
+        }catch (e: Exception){
+            return Result.failure(e)
+        }
+    }
+
+    override suspend fun getUserChatCount(roomId: String,currentMessageCount: Int): Result<Int> {
+        try {
+            val data = fireStore.collection("Society")
+                .document(roomId)
+                .collection("JoinRequests")
+                .document(auth.currentUser?.uid ?: "")
+                .get()
+                .await()
+
+            val count = data.getLong("chatsCount")?.toInt() ?: 0
+
+
+            return Result.success(currentMessageCount-count)
+        }catch (e: Exception){
+            return Result.failure(e)
+        }
+    }
+
+    override suspend fun subscribeRoom(roomId: String): Result<Unit> {
+        return try {
+            fireStore.collection("Society")
+                .document(roomId)
+                .update(
+                    "subscribers", FieldValue.arrayUnion(auth.currentUser?.uid) // add into array list
+                )
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun unsubscribeRoom(roomId: String): Result<Unit> {
+        return try {
+            fireStore.collection("Society")
+                .document(roomId)
+                .update(
+                    "subscribers", FieldValue.arrayRemove(auth.currentUser?.uid) // remove from array list
+                )
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun subscribers(roomId: String): Result<List<String>> {
+        return try {
+            val snapshot = fireStore.collection("Society")
+                .document(roomId)
+                .get()
+                .await()
+
+            val ids = snapshot.get("subscribers") as? List<*> ?: emptyList<Any>()
+
+            val tokens = ids.mapNotNull { id ->
+                id as? String
+            }.mapNotNull { uid ->
+                fireStore.collection("Users")
+                    .document(uid)
+                    .get()
+                    .await()
+                    .getString("token")
+            }
+
+            Result.success(tokens)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+    override suspend fun hasSubscribed(roomId: String): Result<Boolean> {
+        return try {
+            val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
+            val snapshot = fireStore.collection("Society")
+                .document(roomId)
+                .get()
+                .await()
+
+            val ids = snapshot.get("subscribers") as? List<*> ?: emptyList<Any>()
+            Result.success(ids.contains(uid))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 
 }
 

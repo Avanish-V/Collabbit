@@ -30,21 +30,16 @@ class UserProfileViewModel(
     private val userProfileRepository: UserProfileRepository
 ):ViewModel() {
 
-    private val searchQuery = MutableStateFlow("")
 
-    val userBaseProfile = userProfileRepository.currentUser
-        .stateIn(
+    val userBaseProfile = userProfileRepository.currentUser.stateIn(
             scope = viewModelScope,
             started = SharingStarted.Lazily,
             initialValue = null
-        )
+    )
 
     private val _isLoading : MutableStateFlow<UiState<Unit>> = MutableStateFlow(UiState.Idle)
     val isLoading: StateFlow<UiState<Unit>> = _isLoading.asStateFlow()
 
-
-    private val _universityData = MutableStateFlow<UiState<List<UniversityDTO>>>(UiState.Idle)
-    val universityData: StateFlow<UiState<List<UniversityDTO>>> = _universityData.asStateFlow()
 
     private val _hasConnection = MutableStateFlow<UiState<Boolean?>>(UiState.Idle)
     val hasConnection: StateFlow<UiState<Boolean?>> = _hasConnection.asStateFlow()
@@ -81,33 +76,7 @@ class UserProfileViewModel(
         )
     }
 
-    fun onUniversityQueryChanged(query: String) {
-        searchQuery.value = query
-    }
 
-    init {
-        viewModelScope.launch {
-            searchQuery
-                .debounce(500) // 500ms debounce delay
-                .filter { it.isNotBlank() && it.length < 5 }
-                .distinctUntilChanged()
-                .flatMapLatest { query ->
-                    userProfileRepo.updateUniversity(query)
-                }
-                .onStart { _universityData.value = UiState.Loading }
-                .catch { e ->
-                    _universityData.value = UiState.Error("Unexpected error: ${e.localizedMessage ?: "Unknown"}")
-                }
-                .collect { result ->
-
-                    _universityData.value = result
-                }
-        }
-    }
-
-    fun resetUniversityData() {
-        _universityData.value = UiState.Idle
-    }
 
 
     // Define mutation operations

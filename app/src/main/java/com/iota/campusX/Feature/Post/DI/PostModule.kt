@@ -60,8 +60,7 @@ val postModule = module {
     single { GetCampusPostsUseCase(get()) }
 
     // ViewModels
-    single { PostCreationViewModel(get(), get(), get(),get(),get()) }
-    viewModel { ReplyViewModel(get()) }
+    single { PostCreationViewModel(get(), get(), get(),get(),get(),get(),get()) }
     factory { ViewUserPostViewModel(get()) }
     viewModel { ViewUserReplyViewModel(get(), get(), get()) }
     viewModel { PollViewModel() }

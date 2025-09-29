@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -44,9 +45,9 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
         }
     }
 
-    fun deleteNotificationFromList(notificationDTO: GetNotification) {
+    fun deleteNotificationFromList(notificationId: String) {
         _notification.update { pagingData ->
-            pagingData.filter { it != notificationDTO }
+            pagingData.filter { it.notificationId != notificationId }
         }
     }
 
@@ -59,7 +60,7 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
 
     fun getNotificationCount() {
         viewModelScope.launch {
-            notificationRepository.getNotificationCount().collect {
+            notificationRepository.getNotificationCount().collectLatest {
                 when (it) {
                     is ResultState.Loading -> {
                         _notificationCount.value = 0
@@ -77,7 +78,7 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
 
     fun getChatCount() {
         viewModelScope.launch {
-            notificationRepository.observeTotalUnreadCount().collect {
+            notificationRepository.observeTotalUnreadCount().collectLatest {
                 _chatCount.value = it
             }
         }
@@ -88,7 +89,10 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
             _deleteNotificationState.value = UiState.Loading
             val result = notificationRepository.deleteNotification(notificationId)
             _deleteNotificationState.value = result.fold(
-                onSuccess = { UiState.Success(it) },
+                onSuccess = {
+                    deleteNotificationFromList(notificationId)
+                    UiState.Success(it)
+                },
                 onFailure = { UiState.Error(it.message.toString()) }
             )
             resetState()
@@ -96,7 +100,7 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
     }
 
     suspend fun resetState(){
-        delay(1000)
+        delay(2000)
         _deleteNotificationState.value = UiState.Idle
     }
 

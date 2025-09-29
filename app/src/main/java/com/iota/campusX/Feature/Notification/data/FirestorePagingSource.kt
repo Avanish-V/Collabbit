@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Notification.data
 
+import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.google.firebase.Timestamp
@@ -14,6 +15,7 @@ import com.iota.campusX.Feature.Notification.domain.GetNotification.LikeNotifica
 import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Notification.domain.UserPayload
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
+import com.iota.campusX.Feature.Post.data.model.Type
 import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.remote.visibilityMode
 import kotlinx.coroutines.async
@@ -90,6 +92,7 @@ suspend fun fetchNotification(
 
                             val text = postSnap.getString("postText") ?: ""
                             val image = postSnap.getString("image") ?: ""
+                            val type = postSnap.getString("Type") ?: ""
 
                             if (!postSnap.exists()) return@async null
 
@@ -120,9 +123,6 @@ suspend fun fetchNotification(
                             }
                         }
 
-                        val likesCount = creatorDeferred.await().count()
-
-                        // 3. Build notification with hydrated data
                         LikeNotification(
                             notificationId = raw.notificationId,
                             type = raw.type,
@@ -131,7 +131,7 @@ suspend fun fetchNotification(
                             postId = raw.postId,
                             postContent = postDeferred.await(),
                             likes = creatorDeferred.await(),
-                            likesCount = if (likesCount>3) likesCount-3 else likesCount
+                            likesCount = if (raw.likes.size>2) raw.likes.size-2 else raw.likes.size
                         )
                     }
                 }

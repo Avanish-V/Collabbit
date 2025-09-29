@@ -43,7 +43,6 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
@@ -53,6 +52,7 @@ class PostRemoteDataSource(
     private val firestore: FirebaseFirestore,
     private val validator: PostValidator,
     private val notificationRepository: NotificationRepository
+
 ):PostRepositoryInterface {
 
 
@@ -116,7 +116,7 @@ class PostRemoteDataSource(
     override fun getPosts(): Flow<PagingData<GetPostDTO>> {
 
         val query = firestore.collection("Posts")
-            .whereEqualTo("feedMode", FeedMode.GLOBAL)
+            .whereEqualTo("feedMode", FeedMode.OPEN)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .limit(10)
 
@@ -167,6 +167,7 @@ class PostRemoteDataSource(
             }
         ).flow
     }
+
     private suspend fun fetchPosts(query: Query): Result<List<GetPostDTO>> {
         return try {
             if (auth.currentUser == null) return Result.failure(Exception("User not logged in"))
@@ -293,10 +294,20 @@ class PostRemoteDataSource(
 
     override suspend fun getPostsById(userId: String): Flow<PagingData<GetPostDTO>> {
 
-        val query = firestore.collection("Posts")
-            .whereEqualTo("creatorId", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(10)
+
+        val query = if (userId == auth.currentUser?.uid){
+
+            firestore.collection("Posts")
+                .whereEqualTo("creatorId", userId)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(10)
+        }else{
+            firestore.collection("Posts")
+                .whereEqualTo("creatorId", userId)
+                .whereEqualTo("visibilityMode", VisibilityMode.USER)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(10)
+        }
 
         return Pager(
             config = PagingConfig(

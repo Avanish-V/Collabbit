@@ -38,7 +38,7 @@ class HomeViewModel(private val context: Context) : ViewModel() {
             val result = runCatching {
                 context.dataStore.data
                     .map { preferences ->
-                        val name = preferences[SWITCH_PREF_KEY] ?: FeedMode.GLOBAL.name
+                        val name = preferences[SWITCH_PREF_KEY] ?: FeedMode.OPEN.name
                         FeedMode.valueOf(name)
                     }
                     .first()

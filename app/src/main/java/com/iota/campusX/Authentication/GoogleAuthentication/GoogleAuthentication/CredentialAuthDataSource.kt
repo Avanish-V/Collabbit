@@ -16,7 +16,7 @@ class CredentialAuthDataSource(
 
     val googleIdOption = GetGoogleIdOption.Builder()
       .setServerClientId("1083272757839-jgnafarj06d7e4em1jo4ba69df0na3mg.apps.googleusercontent.com") // Dev
-      //.setServerClientId("446123587571-ruihpipupo4ti7d3clpegr418tr2mdbm.apps.googleusercontent.com") // Prod
+     //.setServerClientId("446123587571-ruihpipupo4ti7d3clpegr418tr2mdbm.apps.googleusercontent.com") // Prod
       .setFilterByAuthorizedAccounts(false) // let user pick any account
       .setAutoSelectEnabled(true)
       .build()
@@ -44,8 +44,6 @@ class CredentialAuthDataSource(
     }
 
   }
-
-
   fun signOut() {
     // No backend: just clear local app state/session
     // You may also allow the user to remove the Google account from device if needed.

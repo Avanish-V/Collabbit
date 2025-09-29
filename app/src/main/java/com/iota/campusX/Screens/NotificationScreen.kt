@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +62,7 @@ import androidx.navigation.NavHostController
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
+import com.iota.campusX.Feature.Notification.data.PostContent
 import com.iota.campusX.Feature.Notification.domain.GetNotification
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
@@ -74,14 +76,12 @@ import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.PagingListFooter
 import com.iota.campusX.Screens.Home.PagingListHeader
 import com.iota.campusX.Screens.Home.RefreshBox
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Utils.CircularLoading
+import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.getTimeAgo
-import com.iota.campusX.ui.UIComponents.AppLabelText
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import com.iota.campusX.ui.UIComponents.Divider
-import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.FeedUI.LikeRail
 import com.iota.campusX.ui.UIComponents.FeedUI.toMillis
 import kotlinx.coroutines.CoroutineScope
@@ -128,20 +128,26 @@ fun NotificationScreen(
 
     val snackBarHostState = SnackbarHostState()
 
-    LaunchedEffect(rejectState) {
-        when (rejectState) {
-            is UiState.Loading -> {}
-            is UiState.Success -> {
-                snackBarHostState.showSnackbar("Connection rejected")
-                notificationViewModel.deleteNotification(deleteNotification?.notificationId.toString())
-                deleteNotification?.let { notificationViewModel.deleteNotificationFromList(it) }
+    LaunchedEffect(acceptState) {
+        when(acceptState){
+            is UiState.Success->{
+                deleteNotification?.let { notificationViewModel.deleteNotification(it.notificationId) }
             }
-            is UiState.Error -> {
+            is UiState.Error->{
                 snackBarHostState.showSnackbar("Something went wrong!")
             }
-            else -> {
-
+            else -> {}
+        }
+    }
+    LaunchedEffect(rejectState) {
+        when(rejectState){
+            is UiState.Success->{
+                deleteNotification?.let { notificationViewModel.deleteNotification(it.notificationId) }
             }
+            is UiState.Error->{
+                snackBarHostState.showSnackbar("Something went wrong!")
+            }
+            else -> {}
         }
     }
 
@@ -176,6 +182,13 @@ fun NotificationScreen(
 
             PagingListHeader(
                 items = notificationPageData,
+                emptyContent = {
+                    StatusScreen(
+                        modifier =  Modifier.fillMaxSize(),
+                        text = "No Notifications.",
+                        image = R.drawable.undraw_my_notifications_fy5v,
+                    )
+                }
             )
 
             LazyColumn(
@@ -185,15 +198,11 @@ fun NotificationScreen(
 
                 items(notificationPageData.itemCount) {notification->
 
+
                     notificationPageData[notification]?.let { notification ->
 
                         NotificationItem(
                             notificationItem = notification,
-                            scope = scope,
-                            notificationViewModel = notificationViewModel,
-                            onNotificationClick = {
-
-                            },
                             geToPost = {
                                 navHostController.navigate(Routes.Main.ReplyPost.routes).apply {
                                     navHostController.currentBackStackEntry?.savedStateHandle?.set(
@@ -210,21 +219,18 @@ fun NotificationScreen(
                                     )
                                 }
                             },
-                            snackBarHostState = snackBarHostState,
-                            acceptState = acceptState,
-                            rejectState = rejectState,
                             onAccept = {
                                 connectionRequestViewModel.request(
-                                    ConnectionRequestState.AcceptConnectionRequest(it)
+                                    state = ConnectionRequestState.AcceptConnectionRequest(it)
                                 )
                                 deleteNotification = notification
                             },
                             onReject = {
                                 connectionRequestViewModel.request(
-                                    ConnectionRequestState.RejectConnectionRequest(it)
+                                    state = ConnectionRequestState.RejectConnectionRequest(it)
                                 )
                                 deleteNotification = notification
-                            }
+                            },
                         )
 
                         Divider(modifier = Modifier.padding(vertical = 12.dp))
@@ -262,371 +268,257 @@ fun NotificationScreen(
 @Composable
 fun NotificationItem(
     notificationItem: GetNotification,
-    snackBarHostState: SnackbarHostState,
-    notificationViewModel: NotificationViewModel,
-    scope: CoroutineScope,
-    onNotificationClick: () -> Unit,
     geToPost: (String) -> Unit,
     geToUserProfile: (String) -> Unit,
-    acceptState: UiState<Boolean>? = null,
-    rejectState: UiState<Boolean>? = null,
     onAccept: (String) -> Unit,
     onReject: (String) -> Unit,
-
-    ) {
-
-
+) {
     when (notificationItem) {
 
         is GetNotification.LikeNotification -> {
-
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Top
             ) {
-
                 LikeRail(notificationItem.likes)
 
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-
                     Row(verticalAlignment = Alignment.Top) {
 
-                        val names = mutableListOf<String>()
-                        notificationItem.likes.take(2).forEach { names.add(it.userName) }
+                        val names = remember(notificationItem.likes) {
+                            notificationItem.likes.take(2).map { it.userName }
+                        }
 
-                        Text(
-                            modifier = Modifier.weight(1f),
-                            text = buildAnnotatedString {
-
-                                withStyle(
-                                    style = SpanStyle(
-                                        color = MaterialTheme.colorScheme.onBackground,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                ) {
-                                    append(names.joinToString(", "))
-                                }
-
-                                if (notificationItem.likes.count() >= 3) {
-                                    append(" and ")
-                                    withStyle(
-                                        style = SpanStyle(
-                                            color = MaterialTheme.colorScheme.onBackground,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    ) {
-                                        append("${notificationItem.likesCount-names.count()} others")
-                                    }
-                                }
-
-                                append(" upvoted your post")
-
-                            },
-                            maxLines = 2,
-                            textAlign = TextAlign.Start,
-                            color = Color.Gray
+                        UserNamesText(
+                            names = names,
+                            othersCount = notificationItem.likesCount,
+                            actionText = stringResource(R.string.upvoted_your_post)
                         )
 
-                        if (!notificationItem.isRead){
-                            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color = MaterialTheme.colorScheme.primary))
-
+                        if (!notificationItem.isRead) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
                         }
-
-
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .background(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .border(
-                                width = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .padding(6.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() },
-                                onClick = { geToPost.invoke(notificationItem.postId) }
-                            ),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-
-                        if (notificationItem.postContent == null){
-                            Text("Content no longer available.",color = MaterialTheme.colorScheme.outline)
-                            return
-                        }
-
-                        if (notificationItem.postContent.image.isNotEmpty()){
-                            AsyncImage(
-                                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
-                                model = notificationItem.postContent.image.toString(),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                            )
-                        }
-
-                        if (notificationItem.postContent.text.isNotEmpty()) {
-                            Text(
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                                text = notificationItem.postContent.text.toString(),
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                    }
-                    Text(
-                        modifier = Modifier
-                            .alpha(0.6f)
-                            .align(Alignment.End),
-                        text = getTimeAgo(notificationItem.createdAt.toMillis()),
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    PostPreview(
+                        postContent = notificationItem.postContent,
+                        onClick = { geToPost(notificationItem.postId) }
                     )
 
+                    NotificationTimeText(notificationItem.createdAt.toMillis())
                 }
             }
         }
 
         is GetNotification.CommentNotification -> {
-
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Top
             ) {
-
                 LikeRail(notificationItem.replyUsers)
 
                 Column(modifier = Modifier.weight(1f)) {
-
                     Row(modifier = Modifier.fillMaxWidth()) {
+                        val names = remember(notificationItem.replyUsers) {
+                            notificationItem.replyUsers.take(2).map { it.userName }
+                        }
 
-                        val names = mutableListOf<String>()
-                        notificationItem.replyUsers.take(2).forEach { names.add(it.userName) }
-
-                        Text(
-                            text = buildAnnotatedString {
-
-                                withStyle(
-                                    style = SpanStyle(
-                                        color = MaterialTheme.colorScheme.onBackground,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                ) {
-                                    append(names.joinToString(", "))
-                                }
-
-                                if (notificationItem.replyUsers.count() >= 3) {
-                                    append(" and ")
-                                    withStyle(
-                                        style = SpanStyle(
-                                            color = MaterialTheme.colorScheme.onBackground,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    ) {
-                                        append("${notificationItem.replyUsers.count()-names.count()} others")
-                                    }
-                                }
-
-                                append(" replied your post")
-
-                            },
-                            textAlign = TextAlign.Start,
-                            color = Color.Gray
+                        UserNamesText(
+                            names = names,
+                            othersCount = notificationItem.replyUsers.size - names.size,
+                            actionText = stringResource(R.string.replied_your_post)
                         )
-
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Row(
-                        modifier = Modifier
-                            .background(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .padding(6.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() },
-                                onClick = {
-                                    geToPost.invoke(notificationItem.postId)
-                                }
-                            ),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-
-                        if (notificationItem.postContent == null){
-                            Text("Content no longer available.",color = MaterialTheme.colorScheme.outline)
-                            return
-                        }
-
-                        if (!notificationItem.postContent?.image.isNullOrEmpty()) {
-
-                            AsyncImage(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(6.dp)),
-                                model = notificationItem.postContent.image.toString(),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                            )
-
-                        }
-
-                        if (!notificationItem.postContent?.text.isNullOrEmpty()) {
-                            Text(
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                                text = notificationItem.postContent.text.toString(),
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        modifier = Modifier
-                            .alpha(0.6f)
-                            .align(Alignment.End),
-                        text = getTimeAgo(notificationItem.createdAt.toMillis()),
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    PostPreview(
+                        postContent = notificationItem.postContent,
+                        onClick = { geToPost(notificationItem.postId) }
                     )
 
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    NotificationTimeText(notificationItem.createdAt.toMillis())
                 }
-
             }
-
         }
 
         is GetNotification.ConnectionRequestNotification -> {
-
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-
                 CircleImage(
                     image = notificationItem.actionBy.profile?.userImage ?: "",
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape),
+                    modifier = Modifier.size(40.dp).clip(CircleShape),
                     onClick = {
-                        notificationItem.actionBy.profile?.id?.let { geToUserProfile.invoke(it) }
+                        notificationItem.actionBy.profile?.id?.let(geToUserProfile)
                     },
                     visibility = VisibilityMode.USER
-
                 )
 
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-
-                    Column {
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = notificationItem.actionBy.profile?.userName ?: "",
-                                style = MaterialTheme.typography.titleMedium
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = notificationItem.actionBy.profile?.userName.orEmpty(),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (notificationItem.actionBy.isVerified) {
+                            Icon(
+                                modifier = Modifier.size(16.dp),
+                                painter = painterResource(R.drawable.baseline_verified_24),
+                                contentDescription = stringResource(R.string.verified),
+                                tint = MaterialTheme.colorScheme.primary
                             )
-                            if (notificationItem.actionBy.isVerified) {
-                                Icon(
-                                    modifier = Modifier.size(16.dp),
-                                    painter = painterResource(R.drawable.baseline_verified_24),
-                                    contentDescription = "Verified",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
                         }
-
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-
                         Button(
-                            enabled = acceptState !is UiState.Success,
                             onClick = {
-                                notificationItem.actionBy.profile?.let { onAccept.invoke(it.id) }
+                                notificationItem.actionBy.profile?.id?.let(onAccept)
                             },
                             shape = RoundedCornerShape(6.dp)
                         ) {
-                            when (acceptState) {
-                                is UiState.Loading -> {
-                                    CircularLoading()
-                                }
-
-                                is UiState.Success -> {
-
-                                    Text("Accepted")
-                                    notificationViewModel.deleteNotification(notificationItem.notificationId.toString())
-                                    notificationViewModel.deleteNotificationFromList(notificationItem)
-
-                                }
-
-                                is UiState.Error -> {
-                                    LaunchedEffect(Unit) {
-                                        snackBarHostState.showSnackbar(acceptState.message)
-                                    }
-                                }
-
-                                else -> {
-                                    Text("✔ Accept")
-                                }
-                            }
+                            Text(stringResource(R.string.accept))
                         }
 
-                        TextButton(
+                        Button(
                             onClick = {
-                                notificationItem.actionBy.profile?.id?.let { onReject.invoke(it) }
+                                notificationItem.actionBy.profile?.id?.let(onReject)
                             },
                             shape = RoundedCornerShape(6.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.outline
+                                contentColor = MaterialTheme.colorScheme.onSurface
                             )
                         ) {
-                            Text("✖ Decline")
+                            Text(stringResource(R.string.declined))
                         }
                     }
 
-                    Text(
-                        modifier = Modifier.alpha(0.6f).align(Alignment.End),
-                        text = getTimeAgo(notificationItem.createdAt.toMillis()),
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    NotificationTimeText(notificationItem.createdAt.toMillis())
                 }
             }
         }
     }
+}
 
+@Composable
+fun UserNamesText(
+    names: List<String>,
+    othersCount: Int,
+    actionText: String
+) {
+    Text(
+        text = buildAnnotatedString {
+            withStyle(
+                style = SpanStyle(
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.SemiBold
+                )
+            ) {
+                append(names.joinToString(", "))
+            }
+            if (othersCount > names.count()) {
+                append(" " + stringResource(R.string.and) + " ")
+                withStyle(
+                    style = SpanStyle(
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                ) {
+                    append("$othersCount " + stringResource(R.string.others))
+                }
+            }
+            append(" $actionText")
+        },
+        maxLines = 2,
+        textAlign = TextAlign.Start,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+@Composable
+fun PostPreview(
+    postContent: PostContent?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .background(
+                color = MaterialTheme.colorScheme.surface,
+                shape = MaterialTheme.shapes.small
+            )
+            .border(
+                width = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = MaterialTheme.shapes.small
+            )
+            .padding(6.dp)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onClick
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        when {
+            postContent == null -> {
+                Text(
+                    stringResource(R.string.content_unavailable),
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            postContent.image.isNotEmpty() -> {
+                AsyncImage(
+                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
+                    model = postContent.image,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                )
+            }
+        }
+
+        if (!postContent?.text.isNullOrEmpty()) {
+            Text(
+                modifier = Modifier.padding(horizontal = 8.dp),
+                text = postContent.text,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+fun NotificationTimeText(timeMillis: Long) {
+    Text(
+        modifier = Modifier.fillMaxWidth().alpha(0.6f),
+        text = getTimeAgo(timeMillis),
+        style = MaterialTheme.typography.labelMedium,
+        maxLines = 1,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.End
+    )
 }

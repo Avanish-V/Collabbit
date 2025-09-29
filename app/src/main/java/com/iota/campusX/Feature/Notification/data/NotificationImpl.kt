@@ -197,10 +197,10 @@ class NotificationImpl(
         creatorId: String
     ): Result<Unit> {
         return try {
+
             val notificationsRef = firestore.collection("Users")
                 .document(creatorId)
                 .collection("Notifications")
-
 
 
             when (createNotification) {

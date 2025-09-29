@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">CampusCircle</string>
+    <string name="upvoted_your_post">upvoted your post</string>
+    <string name="replied_your_post">replied to your post</string>
+    <string name="accept">✔ Accept</string>
+    <string name="decline">✖ Decline</string>
+    <string name="accepted">Accepted</string>
+    <string name="declined">Declined</string>
+    <string name="verified">Verified</string>
+    <string name="content_unavailable">Content no longer available.</string>
+    <string name="and">and</string>
+    <string name="others">others</string>
 </resources>

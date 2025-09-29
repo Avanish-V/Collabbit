@@ -18,6 +18,7 @@ data class BaseProfileDTO(
     @SerialName("userImage") val userImage: String = "",
     @SerialName("userEmail") val userEmail: String = "",
     @SerialName("userBio") val userBio: String = "",
+    @SerialName("phoneNumber") val phoneNumber: String = "",
     @SerialName("userGender") val userGender: Gender = Gender.UNSPECIFIED,
     @SerialName("interests") val interests: List<String> = emptyList(),
     @SerialName("metaData") val metaData: MetaData = MetaData(),

@@ -106,7 +106,7 @@ fun CustomSegmentedProgressBar(
             HorizontalDivider(
                 modifier = Modifier.width(30.dp).clip(CircleShape),
                 thickness = 4.dp,
-                color = if (progress == index) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant
+                color = if (progress == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
             )
 
             Spacer(modifier = Modifier.width(10.dp))

@@ -23,6 +23,7 @@ class UserProfileRepository (
 
 
     suspend fun loadCurrentUser() {
+
         _currentUser.value = UiState.Loading
         userProfileDao.getProfile(FirebaseAuth.getInstance().currentUser!!.uid).collect{it->
            if (it != null){

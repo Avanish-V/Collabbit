@@ -26,17 +26,7 @@ fun Divider(modifier: Modifier = Modifier) {
 
 }
 
-@Composable
-fun CircularLoading() {
-    val contentColor = LocalContentColor.current.takeOrElse {
-        MaterialTheme.colorScheme.primary
-    }
-    CircularProgressIndicator(
-        modifier = Modifier.size(24.dp),
-        strokeWidth = 4.dp,
-        color = contentColor
-    )
-}
+
 
 
 @Composable

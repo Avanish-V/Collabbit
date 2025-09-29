@@ -3,15 +3,11 @@ package com.iota.campusX.Feature.Society.presentation.Screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -25,26 +21,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.DropShadowScope
-import androidx.compose.ui.draw.ShadowScope
-import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
 import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyData
-import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyMenuOptions
 import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyOptionBar
 import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyOptionsViewModel
 import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyState
@@ -55,15 +50,14 @@ import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
-import com.iota.campusX.Utils.LoadingUI
+import com.iota.campusX.Screens.Home.RefreshBox
+import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AnimatedStatus
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.CircleImage
-import com.iota.campusX.ui.UIComponents.CircularLoading
 import org.koin.compose.koinInject
-import kotlin.collections.emptyList
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -71,12 +65,15 @@ fun SocietyScreen(
     navHostController: NavHostController,
     societyViewModel: SocietyViewModel = koinInject(),
     userProfileViewModel: UserProfileViewModel = koinInject(),
-    navigationViewModel: NavigationViewModel = koinInject()
+    navigationViewModel: NavigationViewModel = koinInject(),
+    societyOptionsViewModel: SocietyOptionsViewModel = koinInject()
 ) {
     val lazyListState = rememberLazyListState()
     val state = societyViewModel.getSocietyState.collectAsStateWithLifecycle()
     val userSociety = societyViewModel.userSocietyState.collectAsStateWithLifecycle()
     val profileState = userProfileViewModel.userBaseProfile.collectAsStateWithLifecycle().value
+    val showMenuOptions by societyOptionsViewModel.showMenu.collectAsState()
+    val isRefreshing by societyViewModel.isRefreshing.collectAsState()
     val context = LocalContext.current
 
     val profile = when(profileState){
@@ -99,10 +96,8 @@ fun SocietyScreen(
         societyViewModel.fetchSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.campus?.campusCode)
     }
 
-
-    BackHandler() {
-        showSocietyOptions = null
-        context.vibrate()
+    BackHandler {
+        societyOptionsViewModel.showMenu(false)
     }
 
     HideBottomBar(
@@ -110,7 +105,7 @@ fun SocietyScreen(
         lazyState = lazyListState
     )
 
-    val societyOptionsViewModel: SocietyOptionsViewModel = koinInject()
+
 
     Scaffold(
         topBar = {
@@ -118,16 +113,13 @@ fun SocietyScreen(
                 title = { Text("Society", style = MaterialTheme.typography.headlineMedium) },
                 actions = {
 
-                    showSocietyOptions?.let {
-
+                    if (showMenuOptions){
                         SocietyOptionBar(
                             showOptions = showSocietyOptions!!.showSocietyOptions,
                             societyData = showSocietyOptions!!.societyData!!,
                             societyOptionsViewModel = societyOptionsViewModel
                         )
-
                     }
-
 
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
@@ -158,52 +150,77 @@ fun SocietyScreen(
         }
     ) { padding ->
 
+        val pullToRefreshState = rememberPullToRefreshState()
+
         Column(modifier = Modifier.padding(padding)) {
 
             AppTabRow(pagerState = pagerState, tabList = tabList)
 
             HorizontalPager(state = pagerState) { page ->
-                when (page) {
-                    0 -> SocietyUIRender(
-                        state = state.value,
-                        lazyListState = lazyListState,
-                        campusId = profile?.campus?.campusCode,
-                        navHostController = navHostController,
-                        onLongClick = { data ->
-                            showSocietyOptions = SocietyState(
-                                showSocietyOptions = true,
-                                societyData = SocietyData(
-                                   roomId =  data.roomId,
-                                   isOwner = data.createdBy.id == profile?.id,
-                                   ownerId = data.createdBy.id
-                                )
-                            )
-                            context.vibrate()
-                        }
-                    )
-                    1 -> {
 
-                        LaunchedEffect(Unit) {
-                            profile?.id?.let { societyViewModel.fetchUserSocieties(userId = it) }
+                RefreshBox (
+                    pullToRefreshState = pullToRefreshState,
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        if (page == 0){
+                            societyViewModel.refreshSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.campus?.campusCode)
                         }
+                        else{
+                            societyViewModel.refreshUserSocieties(userId = profile?.id.orEmpty())
+                        }
+                    },
 
-                        SocietyUIRender(
-                            state = userSociety.value,
+                ) {
+                    when (page) {
+                        0 -> SocietyUIRender(
+                            state = state.value,
                             lazyListState = lazyListState,
                             campusId = profile?.campus?.campusCode,
                             navHostController = navHostController,
                             onLongClick = { data ->
+                                societyOptionsViewModel.showMenu(
+                                    true
+                                )
                                 showSocietyOptions = SocietyState(
                                     showSocietyOptions = true,
                                     societyData = SocietyData(
                                         roomId =  data.roomId,
                                         isOwner = data.createdBy.id == profile?.id,
-                                        ownerId = data.createdBy.id
+                                        ownerId = data.createdBy.id,
+                                        navHostController = navHostController
                                     )
                                 )
                                 context.vibrate()
                             }
                         )
+                        1 -> {
+
+                            LaunchedEffect(Unit) {
+                                profile?.id?.let { societyViewModel.fetchUserSocieties(userId = it) }
+                            }
+
+                            SocietyUIRender(
+                                state = userSociety.value,
+                                lazyListState = lazyListState,
+                                campusId = profile?.campus?.campusCode,
+                                navHostController = navHostController,
+                                onLongClick = { data ->
+                                    societyOptionsViewModel.showMenu(
+                                        true
+                                    )
+                                    showSocietyOptions = SocietyState(
+                                        showSocietyOptions = true,
+                                        societyData = SocietyData(
+                                            roomId =  data.roomId,
+                                            isOwner = data.createdBy.id == profile?.id,
+                                            ownerId = data.createdBy.id,
+                                            navHostController = navHostController
+                                        )
+                                    )
+                                    context.vibrate()
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -221,9 +238,12 @@ private fun SocietyUIRender(
     navHostController: NavHostController,
     onLongClick: (GetSocietyDTO) -> Unit
 ) {
+
+
     when (state) {
+
         is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            LoadingUI()
+            LoadingScreen()
         }
 
         is UiState.Success<*> -> {
@@ -297,15 +317,37 @@ fun SocietyCard(
                 indication = null
             )
             .shadow(
-                elevation = 6.dp,
+                elevation = 4.dp,
                 spotColor = MaterialTheme.colorScheme.primary,
                 ambientColor = MaterialTheme.colorScheme.primary
             ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(getSocietyDTO.societyName, style = MaterialTheme.typography.titleMedium)
-            Text(getSocietyDTO.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Row (verticalAlignment = Alignment.Top,horizontalArrangement = Arrangement.spacedBy(12.dp)){
+
+                AsyncImage(
+                    model = getSocietyDTO.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .border(
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = MaterialTheme.shapes.small
+                    ),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com)
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(getSocietyDTO.societyName, style = MaterialTheme.typography.titleMedium)
+                    Text(getSocietyDTO.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+            }
+
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
 
@@ -317,13 +359,13 @@ fun SocietyCard(
 
 
                         Box(contentAlignment = Alignment.Center){
-                            if (getSocietyDTO.active){
-                                AnimatedStatus(
-                                    modifier = Modifier.size(48.dp),
-                                    file = R.raw.wave_animation,
-                                    description = "Online"
-                                )
-                            }
+//                            if (getSocietyDTO.active){
+//                                AnimatedStatus(
+//                                    modifier = Modifier.size(48.dp),
+//                                    file = R.raw.wave_animation,
+//                                    description = "Online"
+//                                )
+//                            }
 
                             CircleImage(
                                 image = getSocietyDTO.createdBy.userImage,

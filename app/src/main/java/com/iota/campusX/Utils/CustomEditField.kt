@@ -64,6 +64,7 @@ fun CustomTextField(
                 Text(
                     text = placeHolder,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             textStyle = MaterialTheme.typography.bodyMedium,
@@ -135,6 +136,7 @@ fun CustomTextFieldWithLeadingIcon(
                 Text(
                     text = placeHolder,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             enabled = enabled ?:true,

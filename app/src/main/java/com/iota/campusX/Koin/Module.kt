@@ -23,6 +23,8 @@ import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Feature.Notification.data.NotificationImpl
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
+import com.iota.campusX.Feature.PushNotification.FcmNotificationSender
+import com.iota.campusX.Feature.PushNotification.TokenServices
 import com.iota.campusX.Feature.Reply.AppUserReplyViewModel
 import com.iota.campusX.Feature.Reply.ReplyViewModel
 import com.iota.campusX.Feature.Report.data.ReportRepoImpl
@@ -137,7 +139,9 @@ val chatModule = module {
 val notificationModule = module {
     single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
     single { NotificationViewModel(get()) }
-    single { SendPushNotification(get(), get()) }
+    single { TokenServices(get()) }
+    single { SendPushNotification(get(), get(),get()) }
+    single { FcmNotificationSender(get()) }
 }
 
 val profileModule = module {
@@ -174,14 +178,14 @@ val profileModule = module {
 
 val societyModule = module {
 
-    single<SocietyInterface> { SocietyImplementation(get(), get()) }
+    single<SocietyInterface> { SocietyImplementation(get(),get(),get()) }
     single<StreamRepository> { StreamImplementation() }
-    single { SocietyViewModel(get()) }
+    single { SocietyViewModel(get(),get()) }
     viewModel { StreamViewModel(get(),get(),get()) }
-    viewModel { AudioRoomViewModel(get()) }
-    viewModel { SocietyOptionsViewModel(get()) }
-    single { SocietyRepository(get()) }
-    single <SocietyOptionsInterface>{ SocietyOptionRepository(get()) }
+    viewModel { AudioRoomViewModel(get(),get()) }
+    viewModel { SocietyOptionsViewModel(get(),get()) }
+    single { SocietyRepository(get(),get()) }
+    single <SocietyOptionsInterface>{ SocietyOptionRepository(get(),get()) }
 
 }
 

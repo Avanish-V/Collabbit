@@ -1,10 +1,19 @@
 package com.iota.campusX.Feature.Society.presentation.Screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -12,6 +21,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -28,15 +38,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Post.data.model.FeedMode
+import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
 import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.R
 import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.FirestoreIdGenerator
 import com.iota.campusX.Utils.UiState
@@ -54,6 +76,16 @@ fun CreateSociety(
     val societyViewModel = koinInject<SocietyViewModel>()
 
     val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
+
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri
+    }
 
     //States
 
@@ -138,7 +170,13 @@ fun CreateSociety(
                                 mode = FeedMode.CAMPUS,
                                 campusId = profile.campus.campusCode,
                                 active = false
-                            )
+                            ),
+                            imageUri = imageUri,
+                            userBasicDetail = UserBasicDetail(
+                                id = profile.id,
+                                userImage = profile.userImage,
+                                userName = profile.userName
+                            ) ,
                         )
 
                     }
@@ -164,6 +202,65 @@ fun CreateSociety(
     ) {
 
         Column (modifier = Modifier.padding(it).padding(12.dp),verticalArrangement = Arrangement.spacedBy(12.dp)){
+
+            val color = MaterialTheme.colorScheme.outline
+
+            Box(
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .size(85.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(
+                        color = MaterialTheme.colorScheme.background,
+                        shape = MaterialTheme.shapes.small
+                    )
+                    .drawBehind(
+                        onDraw = {
+
+                            val strokeWidth = 1.dp.toPx()
+                            val dashLength = 6.dp.toPx()
+                            val gapLength = 4.dp.toPx()
+
+                            drawRoundRect(
+                                color = color,
+                                size = size,
+                                cornerRadius = CornerRadius(8.dp.toPx()),
+                                style = Stroke(
+                                    width = strokeWidth,
+                                    pathEffect = PathEffect.dashPathEffect(
+                                        floatArrayOf(dashLength, gapLength), 0f
+                                    )
+                                )
+                            )
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+
+
+                if (imageUri != null){
+                    AsyncImage(
+                        modifier = Modifier.padding(2.dp).clip(MaterialTheme.shapes.small),
+                        contentScale = ContentScale.Crop,
+                        model = imageUri,
+                        contentDescription = null
+                    )
+                }
+
+                IconButton(
+                    onClick = { launcher.launch("image/*") },
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.outline_camera_alt_24),
+                        contentDescription = null,
+                    )
+
+                }
+
+            }
+
 
             CustomTextField(
                 modifier = Modifier.fillMaxWidth(),

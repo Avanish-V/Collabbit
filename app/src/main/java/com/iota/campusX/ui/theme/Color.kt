@@ -1,5 +1,6 @@
 package com.iota.campusX.ui.theme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 val primaryLight = Color(0xFF4C68D5)
 //val primaryLight = Color(0xFF304EBB)
@@ -25,7 +26,7 @@ val onBackgroundLight = Color(0xFF1A1B22)
 val surfaceLight = Color(0xFFF8F8F8)
 val onSurfaceLight = Color(0xFF1A1B22)
 val surfaceVariantLight = Color(0xFFE1E1F2)
-val onSurfaceVariantLight = Color(0xFF444653)
+val onSurfaceVariantLight = Color(0xFF444653).copy(alpha = 0.6f)
 val outlineLight = Color(0xFFC5C5D5).copy(alpha = 0.6f)
 val outlineVariantLight = Color(0xFFC5C5D5).copy(alpha = 0.4f)
 val scrimLight = Color(0xFF000000)
