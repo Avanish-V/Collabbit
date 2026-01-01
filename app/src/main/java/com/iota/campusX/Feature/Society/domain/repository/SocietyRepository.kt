@@ -1,25 +1,20 @@
 package com.iota.campusX.Feature.Society.domain.repository
 
 import android.net.Uri
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.domain.models.GetSocietyDTO
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
+import com.iota.campusX.Feature.UserProfile.domain.repository.UserProfileRepository
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 class SocietyRepository(
     private val societyInterface: SocietyInterface,
-    private val userProfileInterface: UserProfileInterface
+    private val userProfileInterface: UserProfileRepository
 ) {
 
     private val _createSocietyState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
@@ -51,8 +46,8 @@ class SocietyRepository(
                         roomId = createSocietyDTO.roomId,
                         createdBy = UserBasicDetail(
                             id = createSocietyDTO.createdBy,
-                            userName = userBasicDetail.userName,
-                            userImage = userBasicDetail.userImage
+                            name = userBasicDetail.name,
+                            image = userBasicDetail.image
                         ),
                         joined = createSocietyDTO.joined,
                         mode =createSocietyDTO.mode,

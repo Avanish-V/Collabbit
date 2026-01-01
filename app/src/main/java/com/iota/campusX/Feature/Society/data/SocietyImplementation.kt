@@ -2,12 +2,10 @@ package com.iota.campusX.Feature.Society.data
 
 import android.net.Uri
 import android.util.Log
-import com.google.api.client.util.Data.mapOf
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
@@ -20,6 +18,7 @@ import com.iota.campusX.Feature.Society.domain.models.Status
 import com.iota.campusX.Feature.Society.domain.models.GetChatMessage
 import com.iota.campusX.Feature.Society.domain.models.SetChatMessage
 import com.iota.campusX.Feature.Society.domain.repository.SocietyInterface
+import com.iota.campusX.Feature.UserProfile.domain.repository.UserProfileRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -29,7 +28,8 @@ import kotlinx.coroutines.tasks.await
 class SocietyImplementation(
     private val fireStore: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val fireStorage: FirebaseStorage
+    private val fireStorage: FirebaseStorage,
+    private val userProfileRepository: UserProfileRepository
 ):SocietyInterface{
 
     override suspend fun createSociety(createSocietyDTO: CreateSocietyDTO,imageUri: Uri?): Result<Unit> {
@@ -80,12 +80,17 @@ class SocietyImplementation(
                 val createdById = society.createdBy
                 val isCurrentUser = createdById == auth.currentUser?.uid
 
-                val createdBy = fireStore
-                    .collection("Users")
-                    .document(createdById)
-                    .get()
-                    .await()
-                    .toObject(UserBasicDetail::class.java)?: UserBasicDetail()
+                val result =  userProfileRepository.getUserProfileById(createdById)
+                val createdBy =  result.fold(
+                    onSuccess = {
+                        UserBasicDetail(
+                            name = it.name,
+                            id = it.uid,
+                            image = it.image,
+                        )
+                    },
+                    onFailure = { return@mapNotNull null }
+                )
 
 
 
@@ -242,18 +247,23 @@ class SocietyImplementation(
 
                         try {
 
-                            val userSnapshot = fireStore.collection(
-                                "Users")
-                                .document(data.requestId)
-                                .get()
-                                .await()
+                            val result =  userProfileRepository.getUserProfileById(data.requestId)
 
-                            val user = userSnapshot.toObject(UserBasicDetail::class.java) ?: return@mapNotNull null
+                            val user =  result.fold(
+                                onSuccess = {
+                                    UserBasicDetail(
+                                        name = it.name,
+                                        id = it.uid,
+                                        image = it.image,
+                                    )
+                                },
+                                onFailure = { return@mapNotNull null }
+                            )
 
                             GetJoinRequestDTO(
                                 requestId = data.requestId,
-                                userName = user.userName,
-                                userImage = user.userImage,
+                                userName = user.name,
+                                userImage = user.image,
                                 role = data.role,
                                 status = data.status,
                                 speaking = data.speaking,

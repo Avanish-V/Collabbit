@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -33,7 +34,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,16 +62,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.data.Campus
-import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Campus
+import com.iota.campusX.Feature.UserProfile.domain.models.ConnectionRequestResponse
+import com.iota.campusX.Feature.UserProfile.domain.models.ConnectionViewStatus
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.theme.LightBlack
-import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.White
 import kotlinx.coroutines.launch
 
 @Composable
@@ -102,7 +102,7 @@ fun ProfileHeader(
         ) {
             Spacer(modifier = Modifier.height(12.dp))
             Row (
-                verticalAlignment = Alignment.Bottom,
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ){
 
@@ -110,32 +110,33 @@ fun ProfileHeader(
 
                     Box(contentAlignment = Alignment.TopEnd){
 
-                        AsyncImage(
-                            modifier = Modifier
-                                .size(80.dp)
+                        Box(modifier = Modifier
+                            .size(80.dp)
 
-                                .border(
-                                    width = 6.dp,
-                                    color = Color.White,
-                                    shape = MaterialTheme.shapes.small
-                                )
-                                .shadow(
-                                    elevation = 6.dp,
-                                    shape = MaterialTheme.shapes.small
-                                )
-                                .clip(
-                                    MaterialTheme.shapes.large
-                                ),
-                            model = user?.userImage,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            fallback = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-                            placeholder = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
+                            .border(
+                                width = 6.dp,
+                                color = Color.White,
+                                shape = MaterialTheme.shapes.small
+                            )
+                            .shadow(
+                                elevation = 6.dp,
+                                shape = MaterialTheme.shapes.small
+                            )
+                            .clip(
+                                MaterialTheme.shapes.large
+                            )
+                        ){
 
-                        )
+                            UserAvatar(
+                                imageUrl = null,
+                                bgColor = user?.bgColor ?: "",
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                        }
 
                         user?.let {
-                            if (it.metaData.verified){
+                            if (it.metaData?.verified ?: false){
                                 Icon(
                                     modifier = Modifier
                                         .size(24.dp)
@@ -149,10 +150,16 @@ fun ProfileHeader(
                     }
 
                     Text(
-                        text = user?.userName ?: "",
-                        style = MaterialTheme.typography.titleMedium
+                        text = user?.name ?: "",
+                        style = MaterialTheme.typography.titleLarge
                     )
-
+                    user?.tagline?.let {
+                        Text(
+                            text = user.tagline,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 editProfile.invoke()
@@ -167,39 +174,61 @@ fun ProfileHeader(
 
 @Composable
 fun ProfileAction(
-    onLinkUpRequestClick: ((isConnected: Boolean?) -> Unit)? = null,
+    onLinkUpRequestClick: () -> Unit,
     onMessageClick: (() -> Unit)? = null,
-    hasConnectionState: UiState<Boolean?>,
-    snackBarHostState: SnackbarHostState
+    snackBarHostState: SnackbarHostState,
+    connectionState: UiState<ConnectionRequestResponse>
 ) {
 
-    val hasConnection = when(hasConnectionState){
-        is UiState.Success -> hasConnectionState.data
-        else -> false
-    }
+    var hasConnected by rememberSaveable {mutableStateOf(false)}
 
     Row (modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)){
         Button(
-            onClick = { onLinkUpRequestClick?.invoke(hasConnection) },
+            onClick = { onLinkUpRequestClick?.invoke() },
             modifier = Modifier.weight(1f).height(40.dp),
             shape = MaterialTheme.shapes.small
         ) {
-            when (hasConnectionState) {
+            when (connectionState) {
 
                 is UiState.Success -> {
 
-                    val connectionText = when (hasConnectionState.data) {
-                        null -> "Connect"
-                        true -> "Remove"
-                        false -> "Requested"
+                    val status = connectionState.data.requestStatus ?: ConnectionViewStatus.NOT_CONNECTED
+
+                    when(status){
+                        ConnectionViewStatus.REQUEST_SENT  -> {
+                            Text(
+                                text = "Request Sent",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color =  Color.White
+                            )
+                            return@Button
+                        }
+                        ConnectionViewStatus.CONNECTED -> {
+                            hasConnected = true
+
+                            Text(
+                                text = "Connected",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color =  Color.White
+                            )
+                            return@Button
+                        }
+
+                        ConnectionViewStatus.REQUEST_RECEIVED -> {
+                            Text(
+                                text = "Remove Connection",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+
+                        }
+                        ConnectionViewStatus.NOT_CONNECTED -> {
+                            Text(
+                                text = "LinkUp",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
                     }
 
-
-                    Text(
-                        text = connectionText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color =  Color.White
-                    )
                 }
 
                 is UiState.Loading -> {
@@ -208,7 +237,7 @@ fun ProfileAction(
 
                 is UiState.Error -> {
                     LaunchedEffect(Unit) {
-                        snackBarHostState.showSnackbar(hasConnectionState.message)
+                        snackBarHostState.showSnackbar("something went wrong!")
                     }
                 }
 
@@ -226,7 +255,7 @@ fun ProfileAction(
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
             ),
-            enabled = hasConnection ?: false
+            enabled = hasConnected
         ) {
             Text(
                 text = "Message",
@@ -288,7 +317,7 @@ fun EmptyState(
             .fillMaxWidth()
             .height(56.dp)
             .background(
-                color = MaterialTheme.colorScheme.secondaryContainer,
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(8.dp)
             )
             .drawBehind(
@@ -365,7 +394,7 @@ fun CampusWidget(
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AsyncImage(
-                    model = campus.university?.logo ?: "",
+                    model = campus.logo ?: "",
                     contentDescription = null,
                     error = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
                     modifier = Modifier
@@ -374,9 +403,9 @@ fun CampusWidget(
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
 
-                    if (!campus.university?.university.isNullOrEmpty()){
+                    if (!campus.university.isNullOrEmpty()){
                         Text(
-                            text = campus.university.university,
+                            text = campus.university,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -399,22 +428,22 @@ fun CampusWidget(
                     }
 
 
-                    if (campus.duration?.current ?: false){
+                    if (campus?.isCurrent ?: false){
                         Text(
-                            text = "${campus.duration.start } - Current",
+                            text = "${campus.courseStart } - Current",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
-                    if (campus.duration?.start != null && campus.duration.end != null) {
+                    if (campus?.courseStart != null && campus.courseEnd != null) {
                         Text(
-                            text = "${campus.duration.start} - ${campus.duration.end}",
+                            text = "${campus.courseStart} - ${campus.courseEnd}",
                             style = MaterialTheme.typography.bodyMedium
 
                         )
                     }
 
-                    campus.campusCode?.let {
+                    campus.code?.let {
                         Text(
                             text = it,
                             style = MaterialTheme.typography.bodyMedium

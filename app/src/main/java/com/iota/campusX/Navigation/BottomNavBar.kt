@@ -47,6 +47,7 @@ fun BottomAppBar(
 ) {
 
     val badgeCount = notificationViewModel.notificationCount.collectAsState().value
+    val requestNotificationCount = notificationViewModel.requestNotificationCount.collectAsState().value
 
     LaunchedEffect(Unit) {
         notificationViewModel.getNotificationCount()
@@ -63,30 +64,42 @@ fun BottomAppBar(
 
             NavigationBarItem(
                 icon = {
-                    if (item.item == "Notification") {
-                        BadgedBox(
-                            badge = {
-                                if (badgeCount != 0) {
-                                    Badge {
-                                        Text(
-                                            text = badgeCount.toString(),
-                                        )
-                                    }
-                                }
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
-                                contentDescription = null,
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }
-                    } else {
-                        Icon(
-                            painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                        )
+                    when(item.item){
+
+                       "Link"->{
+
+                           BadgedBox(
+                               badge = {
+                                   if (requestNotificationCount != 0) {
+                                       Badge {
+                                           Text(
+                                               text = requestNotificationCount.toString(),
+                                           )
+                                       }
+                                   }
+                               }
+                           ) {
+                               Icon(
+                                   painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
+                                   contentDescription = null,
+                                   modifier = Modifier.size(22.dp),
+                               )
+                           }
+
+                       }
+
+
+                       else -> {
+
+                           Icon(
+                               painter = painterResource(id = if (destination == item.route) item.iconBold else item.icon),
+                               contentDescription = null,
+                               modifier = Modifier.size(22.dp),
+                           )
+
+                       }
+
+
                     }
 
                 },
@@ -121,15 +134,11 @@ fun BottomAppBar(
             )
         }
     }
-
 }
 
 fun isPollExpired(createdAt: Long, durationMillis: Long = 24 * 60 * 60 * 1000L): Boolean {
-    // Convert Firestore timestamp to milliseconds
     val currentTime = System.currentTimeMillis()
-
     val expired = createdAt + durationMillis >= currentTime
-    // Update local isActive flag
     return expired
 }
 

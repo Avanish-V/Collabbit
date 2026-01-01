@@ -29,7 +29,6 @@ class PostActionHandler(
                when(val id = action.contentId){
                    is ContentId.Post -> {
                        repository.likePost(userId = action.userId, postId = id.postId, isLiked = action.isLiked)
-
                    }
 
                    is ContentId.Reply -> {
@@ -54,7 +53,7 @@ class PostActionHandler(
            }
 
            is PostAction.ViewPostVisualContent -> {
-               navHostController.navigateToViewPostVisualContent(action.post.postContent.postImage).apply {
+               navHostController.navigateToViewPostVisualContent("").apply {
                    sharedVisualContentViewModel.setPost(action.post)
                }
            }
@@ -82,7 +81,8 @@ class PostActionHandler(
                    onFailure = { UiState.Error(it.message.toString()) }
                )
            }
-            is PostAction.UnFollowUser -> {
+
+           is PostAction.UnFollowUser -> {
                 val result = followRepositoryInterface.unfollow(action.userId)
                 return result.fold(
                     onSuccess = {

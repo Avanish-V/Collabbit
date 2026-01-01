@@ -33,36 +33,44 @@ import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuViewModel
 import com.iota.campusX.Screens.Post.PostScreenViewModel
 import com.iota.campusX.Screens.Post.SharedVisualContentViewModel
 import com.iota.campusX.Feature.Post.Validators.PostValidator
+import com.iota.campusX.Feature.Post.data.remote.PostApi
+import com.iota.campusX.Feature.Post.data.remote.S3Uploader
+import com.iota.campusX.Feature.Post.domain.UseCases.GetSinglePostByIdUseCase
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 
 val postModule = module {
     single { PostValidator() }
+
+    single { S3Uploader(context = get(), httpClient = get(), auth = get()) }
     // Repositories
-    single<PostRepositoryInterface> { PostRemoteDataSource(get(), get(), get(), get(),get()) }
-    single<ReplyRepositoryInterface> { ReplyRepoImpl(get(), get(), get(),get()) }
+    factory<PostRepositoryInterface> { PostRemoteDataSource(sendPushNotification = get(), auth = get(), firestore = get(), validator = get(), httpClient = get(), s3Uploader = get()) }
+    single<ReplyRepositoryInterface> { ReplyRepoImpl(sendPushNotification = get(), notificationRepository = get(), auth = get(), firestore = get(), firebaseStorage = get(), httpClient = get(), s3Uploader = get()) }
     single {
-        PostRepository(get(), get(), get(), get(), get(), get(), get(), get())
+        PostRepository(getPostsUseCase = get(), getCampusPostsUseCase = get(), postByIdUseCase = get(), deletePostUseCase = get(), editPostUseCase = get(), likeUseCase = get(), votePollUseCase = get(), postRepository = get())
     }
 
+    single { PostApi(client = get(), auth = get()) }
+
     // Use cases
-    single { CreatePollUseCase(get()) }
-    single { CreatePostUseCase(get()) }
-    single { CreateReplyUseCase(get()) }
-    single { DeletePostUseCase(get()) }
-    single { EditPostUseCase(get()) }
-    single { GetPostByIdUseCase(get()) }
-    single { GetRepliesUseCase(get()) }
-    single { VotePollUseCase(get()) }
-    single { ToggleLikeUseCase(get()) }
-    single { GetPostsUseCase(get()) }
-    single { GetCampusPostsUseCase(get()) }
+    single { CreatePollUseCase(pollRepository = get()) }
+    single { CreatePostUseCase(repository = get()) }
+    single { CreateReplyUseCase(repository = get()) }
+    single { DeletePostUseCase(repository = get()) }
+    single { EditPostUseCase(repository = get()) }
+    single { GetSinglePostByIdUseCase(repository = get()) }
+    single { GetPostByIdUseCase(repository = get()) }
+    single { GetRepliesUseCase(repository = get()) }
+    single { VotePollUseCase(pollRepository = get()) }
+    single { ToggleLikeUseCase(repository = get()) }
+    single { GetPostsUseCase(repository = get()) }
+    single { GetCampusPostsUseCase(repository = get()) }
 
     // ViewModels
-    single { PostCreationViewModel(get(), get(), get(),get(),get(),get(),get()) }
-    factory { ViewUserPostViewModel(get()) }
-    viewModel { ViewUserReplyViewModel(get(), get(), get()) }
+    single { PostCreationViewModel(createPostUseCase = get(), postRepository = get(), mediaManager = get(), sendPushNotification = get()) }
+    factory { ViewUserPostViewModel(postRepository = get()) }
+    viewModel { ViewUserReplyViewModel(getRepliesUseCase = get(), createReplyUseCase = get(), replyRepository = get()) }
     viewModel { PollViewModel() }
     viewModel { PostScreenViewModel() }
 
@@ -97,7 +105,7 @@ val postModule = module {
     // viewModel { PostActionViewModel(get()) }
 
     // Post menu
-    single<PostMenuRepository> { FakePostMenuRepository(get(), get(), get()) }
+    single<PostMenuRepository> { FakePostMenuRepository(postRepository = get(), replyRepository = get(), reportRepository = get()) }
     single { PostMenuState() }
     single { PostMenuViewModel(get()) }
     single { SharedVisualContentViewModel() }

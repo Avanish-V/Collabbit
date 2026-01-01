@@ -1,13 +1,11 @@
-import org.codehaus.groovy.runtime.ArrayTypeUtils.dimension
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    kotlin("plugin.serialization") version "1.9.0"
+    alias(libs.plugins.kotlin.serialization)
     id("kotlin-parcelize")
     alias(libs.plugins.google.gms.google.services)
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.ksp)
 }
 
 
@@ -51,28 +49,30 @@ android {
 
 
     buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            signingConfig = signingConfigs.getByName("release")
-        }
-
-//        getByName("debug") {
-//            isShrinkResources = true
-//            isMinifyEnabled = true  // Enable ProGuard in debug mode
-//            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+//        release {
+//            isMinifyEnabled = false
+//            proguardFiles(
+//                getDefaultProguardFile("proguard-android-optimize.txt"),
+//                "proguard-rules.pro"
+//            )
+//            signingConfig = signingConfigs.getByName("release")
 //        }
+
+        getByName("debug") {
+            isShrinkResources = false
+            isMinifyEnabled = false  // Enable ProGuard in debug mode
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+
+
+//    kotlinOptions {
+//        jvmTarget = "17"
+//    }
     buildFeatures {
         compose = true
     }
@@ -86,6 +86,14 @@ android {
                 "META-INF/NOTICE.txt"
             )
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(
+            org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        )
     }
 }
 
@@ -122,13 +130,13 @@ dependencies {
     implementation(libs.coil.compose)
     implementation (libs.koin.androidx.compose)
 
+    implementation("io.ktor:ktor-client-android:2.3.12")
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation (libs.ktor.client.content.negotiation)
     implementation (libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.logging)
-
-    implementation(libs.kotlinx.serialization.json)
+    //implementation(libs.kotlinx.serialization.json)
 
     implementation (libs.play.services.auth)
 
@@ -156,9 +164,10 @@ dependencies {
     implementation("io.github.alihaider63:richlinkpreview:1.0.0")
     //implementation ("org.jsoup:jsoup:1.12.1")
 
-    implementation("androidx.room:room-runtime:2.7.2")
-    ksp("androidx.room:room-compiler:2.7.2")
-    implementation("androidx.room:room-ktx:2.7.2")
+    implementation(libs.androidx.room.runtime)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
 
-    debugImplementation ("com.squareup.leakcanary:leakcanary-android:2.14")
+    debugImplementation ("com.squareup.leakcanary:leakcanary-android:2.13")
+
 }

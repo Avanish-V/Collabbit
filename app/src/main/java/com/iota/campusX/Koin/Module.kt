@@ -6,7 +6,6 @@ import VerifyUserRepoImpl
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.room.Room
 import com.cloudinary.android.MediaManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -31,6 +30,7 @@ import com.iota.campusX.Feature.Report.data.ReportRepoImpl
 import com.iota.campusX.Feature.Report.domain.ReportRepository
 import com.iota.campusX.Feature.Report.presentation.ReportViewModel
 import com.iota.campusX.Feature.Search.Data.SearchRepositoryImpl
+import com.iota.campusX.Feature.Search.Data.UserSearchApi
 import com.iota.campusX.Feature.Search.Domain.SearchRepository
 import com.iota.campusX.Feature.Search.Presentation.SearchViewModel
 import com.iota.campusX.Feature.Society.data.SocietyImplementation
@@ -44,14 +44,6 @@ import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyO
 import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
-import com.iota.campusX.Feature.UserProfile.OfflineSupport.AppDatabase
-import com.iota.campusX.Feature.UserProfile.data.UserProfileImpl
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
-import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestViewModel
-import com.iota.campusX.Feature.UserProfile.presentation.UpdateProfileViewModel
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
-import com.iota.campusX.Feature.UserProfile.presentation.ViewProfileViewModel
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.NetworkCapability.AndroidConnectivityObserver
 import com.iota.campusX.NetworkCapability.ConnectivityObserver
@@ -59,48 +51,71 @@ import com.iota.campusX.NetworkCapability.ConnectivityViewModel
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Screens.Home.dataStore
 import com.iota.campusX.Utils.ThemeMode.ThemePreference
+import com.iota.campusX.Utils.TokenProvider
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.header
+import io.ktor.client.utils.EmptyContent.contentType
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.URLProtocol
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
+val END_POINT = "http://192.168.29.180:8080"
+//val END_POINT = "https://campusappbackend-446123587571.asia-south1.run.app"
 
 val coreModule = module {
-    // Http client
+
     single {
         HttpClient(CIO) {
             install(ContentNegotiation) {
-                json(Json {
-                    prettyPrint = false
-                    isLenient = true
-                    ignoreUnknownKeys = true
-                })
+                json(
+                    Json {
+                        prettyPrint = false   // off in production
+                        isLenient = true
+                        ignoreUnknownKeys = true
+                        explicitNulls = false
+                        encodeDefaults = true
+                    }
+                )
             }
             install(HttpTimeout) {
-                requestTimeoutMillis = 5000
-                connectTimeoutMillis = 5000
-                socketTimeoutMillis = 5000
+                requestTimeoutMillis = 120_000  // 2 minutes
+                connectTimeoutMillis = 30_000   // 30 seconds
+                socketTimeoutMillis = 120_000   // 2 minutes
             }
-            install(io.ktor.client.plugins.logging.Logging) {
-                level = LogLevel.ALL
+            install(Logging) {
                 logger = object : Logger {
                     override fun log(message: String) {
-                        Log.d("HttpClient", message)
+                        Log.d("KtorHttp", message)  // 👈 shows in Logcat
                     }
                 }
+                level = LogLevel.ALL // log everything (headers + body)
             }
+            install(DefaultRequest)
+
             defaultRequest {
-                headers.append(HttpHeaders.Accept, "application/json")
+                url {
+                    protocol = URLProtocol.HTTP
+                    host = "10.119.226.105"
+                    port = 8080
+                }
+                contentType(ContentType.Application.Json)
             }
         }
     }
@@ -110,6 +125,7 @@ val coreModule = module {
     single { FirebaseDatabase.getInstance() }
     single { FirebaseAuth.getInstance() }
     single { FirebaseStorage.getInstance() }
+    single { TokenProvider(get()) }
 
     // DataStore
     single<DataStore<Preferences>> { androidContext().dataStore }
@@ -119,90 +135,68 @@ val coreModule = module {
 }
 
 val authModule = module {
-    single<VerifyUserRepository> { VerifyUserRepoImpl( get(), get()) }
-    viewModel { ConsentAgreeViewModel(get()) }
-    single { CredentialAuthDataSource(get()) }
-    viewModel { GoogleSignInViewModel(get(),get(),get()) }
+    single<VerifyUserRepository> { VerifyUserRepoImpl( firebaseAuth = get(), httpClint = get()) }
+    viewModel { ConsentAgreeViewModel(dataStore = get()) }
+    single { CredentialAuthDataSource(context = get()) }
+    viewModel { GoogleSignInViewModel(dataSource = get(), verifyUserRepository = get(), userProfileDao = get()) }
 }
 
 val replyModule = module {
-    single { com.iota.campusX.Feature.Reply.ReplyRepository(get(), get(), get()) }
-    viewModel { ReplyViewModel(get()) }
-    single { AppUserReplyViewModel(get()) }
+    single { com.iota.campusX.Feature.Reply.ReplyRepository(getRepliesUseCase = get(), createReplyUseCase = get(), replyRepository = get(), notificationRepository = get()) }
+    viewModel { ReplyViewModel(replyRepository = get()) }
+    single { AppUserReplyViewModel(replyRepository = get()) }
 }
 
 val chatModule = module {
-    single<ChatRepository> { ChatImpl(get(), get(), get(), get()) }
-    viewModel { ChatsViewModel(get()) }
+    single<ChatRepository> { ChatImpl(sendPushNotification = get(), database = get(), auth = get(), firestore = get(), userProfileRepository = get()) }
+    viewModel { ChatsViewModel(chatRepository = get()) }
 }
 
 val notificationModule = module {
-    single<NotificationRepository> { NotificationImpl(get(), get(), get()) }
-    single { NotificationViewModel(get()) }
-    single { TokenServices(get()) }
-    single { SendPushNotification(get(), get(),get()) }
-    single { FcmNotificationSender(get()) }
-}
-
-val profileModule = module {
-
-    single {
-        Room.databaseBuilder(
-            androidContext(),
-            AppDatabase::class.java,
-            "campusx_db"
+    single<NotificationRepository> {
+        NotificationImpl(
+            firestore = get(),
+            auth = get(),
+            database = get(),
+            getSinglePostByIdUseCase = get(),
+            userProfileRepository = get()
         )
-            .fallbackToDestructiveMigration()
-            .build()
     }
 
-
-    // DAO
-    single { get<AppDatabase>().userProfileDao() }
-
-    // Firebase Firestore
-    single { FirebaseFirestore.getInstance() }
-
-    // Kotlinx Serialization Json
-    single { Json { ignoreUnknownKeys = true } }
-
-    // Bind implementation to interface
-
-    single<UserProfileInterface> { UserProfileImpl(get(), get(), get(), get(), get(),get(),get()) }
-    single { UserProfileViewModel(get(),get()) }
-    single { UserProfileRepository(get(),get()) }
-    viewModel { ViewProfileViewModel(get()) }
-    viewModel { ConnectionRequestViewModel(get() )}
-    viewModel { UpdateProfileViewModel(get(),get()) }
+    viewModel { NotificationViewModel(notificationRepository = get()) }
+    single { TokenServices(context = get()) }
+    single { SendPushNotification(auth = get(), firestore = get(), context = get()) }
+    single { FcmNotificationSender(context = get()) }
 }
 
 val societyModule = module {
 
-    single<SocietyInterface> { SocietyImplementation(get(),get(),get()) }
+    single<SocietyInterface> { SocietyImplementation(fireStore = get(), auth = get(), fireStorage = get(),get()) }
     single<StreamRepository> { StreamImplementation() }
-    single { SocietyViewModel(get(),get()) }
-    viewModel { StreamViewModel(get(),get(),get()) }
-    viewModel { AudioRoomViewModel(get(),get()) }
-    viewModel { SocietyOptionsViewModel(get(),get()) }
-    single { SocietyRepository(get(),get()) }
-    single <SocietyOptionsInterface>{ SocietyOptionRepository(get(),get()) }
+    single { SocietyViewModel(societyRepository = get(), societyInterface = get()) }
+    viewModel { StreamViewModel(streamRepository = get(), societyRepository = get(), appContext = get()) }
+    viewModel { AudioRoomViewModel(societyRepository = get(), notificationSender = get()) }
+    viewModel { SocietyOptionsViewModel(repository = get(), societyInterface = get()) }
+    single { SocietyRepository(societyInterface = get(), userProfileInterface = get()) }
+    single <SocietyOptionsInterface>{ SocietyOptionRepository(societyRepository = get(), societyInterface = get()) }
 
 }
 
 val searchModule = module {
-    single<SearchRepository> { SearchRepositoryImpl(get()) }
-    viewModel { SearchViewModel(get()) }
+    single<SearchRepository> { SearchRepositoryImpl(firestore = get(), auth = get(), httpClient = get()) }
+    single { UserSearchApi(auth = get(), client = get()) }
+    viewModel { SearchViewModel(repo = get()) }
 }
 
 val reportModule = module {
-    single<ReportRepository> { ReportRepoImpl(get(), get()) }
-    single { ReportViewModel(get()) }
+    single<ReportRepository> { ReportRepoImpl(firestore = get(), auth = get()) }
+    single { ReportViewModel(reportRepository = get()) }
 }
 
 val navigationModule = module {
     single { NavigationViewModel() }
-    viewModel { HomeViewModel(get()) }
-    viewModel { ConnectivityViewModel(get()) }
+    viewModel { HomeViewModel(context = get()) }
+    viewModel { ConnectivityViewModel(connectivityObserver = get()) }
 }
 val themeMode = module {
     single { ThemePreference }
@@ -212,29 +206,4 @@ val cloudinaryModule = module {
     single {
         MediaManager.get()
     }
-}
-
-
-suspend fun getFirebaseToken(): String? {
-    val user = FirebaseAuth.getInstance().currentUser ?: return null
-    return user.getIdToken(false).await().token
-}
-
-// Callback-based FCM token fetch
-fun getFCMToken(onTokenReceived: (String?) -> Unit) {
-    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-        if (task.isSuccessful) {
-            onTokenReceived(task.result)
-        } else {
-            Log.e("FCM", "Token fetch failed", task.exception)
-            onTokenReceived(null)
-        }
-    }
-}
-
-fun disableOfflineSync(firestore: FirebaseFirestore) {
-    firestore.firestoreSettings = FirebaseFirestoreSettings
-        .Builder()
-        .setPersistenceEnabled(false)
-        .build()
 }

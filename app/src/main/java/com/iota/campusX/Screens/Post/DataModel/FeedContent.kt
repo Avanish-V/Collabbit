@@ -2,7 +2,7 @@ package com.iota.campusX.Screens.Post.DataModel
 
 data class FeedContent(
     val id: ContentId,
-    val text: String,
+    val text: String?,
     val isOwner: Boolean,
     val type: ContentType
 )

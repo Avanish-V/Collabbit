@@ -4,9 +4,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.Follow.domain.FollowRepositoryInterface
-import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.ConnectionsDTO
 import kotlinx.coroutines.tasks.await
 
 class FollowRepositoryImpl(
@@ -81,9 +80,9 @@ class FollowRepositoryImpl(
 
 
                  ConnectionsDTO(
-                     userName = userData?.userName ?: "",
+                     userName = userData?.name ?: "",
                      id = userId,
-                     userImage = userData?.userImage ?: "",
+                     userImage = userData?.image ?: "",
                      isCurrentUser = isCurrentUser
                  )
 

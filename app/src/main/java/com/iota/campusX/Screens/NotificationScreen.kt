@@ -30,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -47,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -66,9 +64,9 @@ import com.iota.campusX.Feature.Notification.data.PostContent
 import com.iota.campusX.Feature.Notification.domain.GetNotification
 import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
-import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestState
-import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestViewModel
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.ConnectionRequestState
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.ConnectionRequestViewModel
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
@@ -76,7 +74,6 @@ import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.PagingListFooter
 import com.iota.campusX.Screens.Home.PagingListHeader
 import com.iota.campusX.Screens.Home.RefreshBox
-import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.getTimeAgo
@@ -84,7 +81,6 @@ import com.iota.campusX.ui.UIComponents.CircleImage
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.FeedUI.LikeRail
 import com.iota.campusX.ui.UIComponents.FeedUI.toMillis
-import kotlinx.coroutines.CoroutineScope
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -328,7 +324,9 @@ fun NotificationItem(
                 LikeRail(notificationItem.replyUsers)
 
                 Column(modifier = Modifier.weight(1f)) {
+
                     Row(modifier = Modifier.fillMaxWidth()) {
+
                         val names = remember(notificationItem.replyUsers) {
                             notificationItem.replyUsers.take(2).map { it.userName }
                         }
@@ -338,6 +336,7 @@ fun NotificationItem(
                             othersCount = notificationItem.replyUsers.size - names.size,
                             actionText = stringResource(R.string.replied_your_post)
                         )
+
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -357,7 +356,7 @@ fun NotificationItem(
         is GetNotification.ConnectionRequestNotification -> {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CircleImage(
-                    image = notificationItem.actionBy.profile?.userImage ?: "",
+                    image = notificationItem.actionBy.profile?.image ?: "",
                     modifier = Modifier.size(40.dp).clip(CircleShape),
                     onClick = {
                         notificationItem.actionBy.profile?.id?.let(geToUserProfile)
@@ -374,7 +373,7 @@ fun NotificationItem(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = notificationItem.actionBy.profile?.userName.orEmpty(),
+                            text = notificationItem.actionBy.profile?.name.orEmpty(),
                             style = MaterialTheme.typography.titleMedium
                         )
                         if (notificationItem.actionBy.isVerified) {
@@ -491,7 +490,7 @@ fun PostPreview(
             postContent.image.isNotEmpty() -> {
                 AsyncImage(
                     modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp)),
-                    model = postContent.image,
+                    model = postContent.image[0],
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                 )

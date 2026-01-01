@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -69,7 +68,6 @@ import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
-import com.google.firebase.BuildConfig
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
@@ -92,14 +90,14 @@ import com.iota.campusX.Screens.Home.PostViewScreen
 import com.iota.campusX.Screens.NotificationScreen
 import com.iota.campusX.Screens.Post.CreatePostScreen
 import com.iota.campusX.Screens.PostReplyScreen
-import com.iota.campusX.Screens.Profile.EditProfileScreen
-import com.iota.campusX.Screens.Profile.AppUserProfile
+import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfileScreen
+import com.iota.campusX.Feature.UserProfile.ui.screens.AppUserProfile
 import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Feature.Society.presentation.Screens.CreateSociety
 import com.iota.campusX.Feature.Society.presentation.Screens.JoinSocietyScreen
 import com.iota.campusX.Feature.Society.presentation.Screens.SocietyScreen
-import com.iota.campusX.Feature.UserProfile.presentation.ViewProfileViewModel
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.ViewProfileViewModel
 import com.iota.campusX.Koin.authModule
 import com.iota.campusX.Koin.chatModule
 import com.iota.campusX.Koin.cloudinaryModule
@@ -107,7 +105,6 @@ import com.iota.campusX.Koin.coreModule
 import com.iota.campusX.Koin.firebaseModule
 import com.iota.campusX.Koin.navigationModule
 import com.iota.campusX.Koin.notificationModule
-import com.iota.campusX.Koin.profileModule
 import com.iota.campusX.Koin.replyModule
 import com.iota.campusX.Koin.reportModule
 import com.iota.campusX.Koin.searchModule
@@ -117,20 +114,24 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.navScreen
 import com.iota.campusX.Navigation.shouldShowBottomBar
 import com.iota.campusX.Feature.Follow.presentation.Followers
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.Society.CommunityMessages.di.communityChatModule
+import com.iota.campusX.Feature.Society.CommunityMessages.presentation.Screen.CommunityChatScreen
+import com.iota.campusX.Feature.Society.presentation.Screens.CommunityHomeScreen
+import com.iota.campusX.Feature.UserProfile.di.profileModule
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
 import com.iota.campusX.NetworkMonitor.ConnectivityUiState
 import com.iota.campusX.NetworkMonitor.ConnectivityViewModel
 import com.iota.campusX.NetworkMonitor.networkModule
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuSheet
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuViewModel
-import com.iota.campusX.Screens.Profile.ViewProfile
+import com.iota.campusX.Feature.UserProfile.ui.screens.ViewProfile
+import com.iota.campusX.Screens.ConnectionScreen
 import com.iota.campusX.Screens.Setting.ThemeMode
 import com.iota.campusX.Screens.VoxciScreen
 import com.iota.campusX.Utils.ThemeMode.ThemePreference
 import com.iota.campusX.Utils.initCloudinary
 import com.iota.campusX.ui.theme.AppTheme
-import com.jetpack.observeliveconnectivity.ConnectionState
 import com.jetpack.observeliveconnectivity.connectivityState
 import com.voxcii.voxcii.Screens.SearchFlow.SearchScreen
 import kotlinx.coroutines.CoroutineScope
@@ -178,7 +179,8 @@ class MainActivity : ComponentActivity() {
                 cloudinaryModule,
                 themeMode,
                 followModule,
-                networkModule
+                networkModule,
+                communityChatModule
             )
         }
 
@@ -213,7 +215,6 @@ class MainActivity : ComponentActivity() {
             val navBackStackEntry by navHostController.currentBackStackEntryAsState()
             val destination = navBackStackEntry?.destination?.route
             val connectivityState = connectivityState()
-            val userProfileViewModel: UserProfileViewModel = koinInject()
             val state by viewModel.uiState.collectAsState()
 
             LaunchedEffect(connectivityState.value) {
@@ -294,6 +295,13 @@ class MainActivity : ComponentActivity() {
                                     )
 
                                 }
+                                navScreen(route = Routes.Main.Connection.routes) {
+
+                                    ConnectionScreen(
+                                        navHostController = navHostController
+                                    )
+
+                                }
                                 navScreen(route = Routes.Main.Followers.routes) {
 
                                     Followers(
@@ -315,7 +323,7 @@ class MainActivity : ComponentActivity() {
                                     CreateSociety(navHostController)
                                 }
                                 composable(route = Routes.Main.JoinSociety.routes) {
-                                    JoinSocietyScreen(
+                                    CommunityHomeScreen(
                                         navController = navHostController,
                                         userProfileViewModel = koinInject(),
                                     )
@@ -337,6 +345,14 @@ class MainActivity : ComponentActivity() {
                                     ChatScreen(
                                         navHostController = navHostController,
                                         chatsViewModel = chatsViewModel
+                                    )
+
+                                }
+
+                                navScreen(Routes.Main.CommunityChat.routes) {
+
+                                    CommunityChatScreen(
+                                        navHostController = navHostController,
                                     )
 
                                 }

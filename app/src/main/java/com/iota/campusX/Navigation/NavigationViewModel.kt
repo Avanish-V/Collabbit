@@ -13,7 +13,6 @@ class NavigationViewModel: ViewModel() {
     private val _isBottomBarVisible: MutableStateFlow<Boolean> = MutableStateFlow(true)
     val isBottomBarVisible : StateFlow<Boolean> = _isBottomBarVisible.asStateFlow()
 
-
     fun isBottomBarVisible(isVisible: Boolean) {
         _isBottomBarVisible.value = isVisible
     }

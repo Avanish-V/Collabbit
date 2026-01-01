@@ -5,7 +5,6 @@ import com.iota.campusX.Feature.Reply.ReplyRepository
 import com.iota.campusX.Feature.Report.domain.ReportRepository
 import com.iota.campusX.Screens.Post.DataModel.ContentId
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
-import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
 import com.iota.campusX.ui.UIComponents.ReportReason
 import kotlinx.coroutines.delay
 
@@ -45,14 +44,18 @@ class FakePostMenuRepository (
                   }
 
                 }
+
                 MenuAction.Edit -> {
 
                     when(val id = content.id){
                         is ContentId.Post -> {
-                           postRepository.editPost(postId = id.postId, newText = content.text)
+                            content.text?.let {
+                                val result = postRepository.editPost(postId = id.postId, newText = it)
+                                return result
+                            }
                         }
                         is ContentId.Reply -> {
-                            return replyRepository.editReply(replyId = id.replyId, postId = id.postId,content = content.text)
+                            return replyRepository.editReply(replyId = id.replyId, postId = id.postId, content = content.text)
                         }
                     }
 

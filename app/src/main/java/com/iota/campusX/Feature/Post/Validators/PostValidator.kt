@@ -1,7 +1,8 @@
 package com.iota.campusX.Feature.Post.Validators
 
+import com.iota.campusX.Feature.Post.Validators.ValidationResult.*
 import com.iota.campusX.Feature.Post.data.model.FeedMode
-import com.iota.campusX.Feature.Post.data.model.PostType
+import com.iota.campusX.Feature.Post.data.model.PostPayload
 
 //interface PostValidator<T : PostType> {
 //    fun validate(post: T): ValidationResult
@@ -38,7 +39,7 @@ sealed class ValidationResult {
 
 
 class PostValidator {
-    fun validate(post: PostType): ValidationResult {
+    fun validate(post: PostPayload): ValidationResult {
         // Common rules
         if (post.feedMode == FeedMode.CAMPUS && post.campusId.isBlank()) {
             return ValidationResult.Error("Campus ID required for Campus feed")
@@ -46,31 +47,42 @@ class PostValidator {
 
         return when (post) {
 
-            is PostType.MediaPost -> {
+            is PostPayload.MediaPost -> {
                 if (post.image == null && post.postText.isBlank()) {
-                    ValidationResult.Error("Media post must contain text or an image")
+                    Error("Media post must contain text or an image")
                 }
                 else if (post.postText.length > 1000) {
-                    ValidationResult.Error("Post text cannot exceed 1000 characters")
+                    Error("Post text cannot exceed 1000 characters")
                 }
                 else if (post.creatorId.isEmpty()){
-                    ValidationResult.Error("Creator is missing.")
+                    Error("Creator is missing.")
                 }
                 else ValidationResult.Success
             }
-            is PostType.PollPost -> {
+            is PostPayload.PollPost -> {
                 if (post.poll.question.isEmpty()) {
-                    ValidationResult.Error("Poll question cannot be empty")
+                    Error("Poll question cannot be empty")
                 } else if (post.poll.options.count() < 2) {
-                    ValidationResult.Error("Poll must have at least 2 options")
+                    Error("Poll must have at least 2 options")
                 }else if (post.poll.options.any { it.text.isEmpty() }) {
-                    ValidationResult.Error("Poll options cannot be empty")
+                    Error("Poll options cannot be empty")
                 }
                 else if (post.creatorId.isEmpty()){
-                    ValidationResult.Error("Creator is missing.")
+                    Error("Creator is missing.")
                 }else {
                     ValidationResult.Success
                 }
+            }
+
+            is PostPayload.TextPost -> {
+
+                 if (post.postText.length > 1000) {
+                    Error("Post text cannot exceed 1000 characters")
+                }
+                else if (post.creatorId.isEmpty()){
+                    Error("Creator is missing.")
+                }
+                else ValidationResult.Success
             }
         }
     }

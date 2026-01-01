@@ -1,6 +1,6 @@
 package com.iota.campusX.Feature.Follow.domain
 
-import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.ConnectionsDTO
 
 interface FollowRepositoryInterface {
     suspend fun follow(userId: String): Result<Boolean>

@@ -25,6 +25,9 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
     private val _notificationCount: MutableStateFlow<Int> = MutableStateFlow(0)
     val notificationCount: StateFlow<Int> = _notificationCount.asStateFlow()
 
+    private val _requestNotificationCount: MutableStateFlow<Int> = MutableStateFlow(0)
+    val requestNotificationCount: StateFlow<Int> = _requestNotificationCount.asStateFlow()
+
     private val _chatCount: MutableStateFlow<Int> = MutableStateFlow(0)
     val chatCount: StateFlow<Int> = _chatCount.asStateFlow()
 
@@ -34,7 +37,9 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
 
     init {
         fetchNotifications()
+        getRequestNotificationCount()
     }
+
     fun fetchNotifications() {
         viewModelScope.launch {
             notificationRepository.fetchPagedNotification()
@@ -55,7 +60,12 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
         viewModelScope.launch {
             notificationRepository.markNotificationAsRead()
         }
+    }
 
+    fun markRequestNotificationAsRead() {
+        viewModelScope.launch {
+            notificationRepository.markRequestNotificationAsRead()
+        }
     }
 
     fun getNotificationCount() {
@@ -70,6 +80,24 @@ class NotificationViewModel(private val notificationRepository: NotificationRepo
                     }
                     is ResultState.Error -> {
                         _notificationCount.value = 0
+                    }
+                }
+            }
+        }
+    }
+
+    fun getRequestNotificationCount() {
+        viewModelScope.launch {
+            notificationRepository.getRequestNotificationCount().collectLatest {
+                when (it) {
+                    is ResultState.Loading -> {
+                        _requestNotificationCount.value = 0
+                    }
+                    is ResultState.Success -> {
+                        _requestNotificationCount.value = it.data
+                    }
+                    is ResultState.Error -> {
+                        _requestNotificationCount.value = 0
                     }
                 }
             }

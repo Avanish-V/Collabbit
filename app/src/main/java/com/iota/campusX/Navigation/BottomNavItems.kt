@@ -33,10 +33,10 @@ val navBarItems = listOf(
         Routes.Main.Society.routes
     ),
     navItems(
-        "Notification",
-        R.drawable.notification_normal,
-        R.drawable.notification_bold,
-        Routes.Main.Notification.routes
+        "Link",
+        R.drawable.user_link_reguler,
+        R.drawable.user_link_bold,
+        Routes.Main.Connection.routes
     ),
     navItems(
         "Account",

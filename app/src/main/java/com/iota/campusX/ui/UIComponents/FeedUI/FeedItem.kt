@@ -1,10 +1,13 @@
 package com.iota.campusX.ui.UIComponents.FeedUI
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,22 +21,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
-import com.iota.campusX.Feature.Post.data.model.MediaType
 import com.iota.campusX.Feature.Post.data.model.PostContent
 import com.iota.campusX.Feature.Post.data.model.Type
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Post.DataModel.ContentId
 import com.iota.campusX.Screens.Post.PostActions.PostAction
+import com.iota.campusX.Screens.ReplyButtonComponent
 import com.iota.campusX.Utils.getTimeAgo
 
 
@@ -59,8 +64,9 @@ fun FeedItem(
 
     ) {
 
+
         Avatar(
-            imageUrl = feedItem.creatorDetail.profile?.userImage ?: "",
+            imageUrl = feedItem.creatorDetail.profile?.image,
             visibilityMode = feedItem.visibilityMode,
             onAvatarClick = {
                 if (feedItem.creatorDetail.isCurrentUser) return@Avatar
@@ -83,31 +89,31 @@ fun FeedItem(
                 creator = feedItem.creatorDetail,
                 feedMode = feedItem.feedMode,
                 visibilityMode = feedItem.visibilityMode,
-                postedAt = getTimeAgo(feedItem.createdAt.toMillis()),
+                postedAt = feedItem.createdAt?.let { getTimeAgo(it) },
                 trailingComponent = {
 
-                    feedItem.creatorDetail.let {
-                        if (!it.isCurrentUser && feedItem.visibilityMode == VisibilityMode.USER){
-
-                            Text(
-                                modifier = Modifier.clickable(
-                                    onClick = {
-                                        if (it.isFollow){
-                                            handlers.invoke(PostAction.UnFollowUser(it.profile?.id ?: ""))
-                                        }else{
-                                            handlers.invoke(PostAction.FollowUser(it.profile?.id ?: ""))
-                                        }
-                                    },
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-
-                                ),
-                                text = if (it.isFollow) "Unfollow" else "Follow",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = if (it.isFollow) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
+//                    feedItem.creatorDetail.let {
+//                        if (!it.isCurrentUser && feedItem.visibilityMode == VisibilityMode.USER){
+//
+//                            Text(
+//                                modifier = Modifier.clickable(
+//                                    onClick = {
+//                                        if (it.isFollow){
+//                                            handlers.invoke(PostAction.UnFollowUser(it.profile?.id ?: ""))
+//                                        }else{
+//                                            handlers.invoke(PostAction.FollowUser(it.profile?.id ?: ""))
+//                                        }
+//                                    },
+//                                    indication = null,
+//                                    interactionSource = remember { MutableInteractionSource() }
+//
+//                                ),
+//                                text = if (it.isFollow) "Unfollow" else "Follow",
+//                                style = MaterialTheme.typography.titleSmall,
+//                                color = if (it.isFollow) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary
+//                            )
+//                        }
+//                    }
 
                     if (enableFeedMode){
 
@@ -133,12 +139,11 @@ fun FeedItem(
 
             FeedBody(
                 type = feedItem.type,
-                mediaType = feedItem.mediaType,
                 postContent = feedItem.postContent,
                 goToFeedViewer = {
                     handlers.invoke(PostAction.ViewPostVisualContent(post = feedItem))
                 },
-                onPollSelect = {optionID->
+                onPollSelect = { optionID->
                     handlers.invoke(
                         PostAction.VotePoll(
                             postId = feedItem.postId,
@@ -167,31 +172,16 @@ fun FeedItem(
                     onDotMenuClick.invoke(feedItem)
                 },
                 otherActionContent = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Text(
-                            text = feedItem.postActions.replyCount.toString(),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Icon(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = {
-                                        handlers.invoke(
-                                            PostAction.OpenPostDetail(postId = feedItem.postId)
-                                        )
-                                    }
-                                ),
-                            painter = painterResource(R.drawable.chatbubble_outline),
-                            contentDescription = "Reply",
-                            tint =  MaterialTheme.colorScheme.onBackground
-                        )
-                    }
+
+                    ReplyButtonComponent(
+                        replyCount = feedItem.postActions.replyCount.toString(),
+                        onReplyClick = {
+                            handlers.invoke(
+                                PostAction.OpenPostDetail(postId = feedItem.postId)
+                            )
+                        },
+                        enableText = false
+                    )
 
                 },
             )
@@ -232,7 +222,7 @@ fun FeedHeader(
 
                         }
                     ),
-                    text = creator.profile?.userName ?: "",
+                    text = creator.profile?.name ?: "",
                     maxLines = 1,
                     softWrap = false,
                     style = MaterialTheme.typography.titleSmall,
@@ -269,7 +259,7 @@ fun FeedHeader(
             }
 
             if (visibilityMode == VisibilityMode.USER) {
-                creator.profile?.userBio?.takeIf { it.isNotEmpty() }?.let { bio ->
+                creator.profile?.tagline?.takeIf { it.isNotEmpty() }?.let { bio ->
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = bio,
@@ -291,9 +281,8 @@ fun FeedHeader(
 @Composable
 fun FeedBody(
     type: Type,
-    mediaType: MediaType,
     postContent: PostContent,
-    goToFeedViewer: (String) -> Unit,
+    goToFeedViewer: () -> Unit,
     onPollSelect: (String) -> Unit,
 ) {
 
@@ -302,40 +291,71 @@ fun FeedBody(
 
     when(type){
 
-        Type.Media -> {
+        Type.MEDIA -> {
 
-            if (mediaType == MediaType.Image){
+            if (!postContent.postText.isNullOrEmpty()) {
+                ExpandableText(
+                    text = postContent.postText,
+                    context = context,
+                )
+            }
 
-                if (postContent.postText.isNotEmpty()) {
-                    ExpandableText(
-                        text = postContent.postText,
-                        context = context,
-                    )
-                }
-
-                postContent.postImage?.let {
-                    FeedSpace()
-                    ImageWithDynamicRatio(
-                        imageUrl = it,
-                        modifier = Modifier.fillMaxWidth(),
-                        onImageClick = {goToFeedViewer.invoke(postContent.postImage)}
-                    )
-                }
-
-                if (postContent.postText.isNotEmpty() && postContent.postImage == null){
-                    val url = extractUrlFromText(postContent.postText)
-                    val normalUrl = url?.let { normalizeUrl(it) }
-                    normalUrl?.let {
-                        LinkPreviewCard(it){
-                            uriHandler.openUri(normalUrl)
+            postContent.postImage.let {
+                FeedSpace()
+                if (it.size == 1){
+                    it.map {
+                        ImageWithDynamicRatio(
+                            imageUrl = it.mediaUrl,
+                            modifier = Modifier.fillMaxWidth(),
+                            onImageClick = {goToFeedViewer.invoke()}
+                        )
+                    }
+                } else{
+                    FlowRow(
+                        modifier = Modifier
+                            .clickable(
+                                onClick = {goToFeedViewer.invoke()}
+                            )
+                            .clip(MaterialTheme.shapes.small)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outline,
+                                shape = MaterialTheme.shapes.small
+                            ),
+                        maxItemsInEachRow = 2,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ){
+                        it.forEachIndexed { index, uri ->
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.TopEnd
+                            ) {
+                                AsyncImage(
+                                    modifier = Modifier.height(180.dp),
+                                    model = uri.mediaUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    placeholder = painterResource(R.drawable.placeholder)
+                                )
+                            }
                         }
                     }
                 }
+            }
 
+            if (!postContent.postText.isNullOrEmpty() && postContent.postImage == null){
+                val url = extractUrlFromText(postContent.postText)
+                val normalUrl = url?.let { normalizeUrl(it) }
+                normalUrl?.let {
+                    LinkPreviewCard(it){
+                        uriHandler.openUri(normalUrl)
+                    }
+                }
             }
         }
 
-        Type.Poll -> {
+        Type.POLL -> {
 
             postContent.poll?.let {
                 PollOptionsUI(
@@ -349,6 +369,15 @@ fun FeedBody(
             }
 
         }
+
+        Type.TEXT -> {
+            postContent.postText?.let {
+                ExpandableText(
+                    text = it,
+                    context = context,
+                )
+            }
+        }
     }
 
 }
@@ -358,7 +387,7 @@ fun FeedBody(
 fun FeedAction(
     likesCount: Int,
     isLiked: Boolean,
-    onLikeClick:()-> Unit,
+    onLikeClick:(Boolean)-> Unit,
     onMoreVertClick:()-> Unit,
     otherActionContent:@Composable ()-> Unit
 ){
@@ -377,7 +406,7 @@ fun FeedAction(
         ) {
 
             AnimatedLikeButton(
-                onLike = { onLikeClick.invoke() },
+                onLike = { onLikeClick.invoke(it) },
                 likesCount = likesCount,
                 isLiked = isLiked
             )

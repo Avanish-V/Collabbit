@@ -3,6 +3,7 @@ package com.iota.campusX.Feature.Post.data.model
 import kotlinx.serialization.Serializable
 
 import com.google.firebase.Timestamp
+import com.iota.campusX.Feature.Post.domain.models.MediaPost
 import kotlinx.serialization.Contextual
 
 @Serializable
@@ -15,8 +16,8 @@ data class CreatePostDTO(
     val reference: Reference? = null,
     val campusId: String? = null,
     val feedMode: FeedMode = FeedMode.OPEN,
-    val type: Type = Type.Media,
-    val mediaType: MediaType = MediaType.Image,
+    val type: Type = Type.MEDIA,
+    val mediaType: MediaType = MediaType.IMAGE,
     val postText: String = "",
     val image: String ?= null,
     val poll: Poll ?= null
@@ -33,8 +34,8 @@ data class CreatePostDTO(
 
 @Serializable
 data class PostContent(
-    val postText: String = "",
-    val postImage: String ?= null,
+    val postText: String? = null,
+    val postImage: List<MediaPost> = emptyList(),
     val poll: Poll ?= null
 )
 

@@ -51,22 +51,31 @@ class PostRepository(
     val viewUserPost: StateFlow<PagingData<GetPostDTO>> = _viewUserPost.asStateFlow()
 
 
+    private var currentPage = 0
+    private var lastPage = false
+
 
     //---------FETCH DATA---------------------------------------------------------------------
 
-    suspend fun fetchGlobalPosts(scope: CoroutineScope) {
-        getPostsUseCase()
+    suspend fun fetchGlobalPosts(scope: CoroutineScope,feedMode: FeedMode,campusId: String? = null,size: Int = 10) {
+
+        postRepository.getPosts(feedMode,campusId)
             .cachedIn(scope) // ✅ use caller scope (usually ViewModelScope)
             .collectLatest { pagingData ->
-                _globalPosts.value = pagingData
+                if (feedMode == FeedMode.OPEN){
+                    _globalPosts.value = pagingData
+                }
+                if (feedMode == FeedMode.CAMPUS){
+                    _campusPosts.value = pagingData
+                }
             }
     }
     suspend fun fetchCampusPosts(scope: CoroutineScope,campusId: String?) {
-        getCampusPostsUseCase(campusId = campusId,feedMode = FeedMode.CAMPUS)
-            .cachedIn(scope) // ✅ use caller scope (usually ViewModelScope)
-            .collectLatest { pagingData ->
-                _campusPosts.value = pagingData
-            }
+//        getCampusPostsUseCase(campusId = campusId,feedMode = FeedMode.CAMPUS)
+//            .cachedIn(scope) // ✅ use caller scope (usually ViewModelScope)
+//            .collectLatest { pagingData ->
+//                _campusPosts.value = pagingData
+//            }
     }
     suspend fun fetchUserPosts(scope: CoroutineScope,userId: String) {
         postByIdUseCase(userId = userId)
@@ -112,7 +121,7 @@ class PostRepository(
 
     suspend fun editPost(postId: String, newText: String): Result<Unit> {
 
-       val result =  editPostUseCase.invoke(postId = postId, newText, campusId = null, feedMode = FeedMode.CAMPUS)
+       val result =  editPostUseCase.invoke(postId = postId, newText)
 
        result.fold(
            onSuccess = {
@@ -125,7 +134,7 @@ class PostRepository(
                }
            },
            onFailure = {
-
+               return Result.failure(it)
            }
 
        )

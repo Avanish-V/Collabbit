@@ -13,6 +13,8 @@ sealed class Routes(val routes:String){
         data object PostViewScreen : Routes("POST_VIEW_SCREEN")
         data object ChatList : Routes("CHAT_LIST")
         data object SendMessage : Routes("SEND_MESSAGE")
+        data object CommunityChat : Routes("COMMUNITY_CHAT")
+
         data object Search : Routes("SEARCH")
         data object Voxci : Routes("VOXCI")
         data object Notification : Routes("NOTIFICATION")
@@ -27,6 +29,7 @@ sealed class Routes(val routes:String){
         data object Society: Routes("SOCIETY")
         data object CreateSociety: Routes("CREATE_SOCIETY")
         data object JoinSociety: Routes("JOIN_SOCIETY")
+        data object Connection: Routes("CONNECTION")
 
     }
 
@@ -35,6 +38,8 @@ sealed class Routes(val routes:String){
             Main.Home.routes,
             Main.Search.routes,
             Main.Notification.routes,
+            Main.Connection.routes,
+
             Main.Profile.routes,
             Main.Society.routes
         )

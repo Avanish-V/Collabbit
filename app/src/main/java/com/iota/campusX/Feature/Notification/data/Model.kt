@@ -24,7 +24,6 @@ sealed class CreateNotification {
         override val createdAt: Any? = null,
         override val read: Boolean = false,
         val postId: String = "",
-        val visibilityMode: VisibilityMode = VisibilityMode.USER,
         val commentContent: List<CommentContent> = emptyList()
     ) : CreateNotification()
 
@@ -39,10 +38,11 @@ sealed class CreateNotification {
 data class CommentContent(
     val visibilityMode: VisibilityMode = VisibilityMode.USER,
     val repliedBy: String = "",
-    val replyId: String = ""
+    val replyId: String = "",
+    val repliedAt: Any? = null
 )
 
 data class PostContent(
-    val text: String = "",
-    val image: String = ""
+    val text: String? = "",
+    val image: List<String> = emptyList()
 )

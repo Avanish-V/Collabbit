@@ -2,13 +2,9 @@ package com.iota.campusX.Feature.Post.presentation
 
 import SendPushNotification
 import android.net.Uri
-import android.util.Log
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cloudinary.android.MediaManager
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
@@ -17,62 +13,61 @@ import com.iota.campusX.Feature.Post.data.model.MediaType
 import com.iota.campusX.Feature.Post.data.model.Poll
 import com.iota.campusX.Feature.Post.data.model.PostActions
 import com.iota.campusX.Feature.Post.data.model.PostContent
-import com.iota.campusX.Feature.Post.data.model.PostType
+import com.iota.campusX.Feature.Post.data.model.PostPayload
 import com.iota.campusX.Feature.Post.data.model.Type
 import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
-import com.iota.campusX.Feature.Post.domain.UseCases.CreatePollUseCase
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePostUseCase
+import com.iota.campusX.Feature.Post.domain.models.PostResponse
 import com.iota.campusX.Feature.Post.domain.repository.PostRepository
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileInterface
-import com.iota.campusX.Feature.UserProfile.domain.UserProfileRepository
 import com.iota.campusX.Utils.FirestoreIdGenerator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.util.Date
 
 class PostCreationViewModel(
     private val createPostUseCase: CreatePostUseCase,
-    private val createPollUseCase: CreatePollUseCase,
     private val postRepository: PostRepository,
-    private val profileRepository: UserProfileRepository,
     private val mediaManager: MediaManager,
     private val sendPushNotification: SendPushNotification,
-    private val profileInterface: UserProfileInterface
-
 ) : ViewModel() {
-
-    private var currentUser: MutableState<BaseProfileDTO?> = mutableStateOf(null)
-
-
-    init {
-
-        viewModelScope.launch {
-            val user = profileInterface.getUserProfile()
-            user.collect {
-                currentUser.value = it
-            }
-        }
-    }
 
 
     private val _uploadState = MutableStateFlow<UploadState>(UploadState.Idle)
     val uploadState: StateFlow<UploadState> = _uploadState
+
+    fun createTextPost(
+        creatorId: String,
+        campusId: String,
+        feedMode: FeedMode,
+        visibility: VisibilityMode,
+        postText: String,
+        type: Type,
+    ): PostPayload.TextPost {
+        return PostPayload.TextPost(
+            postText = postText,
+            postId = FirestoreIdGenerator.generate(),
+            creatorId = creatorId,
+            createdAt = FieldValue.serverTimestamp(),
+            feedMode = feedMode,
+            campusId = campusId,
+            visibilityMode = visibility,
+            type = type,
+        )
+    }
 
     fun createMediaPost(
         creatorId: String,
         campusId: String,
         feedMode: FeedMode,
         visibility: VisibilityMode,
-        imageUri: Uri?,
+        imageUri: List<Uri>?,
         postText: String,
         type: Type,
         mediaType: MediaType
-    ): PostType.MediaPost {
-        return PostType.MediaPost(
+    ): PostPayload.MediaPost {
+        return PostPayload.MediaPost(
             image = imageUri,
             postText = postText,
             postId = FirestoreIdGenerator.generate(),
@@ -93,8 +88,8 @@ class PostCreationViewModel(
         visibility: VisibilityMode,
         type: Type,
         poll: Poll
-    ): PostType {
-        return PostType.PollPost(
+    ): PostPayload {
+        return PostPayload.PollPost(
             postId = FirestoreIdGenerator.generate(),
             creatorId = creatorId,
             createdAt = FieldValue.serverTimestamp(),
@@ -107,7 +102,7 @@ class PostCreationViewModel(
     }
 
     fun uploadPost(
-        postType: PostType,
+        postType: PostPayload,
     ){
 
         if (_uploadState.value is UploadState.Loading || _uploadState.value is UploadState.Progress) return
@@ -116,106 +111,61 @@ class PostCreationViewModel(
 
             _uploadState.value = UploadState.Loading
 
-           when(postType){
+            val result =  createPostUseCase.invoke(postType)
 
-                is PostType.MediaPost -> {
+            result.collect {
 
-                    Log.d("CREATOR_DETAIL", "uploadPost: ${currentUser.value}")
+                _uploadState.value = it
 
-                   val result =  createPostUseCase.invoke(postType)
+                when(it){
 
-                   result.collect {
-                       _uploadState.value = it
-                       when(it){
-                           is UploadState.Success -> {
-                               Log.d("CREATOR_DETAIL", "uploadPost: ${postType.postId}")
-                               val millis: Long = System.currentTimeMillis()
-                               val timestamp = Timestamp(Date(millis))
-                               postRepository.addPostLocally(
-                                   GetPostDTO(
-                                       postId = postType.postId,
-                                       createdAt = timestamp,
-                                       creatorDetail = CreatorDetail(
-                                           profile = UserBasicDetail(
-                                               userName = currentUser.value?.userName ?: "",
-                                               id = currentUser.value?.id ?: "",
-                                               userImage = currentUser.value?.userImage ?: "",
-                                               userBio = currentUser.value?.userBio ?: "",
-                                           ),
-                                           isCurrentUser = true,
-                                           isVerified = currentUser.value?.metaData?.verified ?: false
-                                       ),
-                                       feedMode = postType.feedMode,
-                                       visibilityMode = postType.visibilityMode,
-                                       campusId = postType.campusId,
-                                       postContent = PostContent(
-                                           postText = postType.postText,
-                                           postImage = postType.image?.toString()
-                                       ),
-                                       postActions = PostActions(),
-                                       type = postType.type,
-                                       mediaType = postType.mediaType
-                                   )
-                               )
+                    is UploadState.Success -> {
 
-                               if (postType.feedMode == FeedMode.CAMPUS){
-                                   sendPushNotification.sendNotificationToSubscriber(
-                                       topic = postType.campusId,
-                                       title = "📢 New Campus Post",
-                                       body = shortenContent(postType.postText,30)
-                                   )
-                               }
+                        val responseData = it.postResponse
 
-                               resetState()
-                           }
-                           is UploadState.Error -> {
-                               resetState()
-                           }
-                           else -> {}
-                       }
-                   }
-                }
-                is PostType.PollPost -> {
-                    val result = createPollUseCase.invoke(postType)
-                    result.fold(
-                        onSuccess = {
-                            val millis: Long = System.currentTimeMillis()
-                            val timestamp = Timestamp(Date(millis))
-                            postRepository.addPostLocally(
-                                GetPostDTO(
-                                    postId = postType.postId,
-                                    createdAt = timestamp,
-                                    creatorDetail = CreatorDetail(
-                                        profile = UserBasicDetail(
-                                            userName = currentUser.value?.userName ?: "",
-                                            id = currentUser.value?.id ?: "",
-                                            userImage = currentUser.value?.userImage ?: "",
-                                            userBio = currentUser.value?.userBio ?: "",
-                                        ),
-                                        isCurrentUser = true,
-                                        isVerified = currentUser.value?.metaData?.verified ?: false
+                        postRepository.addPostLocally(
+                            GetPostDTO(
+                                postId = postType.postId,
+                                createdAt = responseData.createdAt,
+                                creatorDetail = CreatorDetail(
+                                    profile = UserBasicDetail(
+                                        name = responseData.authorDetails?.authorName ?: "",
+                                        id = responseData.authorDetails?.authorId ?: "",
+                                        image = responseData.authorDetails?.authorImage ?: "",
+                                        tagline = responseData.authorDetails?.authorTagline ?: "",
                                     ),
-                                    feedMode = postType.feedMode,
-                                    visibilityMode = postType.visibilityMode,
-                                    campusId = postType.campusId,
-                                    postContent = PostContent(
-                                        poll = postType.poll
-                                    ),
-                                    postActions = PostActions(),
-                                    type = postType.type,
-                                )
+                                    isCurrentUser = true,
+                                    isVerified = responseData.authorDetails?.isVerified ?: false
+                                ),
+                                feedMode = responseData.feedMode,
+                                visibilityMode = responseData.visibility,
+                                campusId = postType.campusId,
+                                postContent = PostContent(
+                                    postText = responseData.text,
+                                    postImage = responseData.mediaPost,
+                                ),
+                                postActions = PostActions(),
+                                type = responseData.postType,
                             )
-                            _uploadState.value = UploadState.Success("Poll created successfully")
-                            resetState()
+                        )
 
-                        },
-                        onFailure = {
-                            _uploadState.value = UploadState.Error(it.message ?: "Something went wrong")
-                            resetState()
+                        if (postType.feedMode == FeedMode.CAMPUS){
+                            sendPushNotification.sendNotificationToSubscriber(
+                                topic = postType.campusId,
+                                title = "📢 New Campus Post",
+                                body = shortenContent(responseData.text?:"",30)
+                            )
                         }
-                    )
+
+                        resetState()
+                    }
+                    is UploadState.Error -> {
+                        resetState()
+                    }
+                    else -> {}
                 }
             }
+
         }
     }
 
@@ -247,7 +197,7 @@ sealed class UploadState {
     data class Progress(val progress: Int, val requestId: String) : UploadState()
     data class MediaUploaded(val url: String) : UploadState()
     data class MediaUploadError(val message: String) : UploadState()
-    data class Success(val postId: String) : UploadState()
+    data class Success(val postResponse: PostResponse) : UploadState()
     data class Error(val message: String) : UploadState()
 }
 

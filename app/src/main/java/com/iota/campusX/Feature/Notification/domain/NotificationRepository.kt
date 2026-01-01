@@ -14,7 +14,11 @@ interface NotificationRepository {
 
     fun markNotificationAsRead()
 
+    fun markRequestNotificationAsRead()
+
     fun getNotificationCount(): Flow<ResultState<Int>>
+
+    fun getRequestNotificationCount(): Flow<ResultState<Int>>
 
     suspend fun deleteNotification(notificationId: String) : Result<Unit>
 

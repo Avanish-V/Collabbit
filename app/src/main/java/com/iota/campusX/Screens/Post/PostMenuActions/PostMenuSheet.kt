@@ -1,6 +1,7 @@
 package com.iota.campusX.Screens.Post.PostMenuActions
 
 import android.graphics.Color
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -58,11 +59,12 @@ fun PostMenuSheet(
         viewModel.loadMenu(content)
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(actionResult.value) {
 
         when (actionResult.value) {
 
             is UiState.Error ->{
+                Log.d("PostMenuViewModel", "onActionSelected: ${actionResult.value}")
                 snackBarHostState.showSnackbar((actionResult.value as UiState.Error).message)
             }
             UiState.Loading -> {

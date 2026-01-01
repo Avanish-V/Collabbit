@@ -7,5 +7,5 @@ import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
 import kotlinx.coroutines.flow.Flow
 
 class GetCampusPostsUseCase(private val repository: PostRepositoryInterface) {
-    suspend operator fun invoke(feedMode: FeedMode, campusId: String?) : Flow<PagingData<GetPostDTO>> = repository.fetchCampusPosts(feedMode, campusId)
+    //suspend operator fun invoke(feedMode: FeedMode, campusId: String?) : Flow<PagingData<GetPostDTO>> = repository.fetchCampusPosts(feedMode, campusId)
 }

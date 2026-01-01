@@ -1,14 +1,11 @@
 package com.iota.campusX.Feature.Post.data.model
 
-import com.google.firebase.Timestamp
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class GetPostDTO(
     val postId: String = "",
-    @Contextual
-    val createdAt: Timestamp? = null, // or Date with Contextual
+    val createdAt: Long? = null, // or Date with Contextual
     val creatorDetail: CreatorDetail = CreatorDetail(),
     val feedMode: FeedMode = FeedMode.OPEN,
     val reference: Reference?=null,
@@ -16,8 +13,7 @@ data class GetPostDTO(
     val campusId: String?=null,
     val postContent: PostContent = PostContent(),
     val postActions: PostActions = PostActions(),
-    val type: Type = Type.Media,
-    val mediaType: MediaType = MediaType.Image,
+    val type: Type = Type.MEDIA,
 )
 
 
@@ -34,10 +30,10 @@ data class CreatorDetail(
 
 @Serializable
 data class UserBasicDetail(
-    val userName: String = "",
+    val name: String = "",
     val id: String = "",
-    val userImage: String = "",
-    val userBio: String = "",
+    val image: String? = "",
+    val tagline: String = "",
 )
 
 

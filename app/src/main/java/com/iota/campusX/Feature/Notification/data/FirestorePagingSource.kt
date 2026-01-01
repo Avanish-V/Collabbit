@@ -1,6 +1,5 @@
 package com.iota.campusX.Feature.Notification.data
 
-import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.google.firebase.Timestamp
@@ -10,14 +9,12 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import com.iota.campusX.Feature.Notification.domain.GetNotification
 import com.iota.campusX.Feature.Notification.domain.GetNotification.CommentNotification
-import com.iota.campusX.Feature.Notification.domain.GetNotification.ConnectionRequestNotification
 import com.iota.campusX.Feature.Notification.domain.GetNotification.LikeNotification
 import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Notification.domain.UserPayload
-import com.iota.campusX.Feature.Post.data.model.CreatorDetail
-import com.iota.campusX.Feature.Post.data.model.Type
-import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.remote.visibilityMode
+import com.iota.campusX.Feature.Post.domain.UseCases.GetSinglePostByIdUseCase
+import com.iota.campusX.Feature.UserProfile.domain.repository.UserProfileRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
@@ -27,6 +24,8 @@ class NotificationPagingSource(
     private val newsQuery: Query,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val getSinglePostByIdUseCase: GetSinglePostByIdUseCase,
+    private val userProfileRepository: UserProfileRepository
 ) : PagingSource<QuerySnapshot, GetNotification>() {
 
     override fun getRefreshKey(state: PagingState<QuerySnapshot, GetNotification>): QuerySnapshot? {
@@ -38,7 +37,12 @@ class NotificationPagingSource(
             val currentPage = params.key ?: newsQuery.get().await()
 
             // Build the list from current snapshot
-            val data = fetchNotification(currentPage, firestore, auth)
+            val data = fetchNotification(
+                query = currentPage,
+                firestore = firestore,
+                getSinglePostByIdUseCase = getSinglePostByIdUseCase,
+                userProfileRepository = userProfileRepository
+            )
 
             // If this page is empty OR less than requested load size → no more data
             val lastVisibleDoc = currentPage.documents.lastOrNull()
@@ -66,7 +70,8 @@ class NotificationPagingSource(
 suspend fun fetchNotification(
     query: QuerySnapshot,
     firestore: FirebaseFirestore,
-    auth: FirebaseAuth
+    getSinglePostByIdUseCase: GetSinglePostByIdUseCase,
+    userProfileRepository: UserProfileRepository
 ): List<GetNotification> {
 
     return coroutineScope {
@@ -80,25 +85,17 @@ suspend fun fetchNotification(
 
                     val raw = doc.toObject(CreateNotification.LikeNotification::class.java) ?: return@mapNotNull null
 
-
                     async {
                         // 1. Fetch post content
                         val postDeferred = async {
 
-                            val postSnap = firestore.collection("Posts")
-                                .document(raw.postId)
-                                .get()
-                                .await()
+                           val postData =   getSinglePostByIdUseCase(postId = raw.postId)
 
-                            val text = postSnap.getString("postText") ?: ""
-                            val image = postSnap.getString("image") ?: ""
-                            val type = postSnap.getString("Type") ?: ""
-
-                            if (!postSnap.exists()) return@async null
-
-                            PostContent(
-                                text = postSnap.getString("postText") ?: "",
-                                image = postSnap.getString("image") ?: ""
+                            postData.fold(
+                                onSuccess = {
+                                    PostContent(text = it.postContent.postText, image = it.postContent.postImage.map { it.mediaUrl })
+                                },
+                                onFailure = {return@async}
                             )
 
                         }
@@ -129,7 +126,7 @@ suspend fun fetchNotification(
                             createdAt = raw.createdAt as? Timestamp,
                             isRead = raw.read,
                             postId = raw.postId,
-                            postContent = postDeferred.await(),
+                            postContent = postDeferred.await() as PostContent?,
                             likes = creatorDeferred.await(),
                             likesCount = if (raw.likes.size>2) raw.likes.size-2 else raw.likes.size
                         )
@@ -142,43 +139,47 @@ suspend fun fetchNotification(
                     val raw = doc.toObject(CreateNotification.CommentNotification::class.java) ?: return@mapNotNull null
 
                     async {
-                        // hydrate post content
 
                         val postDeferred = async {
-                            val postSnap = firestore.collection("Posts")
-                                .document(raw.postId)
-                                .get()
-                                .await()
 
-                            if (!postSnap.exists()) return@async null
-
-                            PostContent(
-                                text = postSnap.getString("postText") ?: "",
-                                image = postSnap.getString("image") ?: ""
+                            val postData =   getSinglePostByIdUseCase(postId = raw.postId)
+                            var postText: String = ""
+                            var mediaList : List<String> = emptyList()
+                            postData.fold(
+                                onSuccess = {
+                                     mediaList = it.postContent.postImage.map { it.mediaUrl }
+                                     postText = it.postContent.postText.toString()
+                                },
+                                onFailure = {}
                             )
+                            PostContent(
+                                text = postText,
+                                image = mediaList
+                            )
+
                         }
 
                         val creatorDeferred = async {
+
                             raw.commentContent.distinctBy { it.repliedBy }.take(3).mapNotNull { userId ->
-                                val userSnap = firestore.collection("Users")
-                                    .document(userId.repliedBy)
-                                    .get()
-                                    .await()
 
-                                if (!userSnap.exists()) return@mapNotNull null
+                                val result = userProfileRepository.getUserProfileById(userId = userId.repliedBy)
 
-                                val userImage = userSnap.getString("userImage") ?: ""
-                                val userName = userSnap.getString("userName") ?: ""
+                                val data = result.fold(
+                                    onSuccess = {it},
+                                    onFailure = {return@mapNotNull null}
+                                )
 
                                 val visibility = visibilityMode(
                                     visibilityMode = userId.visibilityMode,
-                                    userName = userName,
-                                    userImage = userImage
+                                    userName = data.name,
+                                    userImage = data.image?:""
                                 )
                                 UserPayload(
                                     visibilityMode = userId.visibilityMode,
                                     userName = visibility.first,
-                                    userImage = visibility.second
+                                    userImage = visibility.second,
+                                    repliedAt = userId.repliedAt
                                 )
 
                             }
@@ -191,7 +192,6 @@ suspend fun fetchNotification(
                             createdAt = raw.createdAt as? Timestamp,
                             isRead = raw.read,
                             postId = raw.postId,
-                            visibilityMode = raw.visibilityMode,
                             postContent = postDeferred.await(),
                             replyUsers = creatorDeferred.await()
                         )
@@ -200,40 +200,9 @@ suspend fun fetchNotification(
 
                 }
 
-                NotificationType.CONNECTION_REQUEST -> {
-                    val raw = doc.toObject(CreateNotification.ConnectionRequestNotification::class.java) ?: return@mapNotNull null
-                    async {
-
-                        val userSnap = firestore.collection("Users")
-                            .document(raw.actionBy)
-                            .get()
-                            .await()
-
-                        val userImage = userSnap.getString("userImage")?:""
-                        val userName = userSnap.getString("userName") ?:""
-                        val isVerified = userSnap.getBoolean("metaData.verified") ?: false
-
-                        val creator = CreatorDetail(
-                            profile = UserBasicDetail(
-                                userName = userName,
-                                id = raw.actionBy,
-                                userImage = userImage,
-                            ),
-                            isVerified = isVerified
-                        )
-
-
-                        ConnectionRequestNotification(
-                            notificationId = raw.notificationId,
-                            type = raw.type,
-                            createdAt = raw.createdAt as Timestamp?,
-                            isRead = raw.read,
-                            actionBy = creator
-                        )
-                    }
-                }
 
                 NotificationType.SYSTEM -> null
+                NotificationType.CONNECTION_REQUEST ->null
             }
         }.map { it.await() }
     }

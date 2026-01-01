@@ -31,7 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
-import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.ConnectionsDTO
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.Utils.LoadingScreen
 import com.iota.campusX.Utils.StatusScreen

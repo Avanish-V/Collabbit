@@ -1,4 +1,4 @@
-package com.iota.campusX.Feature.Chats.data
+ package com.iota.campusX.Feature.Chats.data
 
 import SendPushNotification
 import android.util.Log
@@ -12,7 +12,8 @@ import com.google.firebase.database.DatabaseReference.CompletionListener
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.domain.repository.UserProfileRepository
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +29,8 @@ class ChatImpl(
     private val sendPushNotification: SendPushNotification,
     private val database: FirebaseDatabase,
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val userProfileRepository: UserProfileRepository
 ) : ChatRepository {
 
     override fun sendMessage(message: String, messageId: String, timestamp: Any, receiverId: String, roomId: String): Flow<ResultState<Boolean>> {
@@ -127,21 +129,27 @@ class ChatImpl(
 
     override suspend fun getChats(): Result<List<UserChatsDTO>> {
         return try {
-            val currentUserId = auth.currentUser?.uid
-                ?: return Result.failure(Exception("User not authenticated"))
+
+            val currentUserId = auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
 
             val chatList = mutableListOf<UserChatsDTO>()
             val userChatsRef = firestore.collection("Chats").document(currentUserId).collection("Messages")
 
             val messageDocs = Tasks.await(userChatsRef.get())
+
             val chatCount = messageDocs.size()
+
             if (chatCount == 0) {
                 return Result.success(emptyList())
             }
 
-            var processedChats = 0
+
+
+
             val deferreds = messageDocs.map { doc ->
+
                 CoroutineScope(Dispatchers.IO).async {
+
                     val idData = doc.toObject(ID::class.java)
                     val receiverId = idData._id
                     val roomId = idData.roomId
@@ -149,12 +157,15 @@ class ChatImpl(
                     if (receiverId.isEmpty() || roomId.isEmpty()) return@async null
 
                     val userSnapshot = try {
-                        Tasks.await(firestore.collection("Users").document(receiverId).get())
+                        userProfileRepository.getUserProfileById(receiverId)
                     } catch (e: Exception) {
                         return@async null
                     }
 
-                    val userData = userSnapshot.toObject(BaseProfileDTO::class.java) ?: return@async null
+                    val userData = userSnapshot.fold(
+                        onSuccess = { it },
+                        onFailure = { return@async null }
+                    )
 
                     val snapshot = try {
                         Tasks.await(database.getReference("ChatRoom").child(roomId).child("messages").get())
@@ -183,8 +194,8 @@ class ChatImpl(
                     UserChatsDTO(
                         roomId = roomId,
                         receiverId = receiverId,
-                        userName = userData.userName,
-                        userImage = userData.userImage,
+                        userName = userData.name,
+                        userImage = userData.image,
                         lastMessage = LastMessage(
                             lastMessage = lastMessage?.text ?: "",
                             timeStamp = lastMessage?.timestamp?.toLong() ?: 0L,

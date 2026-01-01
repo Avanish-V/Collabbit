@@ -48,7 +48,6 @@ fun StatusScreen(
     description:String? = null,
     image:Int?= null,
     modifier: Modifier = Modifier,
-
     buttonText: String? = null,
     onClick: () -> Unit = {}
 ) {
@@ -100,12 +99,8 @@ fun StatusScreen(
                     Text(buttonText)
                 }
             }
-
-
         }
-
     }
-
 }
 
 

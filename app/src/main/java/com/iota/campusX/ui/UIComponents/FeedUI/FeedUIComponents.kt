@@ -59,55 +59,64 @@ import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 import com.iota.campusX.R
 import com.iota.campusX.Utils.buildAnnotatedAutoLinkText
 import com.iota.campusX.ui.UIComponents.AnonymousImage
+import com.iota.campusX.ui.UIComponents.UserAvatar
 import com.iota.campusX.ui.theme.LightBlack
 
 @Composable
 fun Avatar(
-    imageUrl: String,
+    imageUrl: String?,
     visibilityMode: VisibilityMode,
     onAvatarClick:()-> Unit
 ) {
 
-    if (visibilityMode == VisibilityMode.ANONYMOUS){
-        AnonymousImage(
+    Box(modifier = Modifier
+        .size(42.dp)
+        .border(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+            shape = CircleShape
+        )
+        .clip(CircleShape)
+        .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = {
+                if (visibilityMode == VisibilityMode.USER) {
+                    onAvatarClick.invoke()
+                }
+            }
+        )
+    ){
+
+        UserAvatar(
+            imageUrl = imageUrl,
+            bgColor = "0xFF4FC3F7",
+            visibilityMode = visibilityMode,
             modifier = Modifier.size(42.dp)
         )
-    }else{
-
-        AsyncImage(
-            modifier = Modifier
-                .size(42.dp)
-                .border(
-                    width = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = CircleShape
-                )
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {
-                        if (visibilityMode == VisibilityMode.USER) {
-                            onAvatarClick.invoke()
-                        }
-                    }
-                ),
-            model = imageUrl,
-            contentDescription = "Profile Picture",
-            contentScale = ContentScale.Crop,
-            error = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-        )
-
     }
 
 }
 
 @Composable
-fun AnimatedLikeButton(onLike:()-> Unit,likesCount: Int,isLiked: Boolean) {
+fun AnimatedLikeButton(onLike:(Boolean)-> Unit, likesCount: Int, isLiked: Boolean) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
+
+        Icon(
+            modifier = Modifier
+                .size(16.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { onLike.invoke(!isLiked) }
+                ),
+            painter = painterResource(if (isLiked) R.drawable.up_solid else R.drawable.up_regular),
+            contentDescription = "Like",
+            tint = MaterialTheme.colorScheme.onBackground
+        )
         AnimatedContent(
             targetState = likesCount,
             transitionSpec = {
@@ -123,18 +132,6 @@ fun AnimatedLikeButton(onLike:()-> Unit,likesCount: Int,isLiked: Boolean) {
         }
 
 
-        Icon(
-            modifier = Modifier
-                .size(16.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { onLike.invoke() }
-                ),
-            painter = painterResource(if (isLiked) R.drawable.up_solid else R.drawable.up_regular),
-            contentDescription = "Like",
-            tint = MaterialTheme.colorScheme.onBackground
-        )
     }
 }
 

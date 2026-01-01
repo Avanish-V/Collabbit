@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
+import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.domain.repository.PostRepository
 import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
@@ -29,8 +30,8 @@ class PostFeedViewModel(
     //---------------------------------FETCH THE DATA----------------------------------
 
 
-    fun fetchGlobalPost() = viewModelScope.launch {
-       repository.fetchGlobalPosts(viewModelScope)
+    fun fetchGlobalPost(feedMode: FeedMode, campusId: String?) = viewModelScope.launch {
+       repository.fetchGlobalPosts(viewModelScope,feedMode,campusId)
     }
     fun fetchCampusPost(campusId: String) = viewModelScope.launch { repository.fetchCampusPosts(viewModelScope,campusId) }
     fun fetchUserPost(userId: String) = viewModelScope.launch { repository.fetchUserPosts(viewModelScope,userId) }

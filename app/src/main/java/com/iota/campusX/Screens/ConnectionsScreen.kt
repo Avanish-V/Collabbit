@@ -34,9 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
-import com.iota.campusX.Feature.UserProfile.data.ConnectionsDTO
-import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestState
-import com.iota.campusX.Feature.UserProfile.presentation.ConnectionRequestViewModel
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.ConnectionsDTO
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.ConnectionRequestState
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.ConnectionRequestViewModel
 import com.iota.campusX.Navigation.Routes
 import com.iota.campusX.R
 import com.iota.campusX.Utils.LoadingScreen
@@ -65,7 +65,7 @@ fun ConnectionsScreen(
     val user = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("USER_ID")
 
     LaunchedEffect(Unit) {
-        user?.let { connectionRequestViewModel.getConnections(it) }
+        user?.let { connectionRequestViewModel.initConnections(it) }
     }
 
     LaunchedEffect(rejectConnectionState) {
@@ -159,9 +159,7 @@ fun ConnectionsScreen(
                         text = "${connections.message}Something went wrong!",
                         image = R.drawable.undraw_voice_assistant_k27k,
                         onReTry = {
-                            scope.launch {
-                                user?.let { connectionRequestViewModel.getConnections(it) }
-                            }
+                            connectionRequestViewModel.initConnections(user.toString())
                         },
                         buttonText = "Try again"
                     )

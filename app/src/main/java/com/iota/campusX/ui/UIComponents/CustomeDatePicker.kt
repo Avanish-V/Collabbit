@@ -28,7 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.Feature.UserProfile.data.Duration
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Duration
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -55,18 +55,18 @@ fun CourseDurationPicker(
         if (initialDuration != null) {
             startDate = initialDuration.startTimestamp?.let { Date(it) }
             endDate = initialDuration.endTimestamp?.let { Date(it) }
-            isCurrentlyStudying = initialDuration.current
+            isCurrentlyStudying = initialDuration.isCurrent
             selectedDuration = initialDuration
         }
     }
 
     fun updateDuration() {
         selectedDuration = Duration(
-            start = startDate?.let { dateFormat.format(it) } ?: "",
+            courseStart = startDate?.let { dateFormat.format(it) } ?: "",
             startTimestamp = startDate?.time,
-            end = if (isCurrentlyStudying) null else endDate?.let { dateFormat.format(it) },
+            courseEnd = if (isCurrentlyStudying) null else endDate?.let { dateFormat.format(it) },
             endTimestamp = if (isCurrentlyStudying) null else endDate?.time,
-            current = isCurrentlyStudying
+            isCurrent = isCurrentlyStudying
         )
         onDurationSelected(selectedDuration)
     }

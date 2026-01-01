@@ -1,5 +1,6 @@
 package com.iota.campusX.Feature.Notification.data
 
+import android.util.Log
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -10,11 +11,15 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.Feature.Chats.data.ID
 import com.iota.campusX.Feature.Notification.domain.GetNotification
 import com.iota.campusX.Feature.Notification.domain.NotificationRepository
+import com.iota.campusX.Feature.Post.domain.UseCases.GetSinglePostByIdUseCase
+import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
+import com.iota.campusX.Feature.UserProfile.domain.repository.UserProfileRepository
 import com.iota.campusX.Utils.ResultState
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -24,7 +29,9 @@ import kotlinx.coroutines.tasks.await
 class NotificationImpl(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val database: FirebaseDatabase
+    private val database: FirebaseDatabase,
+    private val getSinglePostByIdUseCase: GetSinglePostByIdUseCase,
+    private val userProfileRepository: UserProfileRepository
 ) : NotificationRepository {
 
     override suspend fun fetchPagedNotification(): Flow<PagingData<GetNotification>> {
@@ -32,7 +39,7 @@ class NotificationImpl(
         val query = firestore.collection("Users")
             .document(auth.currentUser?.uid ?:"")
             .collection("Notifications")
-            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
             .limit(10)
 
 
@@ -45,6 +52,8 @@ class NotificationImpl(
                 NotificationPagingSource(
                     newsQuery = query,
                     firestore = firestore,
+                    getSinglePostByIdUseCase = getSinglePostByIdUseCase,
+                    userProfileRepository = userProfileRepository,
                     auth = auth
                 )
             }
@@ -59,6 +68,37 @@ class NotificationImpl(
         val userNotificationsRef = firestore.collection("Users")
             .document(currentUser.uid)
             .collection("Notifications")
+
+        userNotificationsRef
+            .whereEqualTo("read", false)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (!querySnapshot.isEmpty) {
+                    val batch = firestore.batch()
+                    for (document in querySnapshot.documents) {
+                        batch.update(document.reference, "read", true)
+                    }
+                    batch.commit()
+                        .addOnSuccessListener {
+
+                        }
+                        .addOnFailureListener { e ->
+
+                        }
+                }
+            }
+            .addOnFailureListener { e ->
+
+            }
+    }
+
+    override fun markRequestNotificationAsRead() {
+
+        val currentUser = auth.currentUser ?: return
+
+        val userNotificationsRef = firestore.collection("Users")
+            .document(currentUser.uid)
+            .collection("RequestNotification")
 
         userNotificationsRef
             .whereEqualTo("read", false)
@@ -102,6 +142,31 @@ class NotificationImpl(
             awaitClose()
 
         }
+    }
+
+    override fun getRequestNotificationCount(): Flow<ResultState<Int>> {
+
+        return callbackFlow {
+
+            val currentUser = auth.currentUser ?: return@callbackFlow
+
+            val userNotificationsRef = firestore.collection("Users")
+                .document(currentUser.uid)
+                .collection("RequestNotification")
+
+            userNotificationsRef.whereEqualTo("read", false)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(ResultState.Error(error.message.toString()))
+                    } else {
+                        val unreadCount = snapshot?.size() ?: 0
+                        trySend(ResultState.Success(unreadCount))
+
+                    }
+                }
+            awaitClose()
+        }
+
     }
 
     override suspend fun deleteNotification(notificationId: String): Result<Unit> {
@@ -192,15 +257,14 @@ class NotificationImpl(
         }
     }
 
-    override suspend fun createNotification(
-        createNotification: CreateNotification,
-        creatorId: String
-    ): Result<Unit> {
+    override suspend fun createNotification(createNotification: CreateNotification, creatorId: String): Result<Unit> {
         return try {
 
             val notificationsRef = firestore.collection("Users")
                 .document(creatorId)
                 .collection("Notifications")
+
+            Log.d("CreateNotification", "createNotification: $createNotification")
 
 
             when (createNotification) {
@@ -238,6 +302,12 @@ class NotificationImpl(
                     val requesterId = auth.currentUser?.uid ?: return Result.failure(
                         IllegalStateException("No authenticated user")
                     )
+
+                    firestore.collection("Users")
+                        .document(creatorId)
+                        .collection("RequestNotification")
+                        .document(createNotification.notificationId)
+                        .set(createNotification)
 
                     notificationsRef.document(requesterId)
                         .set(createNotification)
@@ -277,7 +347,5 @@ class NotificationImpl(
             Result.failure(e)
         }
     }
-
-
 
 }

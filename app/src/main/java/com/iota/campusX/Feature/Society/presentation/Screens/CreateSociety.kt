@@ -4,16 +4,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -56,8 +52,8 @@ import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Society.domain.models.CreateSocietyDTO
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.FirestoreIdGenerator
@@ -90,7 +86,7 @@ fun CreateSociety(
     //States
 
     val profile = when(profileState){
-        is UiState.Success -> {
+        is UiState.Success<*> -> {
             (profileState as UiState.Success<BaseProfileDTO>).data
         }
         else -> null
@@ -140,7 +136,7 @@ fun CreateSociety(
                 actions = {
                     TextButton(onClick = {
 
-                        if (profile?.campus?.campusCode.isNullOrEmpty()){
+                        if (profile?.campus?.code.isNullOrEmpty()){
                             scope.launch {
                                 snackBarHostState.showSnackbar("Update Campus ID")
                             }
@@ -164,18 +160,18 @@ fun CreateSociety(
                             CreateSocietyDTO(
                                 societyName = societyName,
                                 description = description,
-                                createdBy = profile.id,
+                                createdBy = profile.uid,
                                 roomId = FirestoreIdGenerator.generate(),
                                 joined = emptyList(),
                                 mode = FeedMode.CAMPUS,
-                                campusId = profile.campus.campusCode,
+                                campusId = profile.campus.code,
                                 active = false
                             ),
                             imageUri = imageUri,
                             userBasicDetail = UserBasicDetail(
-                                id = profile.id,
-                                userImage = profile.userImage,
-                                userName = profile.userName
+                                id = profile.uid,
+                                image = profile.image?:"",
+                                name = profile.name?:""
                             ) ,
                         )
 

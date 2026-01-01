@@ -2,14 +2,14 @@ package com.iota.campusX.Feature.Society.domain.models
 
 data class GetJoinRequestDTO(
     var requestId: String = "",
-    val role : String = "",
+    val role: String = "",
     var status: Status = Status.IDLE,
     val uid: Int = 0,
     val speaking: Boolean = false,
     val muted: Boolean = true,
     val raiseHand: Boolean,
     val userName: String = "",
-    val userImage: String = "",
+    val userImage: String? = "",
 )
 
 

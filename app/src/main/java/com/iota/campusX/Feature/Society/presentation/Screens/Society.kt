@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,8 +43,8 @@ import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyO
 import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyOptionsViewModel
 import com.iota.campusX.Feature.Society.presentation.SocietyMenuOptions.SocietyState
 import com.iota.campusX.Feature.Society.presentation.ViewModels.SocietyViewModel
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Routes
@@ -92,8 +91,8 @@ fun SocietyScreen(
     var showSocietyOptions by remember { mutableStateOf<SocietyState?>(null) }
 
     // Initial fetch
-    LaunchedEffect(profile?.campus?.campusCode) {
-        societyViewModel.fetchSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.campus?.campusCode)
+    LaunchedEffect(profile?.campus?.code) {
+        societyViewModel.fetchSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.campus?.code)
     }
 
     BackHandler {
@@ -163,10 +162,10 @@ fun SocietyScreen(
                     isRefreshing = isRefreshing,
                     onRefresh = {
                         if (page == 0){
-                            societyViewModel.refreshSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.campus?.campusCode)
+                            societyViewModel.refreshSocieties(feedMode = FeedMode.CAMPUS, campusId = profile?.campus?.code)
                         }
                         else{
-                            societyViewModel.refreshUserSocieties(userId = profile?.id.orEmpty())
+                            societyViewModel.refreshUserSocieties(userId = profile?.uid.orEmpty())
                         }
                     },
 
@@ -175,7 +174,7 @@ fun SocietyScreen(
                         0 -> SocietyUIRender(
                             state = state.value,
                             lazyListState = lazyListState,
-                            campusId = profile?.campus?.campusCode,
+                            campusId = profile?.campus?.code,
                             navHostController = navHostController,
                             onLongClick = { data ->
                                 societyOptionsViewModel.showMenu(
@@ -185,7 +184,7 @@ fun SocietyScreen(
                                     showSocietyOptions = true,
                                     societyData = SocietyData(
                                         roomId =  data.roomId,
-                                        isOwner = data.createdBy.id == profile?.id,
+                                        isOwner = data.createdBy.id == profile?.uid,
                                         ownerId = data.createdBy.id,
                                         navHostController = navHostController
                                     )
@@ -196,13 +195,13 @@ fun SocietyScreen(
                         1 -> {
 
                             LaunchedEffect(Unit) {
-                                profile?.id?.let { societyViewModel.fetchUserSocieties(userId = it) }
+                                profile?.uid?.let { societyViewModel.fetchUserSocieties(userId = it) }
                             }
 
                             SocietyUIRender(
                                 state = userSociety.value,
                                 lazyListState = lazyListState,
-                                campusId = profile?.campus?.campusCode,
+                                campusId = profile?.campus?.code,
                                 navHostController = navHostController,
                                 onLongClick = { data ->
                                     societyOptionsViewModel.showMenu(
@@ -212,7 +211,7 @@ fun SocietyScreen(
                                         showSocietyOptions = true,
                                         societyData = SocietyData(
                                             roomId =  data.roomId,
-                                            isOwner = data.createdBy.id == profile?.id,
+                                            isOwner = data.createdBy.id == profile?.uid,
                                             ownerId = data.createdBy.id,
                                             navHostController = navHostController
                                         )
@@ -368,13 +367,13 @@ fun SocietyCard(
 //                            }
 
                             CircleImage(
-                                image = getSocietyDTO.createdBy.userImage,
+                                image = getSocietyDTO.createdBy.image?:"",
                                 modifier = Modifier.size(28.dp),
                                 onClick = {},
                                 visibility = VisibilityMode.USER
                             )
                         }
-                        Text(getSocietyDTO.createdBy.userName, style = MaterialTheme.typography.bodyMedium)
+                        Text(getSocietyDTO.createdBy.name, style = MaterialTheme.typography.bodyMedium)
                     }
 
                 }

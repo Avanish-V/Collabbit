@@ -7,7 +7,7 @@ data class UserChatsDTO(
     val roomId: String = "",
     val receiverId: String = "",
     val userName:String = "",
-    val userImage:String = "",
+    val userImage:String? = null,
     val lastMessage:LastMessage
 )
 @Serializable

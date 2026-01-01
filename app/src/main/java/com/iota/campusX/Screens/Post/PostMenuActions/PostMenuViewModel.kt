@@ -46,6 +46,7 @@ class PostMenuViewModel(
                   UiState.Success(Unit)
                 },
                 onFailure = {
+                    Log.d("PostMenuViewModel1", "onActionSelected: ${it.message}")
                     UiState.Error(it.message.toString())
                 }
             )

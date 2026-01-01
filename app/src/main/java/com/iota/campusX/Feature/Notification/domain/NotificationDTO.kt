@@ -31,7 +31,7 @@ sealed class GetNotification {
         override val isRead: Boolean = false,
         val postId: String = "",
         val visibilityMode: VisibilityMode = VisibilityMode.USER,
-        val postContent: PostContent? = null,
+        val postContent: PostContent = PostContent(),
         val replyUsers : List<UserPayload> = emptyList()
         // the post being commented
     ) : GetNotification()
@@ -56,7 +56,8 @@ enum class NotificationType {
 data class UserPayload(
     val visibilityMode: VisibilityMode? = null,
     val userName: String = "",
-    val userImage : String = ""
+    val userImage : String = "",
+    val repliedAt: Any? = null
 )
 
 

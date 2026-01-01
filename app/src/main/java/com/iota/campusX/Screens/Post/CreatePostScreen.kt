@@ -18,6 +18,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -86,8 +87,8 @@ import com.iota.campusX.Feature.Post.data.model.MediaType
 import com.iota.campusX.Feature.Post.presentation.PostCreationViewModel
 import com.iota.campusX.Feature.Post.data.model.Type
 import com.iota.campusX.Feature.Post.presentation.UploadState
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.HomeViewModel
 import com.iota.campusX.Utils.CircularLoading
@@ -145,9 +146,10 @@ fun CreatePostScreen(
     var isLoading by remember { mutableStateOf(false) }
     var visibility by remember { mutableStateOf(VisibilityMode.USER) }
 
-    var selectedImages by remember { mutableStateOf<Uri?>(null) }
+    var selectedImages by remember { mutableStateOf<List<Uri>?>(null) }
+
     val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4),
         onResult = { uri -> selectedImages = uri }
     )
 
@@ -239,7 +241,9 @@ fun CreatePostScreen(
             BottomBarComponent(
                 onImageClick = {
                     if (currentMode == CreatePostMode.Poll) return@BottomBarComponent
-                    singlePhotoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    singlePhotoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
                 },
                 onPollClick = {
                     pollViewModel.createPoll("")
@@ -255,26 +259,39 @@ fun CreatePostScreen(
 
                             feedMode?.let {
                                 postCreationViewModel.createPoll(
-                                    creatorId = userProfile?.id ?: "",
-                                    campusId = userProfile?.campus?.campusCode ?: "",
+                                    creatorId = userProfile?.uid ?: "",
+                                    campusId = userProfile?.campus?.code ?: "",
                                     feedMode = it,
                                     visibility = visibility,
-                                    type = Type.Poll,
+                                    type = Type.POLL,
                                     poll = poll
+                                )
+                            }
+
+                        }
+                        is CreatePostMode.Text -> {
+                            feedMode?.let {
+                                postCreationViewModel.createTextPost(
+                                    creatorId = userProfile?.uid ?: "",
+                                    campusId = userProfile?.campus?.code ?: "",
+                                    feedMode = it,
+                                    visibility = visibility,
+                                    postText = text,
+                                    type = Type.TEXT
                                 )
                             }
                         }
                         else -> {
                             feedMode?.let {
                                 postCreationViewModel.createMediaPost(
-                                    creatorId = userProfile?.id ?: "",
-                                    campusId = userProfile?.campus?.campusCode ?: "",
+                                    creatorId = userProfile?.uid ?: "",
+                                    campusId = userProfile?.campus?.code ?: "",
                                     feedMode = it,
                                     visibility = visibility,
                                     imageUri = selectedImages,
                                     postText = text,
-                                    type = Type.Media,
-                                    mediaType = MediaType.Image
+                                    type = Type.MEDIA,
+                                    mediaType = MediaType.IMAGE
                                 )
                             }
                         }
@@ -334,7 +351,7 @@ fun CreatePostScreen(
                         }
 
                     },
-                    userImage = userProfile?.userImage ?: "",
+                    userImage = userProfile?.image ?: "",
                 )
 
             }
@@ -369,39 +386,55 @@ fun CreatePostScreen(
                     is CreatePostMode.Media -> {
 
                         InputBox(
-                            text = text,
+                            text = text.trim(),
                             onValueChange = { text = it },
                         ) {
                             if (selectedImages != null){
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
                             AnimatedVisibility(visible = true) {
-                                Box(contentAlignment = Alignment.TopEnd) {
-                                    AsyncImage(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(5.dp))
-                                            .fillMaxWidth()
-                                            .height(250.dp),
-                                        model = selectedImages,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop
-                                    )
 
-                                    IconButton(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .padding(12.dp),
-                                        onClick = {
-                                            selectedImages = null
-                                            postScreenViewModel.chooseOption(
-                                                CreatePostMode.Text
+                                val columnCount = when (selectedImages?.size) {
+                                    1 -> 1
+                                    2 -> 2
+                                    else -> 3
+                                }
+                               // LinkedInStyleImageGrid(selectedImages = selectedImages ?: emptyList())
+                                FlowRow(
+                                    modifier = Modifier.clip(RoundedCornerShape(6.dp)),
+                                    maxItemsInEachRow = 2,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ){
+                                    selectedImages?.forEachIndexed {index, uri ->
+                                        Box(
+                                            modifier = Modifier.weight(1f),
+                                            contentAlignment = Alignment.TopEnd
+                                        ) {
+                                            AsyncImage(
+                                                modifier = Modifier.height(180.dp),
+                                                model = uri,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop
                                             )
-                                        },
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Delete Image",
-                                            )
+
+                                            IconButton(
+                                                onClick = {
+                                                    val list = selectedImages?.toMutableList()
+                                                    list?.removeAt(index)
+                                                    selectedImages = list
+                                                    postScreenViewModel.chooseOption(
+                                                        CreatePostMode.Text
+                                                    )
+                                                },
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Delete Image",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -612,8 +645,6 @@ fun VisibilityModeChanger(
                 description = "SWIPE_RIGHT"
             )
         }
-
-
     }
 }
 

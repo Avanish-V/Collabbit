@@ -38,7 +38,7 @@ fun CustomTextField(
 ) {
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
         if (label.isNotEmpty()){

@@ -1,12 +1,18 @@
 package com.iota.campusX.Feature.Reply
 
-import android.util.Log
+import android.net.Uri
+import com.iota.campusX.Feature.Notification.data.CommentContent
+import com.iota.campusX.Feature.Notification.data.CreateNotification
+import com.iota.campusX.Feature.Notification.domain.NotificationRepository
+import com.iota.campusX.Feature.Notification.domain.NotificationType
 import com.iota.campusX.Feature.Post.data.remote.visibilityMode
 import com.iota.campusX.Feature.Post.data.model.CreatorDetail
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Post.data.model.GetRepliesDTO
 import com.iota.campusX.Feature.Post.data.model.PostActions
+import com.iota.campusX.Feature.Post.data.model.ReplyRequest
+import com.iota.campusX.Feature.Post.data.model.ReplyResponse
 import com.iota.campusX.Feature.Post.data.model.UserBasicDetail
 import com.iota.campusX.Feature.Post.data.model.UserReplyDTO
 import com.iota.campusX.Feature.Post.data.model.VisibilityMode
@@ -23,11 +29,12 @@ import kotlin.collections.emptyList
 class ReplyRepository (
     private val getRepliesUseCase: GetRepliesUseCase,
     private val createReplyUseCase: CreateReplyUseCase,
-    private val replyRepository: ReplyRepositoryInterface
+    private val replyRepository: ReplyRepositoryInterface,
+    private val notificationRepository: NotificationRepository
 ){
 
-    private val _postRepliesState = MutableStateFlow<UiState<List<GetRepliesDTO>>>(UiState.Idle)
-    val postRepliesState: StateFlow<UiState<List<GetRepliesDTO>>> = _postRepliesState.asStateFlow()
+    private val _postRepliesState = MutableStateFlow<UiState<List<ReplyResponse>>>(UiState.Idle)
+    val postRepliesState: StateFlow<UiState<List<ReplyResponse>>> = _postRepliesState.asStateFlow()
 
     private val _userRepliesState = MutableStateFlow<UiState<List<UserReplyDTO>>>(UiState.Idle)
     val userRepliesState: StateFlow<UiState<List<UserReplyDTO>>> = _userRepliesState.asStateFlow()
@@ -59,7 +66,7 @@ class ReplyRepository (
                 if (postRepliesState.value is UiState.Success){
                    _postRepliesState.value = UiState.Idle
                 }
-                UiState.Success(it.sortedByDescending { it.repliedAt })
+                UiState.Success(it.sortedByDescending { it.createdAt })
             },
             onFailure = { UiState.Error(it.message ?: "Something went wrong") }
         )
@@ -80,29 +87,51 @@ class ReplyRepository (
 
     }
 
-    suspend fun createReply(replyId: String, postId: String, content: String, postCreatorId: String, visibilityMode: VisibilityMode,creatorDetail: CreatorDetail,postDTO: GetPostDTO){
+    suspend fun createReply(replyRequest: ReplyRequest,postDTO: GetPostDTO,uploadImage: Uri?){
 
         _createReplyState.value = UiState.Loading
 
-        val result = createReplyUseCase.invoke(
-            replyId = replyId,
-            postId = postId,
-            content = content,
-            postCreatorId = postCreatorId,
-            visibilityMode = visibilityMode
-        )
+        val result = createReplyUseCase.invoke(replyRequest,uploadImage)
+
         _createReplyState.value = result.fold(
             onSuccess = {
                 val reply = buildReplyDTO(
-                    replyId = replyId,
-                    postId = postId,
-                    content = content,
-                    visibilityMode = visibilityMode,
-                    creatorDetail = creatorDetail,
+                    replyId = it.replyId.toString(),
+                    postId = it.postId.toString(),
+                    content = it.text,
+                    visibilityMode = it.visibility,
+                    creatorDetail = CreatorDetail(
+                        profile = UserBasicDetail(
+                            name = it.author.authorName?:"",
+                            id = it.author.authorId,
+                            image = it.author.authorImage?:"",
+                            tagline = it.author.authorTagline?:"",
+                        ),
+                        isCurrentUser = true,
+                        isVerified = it.author.isVerified?:false
+                    ),
                 )
                 val userReply = buildUserReplyDTO(reply,postDTO)
 
-                createReplyLocally(reply,userReply)
+                createReplyLocally(it,userReply)
+
+                notificationRepository.createNotification(
+                    CreateNotification.CommentNotification(
+                        notificationId = it.replyId.toString(),
+                        type = NotificationType.COMMENT,
+                        createdAt = it.createdAt,
+                        postId = it.postId.toString(),
+                        commentContent = listOf(
+                            CommentContent(
+                                visibilityMode = it.visibility,
+                                repliedBy = it.author.authorId,
+                                replyId = it.replyId.toString(),
+                                repliedAt = it.createdAt
+                            )
+                        )
+                    ),
+                    creatorId = postDTO.creatorDetail.profile?.id ?: "",
+                )
 
                 UiState.Success(Unit)
             },
@@ -119,7 +148,7 @@ class ReplyRepository (
             onSuccess = {
                 _postRepliesState.update { currentState ->
                     if (currentState is UiState.Success) {
-                        UiState.Success(currentState.data.filter { it.replyId != replyId })
+                        UiState.Success(currentState.data.filter { it.replyId.toString() != replyId })
                     } else {
                         currentState
                     }
@@ -140,7 +169,7 @@ class ReplyRepository (
         return result
     }
 
-    suspend fun editReply(replyId: String, postId: String, content: String): Result<Unit>{
+    suspend fun editReply(replyId: String, postId: String, content: String?): Result<Unit>{
 
        val result = replyRepository.editReply(postId, replyId, content)
 
@@ -159,13 +188,13 @@ class ReplyRepository (
 
     //---------UPDATE DATA LOCALLY---------------------------------------------------------------------
 
-    private fun editReplyLocally(replyId: String, content: String) {
+    private fun editReplyLocally(replyId: String, content: String?) {
         _postRepliesState.update { currentState ->
             if (currentState is UiState.Success) {
                 UiState.Success(
                     currentState.data.map { reply ->
-                        if (reply.replyId == replyId) {
-                            reply.copy(content = content)
+                        if (reply.replyId.toString() == replyId) {
+                            reply.copy(text = content.toString())
                         } else {
                             reply
                         }
@@ -182,13 +211,13 @@ class ReplyRepository (
             if (currentState is UiState.Success) {
                 UiState.Success(
                     currentState.data.map { reply ->
-                        if (reply.replyId == replyId) {
+                        if (reply.replyId.toString() == replyId) {
                             val updatedActions = reply.actions.copy(
-                                isLiked = !isLiked,
+                                isLiked = isLiked,
                                 likesCount = if (isLiked) {
-                                    reply.actions.likesCount - 1
-                                } else {
                                     reply.actions.likesCount + 1
+                                } else {
+                                    reply.actions.likesCount - 1
                                 }
                             )
                             reply.copy(actions = updatedActions)
@@ -226,17 +255,30 @@ class ReplyRepository (
         }
     }
 
-    private fun createReplyLocally(reply: GetRepliesDTO, userReply: UserReplyDTO) {
+    private fun createReplyLocally(reply: ReplyResponse, userReply: UserReplyDTO) {
+
         _postRepliesState.update { currentState ->
             if (currentState is UiState.Success) {
-                val merged = (listOf(reply) + currentState.data)
-                    .sortedByDescending { it.repliedAt }
-                UiState.Success(merged)
+                if (reply.parentId == null) {
+                    // Top-level reply
+                    UiState.Success(listOf(reply) + currentState.data)
+                } else {
+                    // Nested reply (shallow version)
+                    val updatedData = currentState.data.map { parentReply ->
+                        if (parentReply.replyId == reply.parentId) {
+                            parentReply.copy(children = parentReply.children + reply)
+                        } else {
+                            parentReply
+                        }
+                    }
+                    UiState.Success(updatedData)
+                }
             } else {
-                // If not success, just discard — next fetch will bring fresh replies
                 currentState
             }
         }
+
+
 
         _userRepliesState.update { currentState ->
             if (currentState is UiState.Success) {
@@ -256,8 +298,8 @@ class ReplyRepository (
         val visibility = creatorDetail.profile?.let {
             visibilityMode(
                visibilityMode =  visibilityMode,
-                userName = it.userName,
-                userImage = it.userImage
+                userName = it.name,
+                userImage = it.image
             )
         }
 
@@ -268,10 +310,10 @@ class ReplyRepository (
             visibility = visibilityMode,
             creatorDetail = CreatorDetail(
                 profile = UserBasicDetail(
-                    userName = visibility?.first ?: "",
+                    name = visibility?.first ?: "",
                     id = creatorDetail.profile?.id ?: "",
-                    userImage = visibility?.second ?: "",
-                    userBio = creatorDetail.profile?.userBio ?: "",
+                    image = visibility?.second ?: "",
+                    tagline = creatorDetail.profile?.tagline ?: "",
                 ),
                 isCurrentUser = true,
                 isVerified = creatorDetail.isVerified

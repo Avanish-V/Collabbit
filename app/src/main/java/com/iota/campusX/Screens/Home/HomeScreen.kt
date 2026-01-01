@@ -3,7 +3,9 @@ package com.iota.campusX.Screens.Home
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -23,6 +25,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -33,6 +37,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
@@ -56,7 +63,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -72,7 +82,7 @@ import com.iota.campusX.Feature.Notification.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Post.data.model.FeedMode
 import com.iota.campusX.Feature.Post.data.model.GetPostDTO
 import com.iota.campusX.Feature.Society.presentation.Screens.CampusEmptyState
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
 import com.iota.campusX.Navigation.AppNavigator
 import com.iota.campusX.Navigation.AppNavigatorImpl
 import com.iota.campusX.Navigation.HideBottomBar
@@ -85,7 +95,7 @@ import com.iota.campusX.Screens.Post.DataModel.ContentType
 import com.iota.campusX.Screens.Post.DataModel.FeedContent
 import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
 import com.iota.campusX.Feature.Post.presentation.PostFeedViewModel
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
 import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
 import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.LoadingScreen
@@ -93,10 +103,13 @@ import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
 import com.iota.campusX.ui.UIComponents.AppLabelText
+import com.iota.campusX.ui.UIComponents.BadgeItem
 import com.iota.campusX.ui.UIComponents.Divider
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.FeedUI.FeedItem
+import com.iota.campusX.ui.UIComponents.UserAvatar
 import kotlinx.coroutines.launch
+import org.apache.http.client.methods.RequestBuilder.options
 import org.koin.compose.getKoin
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -148,34 +161,26 @@ fun MainScreen(
                 },
                 actions = {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(24.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        BadgedBox(
-                            badge = {
-                                if (chatBadgeCount != 0) {
-                                    Badge {
-                                        Text(
-                                            text = chatBadgeCount.toString(),
-                                        )
-                                    }
-                                }
-                            }
-                        ) {
-                            IconButton(
-                                onClick = { navHostController.navigate(Routes.Main.ChatList.routes) },
-                            ) {
-                                Icon(
-
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .rotate(-45f),
-                                    painter = painterResource(R.drawable.send_regular),
-                                    contentDescription = "Message",
-                                    tint = MaterialTheme.colorScheme.onBackground
-                                )
-                            }
-                        }
+                        BadgeItem(
+                            modifier = Modifier.size(24.dp),
+                            itemCount = chatBadgeCount,
+                            onBadgeClick = {
+                                navHostController.navigate(Routes.Main.Notification.routes)
+                            },
+                            badgeIcon = R.drawable.notification_normal
+                        )
+                        BadgeItem(
+                            modifier = Modifier .rotate(-45f).size(20.dp),
+                            itemCount = chatBadgeCount,
+                            onBadgeClick = {
+                                navHostController.navigate(Routes.Main.ChatList.routes)
+                            },
+                            badgeIcon = R.drawable.send_regular
+                        )
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -211,39 +216,31 @@ fun MainScreen(
                         homeViewModel.saveSwitchState(selectedMode)
                     }
 
-                    PrimaryTabRow(
-                        selectedTabIndex = pagerState.currentPage,
-                        divider = { Divider() },
-                        containerColor = MaterialTheme.colorScheme.background,
-                        indicator = {
-                            TabRowDefaults.PrimaryIndicator(
-                                modifier = Modifier.tabIndicatorOffset(pagerState.currentPage),
-                                width = 48.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
-                            )
-                        }
-                    ) {
-                        tabs.forEachIndexed { index, title ->
-                            Tab(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = title,
-                                            style = if (pagerState.currentPage == index)MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall
-                                        )
-                                    }
+                    Box(modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .background(color = MaterialTheme.colorScheme.surface)
+                        .clip(MaterialTheme.shapes.small))
+                    {
+                        SingleChoiceSegmentedButtonRow (modifier = Modifier.fillMaxWidth().padding( 6.dp)){
 
-                                },
-                                selected = pagerState.currentPage == index,
-                                onClick = {
-                                    scope.launch {
-                                        pagerState.animateScrollToPage(index)
-                                    }
-                                },
-                                selectedContentColor = MaterialTheme.colorScheme.onBackground,
-                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
+                            tabs.forEachIndexed { index, label ->
+                                SegmentedButton(
+                                    shape = MaterialTheme.shapes.small,
+                                    onClick = {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(index)
+                                        }
+                                    },
+                                    icon = {},
+                                    selected = index == pagerState.currentPage,
+                                    label = { Text(label) },
+                                    colors = SegmentedButtonDefaults.colors(
+                                        activeContainerColor = MaterialTheme.colorScheme.primary,
+                                        activeContentColor = Color.White
+                                    ),
+                                    border = BorderStroke(width = 0.dp, color = Color.Transparent)
+                                )
+                            }
                         }
                     }
 
@@ -286,14 +283,19 @@ fun LazyListScope.writePostComponent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            AsyncImage(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape),
-                model = profileImage,
-                contentDescription = null,
-                contentScale = ContentScale.Crop
+            UserAvatar(
+                imageUrl = profileImage,
+                bgColor = "ghhgjhghjgjhghjg",
+                modifier = Modifier.size(42.dp)
             )
+//            AsyncImage(
+//                modifier = Modifier
+//                    .size(40.dp)
+//                    .clip(CircleShape),
+//                model = profileImage,
+//                contentDescription = null,
+//                contentScale = ContentScale.Crop
+//            )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "What's on your mind?",
@@ -351,13 +353,17 @@ fun FeedComponent(
         when (feedMode) {
             FeedMode.OPEN -> {
                 if (globalPostState.itemCount == 0){
-                    postFeedViewModel.fetchGlobalPost()
+                    postFeedViewModel.fetchGlobalPost(
+                        feedMode = FeedMode.OPEN,
+                        campusId = null
+                    )
                 }
             }
-            FeedMode.CAMPUS -> profileData?.campus?.campusCode?.let {
-                if (campusPostState.itemCount == 0){
-                    postFeedViewModel.fetchCampusPost(it)
-                }
+            FeedMode.CAMPUS -> profileData?.campus?.code?.let {
+                postFeedViewModel.fetchGlobalPost(
+                    feedMode = FeedMode.CAMPUS,
+                    campusId = it
+                )
 
             }
         }
@@ -369,7 +375,7 @@ fun FeedComponent(
             navHostController = navHostController,
             lazyState = lazyState,
             scrollBehavior = scrollBehavior,
-            userProfileImage = profileData?.userImage ?: "",
+            userProfileImage = profileData?.image ?: "",
         )
 
         1 -> {
@@ -378,7 +384,7 @@ fun FeedComponent(
                     LoadingScreen()
                 }
                 is UiState.Success->{
-                    if (profileData?.campus?.campusCode.isNullOrEmpty()){
+                    if (profileData?.campus?.code.isNullOrEmpty()){
                         CampusEmptyState(
                             onUpdateClick = {navHostController.navigate(Routes.Main.Profile.routes)}
                         )
@@ -389,7 +395,7 @@ fun FeedComponent(
                         navHostController = navHostController,
                         lazyState = lazyState,
                         scrollBehavior = scrollBehavior,
-                        userProfileImage = profileData.userImage,
+                        userProfileImage = profileData.image?:"",
                     )
                 }
                 is UiState.Error -> {
@@ -472,62 +478,70 @@ fun FeedUiRenderer(
             emptyContent = {
                 StatusScreen(
                     modifier =  Modifier.fillMaxSize(),
-                    text = "No posts yet.",
+                    text = "No Posts Yet",
                     image = R.drawable.undraw_no_data_ig65,
-                    description = "Share your thoughts or updates to let the world\nknow more about you!"
+                    description = "Share your thoughts or updates to let the world\nknow more about you!",
+                    buttonText = "Create Post",
+                    onClick = {
+                        navHostController.navigate(Routes.Main.CreatePost.routes)
+                        context.vibrate()
+                    }
                 )
-            }
-        )
+            },
+            showContent = {
 
-        LazyColumn(
-            state = lazyState,
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
-        ) {
+                LazyColumn(
+                    state = lazyState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(scrollBehavior.nestedScrollConnection),
+                ) {
 
-            writePostComponent(navHostController, context, userProfileImage)
+                    writePostComponent(navHostController, context, userProfileImage)
 
-            item {
-                HorizontalDivider(
-                    thickness = 12.dp,
-                    color = MaterialTheme.colorScheme.surface
-                )
-            }
+                    item {
+                        HorizontalDivider(
+                            thickness = 12.dp,
+                            color = MaterialTheme.colorScheme.surface
+                        )
+                    }
 
-            items(feedData.itemCount) { post ->
-                val item = feedData[post]
-                item?.let {
-                    FeedItem(
-                        feedItem = item,
-                        handlers = {
-                            viewModel.onAction(it)
-                        },
-                        onDotMenuClick = {
-                            postMenuState.open(
-                                FeedContent(
-                                    id = ContentId.Post(postId = item.postId),
-                                    text = item.postContent.postText,
-                                    isOwner = item.creatorDetail.isCurrentUser,
-                                    type = ContentType.POST
-                                )
+                    items(feedData.itemCount) { post ->
+                        val item = feedData[post]
+                        item?.let {
+                            FeedItem(
+                                feedItem = item,
+                                handlers = {
+                                    viewModel.onAction(it)
+                                },
+                                onDotMenuClick = {
+                                    postMenuState.open(
+                                        FeedContent(
+                                            id = ContentId.Post(postId = item.postId),
+                                            text = item.postContent.postText,
+                                            isOwner = item.creatorDetail.isCurrentUser,
+                                            type = ContentType.POST
+                                        )
+                                    )
+                                }
                             )
+                            Divider()
                         }
-                    )
-                    Divider()
+                    }
+
+                    item {
+                        PagingListFooter(
+                            items = feedData,
+                            minItemsBeforeEnd = 16,
+                            errorContent = {
+
+                            }
+                        )
+                    }
                 }
             }
-
-
-            item {
-                PagingListFooter(
-                    items = feedData,
-                    minItemsBeforeEnd = 16, // don’t show "No more" too early
-                )
-            }
-        }
+        )
     }
-
 }
 
 @Composable
@@ -582,7 +596,7 @@ fun <T : Any> PagingListHeader(
     },
     errorContent: @Composable ((Throwable) -> Unit)? = { error ->
         ErrorScreen(
-            text = "Something went wrong.",
+            text = error.message.toString(),
             image = R.drawable.undraw_page_not_found_6wni,
             onReTry = {
                 items.retry()
@@ -591,7 +605,8 @@ fun <T : Any> PagingListHeader(
         )
 
     },
-    emptyContent: @Composable (() -> Unit)? = {}
+    emptyContent: @Composable (() -> Unit)? = {},
+    showContent: @Composable (() -> Unit)? = {},
 ) {
     Box(
         modifier = modifier.fillMaxWidth(),
@@ -609,8 +624,11 @@ fun <T : Any> PagingListHeader(
                 val endOfPaginationReached = items.loadState.append.endOfPaginationReached
                 if (items.itemCount == 0 && endOfPaginationReached) {
                     emptyContent?.invoke()
+                }else{
+                    showContent?.invoke()
                 }
             }
+
         }
 
     }

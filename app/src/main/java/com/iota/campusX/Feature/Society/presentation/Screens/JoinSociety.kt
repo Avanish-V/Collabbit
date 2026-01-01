@@ -49,8 +49,8 @@ import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomState
 import com.iota.campusX.Feature.Society.presentation.ViewModels.AudioRoomViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.StreamViewModel
 import com.iota.campusX.Feature.Society.presentation.ViewModels.UiControls
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Chat.MessageInputBar
 import com.iota.campusX.Screens.Chat.convertTimestampToTime
@@ -123,12 +123,12 @@ fun JoinSocietyScreen(
 
     val joiningRequestList = (joiningRequests as? UiState.Success<List<GetJoinRequestDTO>>)?.data
 
-    val isHost = profile?.id == createdBy
+    val isHost = profile?.uid == createdBy
 
     val userState by remember(joiningRequests, profile) {
         derivedStateOf {
 
-            joiningRequestList?.find { it.requestId == profile?.id }
+            joiningRequestList?.find { it.requestId == profile?.uid }
         }
     }
 
@@ -178,7 +178,7 @@ fun JoinSocietyScreen(
         )
     }
 
-    LaunchedEffect(joiningRequests, profile?.id) {
+    LaunchedEffect(joiningRequests, profile?.uid) {
 
         when(joiningRequests){
             is UiState.Loading -> {
@@ -190,7 +190,7 @@ fun JoinSocietyScreen(
 
                 if (joiningRequest.isNotEmpty()){
 
-                    val currentUser = joiningRequest.find { it.requestId == profile?.id }
+                    val currentUser = joiningRequest.find { it.requestId == profile?.uid }
 
                     if (currentUser == null) {
                         // Only send join request if backend has no record of this user
@@ -346,7 +346,7 @@ fun JoinSocietyScreen(
             is State.isSpeaking -> {
                 val micEnabled = userState?.muted == false
                 if (micEnabled) {
-                    profile?.id?.let { userId ->
+                    profile?.uid?.let { userId ->
                         audioRoomViewModel.uiControls(
                             UiControls.IsSpeaking(
                                 roomId = roomId.orEmpty(),
@@ -358,7 +358,7 @@ fun JoinSocietyScreen(
                     }
                 } else {
                     // If muted → force isSpeaking = false
-                    profile?.id?.let { userId ->
+                    profile?.uid?.let { userId ->
                         audioRoomViewModel.uiControls(
                             UiControls.IsSpeaking(
                                 roomId = roomId.orEmpty(),
@@ -477,7 +477,7 @@ fun JoinSocietyScreen(
         bottomBar = {
             BottomAppBar(containerColor = MaterialTheme.colorScheme.surface) {
 
-                if (createdBy == profile?.id) {
+                if (createdBy == profile?.uid) {
                     HostControlUI(
                         onSessionEndClick = {
                             audioRoomViewModel.roomState(
@@ -627,7 +627,7 @@ fun JoinSocietyScreen(
                         isSpeaking = request.speaking,
                         audioEnabled = request.muted,
                         modifier = Modifier,
-                        isHost = profile?.id == createdBy,
+                        isHost = profile?.uid == createdBy,
                         onDownClick = {
                             audioRoomViewModel.roomState(
                                 AudioRoomState.StageDown(
@@ -651,7 +651,7 @@ fun JoinSocietyScreen(
             items(stageDownParticipants, span = { GridItemSpan(3) }) { request ->
                 StageDownParticipantItem(
                     request = request,
-                    isHost = createdBy == profile?.id,
+                    isHost = createdBy == profile?.uid,
                     onStageUp = {
                         roomId?.let {
                             audioRoomViewModel.roomState(
@@ -796,11 +796,11 @@ fun JoinSocietyScreen(
                                 audioRoomViewModel.sendChatMessage(
                                     roomId = roomId.orEmpty(),
                                     chatMessage = SetChatMessage(
-                                        senderId = profile?.id.orEmpty(),
+                                        senderId = profile?.uid.orEmpty(),
                                         message = messageText,
                                         createdAt = FieldValue.serverTimestamp(),
-                                        senderName = profile?.userName ?: "",
-                                        senderProfile = profile?.userImage.orEmpty(),
+                                        senderName = profile?.name ?: "",
+                                        senderProfile = profile?.image.orEmpty(),
                                     ),
                                 )
                             },
@@ -842,8 +842,7 @@ fun JoinSocietyScreen(
 @Composable
 fun SectionHeader(title: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
             .height(48.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -873,9 +872,10 @@ fun StageDownParticipantItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
             CircleImage(
                 modifier = Modifier.size(42.dp),
-                image = request.userImage,
+                image = request.userImage?:"",
                 onClick = {},
                 visibility = VisibilityMode.USER
             )
@@ -1103,7 +1103,7 @@ fun ParticipantAvatar(
 
                 CircleImage(
                     modifier = Modifier.size(48.dp),
-                    image = participant.userImage,
+                    image = participant.userImage?:"",
                     onClick = {},
                     visibility = VisibilityMode.USER
                 )

@@ -45,8 +45,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
-import com.iota.campusX.Feature.UserProfile.data.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.presentation.UserProfileViewModel
+import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
+import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
 import com.iota.campusX.R
 import com.iota.campusX.Utils.Setting
 import com.iota.campusX.Utils.ThemeMode.ThemePreference
@@ -169,7 +169,7 @@ fun SettingScreen(
                                 Text("Delete account")
                             }
 
-                            userData?.let { AppLabelText(text = it.userEmail) }
+                            userData?.let { AppLabelText(text = it.email) }
                         }
                     }
                 }
