@@ -76,7 +76,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
-val END_POINT = "http://192.168.29.180:8080"
+val END_POINT = "http://10.58.100.105:8080"
 //val END_POINT = "https://campusappbackend-446123587571.asia-south1.run.app"
 
 val coreModule = module {

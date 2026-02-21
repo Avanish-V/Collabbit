@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +59,8 @@ fun BottomAppBar(
 
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.background,
+        tonalElevation = 5.dp,
+        modifier = Modifier.shadow(elevation = 10.dp)
     ) {
 
         navBarItems.forEachIndexed { index, item ->

@@ -65,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -124,17 +125,33 @@ fun MainScreen(
     profileViewModel: UserProfileViewModel,
     homeViewModel: HomeViewModel,
     notificationViewModel: NotificationViewModel,
+    postFeedViewModel: PostFeedViewModel = koinInject()
 ) {
 
     NotificationPermissionRequester()
+
+    val lazyState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         profileViewModel.getUserProfile()
     }
 
+    val profileState = profileViewModel.userBaseProfile.collectAsState().value
+
+    val profileData = when(profileState){
+        is UiState.Success<*> -> {
+            (profileState as UiState.Success<BaseProfileDTO>).data
+        }
+        else -> {
+            null
+        }
+    }
+
     val scope = rememberCoroutineScope()
     val snackBarHostState = remember { SnackbarHostState() }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    val globalPostState = postFeedViewModel.globalPosts.collectAsLazyPagingItems()
 
     val switchState = homeViewModel.mode.collectAsState().value
     val chatBadgeCount by notificationViewModel.chatCount.collectAsState()
@@ -187,6 +204,9 @@ fun MainScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     scrolledContainerColor = MaterialTheme.colorScheme.background,
                     containerColor = MaterialTheme.colorScheme.background
+                ),
+                modifier = Modifier.shadow(
+                    elevation = 2.dp
                 )
             )
         },
@@ -198,64 +218,14 @@ fun MainScreen(
         },
     ) { innerPadding ->
 
-        Column(modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)) {
-            when {
-                feedMode != null -> {
-
-                    val currentPage = if (feedMode == FeedMode.OPEN) 0 else 1
-
-                    val pagerState = rememberPagerState(
-                        initialPage = currentPage,
-                        pageCount = { tabs.size }
-                    )
-
-                    LaunchedEffect(pagerState.currentPage) {
-                        val selectedMode = if (pagerState.currentPage == 0) FeedMode.OPEN else FeedMode.CAMPUS
-                        homeViewModel.saveSwitchState(selectedMode)
-                    }
-
-                    Box(modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .background(color = MaterialTheme.colorScheme.surface)
-                        .clip(MaterialTheme.shapes.small))
-                    {
-                        SingleChoiceSegmentedButtonRow (modifier = Modifier.fillMaxWidth().padding( 6.dp)){
-
-                            tabs.forEachIndexed { index, label ->
-                                SegmentedButton(
-                                    shape = MaterialTheme.shapes.small,
-                                    onClick = {
-                                        scope.launch {
-                                            pagerState.animateScrollToPage(index)
-                                        }
-                                    },
-                                    icon = {},
-                                    selected = index == pagerState.currentPage,
-                                    label = { Text(label) },
-                                    colors = SegmentedButtonDefaults.colors(
-                                        activeContainerColor = MaterialTheme.colorScheme.primary,
-                                        activeContentColor = Color.White
-                                    ),
-                                    border = BorderStroke(width = 0.dp, color = Color.Transparent)
-                                )
-                            }
-                        }
-                    }
-
-                    HorizontalPager(state = pagerState) { page ->
-                        FeedComponent(
-                            navHostController = navHostController,
-                            scrollBehavior = scrollBehavior,
-                            pageIndex = page,
-                            userProfileViewModel = profileViewModel,
-                            feedMode = feedMode,
-                            navigationViewModel = navigationViewModel
-                        )
-                    }
-                }
-            }
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            FeedUiRenderer(
+                feedData = globalPostState,
+                navHostController = navHostController,
+                lazyState = lazyState,
+                scrollBehavior = scrollBehavior,
+                userProfileImage = profileData?.image ?: "",
+            )
         }
     }
 }

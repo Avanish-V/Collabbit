@@ -30,6 +30,9 @@ class PostFeedViewModel(
     //---------------------------------FETCH THE DATA----------------------------------
 
 
+    init {
+        fetchGlobalPost(FeedMode.OPEN,null)
+    }
     fun fetchGlobalPost(feedMode: FeedMode, campusId: String?) = viewModelScope.launch {
        repository.fetchGlobalPosts(viewModelScope,feedMode,campusId)
     }
