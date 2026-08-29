@@ -1,224 +1,293 @@
 package com.iota.campusX.Screens.Home
 
-//import com.iota.campusX.ui.theme.DarkTheme_Black
-import androidx.compose.foundation.ExperimentalFoundationApi
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.navigation.toRoute
 import coil.compose.AsyncImage
-import com.iota.campusX.Screens.Post.PostActions.PostActionViewModel
-import com.iota.campusX.Screens.Post.PostMenuActions.PostMenuState
-import com.iota.campusX.Screens.Post.SharedVisualContentViewModel
+import com.iota.campusX.Feature.Post.data.remote.response.Post
+import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachmentDto
+import com.iota.campusX.Feature.Post.presentation.components.PostAction
+import com.iota.campusX.Feature.Post.presentation.feed.PostFeedViewModel
+import com.iota.campusX.Feature.Reply.presentation.components.ReplyButtonComponent
+import com.iota.campusX.Navigation.PostView
+import com.iota.campusX.R
 import com.iota.campusX.Utils.getTimeAgo
+import com.iota.campusX.Utils.UiState
+import com.iota.campusX.ui.UIComponents.FeedUI.AnimatedLikeButton
 import com.iota.campusX.ui.UIComponents.FeedUI.Avatar
-import com.iota.campusX.ui.UIComponents.FeedUI.FeedHeader
-import io.ktor.websocket.Frame.Text
-import org.koin.compose.koinInject
+import com.iota.campusX.ui.UIComponents.FeedUI.ExpandableText
+import org.koin.androidx.compose.koinViewModel
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostViewScreen(navHostController: NavHostController) {
+fun PostViewScreen(
+    navHostController: NavHostController,
+    postFeedViewModel: PostFeedViewModel = koinViewModel()
+) {
+    val navEntry = remember(navHostController) {
+        navHostController.currentBackStackEntry
+    }
+    val routeArgs = navEntry?.toRoute<PostView>()
+    val postId = routeArgs?.postId
+    val initialImage = routeArgs?.postImage
 
-    val postMenuState: PostMenuState = koinInject()
-    val postActionViewModel: PostActionViewModel = koinInject()
-    val sharedVisualContentViewModel: SharedVisualContentViewModel = koinInject()
-    val postImage = navHostController.currentBackStackEntry?.savedStateHandle?.get<String>("POST_IMAGE")
-    val post = sharedVisualContentViewModel.post.collectAsState()
+    val singlePostState by postFeedViewModel.singlePost.collectAsState()
 
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { post.value?.postContent?.postImage?.size ?: 0 })
+    LaunchedEffect(postId) {
+        postId?.let { postFeedViewModel.fetchSinglePost(it) }
+    }
 
     var userScrollEnabled by remember { mutableStateOf(true) }
 
     Scaffold(
+        containerColor = Color.Black,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(text = "Post View")
-                },
+                title = {},
                 navigationIcon = {
-                    IconButton(onClick = {navHostController.popBackStack()}) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
+                    IconButton(
+                        onClick = { navHostController.popBackStack() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Black.copy(alpha = 0.4f),
+                            contentColor = Color.White
                         )
+                    ) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
                 )
             )
-        },
-        bottomBar = {
-
-        },
-    ) { padding->
-
-        Column (modifier = Modifier.padding(padding)){
-            Column {
-                post.value?.postContent?.postImage?.let {
-
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        userScrollEnabled = userScrollEnabled
-                    ) { currentPage ->
-
-                        ZoomableImage(
-                            image =  it[currentPage].mediaUrl,
-                        )
+        }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding).background(Color.Black)) {
+            when (val state = singlePostState) {
+                is UiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.White)
                     }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(40.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        it.forEachIndexed { index, item ->
-
-                            HorizontalDivider(
-                                modifier = Modifier.width(30.dp).clip(CircleShape),
-                                thickness = 4.dp,
-                                color = if (pagerState.currentPage == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                            )
-
-                            Spacer(modifier = Modifier.width(10.dp))
-
-                        }
-                    }
-
                 }
-
-            }
-            Column (modifier = Modifier.padding(24.dp)){
-
-                post.value?.let {
-
-                    Row (
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ){
-                        Avatar(
-                            imageUrl = it.creatorDetail.profile?.image ?: "",
-                            visibilityMode = it.visibilityMode,
-                            onAvatarClick = {
-
-                            }
-                        )
-
-                        it.createdAt?.let { timestamp ->
-                            FeedHeader(
-                                creator = it.creatorDetail,
-                                postedAt = getTimeAgo(timestamp),
-                                visibilityMode = it.visibilityMode,
-                                feedMode = it.feedMode
-                            )
+                is UiState.Success -> {
+                    val post = state.data
+                    val images = (post.attachment as? ImageAttachmentDto)?.images ?: listOfNotNull(initialImage)
+                    
+                    PostViewerContent(
+                        post = post,
+                        images = images,
+                        userScrollEnabled = userScrollEnabled,
+                        onZoomChange = { userScrollEnabled = it <= 1.01f },
+                        onPostAction = { postFeedViewModel.onPostEvent(it) }
+                    )
+                }
+                is UiState.Error -> {
+                    // If we have an initial image, show it even if post details fail to load
+                    if (initialImage != null) {
+                        ZoomableImage(image = initialImage)
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(text = state.message, color = Color.White)
                         }
                     }
-
-                    it.postContent.postText?.let { text -> Text(text = text) }
-
-//                    PostActionsComponent(
-//                        postAction = it.postActions,
-//                        user = it.creatorDetail.profile,
-//                        onLikeClick = {
-//                            postActionViewModel.onAction(
-//                                PostAction.Like(
-//                                    isLiked = it.postActions.isLiked,
-//                                    contentId = ContentId.Post(postId = it.postId),
-//                                    userId = it.creatorDetail.profile?.id ?: ""
-//                                ),
-//                            )
-//                        },
-//                        onReplyClick = {
-//                            navHostController.popBackStack()
-//                        },
-//                        onDotMenuClick = {
-//                            postMenuState.open(
-//                                content = FeedContent(
-//                                    id = ContentId.Post(postId = it.postId),
-//                                    text = it.postContent.postData.postText,
-//                                    isOwner = it.creatorDetail.isCurrentUser,
-//                                    type = ContentType.POST
-//
-//                                )
-//                            )
-//                        }
-//                    )
-
+                }
+                else -> {
+                    if (initialImage != null) {
+                        ZoomableImage(image = initialImage)
+                    }
                 }
             }
         }
     }
-
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun PostViewerContent(
+    post: Post,
+    images: List<String>,
+    userScrollEnabled: Boolean,
+    onZoomChange: (Float) -> Unit,
+    onPostAction: (PostAction) -> Unit
+) {
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { images.size })
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = userScrollEnabled,
+            verticalAlignment = Alignment.CenterVertically
+        ) { page ->
+            ZoomableImage(
+                image = images[page],
+                onZoomChange = onZoomChange
+            )
+        }
+
+        // Overlay Content
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                    )
+                )
+                .padding(16.dp)
+        ) {
+            // Pager Indicator
+            if (images.size > 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    repeat(images.size) { index ->
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(if (pagerState.currentPage == index) 8.dp else 6.dp)
+                                .clip(CircleShape)
+                                .background(if (pagerState.currentPage == index) Color.White else Color.White.copy(alpha = 0.5f))
+                        )
+                    }
+                }
+            }
+
+            // Author and Info
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Avatar(
+                    imageUrl = post.author.authorImage,
+                    onAvatarClick = {}
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = post.author.authorName,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        text = "Posted ${getTimeAgo(post.createdAt.toLongOrNull() ?: System.currentTimeMillis())}",
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Caption
+            Text(
+                text = post.caption,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Actions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AnimatedLikeButton(
+                    isLiked = post.isLiked,
+                    likesCount = post.likesCount,
+                    onLike = { isLiked ->
+                        onPostAction(PostAction.Like(isLiked, post.postId))
+                    },
+                    tint = Color.White
+                )
+
+                ReplyButtonComponent(
+                    replyCount = post.commentCount.toString(),
+                    onReplyClick = { },
+                    tint = Color.White
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp)) // Padding for bottom system bars
+        }
+    }
+}
+
 @Composable
 fun ZoomableImage(image: String, onZoomChange: (Float) -> Unit = {}) {
     var scale by remember { mutableStateOf(1f) }
-    val minScale = 1f
-    val maxScale = 4f
-
-    val transformState = rememberTransformableState { zoomChange, _, _ ->
-        val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
-        scale = newScale
-        onZoomChange(newScale)
-    }
+    var offset by remember { mutableStateOf(Offset.Zero) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // 👇 Allow pager to scroll with one finger; this only reacts to multi-touch
-            .transformable(transformState)
-            .graphicsLayer(
-                scaleX = scale,
-                scaleY = scale
-            )
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    scale = (scale * zoom).coerceIn(1f, 5f)
+                    if (scale > 1f) {
+                        offset += pan
+                    } else {
+                        offset = Offset.Zero
+                    }
+                    onZoomChange(scale)
+                }
+            }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
-                        scale = if (scale > minScale) minScale else 2f
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            scale = 3f
+                        }
                         onZoomChange(scale)
                     }
                 )
+            }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                
+                if (scale > 1f) {
+                    val maxOffsetHorizontal = (scale - 1) * size.width / 2
+                    val maxOffsetVertical = (scale - 1) * size.height / 2
+                    translationX = offset.x.coerceIn(-maxOffsetHorizontal, maxOffsetHorizontal)
+                    translationY = offset.y.coerceIn(-maxOffsetVertical, maxOffsetVertical)
+                } else {
+                    translationX = 0f
+                    translationY = 0f
+                }
             },
         contentAlignment = Alignment.Center
     ) {
@@ -226,12 +295,7 @@ fun ZoomableImage(image: String, onZoomChange: (Float) -> Unit = {}) {
             model = image,
             contentDescription = null,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxSize()
         )
     }
 }
-
-
-
-
-

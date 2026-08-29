@@ -1,54 +1,140 @@
 package com.iota.campusX.Navigation
 
-sealed class Routes(val routes:String){
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
+import kotlinx.serialization.Serializable
 
-    data object Register : Routes("REGISTER"){
-        data object SignIn : Routes("SIGNIN")
-        data object CreateProfile : Routes("CREATE_PROFILE")
-    }
+/**
+ * Type-safe navigation routes for the Collabbit app.
+ */
 
-    data object Main : Routes("MAIN"){
+@Serializable
+sealed interface Route
 
-        data object Home : Routes("HOME")
-        data object PostViewScreen : Routes("POST_VIEW_SCREEN")
-        data object ChatList : Routes("CHAT_LIST")
-        data object SendMessage : Routes("SEND_MESSAGE")
-        data object CommunityChat : Routes("COMMUNITY_CHAT")
+// --- Authentication Graph ---
+@Serializable
+data object AuthGraph : Route
 
-        data object Search : Routes("SEARCH")
-        data object Voxci : Routes("VOXCI")
-        data object Notification : Routes("NOTIFICATION")
-        data object Profile : Routes("PROFILE")
-        data object ProfileByID : Routes("PROFILE_By_Id")
-        data object EditProfile : Routes("EDIT_PROFILE")
-        data object Connections : Routes("CONNECTIONS")
-        data object Followers : Routes("FOLLOWERS")
-        data object CreatePost : Routes("CREATE_POST")
-        data object ReplyPost : Routes("REPLY_POST")
-        data object Setting : Routes("SETTING")
-        data object Society: Routes("SOCIETY")
-        data object CreateSociety: Routes("CREATE_SOCIETY")
-        data object JoinSociety: Routes("JOIN_SOCIETY")
-        data object Connection: Routes("CONNECTION")
+@Serializable
+data object SignIn : Route
 
-    }
+@Serializable
+data object Register : Route
 
-    companion object {
-        val bottomBarRoutes = listOf(
-            Main.Home.routes,
-            Main.Search.routes,
-            Main.Notification.routes,
-            Main.Connection.routes,
+@Serializable
+data object CreateProfile : Route
 
-            Main.Profile.routes,
-            Main.Society.routes
-        )
+@Serializable
+data object Verification : Route
 
-    }
-    
+
+// --- Main Application Graph ---
+@Serializable
+data object MainGraph : Route
+
+@Serializable
+data object Home : Route
+
+@Serializable
+data object Collab : Route
+
+@Serializable
+data object Notification : Route
+
+@Serializable
+data object ChatList : Route
+
+@Serializable
+data object CommunityChat : Route
+
+@Serializable
+data class SendMessage(
+    val userId: String,
+    val userName: String,
+    val userImage: String? = null,
+) : Route
+
+/**
+ * Navigates to a user's profile. 
+ * If [userId] is null, it typically refers to the current user's profile.
+ */
+@Serializable
+data class Profile(val userId: String? = null) : Route
+
+
+@Serializable
+data class ViewProfile(val userId: String? = null) : Route
+
+@Serializable
+data class EditProfile(val editType: String? = null) : Route
+
+@Serializable
+data class Connections(val userId: String) : Route
+
+@Serializable
+data class Followers(val userId: String) : Route
+
+@Serializable
+data object CreatePost : Route
+
+@Serializable
+data class EditPost(val postId: String) : Route
+
+@Serializable
+data object ReplyPost : Route
+
+@Serializable
+data object Setting : Route
+
+@Serializable
+data object Society : Route
+
+@Serializable
+data object CreateSociety : Route
+
+@Serializable
+data object JoinSociety : Route
+
+@Serializable
+data object Connection : Route
+
+@Serializable
+data object Opportunities : Route
+
+@Serializable
+data class OpportunityDetail(val opportunityId: String) : Route
+
+@Serializable
+data class CourseDetail(val courseId: String) : Route
+
+@Serializable
+data object Courses : Route
+
+@Serializable
+data object Collaborations : Route
+
+@Serializable
+data object CreateCollab : Route
+
+@Serializable
+data class CollabDetail(val collabId: String) : Route
+
+@Serializable
+data class CollabRequests(val collabId: String) : Route
+
+@Serializable
+data class PostView(val postId: String? = null, val postImage: String? = null) : Route
+
+// --- Helper for Bottom Bar ---
+val bottomBarRoutes = listOf(
+    Home::class,
+    Collab::class,
+    Connection::class,
+    Profile::class,
+    Society::class,
+    Opportunities::class
+)
+
+fun shouldShowBottomBar(destination: NavDestination?): Boolean {
+    return bottomBarRoutes.any { destination?.hasRoute(it) == true }
 }
-
-fun shouldShowBottomBar(currentRoute: String?): Boolean {
-    return currentRoute in Routes.bottomBarRoutes
-}
-

@@ -1,37 +1,40 @@
+package com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication
+
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
-import com.google.gson.Gson
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.VerifyUserRepository
-import com.iota.campusX.Feature.UserProfile.data.local.entities.UserProfileEntity
-import com.iota.campusX.Koin.END_POINT
+import com.iota.campusX.Feature.UserProfile.data.local.dao.UserProfileDao
+import com.iota.campusX.Feature.UserProfile.data.local.mapper.toEntity
+import com.iota.campusX.Feature.UserProfile.data.remote.response.ProfileResponse
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.statement.bodyAsText
 
 class VerifyUserRepoImpl(
     private val firebaseAuth: FirebaseAuth,
-    private val httpClint: HttpClient
+    private val httpClint: HttpClient,
+    private val userProfileDao: UserProfileDao
 ) : VerifyUserRepository {
 
-    override suspend fun verifyUser(userToken: String): Result<UserProfileEntity> {
+    override suspend fun verifyUser(userToken: String): Result<ProfileResponse> {
         return try {
-            val response = httpClint.get("$END_POINT/users/me") {
+            val response = httpClint.get("users/me") {
                 header("Authorization", "Bearer $userToken")
             }
 
             Log.d("VerifyUserRepoImpl", "Status: ${response.status}")
-            val body = response.bodyAsText()
-            Log.d("VerifyUserRepoImpl", "Body: $body")
+
             Log.d("VerifyUserRepoImpl", "Sending token: $userToken")
 
             when (response.status.value) {
                 200 -> {
-                    val profileDTO = Gson().fromJson(body, UserProfileEntity::class.java)
+                    val profileDTO = response.body<ProfileResponse>()
+                    userProfileDao.insertProfile(profileDTO.toEntity())
                     Log.d("VerifyUserRepoImpl", "ProfileDTO: $profileDTO")
                     Result.success(profileDTO)
                 }
                 401, 403 -> {
+                    Log.d("VerifyUserRepoImpl", "Status: ${response.status}")
                     // Invalid/expired token
                     FirebaseAuth.getInstance().signOut()
                     Result.failure(Exception("Unauthorized: ${response.status}"))

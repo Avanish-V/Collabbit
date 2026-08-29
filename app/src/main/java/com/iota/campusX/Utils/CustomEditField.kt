@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -37,55 +38,44 @@ fun CustomTextField(
     )
 ) {
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-
-        if (label.isNotEmpty()){
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-            )
-        }
-
-        OutlinedTextField(
-            modifier = modifier
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = MaterialTheme.shapes.small
-                ),
-            value = value,
-            maxLines = maxLines,
-            onValueChange = {
-                onValueChange(it)
-            },
-            placeholder = {
+    TextField(
+        modifier = modifier,
+        value = value,
+        maxLines = maxLines,
+        onValueChange = {
+            onValueChange(it)
+        },
+        label = {
+            if (label.isNotEmpty()) {
                 Text(
-                    text = placeHolder,
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            },
-            textStyle = MaterialTheme.typography.bodyMedium,
-            enabled = enabled ?:true,
-            trailingIcon = {
-                trailingIcon?.invoke()
-            },
-            colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
-            shape = RoundedCornerShape(8.dp),
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions
-        )
-    }
-
-
-
+            }
+        },
+        placeholder = {
+            Text(
+                text = placeHolder,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        },
+        textStyle = MaterialTheme.typography.bodyMedium,
+        enabled = enabled ?:true,
+        trailingIcon = {
+            trailingIcon?.invoke()
+        },
+        colors = TextFieldDefaults.colors(
+            unfocusedContainerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent,
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        shape = RoundedCornerShape(8.dp),
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions
+    )
 
 }
 
@@ -110,56 +100,33 @@ fun CustomTextFieldWithLeadingIcon(
     )
 ) {
 
-    Column(
-
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-
-        if (label.isNotEmpty()){
+    TextField(
+        modifier = modifier,
+        value = value,
+        onValueChange = {
+            onValueChange(it)
+        },
+        placeholder = {
             Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
+                text = placeHolder,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-        OutlinedTextField(
-            modifier = modifier
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = MaterialTheme.shapes.small
-                ),
-            value = value,
-            onValueChange = {
-                onValueChange(it)
-            },
-            placeholder = {
-                Text(
-                    text = placeHolder,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            enabled = enabled ?:true,
-            leadingIcon = {
-                leadingIcon?.invoke()
-            },
-            trailingIcon = {
-                trailingIcon?.invoke()
-            },
-            colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
-            textStyle = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions
-        )
-    }
-
-
-
+        },
+        enabled = enabled ?:true,
+        trailingIcon = {
+            trailingIcon?.invoke()
+        },
+        colors = TextFieldDefaults.colors(
+            unfocusedContainerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent,
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        textStyle = MaterialTheme.typography.bodyMedium,
+        maxLines = 1,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions
+    )
 
 }

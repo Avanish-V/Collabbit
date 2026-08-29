@@ -11,7 +11,9 @@ data class ChatMessage(
     val text: String = "",
     val attachmentUrl: String? = null,
     val timestamp: Long = 0L,
-    val read: Boolean = false
+    val read: Boolean = false,
+    val isPending: Boolean = false,
+    val isFailed: Boolean = false
 )
 
 

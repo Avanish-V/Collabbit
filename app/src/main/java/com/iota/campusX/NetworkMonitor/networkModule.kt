@@ -4,7 +4,7 @@ package com.iota.campusX.NetworkMonitor
 import android.content.Context
 import com.example.connectivity.network.NetworkMonitor
 import io.ktor.client.*
-import io.ktor.client.engine.cio.*
+import io.ktor.client.engine.android.Android
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -12,11 +12,13 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
+import org.koin.core.qualifier.named
+
 val networkModule = module {
 
-    single { HttpClient(CIO) { expectSuccess = false } }
+    single(named("pingerClient")) { HttpClient(Android) { expectSuccess = false } }
 
-    single<InternetPinger> { KtorInternetPinger(get()) }
+    single<InternetPinger> { KtorInternetPinger(get(named("pingerClient"))) }
 
     single {
         CoroutineScope(SupervisorJob() + Dispatchers.Default)

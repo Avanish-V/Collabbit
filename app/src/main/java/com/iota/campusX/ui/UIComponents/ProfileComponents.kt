@@ -1,6 +1,5 @@
 package com.iota.campusX.ui.UIComponents
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,13 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -24,249 +20,45 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabPosition
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Campus
-import com.iota.campusX.Feature.UserProfile.domain.models.ConnectionRequestResponse
-import com.iota.campusX.Feature.UserProfile.domain.models.ConnectionViewStatus
-import com.iota.campusX.Navigation.Routes
+import com.iota.campusX.Feature.UserProfile.domain.Model.Education
+import com.iota.campusX.Navigation.Connections
+import com.iota.campusX.Navigation.Followers
 import com.iota.campusX.R
-import com.iota.campusX.Utils.CircularLoading
-import com.iota.campusX.Utils.UiState
-import com.iota.campusX.ui.theme.LightBlack
 import kotlinx.coroutines.launch
-
-@Composable
-fun ProfileHeader(
-    modifier: Modifier,
-    headerHeight: (Dp) -> Unit,
-    user: BaseProfileDTO?,
-    editProfile: @Composable () -> Unit = {},
-) {
-
-    val density = LocalDensity.current
-    var headerHeightDp by remember { mutableStateOf(0.dp) }
-
-
-    Column(
-        modifier = modifier
-            .onGloballyPositioned {
-                val heightPx = it.size.height
-                headerHeightDp = with(density) { heightPx.toDp() }
-                headerHeight(headerHeightDp)
-            }
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Start,
-        ) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Row (
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ){
-
-                Column (modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)){
-
-                    Box(contentAlignment = Alignment.TopEnd){
-
-                        Box(modifier = Modifier
-                            .size(80.dp)
-
-                            .border(
-                                width = 6.dp,
-                                color = Color.White,
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .shadow(
-                                elevation = 6.dp,
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .clip(
-                                MaterialTheme.shapes.large
-                            )
-                        ){
-
-                            UserAvatar(
-                                imageUrl = null,
-                                bgColor = user?.bgColor ?: "",
-                                modifier = Modifier.fillMaxSize()
-                            )
-
-                        }
-
-                        user?.let {
-                            if (it.metaData?.verified ?: false){
-                                Icon(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .offset(x = 12.dp, y = -10.dp),
-                                    painter = painterResource(R.drawable.baseline_verified_24),
-                                    contentDescription = "verified",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = user?.name ?: "",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    user?.tagline?.let {
-                        Text(
-                            text = user.tagline,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                editProfile.invoke()
-
-            }
-
-        }
-
-    }
-
-}
-
-@Composable
-fun ProfileAction(
-    onLinkUpRequestClick: () -> Unit,
-    onMessageClick: (() -> Unit)? = null,
-    snackBarHostState: SnackbarHostState,
-    connectionState: UiState<ConnectionRequestResponse>
-) {
-
-    var hasConnected by rememberSaveable {mutableStateOf(false)}
-
-    Row (modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)){
-        Button(
-            onClick = { onLinkUpRequestClick?.invoke() },
-            modifier = Modifier.weight(1f).height(40.dp),
-            shape = MaterialTheme.shapes.small
-        ) {
-            when (connectionState) {
-
-                is UiState.Success -> {
-
-                    val status = connectionState.data.requestStatus ?: ConnectionViewStatus.NOT_CONNECTED
-
-                    when(status){
-                        ConnectionViewStatus.REQUEST_SENT  -> {
-                            Text(
-                                text = "Request Sent",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color =  Color.White
-                            )
-                            return@Button
-                        }
-                        ConnectionViewStatus.CONNECTED -> {
-                            hasConnected = true
-
-                            Text(
-                                text = "Connected",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color =  Color.White
-                            )
-                            return@Button
-                        }
-
-                        ConnectionViewStatus.REQUEST_RECEIVED -> {
-                            Text(
-                                text = "Remove Connection",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-
-                        }
-                        ConnectionViewStatus.NOT_CONNECTED -> {
-                            Text(
-                                text = "LinkUp",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                    }
-
-                }
-
-                is UiState.Loading -> {
-                    CircularLoading(Color.White)
-                }
-
-                is UiState.Error -> {
-                    LaunchedEffect(Unit) {
-                        snackBarHostState.showSnackbar("something went wrong!")
-                    }
-                }
-
-                else -> {}
-            }
-        }
-        Spacer(
-            modifier = Modifier.width(12.dp)
-        )
-        Button(
-            modifier = Modifier.weight(1f).height(40.dp).align(Alignment.CenterVertically),
-            onClick = { onMessageClick?.invoke() },
-            shape = RoundedCornerShape(6.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-            ),
-            enabled = hasConnected
-        ) {
-            Text(
-                text = "Message",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-
-
-}
 
 
 @Composable
@@ -278,7 +70,7 @@ fun EditProfileIconButton(onClick: () -> Unit) {
             .clip(CircleShape)
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.background,
+                color = MaterialTheme.colorScheme.outline,
                 shape = CircleShape
             )
             .background(color = MaterialTheme.colorScheme.surface)
@@ -294,7 +86,8 @@ fun EditProfileIconButton(onClick: () -> Unit) {
         Icon(
             modifier = Modifier.size(18.dp),
             imageVector = Icons.Default.Edit,
-            contentDescription = "Back",
+            contentDescription = "Edit",
+            tint = MaterialTheme.colorScheme.onSurface
         )
     }
 
@@ -308,7 +101,7 @@ fun EmptyState(
     isAppUser: Boolean
 ) {
 
-    val color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+    val color = MaterialTheme.colorScheme.primary
 
 
     Box(
@@ -318,7 +111,7 @@ fun EmptyState(
             .height(56.dp)
             .background(
                 color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(12.dp)
             )
             .drawBehind(
                 onDraw = {
@@ -328,9 +121,9 @@ fun EmptyState(
                     val gapLength = 4.dp.toPx()
 
                     drawRoundRect(
-                        color = color,
+                        color = color.copy(alpha = 0.3f),
                         size = size,
-                        cornerRadius = CornerRadius(8.dp.toPx()),
+                        cornerRadius = CornerRadius(12.dp.toPx()),
                         style = Stroke(
                             width = strokeWidth,
                             pathEffect = PathEffect.dashPathEffect(
@@ -360,7 +153,6 @@ fun EmptyState(
             }
 
             Text(
-                modifier = Modifier.alpha(0.5f),
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -374,83 +166,51 @@ fun EmptyState(
 
 @Composable
 fun CampusWidget(
-    campus: Campus?
+    campus: Education
 ) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(5.dp)).background(color = MaterialTheme.colorScheme.outline),
+            contentAlignment = Alignment.Center){
+            AsyncImage(
+                model =  "",
+                contentDescription = null,
+                error = painterResource(R.drawable.school__1_),
+                modifier = Modifier.size(24.dp),
+                colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.onSurface)
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
 
-        if (campus == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp), contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Update Campus",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = LightBlack
-                )
-            }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AsyncImage(
-                    model = campus.logo ?: "",
-                    contentDescription = null,
-                    error = painterResource(R.drawable.landscape_placeholder_svgrepo_com),
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(5.dp)),
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = campus.college,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = campus.course,
+                style = MaterialTheme.typography.bodyMedium
+            )
 
-                    if (!campus.university.isNullOrEmpty()){
-                        Text(
-                            text = campus.university,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-
-                    campus.collegeName?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.titleSmall,
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1
-                        )
-                    }
-
-                    campus.fieldOfStudy?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
+            Text(
+                text = campus.specialization,
+                style = MaterialTheme.typography.bodyMedium
+            )
 
 
-                    if (campus?.isCurrent ?: false){
-                        Text(
-                            text = "${campus.courseStart } - Current",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
+//            if (campus?.isCurrent ?: false){
+//                Text(
+//                    text = "${campus.start } - Current",
+//                    style = MaterialTheme.typography.bodyMedium
+//                )
+//            }
 
-                    if (campus?.courseStart != null && campus.courseEnd != null) {
-                        Text(
-                            text = "${campus.courseStart} - ${campus.courseEnd}",
-                            style = MaterialTheme.typography.bodyMedium
+            Text(
+                text = "${campus.start} - ${campus.end}",
+                style = MaterialTheme.typography.bodyMedium
 
-                        )
-                    }
+            )
 
-                    campus.code?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
         }
     }
 }
@@ -458,38 +218,80 @@ fun CampusWidget(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppTabRow(pagerState: PagerState,tabList: List<String> = emptyList()) {
+fun AppTabRow(
+    selectedIndex: Int,
+    tabList: List<String> = emptyList(),
+    isScrollable: Boolean = false,
+    onTabSelected: (Int) -> Unit
+) {
+    val divider = @Composable {
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+    }
 
-    val scope = rememberCoroutineScope()
-
-    PrimaryTabRow(
-        modifier = Modifier,
-        selectedTabIndex = pagerState.currentPage,
-        divider = { Divider() },
-        containerColor = MaterialTheme.colorScheme.background,
-        indicator = {
-            TabRowDefaults.PrimaryIndicator(
-                modifier = Modifier.tabIndicatorOffset(
-                    selectedTabIndex = pagerState.currentPage,
-                    matchContentSize = false
-                ),
-                width = 48.dp,
-                shape = RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)
-            )
-        },
-    ) {
-       tabList.forEachIndexed { index, title ->
-            Tab(
-                text = {
-                    Text(text = title, color = MaterialTheme.colorScheme.onBackground)
-                },
-                selected = pagerState.currentPage == index,
-                onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+    val indicator = @Composable { tabPositions: List<TabPosition> ->
+        if (selectedIndex < tabPositions.size) {
+            TabRowDefaults.SecondaryIndicator(
+                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
+                height = 3.dp,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
 
+    if (isScrollable) {
+        ScrollableTabRow(
+            selectedTabIndex = selectedIndex,
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = Color.Transparent,
+            divider = divider,
+            indicator = indicator,
+            edgePadding = 16.dp
+        ) {
+            TabItems(tabList, selectedIndex, onTabSelected)
+        }
+    } else {
+        TabRow(
+            selectedTabIndex = selectedIndex,
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = Color.Transparent,
+            divider = divider,
+            indicator = indicator
+        ) {
+            TabItems(tabList, selectedIndex, onTabSelected)
+        }
+    }
+}
 
+@Composable
+private fun TabItems(
+    tabList: List<String>,
+    selectedIndex: Int,
+    onTabSelected: (Int) -> Unit
+) {
+    tabList.forEachIndexed { index, title ->
+        val isSelected = selectedIndex == index
+        Tab(
+            selected = isSelected,
+            onClick = { onTabSelected(index) },
+            text = {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        letterSpacing = 0.sp
+                    ),
+                    maxLines = 1,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            interactionSource = remember { MutableInteractionSource() }
+        )
+    }
 }
 
 
@@ -526,12 +328,7 @@ fun ConnectionComponent(
             modifier = Modifier.weight(1f)
                 .clickable(
                     onClick = {
-                        navHostController.navigate(Routes.Main.Followers.routes).apply {
-                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                "USER_ID",
-                                 userId
-                            )
-                        }
+                        navHostController.navigate(Followers(userId = userId))
                     },
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
@@ -553,12 +350,7 @@ fun ConnectionComponent(
             modifier = Modifier.weight(1f)
                 .clickable(
                     onClick = {
-                        navHostController.navigate(Routes.Main.Connections.routes).apply {
-                            navHostController.currentBackStackEntry?.savedStateHandle?.set(
-                                "USER_ID",
-                                 userId
-                            )
-                        }
+                        navHostController.navigate(Connections(userId = userId))
                     },
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }

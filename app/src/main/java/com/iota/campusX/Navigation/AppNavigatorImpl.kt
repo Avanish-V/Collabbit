@@ -7,25 +7,25 @@ class AppNavigatorImpl(
 ) : AppNavigator {
 
     override fun navigateToViewUserProfile(userId: String) {
-        navController.navigate(Routes.Main.ProfileByID.routes).apply {
-            navController.currentBackStackEntry?.savedStateHandle?.set("USER_ID", userId)
-        }
+        navController.navigate(Profile(userId = userId))
     }
 
     override fun navigateToViewPostVisualContent(imageUrl: String?) {
-        navController.navigate(Routes.Main.PostViewScreen.routes).apply {
-            navController.currentBackStackEntry?.savedStateHandle?.set("POST_IMAGE", imageUrl)
-        }
+        navController.navigate(PostView(postImage = imageUrl))
     }
 
     override fun navigateToPostDetail(postId: String) {
-        navController.navigate(Routes.Main.ReplyPost.routes).apply {
-            navController.currentBackStackEntry?.savedStateHandle?.set("POST_ID", postId)
-        }
+        // Assuming ReplyPost might need postId in the future, 
+        // but for now it's just an object in Routes.kt
+        navController.navigate(ReplyPost)
+    }
+
+    override fun navigateToEditPost(postId: String) {
+        navController.navigate(EditPost(postId = postId))
     }
 
     override fun navigateToOwnerProfile() {
-        navController.navigate(Routes.Main.Profile.routes)
+        navController.navigate(Profile())
     }
 
     override fun goBack() {

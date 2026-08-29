@@ -1,10 +1,10 @@
 package com.iota.campusX.Feature.UserProfile.data.local.database
 
 import androidx.room.TypeConverter
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Campus
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Counts
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Gender
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.MetaData
+import com.iota.campusX.Feature.UserProfile.domain.Model.BaseProfile
+import com.iota.campusX.Feature.UserProfile.domain.Model.Contact
+import com.iota.campusX.Feature.UserProfile.domain.Model.Education
+import com.iota.campusX.Feature.UserProfile.domain.Model.Gender
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -21,33 +21,31 @@ class Converters {
     fun toStringList(value: String): List<String> =
         if (value.isNotEmpty()) json.decodeFromString(value) else emptyList()
 
-    // MetaData
-    @TypeConverter
-    fun fromMetaData(meta: MetaData?): String =
-        json.encodeToString(meta ?: MetaData())
 
-    @TypeConverter
-    fun toMetaData(value: String): MetaData =
-        if (value.isNotEmpty()) json.decodeFromString(value) else MetaData()
 
     // Campus
     @TypeConverter
-    fun fromCampus(campus: Campus?): String? =
-        campus?.let { json.encodeToString(it) }
+    fun fromCampus(education: Education?): String? =
+        education?.let { json.encodeToString(it) }
 
     @TypeConverter
-    fun toCampus(value: String?): Campus? =
-        value?.takeIf { it.isNotEmpty() }?.let { json.decodeFromString<Campus>(it) }
-
-
-    // Counts
-    @TypeConverter
-    fun fromCounts(counts: Counts?): String =
-        json.encodeToString(counts ?: Counts())
+    fun toCampus(value: String?): Education? =
+        value?.takeIf { it.isNotEmpty() }?.let { json.decodeFromString<Education>(it) }
 
     @TypeConverter
-    fun toCounts(value: String): Counts =
-        if (value.isNotEmpty()) json.decodeFromString(value) else Counts()
+    fun fromBaseProfile(baseProfile: BaseProfile?): String =
+        json.encodeToString(baseProfile)
+
+    fun toBaseProfile(value: String?): BaseProfile? =
+        value?.takeIf { it.isNotEmpty() }?.let { json.decodeFromString<BaseProfile>(it) }
+
+    @TypeConverter
+    fun fromContact(contact: Contact?): String =
+        json.encodeToString(contact)
+
+    fun toContact(value: String?): Contact? =
+        value?.takeIf { it.isNotEmpty() }?.let { json.decodeFromString<Contact>(it) }
+
 
     @TypeConverter
     fun fromGender(value: Gender?): String = value?.name ?: Gender.UNSPECIFIED.name

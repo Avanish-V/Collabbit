@@ -59,3 +59,7 @@
 
 -dontwarn io.getstream.video.android.mock.StreamPreviewDataUtils
 -dontwarn io.getstream.video.android.mock.StreamPreviewDataUtilsKt
+
+# SLF4J optional binding classes
+-dontwarn org.slf4j.impl.StaticLoggerBinder
+-dontwarn org.slf4j.impl.StaticMDCBinder

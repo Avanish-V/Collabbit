@@ -1,66 +1,82 @@
 package com.iota.campusX.ui.UIComponents
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.ui.theme.LightTheme_Gray
-import com.iota.campusX.ui.theme.White400
+import androidx.compose.ui.unit.sp
+import com.iota.campusX.R
 
 @Composable
-fun ErrorScreen(text: String, image: Int? = null, onReTry: () -> Unit, buttonText: String) {
-
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+fun ErrorScreen(
+    text: String, 
+    image: Int? = null,
+    onReTry: () -> Unit, 
+    buttonText: String = "Try Again"
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(), 
+        contentAlignment = Alignment.Center
+    ) {
         Column(
-            modifier = Modifier.padding(40.dp),
+            modifier = Modifier.padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.Center
         ) {
             if (image != null) {
                 Image(
-                    modifier = Modifier.size(150.dp),
                     painter = painterResource(image),
-                    contentDescription = null
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(180.dp)
+                        .padding(bottom = 24.dp)
                 )
             }
+
+            Text(
+                text = "Oops!",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-0.5).sp
+                ),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            OutlinedButton(
-                onClick = { onReTry.invoke() },
-                border = BorderStroke(
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    width = 1.dp
-                )
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = onReTry,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.background
+                ),
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(48.dp)
             ) {
                 Text(
-                    buttonText,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium
+                    text = buttonText,
+                    color = MaterialTheme.colorScheme.onPrimary,
+
                 )
             }
         }
-
     }
-
 }
-
-

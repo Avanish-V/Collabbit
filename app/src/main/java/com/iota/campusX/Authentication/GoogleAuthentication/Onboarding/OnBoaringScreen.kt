@@ -29,6 +29,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,9 +55,10 @@ fun OnBoardingScreen(pagerState: PagerState,onboardingContent:List<OnBoardingCon
         ){
 
             Image(
-                modifier = Modifier.size(300.dp),
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(20.dp),
                 painter = painterResource(id = onboardingContent[currentPage].image),
                 contentDescription = "",
+                contentScale = ContentScale.Fit
             )
 
 

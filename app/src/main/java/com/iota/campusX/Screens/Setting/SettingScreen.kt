@@ -2,31 +2,35 @@ package com.iota.campusX.Screens.Setting
 
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -39,21 +43,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
+import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleSignInViewModel
+import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.UserProfileViewModel
+import com.iota.campusX.Navigation.AuthGraph
 import com.iota.campusX.R
 import com.iota.campusX.Utils.Setting
-import com.iota.campusX.Utils.ThemeMode.ThemePreference
-import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
-import com.iota.campusX.ui.UIComponents.AppLabelText
-//import com.iota.campusX.ui.theme.Black800
+import com.iota.campusX.ui.UIComponents.UserAvatar
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -62,126 +66,107 @@ import org.koin.compose.koinInject
 fun SettingScreen(
     navController: NavController,
     userProfileViewModel: UserProfileViewModel,
-    themePreference: ThemePreference = koinInject()
+    googleSignInViewModel: GoogleSignInViewModel = koinInject()
 ) {
-    val profileState = userProfileViewModel.userBaseProfile.collectAsState().value
+    val profileState = userProfileViewModel.uiState.collectAsState().value
     var screenValue by rememberSaveable { mutableStateOf(Setting.SETTING_SCREEN) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val currentThemeMode =
-        themePreference.getThemeMode(context).collectAsState(initial = ThemeMode.LIGHT)
+    
     var showAlert by remember { mutableStateOf(false) }
-
-    val userData = when(profileState){
-        is UiState.Success<*> -> {
-            (profileState as UiState.Success<BaseProfileDTO>).data
-        }
-        else -> {
-            null
-        }
-    }
-
+    var showLogoutAlert by remember { mutableStateOf(false) }
 
     when (screenValue) {
-
         Setting.SETTING_SCREEN -> {
-
             Scaffold(
                 topBar = {
-                    TopAppBar(
-                        title = { Text("Settings") },
-                        colors = TopAppBarDefaults.topAppBarColors(
+                    CenterAlignedTopAppBar(
+                        title = { 
+                            Text(
+                                "Settings",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                            ) 
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                             containerColor = MaterialTheme.colorScheme.background,
                         ),
                         navigationIcon = {
-                            IconButton(onClick = {
-                                navController.popBackStack()
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowBack,
-                                    contentDescription = null
-                                )
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
                             }
                         }
-
                     )
                 },
             ) { paddingValues ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(MaterialTheme.colorScheme.background),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
 
-                Column(modifier = Modifier.padding(paddingValues)) {
 
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        items(settingList) {
-                            Row(
-                                modifier = Modifier
-                                    .clickable(
-                                        onClick = {
-                                            it.url?.let { uri -> uriHandler.openUri(uri) }
+                    // General Section
+                    item {
+                        SettingSection(title = "General") {
+                            settingList.forEach { item ->
+                                SettingItem(
+                                    title = item.title,
+                                    icon = item.icon,
+                                    onClick = {
+                                        if (item.url != null) {
+                                            uriHandler.openUri(item.url)
+                                        } else {
+                                            screenValue = item.destination
                                         }
-                                    )
-                                    .fillMaxWidth()
-                                    .padding(18.dp)
-                            ) {
-
-                                Icon(
-                                    modifier = Modifier.size(22.dp),
-                                    painter = painterResource(it.icon),
-                                    contentDescription = null,
+                                    }
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = it.title,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-
                             }
                         }
-
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    scope.launch {
-                                        showAlert = true
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    modifier = Modifier.size(22.dp),
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null,
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text("Delete account")
-                            }
+                    // Account Section
+                    item {
+                        SettingSection(title = "Account") {
+                            SettingItem(
+                                title = "Sign Out",
+                                icon = R.drawable.undo__1_, // Using an undo icon as fallback or standard logout
+                                contentColor = MaterialTheme.colorScheme.error,
+                                showArrow = false,
+                                onClick = { showLogoutAlert = true }
+                            )
+                            SettingItem(
+                                title = "Delete Account",
+                                icon = R.drawable.trash,
+                                contentColor = MaterialTheme.colorScheme.error,
+                                showArrow = false,
+                                onClick = { showAlert = true }
+                            )
+                        }
+                    }
 
-                            userData?.let { AppLabelText(text = it.email) }
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Version 1.0.0 (Finder)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
                         }
                     }
                 }
-                val uriHandler = LocalUriHandler.current
 
+                // Dialogs
                 if (showAlert) {
                     AlertDialogWidget(
-                        onDismiss = {
-                            showAlert = false
-                        },
+                        onDismiss = { showAlert = false },
                         title = "Delete Account",
-                        description = "Are you sure you want to delete your account?",
+                        description = "Are you sure you want to delete your account? This action is irreversible.",
                         positiveButtonText = "Delete",
                         negativeButtonText = "Cancel",
                         onPositiveClick = {
@@ -192,23 +177,49 @@ fun SettingScreen(
                     )
                 }
 
-
+                if (showLogoutAlert) {
+                    AlertDialogWidget(
+                        onDismiss = { showLogoutAlert = false },
+                        title = "Sign Out",
+                        description = "Are you sure you want to sign out of your account?",
+                        positiveButtonText = "Sign Out",
+                        negativeButtonText = "Cancel",
+                        onPositiveClick = {
+                            showLogoutAlert = false
+                            scope.launch {
+                                googleSignInViewModel.signOut()
+                                navController.navigate(AuthGraph) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        },
+                        showLoading = false
+                    )
+                }
             }
         }
 
-        Setting.ABOUT_SCREEN -> {
+        Setting.ABOUT_SCREEN, Setting.PRIVACY_POLICY, Setting.TERMS_AND_CONDITIONS -> {
+            val title = when(screenValue) {
+                Setting.ABOUT_SCREEN -> "About"
+                Setting.PRIVACY_POLICY -> "Privacy Policy"
+                else -> "Terms & Conditions"
+            }
+            val url = when(screenValue) {
+                Setting.ABOUT_SCREEN -> "https://www.campuscircle.in/about"
+                Setting.PRIVACY_POLICY -> "https://www.campuscircle.in/privacy"
+                else -> "https://www.campuscircle.in/term-condition"
+            }
 
             SettingPage(
-                title = "About",
-                onBackClick = {
-                    screenValue = Setting.SETTING_SCREEN
-                },
+                title = title,
+                onBackClick = { screenValue = Setting.SETTING_SCREEN },
                 content = {
                     AndroidView(
                         factory = { context ->
                             WebView(context).apply {
                                 webViewClient = WebViewClient()
-                                loadUrl("file:///android_asset/About.html")
+                                loadUrl(url)
                             }
                         },
                         modifier = Modifier.fillMaxSize()
@@ -216,57 +227,8 @@ fun SettingScreen(
                 }
             )
         }
-
-        Setting.PRIVACY_POLICY -> {
-
-            SettingPage(
-                title = "Privacy Policy",
-                onBackClick = {
-                    screenValue = Setting.SETTING_SCREEN
-                },
-                content = {
-                    AndroidView(
-                        factory = { context ->
-                            WebView(context).apply {
-                                webViewClient = WebViewClient()
-                                loadUrl("file:///android_asset/PrivecyPolicy.html")
-                                // loadUrl("https://byteappstudiopvt.blogspot.com/2025/05/campusx-privacy-policy.html")
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-            )
-        }
-
-        Setting.TERMS_AND_CONDITIONS -> {
-
-            SettingPage(
-                title = "Terms & Conditions",
-                onBackClick = {
-                    screenValue = Setting.SETTING_SCREEN
-                },
-                content = {
-                    AndroidView(
-                        factory = { context ->
-                            WebView(context).apply {
-                                webViewClient = WebViewClient()
-                                loadUrl("https://byteappstudiopvt.blogspot.com/2025/05/campusx-term-and-condition.html")
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            )
-
-        }
-
-        Setting.FEEDBACK -> {
-
-        }
+        else -> {}
     }
-
 }
 
 data class ProfileSetting(
@@ -306,101 +268,139 @@ val settingList = listOf(
     ),
 )
 
+@Composable
+fun ProfileHeaderItem(
+    name: String,
+    email: String,
+    imageUrl: String?
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                UserAvatar(
+                    modifier = Modifier.fillMaxSize(),
+                    imageUrl = imageUrl
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                Text(
+                    text = email,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            ),
+            modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {
+            Column {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingItem(
+    title: String,
+    icon: Int,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    showArrow: Boolean = true,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = painterResource(id = icon),
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = contentColor.copy(alpha = 0.8f)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = contentColor,
+            modifier = Modifier.weight(1f)
+        )
+        if (showArrow) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingPage(
     title: String,
-    onBackClick: (Setting) -> Unit,
-    content: @Composable () -> Unit,
-    contentDescription: String? = null
+    onBackClick: () -> Unit,
+    content: @Composable () -> Unit
 ) {
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        title,
-                    )
-                },
+                title = { Text(title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
                 navigationIcon = {
-                    IconButton(onClick = {
-                        onBackClick(Setting.SETTING_SCREEN)
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = null
-                        )
+                    IconButton(onClick = onBackClick) {
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }
-
             )
         },
     ) { paddingValues ->
-
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             content()
-
-        }
-
-    }
-
-
-}
-
-@Composable
-fun ThemeSwitch(
-    currentMode: ThemeMode,
-    onThemeChange: (ThemeMode) -> Unit,
-    isDynamicColor: Boolean,
-    onDynamicColorChange: (Boolean) -> Unit
-) {
-
-    Column(modifier = Modifier.padding(horizontal = 18.dp)) {
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                modifier = Modifier.size(22.dp),
-                painter = painterResource(R.drawable.dark_mode_alt),
-                contentDescription = null,
-            )
-            Text(text = "Theme", style = MaterialTheme.typography.bodyLarge)
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-
-        themeModeList.forEach { it ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = it.theme,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Switch(
-                    checked = currentMode == it.mode,
-                    onCheckedChange = { isChecked ->
-                        onThemeChange(it.mode)
-                    },
-                )
-            }
-
         }
     }
 }
-
-val themeModeList = listOf<Theme>(
-    Theme(theme = "Light", mode = ThemeMode.LIGHT),
-    Theme(theme = "Dark", mode = ThemeMode.DARK)
-)
-
-

@@ -1,11 +1,14 @@
 package com.iota.campusX.Utils
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
-import com.iota.campusX.ui.theme.LightTheme_Blue
 import java.util.regex.Pattern
+
 
 fun buildAnnotatedAutoLinkText(text: String): AnnotatedString {
     val linkPattern = Pattern.compile("(https?://[\\w-]+(\\.[\\w-]+)+(:\\d+)?(/[\\w-./?%&=]*)?)")
@@ -21,7 +24,7 @@ fun buildAnnotatedAutoLinkText(text: String): AnnotatedString {
             append(text.substring(lastIndex, start))
 
             pushStringAnnotation(tag = "URL", annotation = url)
-            withStyle(SpanStyle(color = LightTheme_Blue)) {
+            withStyle(SpanStyle(color = Color.Blue)) {
                 append(url)
             }
             pop()

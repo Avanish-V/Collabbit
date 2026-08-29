@@ -3,12 +3,10 @@ package com.iota.campusX.Feature.Post.data.remote
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import com.google.firebase.appcheck.internal.NetworkClient
 import com.google.firebase.auth.FirebaseAuth
-import com.iota.campusX.Feature.Post.domain.models.PostResponse
-import com.iota.campusX.Koin.END_POINT
 import io.ktor.client.HttpClient
 import io.ktor.client.call.*
+import io.ktor.client.engine.android.Android
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -20,8 +18,6 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.InputStream
-import kotlin.text.substringBefore
 
 @Serializable
 data class UploadUrlResponse(val url: String)
@@ -41,10 +37,10 @@ class S3Uploader(
             return@coroutineScope emptyList()
         }
 
-        val uploadJobs = uris.map { uri ->
+        val uploadJobs = uris.mapIndexed { index, uri ->
             async(Dispatchers.IO) {
                 try {
-                    val fileName = generateFileName(uri)
+                    val fileName = generateFileName(uri, index)
                     val presignedUrl = getPresignedUrl(fileName, token)
                     if (presignedUrl != null) {
                         val success = uploadToS3(uri, presignedUrl)
@@ -99,7 +95,7 @@ class S3Uploader(
     // Get presigned URL from backend (now takes pre-fetched token)
      suspend fun  getPresignedUrl(fileName: String, token: String): String? {
         return try {
-            val response: HttpResponse = httpClient.get("$END_POINT/api/media/presign") {
+            val response: HttpResponse = httpClient.get("media/presign") {
                 parameter("fileName", fileName)
                 header("Authorization", "Bearer $token")
             }
@@ -119,10 +115,24 @@ class S3Uploader(
         try {
             context.contentResolver.openInputStream(uri).use { inputStream ->
                 val bytes = inputStream?.readBytes() ?: return@withContext false
-                val response = httpClient.put(presignedUrl) {
+                
+                // Use a fresh client for S3 to avoid global interceptors (like Auth headers)
+                // and base URL which can interfere with absolute S3 URLs
+                val s3Client = HttpClient(Android)
+                
+                val response = s3Client.put(presignedUrl) {
                     setBody(bytes)
+                    // Ensure content type matches what S3 expects from the presigned URL
+                    header(HttpHeaders.ContentType, "image/jpeg")
                 }
-                response.status.value in 200..299
+                
+                val isSuccess = response.status.value in 200..299
+                if (!isSuccess) {
+                    Log.e("IMAGE_UPLOAD", "S3 Upload failed: ${response.status} ${response.bodyAsText()}")
+                }
+                
+                s3Client.close()
+                isSuccess
             }
         } catch (e: Exception) {
             Log.e("IMAGE_UPLOAD", "Upload error: ${e.message}")
@@ -130,9 +140,9 @@ class S3Uploader(
         }
     }
 
-     fun generateFileName(uri: Uri): String {
+     fun generateFileName(uri: Uri, index: Int = 0): String {
         val time = System.currentTimeMillis()
-        return "post_images/$time.jpg"
+        return "post_images/${time}_$index.jpg"
     }
 }
 

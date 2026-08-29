@@ -16,12 +16,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.Feature.Post.data.model.VisibilityMode
 
 @Composable
-fun CircleImage(image: String, modifier: Modifier = Modifier,onClick: () -> Unit, visibility: VisibilityMode) {
+fun CircleImage(image: String, modifier: Modifier = Modifier,onClick: () -> Unit,) {
 
     AsyncImage(
         modifier = modifier

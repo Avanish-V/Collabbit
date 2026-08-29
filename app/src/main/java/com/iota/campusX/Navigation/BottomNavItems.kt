@@ -9,39 +9,39 @@ data class navItems(
     val item: String,
     val icon: Int,
     val iconBold: Int,
-    val route: String
+    val route: Any
 )
 
 
 val navBarItems = listOf(
     navItems(
-        "Home",
-        R.drawable.home_normal,
-        R.drawable.home_bold,
-        Routes.Main.Home.routes
+        "Explore",
+        R.drawable.home,
+        R.drawable.home,
+        Home
     ),
     navItems(
-        "Search",
-        R.drawable.search_normal,
-        R.drawable.search_bold,
-        Routes.Main.Search.routes
+        "Collab",
+        R.drawable.heart_partner_handshake,
+        R.drawable.heart_partner_handshake,
+        Collab
     ),
     navItems(
-        "Society",
-        R.drawable.people,
-        R.drawable.people_bold,
-        Routes.Main.Society.routes
+        "Create",
+        R.drawable.plus_square,
+        R.drawable.plus_square,
+        CreatePost
     ),
     navItems(
-        "Link",
-        R.drawable.user_link_reguler,
-        R.drawable.user_link_bold,
-        Routes.Main.Connection.routes
+        "Opportunities",
+        R.drawable.briefcase,
+        R.drawable.briefcase,
+        Opportunities
     ),
     navItems(
-        "Account",
-        R.drawable.user_normal,
-        R.drawable.user_bold,
-        Routes.Main.Profile.routes
+        "Profile",
+        R.drawable.user,
+        R.drawable.user,
+        Profile()
     )
 )

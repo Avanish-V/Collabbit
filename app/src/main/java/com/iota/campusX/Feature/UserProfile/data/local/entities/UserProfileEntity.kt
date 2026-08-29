@@ -1,19 +1,19 @@
 package com.iota.campusX.Feature.UserProfile.data.local.entities
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Campus
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.SetCampus
-import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UpdateProfileViewModel
 
 @Entity(tableName = "user_profile")
 data class UserProfileEntity(
-    @PrimaryKey val uid: String,         // must always exist
-    val token: String? = null,              // fallback to ""
-    val name: String = "",               // fallback to ""
-    val image: String? = null,           // optional
-    val email: String = "",              // fallback to ""
-    val about: String? = null, // optional
-    val tagline: String? = null,
-    val campus: Campus? = null,
+    @PrimaryKey val uid: String,
+    val baseProfile: String,
+    val contact: String,
+    val education: String?,
+    val skills: String?,
+    val summary: String?,
+    val isCurrentUser: Boolean,
+    // Aura fields — added in schema version 4
+    @ColumnInfo(name = "aura_points") val auraPoints: Int = 0,
+    @ColumnInfo(name = "aura_level")  val auraLevel: String = "NEWCOMER"
 )

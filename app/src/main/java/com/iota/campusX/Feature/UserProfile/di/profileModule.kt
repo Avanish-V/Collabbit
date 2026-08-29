@@ -2,22 +2,29 @@ package com.iota.campusX.Feature.UserProfile.di
 
 import androidx.room.Room
 import com.google.firebase.firestore.FirebaseFirestore
-import com.iota.campusX.Feature.Notification.domain.NotificationRepository
-import com.iota.campusX.Feature.Post.data.remote.PostApi
-import com.iota.campusX.Feature.UserProfile.data.repository.UserProfileImpl
 import com.iota.campusX.Feature.UserProfile.data.local.database.AppDatabase
-import com.iota.campusX.Feature.UserProfile.data.remote.api.ConnectionApi
-import com.iota.campusX.Feature.UserProfile.data.repository.UniversitySearchImpl
-import com.iota.campusX.Feature.UserProfile.data.repository.UserConnectionImpl
-import com.iota.campusX.Feature.UserProfile.data.repository.UserProfileRepositoryData
+import com.iota.campusX.Feature.UserProfile.data.local.database.MIGRATION_3_4
+import com.iota.campusX.Feature.UserProfile.data.local.database.MIGRATION_4_5
+import com.iota.campusX.Feature.UserProfile.data.remote.repository.AuraRepositoryImpl
+import com.iota.campusX.Feature.UserProfile.data.remote.repository.UniversitySearchImpl
+import com.iota.campusX.Feature.UserProfile.data.remote.repository.UserProfileImpl
+import com.iota.campusX.Feature.UserProfile.domain.repository.AuraRepository
 import com.iota.campusX.Feature.UserProfile.domain.repository.UniversityRepository
-import com.iota.campusX.Feature.UserProfile.domain.repository.UserConnectionsRepository
 import com.iota.campusX.Feature.UserProfile.domain.repository.UserProfileRepository
+import com.iota.campusX.Feature.UserProfile.domain.useCases.EditBaseProfileUseCase
 import com.iota.campusX.Feature.UserProfile.domain.useCases.GetProfileUseCase
-import com.iota.campusX.Feature.UserProfile.ui.viewmodels.ConnectionRequestViewModel
-import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UpdateProfileViewModel
-import com.iota.campusX.Feature.UserProfile.ui.viewmodels.UserProfileViewModel
-import com.iota.campusX.Feature.UserProfile.ui.viewmodels.ViewProfileViewModel
+import com.iota.campusX.Feature.UserProfile.domain.useCases.ObserveProfileUseCase
+import com.iota.campusX.Feature.UserProfile.domain.useCases.RecordCheckInUseCase
+import com.iota.campusX.Feature.UserProfile.domain.useCases.UpdateFcmTokenUseCase
+import com.iota.campusX.Feature.UserProfile.domain.usecase.ClaimDailyAuraUseCase
+import com.iota.campusX.Feature.UserProfile.domain.usecase.GetAuraInfoUseCase
+import com.iota.campusX.Feature.UserProfile.presentation.AuraViewModel
+import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditBaseProfile.EditBaseProfileViewModel
+import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditEducation.EditEducationViewModel
+import com.iota.campusX.Feature.UserProfile.ui.screens.EditEvents.EditProfileViewModel
+import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditSkills.EditSkillsViewModel
+import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditSummary.EditSummaryViewModel
+import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.UserProfileViewModel
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -31,13 +38,16 @@ val profileModule = module {
             AppDatabase::class.java,
             "app_database"
         )
+            .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .build()
     }
 
+    single { UpdateFcmTokenUseCase(get()) }
 
     // DAO
     single { get<AppDatabase>().userProfileDao() }
+    single { get<AppDatabase>().auraTransactionDao() }
 
     // Firebase Firestore
     single { FirebaseFirestore.getInstance() }
@@ -45,28 +55,49 @@ val profileModule = module {
     // Kotlinx Serialization Json
     single { Json { ignoreUnknownKeys = true } }
 
-    // Bind implementation to interface
-
+    // Repository bindings
     single<UserProfileRepository> {
         UserProfileImpl(
-            sendPushNotification = get(),
-            notificationRepositoryProvider = { get<NotificationRepository>() },
-            firestore = get(),
-            auth = get(),
-            firebaseStorage = get(),
-            httpClient = get(),
+            firestore      = get(),
+            auth           = get(),
+            httpClient     = get(),
             userProfileDao = get()
         )
     }
 
-    single { GetProfileUseCase(get()) }
+    single<AuraRepository> {
+        AuraRepositoryImpl(
+            httpClient     = get(),
+            userProfileDao = get(),
+            auraTransactionDao = get()
+        )
+    }
 
-    single { UserProfileViewModel(userProfileRepo = get(), userProfileRepository = get()) }
-    single { UserProfileRepositoryData(userProfileRepo = get(), userProfileDao = get()) }
-    single <UserConnectionsRepository>{ UserConnectionImpl(sendPushNotification = get(), notificationRepository = get(), firestore = get(), auth = get(), httpClient = get()) }
-    single <UniversityRepository>{ UniversitySearchImpl(httpClient = get()) }
-    single { ConnectionApi(client = get(), auth = get()) }
-    viewModel { ViewProfileViewModel(userProfileRepo = get(), userProfileRepository = get()) }
-    viewModel { ConnectionRequestViewModel(userProfileRepo = get(), notificationRepository = get() )}
-    viewModel { UpdateProfileViewModel(userProfileRepo = get(), userProfileRepository = get(), universityRepository = get()) }
+    single<UniversityRepository> { UniversitySearchImpl(httpClient = get()) }
+
+    // Use cases
+    single { ObserveProfileUseCase(get()) }
+    single { GetProfileUseCase(get()) }
+    single { EditBaseProfileUseCase(get(), get()) }
+    single { RecordCheckInUseCase(get()) }
+    single { ClaimDailyAuraUseCase(get()) }
+    single { GetAuraInfoUseCase(get()) }
+
+    // ViewModels
+    viewModel {
+        UserProfileViewModel(
+            observeProfile    = get(),
+            getProfileUseCase = get(),
+            profileRepository = get()
+        )
+    }
+
+    viewModel { AuraViewModel(get(), get(), get()) }
+
+    single { EditProfileViewModel() }
+
+    viewModel { EditEducationViewModel(get(), get()) }
+    viewModel { EditBaseProfileViewModel(get()) }
+    viewModel { EditSkillsViewModel(get(), get()) }
+    viewModel { EditSummaryViewModel(get()) }
 }

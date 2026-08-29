@@ -9,6 +9,7 @@ import com.iota.campusX.Feature.Chats.domain.ChatRepository
 import com.iota.campusX.Utils.ResultState
 import com.iota.campusX.Utils.UiState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,10 +18,13 @@ import kotlinx.coroutines.withContext
 
 class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
+    private var receiveMessageJob: Job? = null
+    private var isActiveJob: Job? = null
+    private var isTypingJob: Job? = null
+
 
     private val _hasMessage: MutableStateFlow<String> = MutableStateFlow("")
     val hasMessage: StateFlow<String> = _hasMessage.asStateFlow()
-
 
     private val _textMessage:MutableStateFlow<String> = MutableStateFlow("")
     val textMessage:StateFlow<String> = _textMessage.asStateFlow()
@@ -51,7 +55,9 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     ) = chatRepository.sendMessage(message,messageId,timestamp,receiverId,roomId)
 
     fun receiveMessage(participantId: String,roomId: String){
-        viewModelScope.launch {
+        receiveMessageJob?.cancel()
+        _chats.value = emptyList() // Clear messages immediately when room changes
+        receiveMessageJob = viewModelScope.launch {
             chatRepository.receiveMessage(participantId = participantId,roomId = roomId).collect{
                 when(it){
                     is ResultState.Loading->{}
@@ -68,7 +74,8 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     fun updateIsUserActive(isActive:Boolean,roomId: String) = chatRepository.updateIsUserActive(isActive,roomId)
 
     fun getIsActive(receiverId: String,roomId: String){
-        viewModelScope.launch {
+        isActiveJob?.cancel()
+        isActiveJob = viewModelScope.launch {
             chatRepository.getIsUserActive(receiverId,roomId).collect{
                 _isActive.value = it
             }
@@ -78,7 +85,8 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     fun updateIsUserTyping(isActive:Boolean,roomId: String) = chatRepository.updateIsUserTyping(isActive,roomId)
 
     fun getUserIsTyping(participantId: String,roomId: String){
-        viewModelScope.launch {
+        isTypingJob?.cancel()
+        isTypingJob = viewModelScope.launch {
             chatRepository.getIsUserTyping(participantId,roomId).collect{
                 _isUserTyping.value = it
             }
@@ -87,16 +95,19 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
     fun getChats() {
         viewModelScope.launch {
-            _userChats.value = UiState.Loading
-
-            val result = withContext(Dispatchers.IO) {
-                chatRepository.getChats()
+            chatRepository.getChats().collect { result ->
+                when (result) {
+                    is ResultState.Loading -> {
+                        _userChats.value = UiState.Loading
+                    }
+                    is ResultState.Success -> {
+                        _userChats.value = UiState.Success(result.data)
+                    }
+                    is ResultState.Error -> {
+                        _userChats.value = UiState.Error(result.message)
+                    }
+                }
             }
-
-            _userChats.value = result.fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error(it.message ?: "Something went wrong!") }
-            )
         }
     }
 
@@ -146,6 +157,10 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
         }
     }
 
+    fun resetChatState() {
+        _hasMessage.value = ""
+        _chats.value = emptyList()
+    }
 }
 
 

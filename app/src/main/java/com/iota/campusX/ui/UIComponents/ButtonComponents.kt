@@ -1,12 +1,8 @@
 package com.iota.campusX.ui.UIComponents
 
-import android.graphics.drawable.Icon
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -16,20 +12,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.iota.campusX.ui.theme.LightTheme_Gray
-//import com.iota.campusX.ui.theme.Black800
-import com.iota.campusX.ui.theme.White400
-import com.iota.campusX.ui.theme.White
-import com.iota.campusX.ui.theme.LightTheme_White
+
 
 @Composable
 fun IconButtonWidget(
@@ -58,25 +46,6 @@ fun IconButtonWidget(
 
 }
 
-@Composable
-fun FeedModeSwitch(modifier: Modifier = Modifier) {
-
-    Switch(
-        checked = false,
-        onCheckedChange = { isChecked ->
-//            val newMode = if (isChecked) FeedMode.CAMPUS else FeedMode.GLOBAL
-//            homeViewModel.saveSwitchState(newMode)
-//            context.vibrate()
-        },
-        colors = SwitchDefaults.colors(
-            uncheckedThumbColor = LightTheme_Gray,
-            uncheckedIconColor = White400,
-            uncheckedTrackColor = White,
-            uncheckedBorderColor = LightTheme_Gray
-        )
-    )
-
-}
 
 @Composable
 fun SubmitButton (onClick: () -> Unit) {

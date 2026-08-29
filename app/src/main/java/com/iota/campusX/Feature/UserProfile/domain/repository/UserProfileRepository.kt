@@ -1,35 +1,24 @@
 package com.iota.campusX.Feature.UserProfile.domain.repository
 
-import android.net.Uri
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.BaseProfileDTO
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Campus
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.ConnectionsDTO
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.Gender
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.UniversityDTO
-import com.iota.campusX.Feature.UserProfile.data.remote.dtos.UpdateProfileDTO
-import com.iota.campusX.Utils.UiState
+import com.iota.campusX.Feature.UserProfile.data.remote.Request.BasicDetailsRequest
+import com.iota.campusX.Feature.UserProfile.data.remote.response.ProfileResponse
+import com.iota.campusX.Feature.UserProfile.data.remote.response.SkillResponse
+import com.iota.campusX.Feature.UserProfile.domain.Model.BaseProfile
+import com.iota.campusX.Feature.UserProfile.domain.Model.Education
 import kotlinx.coroutines.flow.Flow
 
 interface UserProfileRepository {
 
-    suspend fun syncUserProfile() : Result<Unit>
+    suspend fun syncUserProfile() : Result<ProfileResponse>
 
-     fun getUserProfile(): Flow<BaseProfileDTO?>
-
-    suspend fun getBaseProfile(): Result<BaseProfileDTO>
-
-    suspend fun getUserProfileById(userId:String): Result<BaseProfileDTO>
-
+    fun observeProfile(): Flow<ProfileResponse>
+    suspend fun getUserProfileById(userId:String): Result<ProfileResponse>
     suspend fun deleteAccount(): Result<Boolean>
 
+    suspend fun updateSkills(skills:List<SkillResponse>): Result<Boolean>
+    suspend fun updateSummary(summary:String): Result<Boolean>
+    suspend fun updateCampus(campus: Education): Result<Boolean>
+    suspend fun updateProfile(basicDetailsRequest: BasicDetailsRequest): Result<Unit>
 
-    suspend fun updateInterests(interests:List<String>): Result<Boolean>
-
-    suspend fun updateCampus(campus: Campus): Result<Boolean>
-
-    suspend fun updateProfile(updateProfileDTO: UpdateProfileDTO): Result<Unit>
-
-
-
-
+    suspend fun updateFcmToken(token: String): Result<Unit>
 }

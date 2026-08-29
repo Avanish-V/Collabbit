@@ -19,7 +19,7 @@ object ThemePreference {
             when (prefs[THEME_KEY]) {
                 ThemeMode.LIGHT.ordinal -> ThemeMode.LIGHT
                 ThemeMode.DARK.ordinal -> ThemeMode.DARK
-                else -> ThemeMode.LIGHT
+                else -> ThemeMode.DARK
             }
         }
     }

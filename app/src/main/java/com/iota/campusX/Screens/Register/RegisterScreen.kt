@@ -1,5 +1,6 @@
 package com.iota.campusX.Screens.Register
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,6 +45,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthResult
@@ -50,33 +53,46 @@ import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication
 import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.CustomSegmentedProgressBar
 import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardingContent
 import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardingScreen
-import com.iota.campusX.Navigation.Routes
+import com.iota.campusX.Navigation.Home
 import com.iota.campusX.R
 import com.iota.campusX.Utils.CircularLoading
+import com.iota.campusX.ui.theme.lilyScriptFamily
 import org.koin.compose.koinInject
 
 @Composable
 fun SignInScreen(navHostController: NavHostController) {
 
+    val context = androidx.compose.ui.platform.LocalContext.current
     val googleSignInViewModel: GoogleSignInViewModel = koinInject()
     val authState = googleSignInViewModel.state.collectAsStateWithLifecycle()
     val onboardingList by remember {
         mutableStateOf(
             listOf(
                 OnBoardingContent(
-                    image = R.drawable.social_dark__1_,
-                    heading = "Embrace Anonymity,\nExplore Freedom in Identity",
-                    description = "Express yourself freely being anonymous, offering a shield of anonymity while engaging."
+                    image = R.drawable.first_onboarding,
+                    heading = "Your Next Project Starts Here \uD83D\uDE80",
+                    description = "Have an idea but don't know what to build? Discover exciting project ideas created by students and find opportunities to turn your ideas into something real."
                 ),
                 OnBoardingContent(
-                    image = R.drawable.audio__room, // Replace with Clubhouse-style image if available
-                    heading = "Real-time Audio Chats,\nConnect through Conversation",
-                    description = "Join live audio rooms to share ideas, collaborate, or just hang out — all anonymously and effortlessly."
+                    image = R.drawable.second_onboarding, // Replace with Clubhouse-style image if available
+                    heading = "Build Together, Not Alone \uD83E\uDD1D",
+                    description = "Find students with the skills you need. Collaborate with developers, designers, content creators, and creators to build projects together."
                 ),
                 OnBoardingContent(
-                    image = R.drawable.campus_dark, // Replace with more relevant illustration if needed
-                    heading = "Simplify Campus Life,\nAll-in-One Student Hub",
-                    description = "From events to communities, manage everything campus-related with a single sign-in using your college ID."
+                    image = R.drawable.third_onboarding
+                    , // Replace with more relevant illustration if needed
+                    heading = "Learn Skills. Build Projects. \uD83C\uDF93",
+                    description = "Join live skill sessions, learn practical technologies, and immediately apply what you learn to real projects with your team."
+                ),
+                OnBoardingContent(
+                    image = R.drawable.fourth_onboarding, // Replace with more relevant illustration if needed
+                    heading = "Don't Just Copy. Create. \uD83D\uDD25",
+                    description = "Move beyond tutorial projects. Build your own ideas, collaborate with others, launch real products, and gain experience that actually matters."
+                ),
+                OnBoardingContent(
+                    image = R.drawable.fifth_onboarding, // Replace with more relevant illustration if needed
+                    heading = "Build Your Future \uD83D\uDCBC",
+                    description = "Showcase your projects, skills, and collaborations. Discover student internships and opportunities that match what you're building and learning."
                 )
             )
         )
@@ -99,12 +115,11 @@ fun SignInScreen(navHostController: NavHostController) {
             .background(color = MaterialTheme.colorScheme.background),verticalArrangement = Arrangement.SpaceBetween) {
 
 
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center){
-                Icon(
-                    modifier = Modifier.size(48.dp),
-                    painter = painterResource(if (isSystemInDarkTheme()) R.drawable.app_logo else R.drawable.app_logo),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+            Box(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center){
+                Image(
+                    painter = painterResource(R.drawable.finder_icon),
+                    contentDescription = "CampusX",
+                    modifier = Modifier.size(60.dp)
                 )
             }
 
@@ -129,20 +144,18 @@ fun SignInScreen(navHostController: NavHostController) {
             ){
 
                 Button(
-                    modifier = Modifier
-                        .padding(horizontal = 40.dp)
-                        .fillMaxWidth()
-                        .height(48.dp),
+                    modifier = Modifier.padding(horizontal = 40.dp).fillMaxWidth().height(48.dp),
                     onClick = {
                         if (pagerState.currentPage != onboardingList.count()-1){
                             pagerState.requestScrollToPage(pagerState.currentPage+1)
                         }else{
-                            googleSignInViewModel.signIn()
+                            googleSignInViewModel.signIn(context)
                         }
                     },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     if (pagerState.currentPage != onboardingList.count()-1){
@@ -158,7 +171,7 @@ fun SignInScreen(navHostController: NavHostController) {
                                 CircularLoading(Color.White)
                             }
                             is AuthResult.SignedIn -> {
-                                navHostController.navigate(Routes.Main.Home.routes)
+                                navHostController.navigate(Home)
                             }
                             is AuthResult.Error -> {
                                 LoginButtonText()

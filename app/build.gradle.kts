@@ -6,20 +6,12 @@ plugins {
     id("kotlin-parcelize")
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.baselineprofile)
 }
 
 
 android {
-    signingConfigs {
-        create("release") {
-            storeFile = file("D:\\SHA Keys\\CampusX_new_key")
-            storePassword = "iotabuild"
-            keyPassword = "iotabuild"
-            keyAlias = "key0"
-        }
-    }
 
-    
     namespace = "com.iota.campusX"
     compileSdk = 35
 
@@ -27,41 +19,30 @@ android {
         applicationId = "com.iota.campusX"
         minSdk = 24
         targetSdk = 35
-        versionCode = 22
-        versionName = "1.2.2"
+        versionCode = 23
+        versionName = "1.2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        resConfigs("en")
     }
 
-    flavorDimensions += "env"
-
-    productFlavors {
-        create("dev") {
-            dimension = "env"
-            applicationIdSuffix = ".dev"
-            versionNameSuffix = "-dev"
-        }
-        create("prod") {
-            dimension = "env"
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
         }
     }
-
-
 
     buildTypes {
-//        release {
-//            isMinifyEnabled = false
-//            proguardFiles(
-//                getDefaultProguardFile("proguard-android-optimize.txt"),
-//                "proguard-rules.pro"
-//            )
-//            signingConfig = signingConfigs.getByName("release")
-//        }
-
-        getByName("debug") {
-            isShrinkResources = false
-            isMinifyEnabled = false  // Enable ProGuard in debug mode
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     compileOptions {
@@ -70,9 +51,6 @@ android {
     }
 
 
-//    kotlinOptions {
-//        jvmTarget = "17"
-//    }
     buildFeatures {
         compose = true
     }
@@ -99,10 +77,12 @@ kotlin {
 
 dependencies {
 
+    implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
@@ -119,8 +99,8 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+    "baselineProfile"(project(":baselineprofile"))
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
@@ -131,26 +111,18 @@ dependencies {
     implementation (libs.koin.androidx.compose)
 
     implementation("io.ktor:ktor-client-android:2.3.12")
+    implementation("io.ktor:ktor-client-websockets:2.3.12")
     implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.cio)
     implementation (libs.ktor.client.content.negotiation)
     implementation (libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.logging)
-    //implementation(libs.kotlinx.serialization.json)
 
     implementation (libs.play.services.auth)
 
     implementation(libs.lottie.compose)
 
     implementation ("androidx.datastore:datastore-preferences:1.0.0")
-   // implementation("com.cloudinary:cloudinary-http44:1.29.0")
-    implementation("com.cloudinary:cloudinary-android:3.0.2")
-    implementation ("ch.qos.logback:logback-classic:1.2.11")
 
-    implementation("com.google.auth:google-auth-library-oauth2-http:1.2.2")
-
-
-    implementation("io.agora.rtc:voice-sdk:4.5.0")
     implementation("commons-codec:commons-codec:1.9")
     implementation ("com.airbnb.android:lottie-compose:6.6.6")
 
@@ -161,13 +133,16 @@ dependencies {
     implementation("androidx.paging:paging-runtime:3.3.4")
     implementation("androidx.paging:paging-compose:3.3.4")
 
-    implementation("io.github.alihaider63:richlinkpreview:1.0.0")
-    //implementation ("org.jsoup:jsoup:1.12.1")
 
+
+    implementation("io.github.alihaider63:richlinkpreview:1.0.0")
+    
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
+    implementation("androidx.room:room-paging:2.7.2")
+
 
     debugImplementation ("com.squareup.leakcanary:leakcanary-android:2.13")
-
+    implementation(libs.androidx.profileinstaller)
 }

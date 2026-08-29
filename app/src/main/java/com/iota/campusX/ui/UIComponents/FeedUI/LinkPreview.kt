@@ -1,6 +1,7 @@
 package com.iota.campusX.ui.UIComponents.FeedUI
 
 import android.util.Patterns
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Post.Savers.LinkPreviewViewModel
@@ -29,45 +32,60 @@ import org.koin.androidx.compose.koinViewModel
 fun LinkPreviewCard(
     url: String,
     linkPreviewViewModel: LinkPreviewViewModel = koinViewModel(),
-    onClick:()-> Unit
+    onClick: () -> Unit
 ) {
-
+    val normalizedUrl = remember(url) { normalizeUrl(url) }
     val previews = linkPreviewViewModel.previews
-    val meta = previews[url]
+    val meta = previews[normalizedUrl]
 
-    LaunchedEffect(url) {
-        linkPreviewViewModel.loadPreview(url)
+    LaunchedEffect(normalizedUrl) {
+        if (normalizedUrl.isNotBlank()) {
+            linkPreviewViewModel.loadPreview(normalizedUrl)
+        }
     }
 
     meta?.let { data ->
-
-        Column (
-            modifier = Modifier.border(
-                width = 0.1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(16.dp)
-            ).clickable(
-                onClick = {
-                    onClick()
-                },
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ).clip(RoundedCornerShape(16.dp))
-
-        ){
-
+        Column(
+            modifier = Modifier
+                .padding(vertical = 8.dp)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .clickable(
+                    onClick = { onClick() },
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                )
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        ) {
             AsyncImage(
-                model = data.imageUrl?:R.drawable.landscape_placeholder_svgrepo_com,
+                model = data.imageUrl ?: R.drawable.landscape_placeholder_svgrepo_com,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(180.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp),
                 fallback = painterResource(R.drawable.landscape_placeholder_svgrepo_com)
             )
 
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(data.title ?: "", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = data.title ?: "",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 data.description?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }

@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import com.iota.campusX.ui.theme.LightTheme_Blue
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,7 +99,7 @@ fun AlertDialogWidget(
                                 contentAlignment = Alignment.Center
                             ){
                                 if (showLoading)
-                                    CircularProgressIndicator(color = LightTheme_Blue, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
                                 else
                                     Text(positiveButtonText, modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
                             }
