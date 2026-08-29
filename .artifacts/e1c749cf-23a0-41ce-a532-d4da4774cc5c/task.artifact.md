@@ -1,0 +1,6 @@
+- [x] Add Share icon to `CourseDetailScreen.kt`
+- [x] Implement `shareCourse` function in `CourseDetailScreen.kt`
+- [x] Add multi-deep-link support to `MainActivity.kt` (HTTPS + Custom Scheme)
+- [x] Add multi-host intent filter to `AndroidManifest.xml` (WWW + Root domain)
+- [x] Add Custom Scheme intent filter to `AndroidManifest.xml`
+- [x] Document `assetlinks.json` requirements for production

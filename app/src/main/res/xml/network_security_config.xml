@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Explicitly allow your local computer's IP -->
+        <domain includeSubdomains="true">192.168.0.2</domain>
+        <!-- Alias for Android Emulator -->
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

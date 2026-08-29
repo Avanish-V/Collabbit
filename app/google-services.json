@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "221935776129",
+    "project_id": "finder-e088b",
+    "storage_bucket": "finder-e088b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:221935776129:android:d931e08e9fac1c4c2cb880",
+        "android_client_info": {
+          "package_name": "com.iota.campusX"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArMD6pQGnX82x5zDyREEuidNcB6CO6gJc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

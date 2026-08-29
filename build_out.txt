@@ -1,0 +1,262 @@
+﻿Configuration on demand is an incubating feature.
+Reusing configuration cache.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:processDevDebugGoogleServices UP-TO-DATE
+> Task :app:preDevDebugBuild UP-TO-DATE
+> Task :app:generateDevDebugResValues UP-TO-DATE
+> Task :app:extractDeepLinksDevDebug UP-TO-DATE
+> Task :app:generateDevDebugResources UP-TO-DATE
+> Task :app:packageDevDebugResources UP-TO-DATE
+> Task :app:parseDevDebugLocalResources UP-TO-DATE
+> Task :app:createDevDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:checkDevDebugAarMetadata UP-TO-DATE
+> Task :app:mergeDevDebugResources UP-TO-DATE
+> Task :app:mapDevDebugSourceSetPaths UP-TO-DATE
+> Task :app:processDevDebugMainManifest UP-TO-DATE
+> Task :app:processDevDebugManifest UP-TO-DATE
+> Task :app:processDevDebugManifestForPackage UP-TO-DATE
+> Task :app:processDevDebugResources UP-TO-DATE
+> Task :app:kspDevDebugKotlin UP-TO-DATE
+
+> Task :app:compileDevDebugKotlin FAILED
+.\gradlew.bat : e: file:///D:
+/Backend/Collabbit/collabbit-
+mobile/app/src/main/java/com/
+iota/campusX/Feature/Collab/d
+ata/remote/CollabApi.kt:5:8 
+Unresolved reference 
+'retrofit2'.
+At line:1 char:1
++ .\gradlew.bat 
+compileDevDebugKotlin 2>&1 | 
+Out-File -Encoding utf8 bu 
+...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (e: file  
+  :///D:/B...ce 'retrofit2   
+ '.:String) [], RemoteExc    
+eption
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:6:8 Unresolved 
+reference 'retrofit2'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:7:8 Unresolved 
+reference 'retrofit2'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:8:8 Unresolved 
+reference 'retrofit2'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:9:8 Unresolved 
+reference 'retrofit2'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:13:6 Unresolved 
+reference 'POST'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:14:31 Unresolved 
+reference 'Body'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:14:67 Unresolved 
+reference 'Response'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:16:6 Unresolved 
+reference 'GET'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:18:10 Unresolved 
+reference 'Query'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:19:10 Unresolved 
+reference 'Query'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:20:10 Unresolved 
+reference 'Query'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/data/remote/Colla
+bApi.kt:21:8 Unresolved 
+reference 'Response'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/di/CollabModule.k
+t:8:8 Unresolved reference 
+'retrofit2'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/di/CollabModule.k
+t:11:5 Cannot infer type for 
+this parameter. Please 
+specify it explicitly.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/di/CollabModule.k
+t:12:23 Unresolved reference 
+'Retrofit'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/di/CollabModule.k
+t:12:34 Cannot infer type 
+for this parameter. Please 
+specify it explicitly.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/di/CollabModule.k
+t:13:18 Unresolved reference 
+'create'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:9:8 Unresolved 
+reference 'retrofit2'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:18:26 Unresolved 
+reference 'isSuccessful'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:18:51 Unresolved 
+reference 'body'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:19:47 Unresolved 
+reference 'body'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:21:73 Unresolved 
+reference 'message'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:23:21 Unresolved 
+reference 'HttpException'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:24:34 Unresolved 
+reference 'localizedMessage'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:34:26 Unresolved 
+reference 'isSuccessful'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:34:51 Unresolved 
+reference 'body'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:35:47 Unresolved 
+reference 'body'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:35:56 Unresolved 
+reference 'content'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:37:73 Unresolved 
+reference 'message'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:39:21 Unresolved 
+reference 'HttpException'.
+e: file:///D:/Backend/Collabb
+it/collabbit-mobile/app/src/m
+ain/java/com/iota/campusX/Fea
+ture/Collab/domain/CollabRepo
+sitory.kt:40:34 Unresolved 
+reference 'localizedMessage'.
+
+FAILURE: Build failed with 
+an exception.
+
+* What went wrong:
+Execution failed for task 
+':app:compileDevDebugKotlin'.
+> A failure occurred while 
+executing org.jetbrains.kotli
+n.compilerRunner.GradleCompil
+erRunnerWithWorkers$GradleKot
+linCompilerWorkAction
+   > Compilation error. See 
+log for more details
+
+* Try:
+> Run with --stacktrace 
+option to get the stack 
+trace.
+> Run with --info or --debug 
+option to get more log 
+output.
+> Run with --scan to get 
+full insights.
+> Get more help at 
+https://help.gradle.org.
+
+BUILD FAILED in 28s
+16 actionable tasks: 1 executed, 15 up-to-date
+Configuration cache entry reused.
