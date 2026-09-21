@@ -1,6 +1,6 @@
 *.iml
 .gradle
-.artifacts
+/artifacts
 /local.properties
 /.idea/caches
 /.idea/libraries
