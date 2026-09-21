@@ -11,9 +11,10 @@ data class UserProfileEntity(
     val contact: String,
     val education: String?,
     val skills: String?,
-    val summary: String?,
+    val matchPreferences: String?,
     val isCurrentUser: Boolean,
-    // Aura fields — added in schema version 4
-    @ColumnInfo(name = "aura_points") val auraPoints: Int = 0,
-    @ColumnInfo(name = "aura_level")  val auraLevel: String = "NEWCOMER"
+    @ColumnInfo(defaultValue = "''") val tagline: String = "",
+    // Aura fields
+    @ColumnInfo(name = "aura_points", defaultValue = "0") val auraPoints: Int = 0,
+    @ColumnInfo(name = "aura_level", defaultValue = "'NEWCOMER'")  val auraLevel: String = "NEWCOMER"
 )

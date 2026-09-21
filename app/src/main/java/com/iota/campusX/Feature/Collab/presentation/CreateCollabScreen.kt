@@ -46,11 +46,16 @@ fun CreateCollabScreen(
     val collabDraft by createCollabViewModel.collabDraftState.collectAsStateWithLifecycle()
     val createStatus by viewModel.createCollabState.collectAsStateWithLifecycle()
 
+    var rolesInput by rememberSaveable { 
+        mutableStateOf(collabDraft.requirements.joinToString(", ")) 
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(createStatus) {
         if (createStatus is UiState.Success) {
             createCollabViewModel.resetDraft()
+            rolesInput = ""
             navController.popBackStack()
             viewModel.resetCreateState()
         } else if (createStatus is UiState.Error) {
@@ -127,8 +132,11 @@ fun CreateCollabScreen(
                             onTitleChange = { createCollabViewModel.setCollabTitle(it) },
                             description = collabDraft.description,
                             onDescriptionChange = { createCollabViewModel.setCollabDescription(it) },
-                            roles = collabDraft.requirements.joinToString(", "),
-                            onRolesChange = { createCollabViewModel.setCollabRequirements(it.split(",").filter { it.isNotBlank() }.map { it.trim() }) },
+                            roles = rolesInput,
+                            onRolesChange = { 
+                                rolesInput = it
+                                createCollabViewModel.setCollabRequirements(it.split(",").filter { it.isNotBlank() }.map { it.trim() }) 
+                            },
                             spots = collabDraft.participantsNeeded,
                             onSpotsChange = { createCollabViewModel.setCollabParticipantsNeeded(it) },
                             deadline = collabDraft.deadline,
@@ -257,8 +265,8 @@ fun TypePickerStep(
             title = "Research",
             description = "Find research partners.",
             icon = R.drawable.microscope_bacteria,
-            isSelected = selectedType == CollabType.STUDY,
-            onClick = { onTypeSelected(CollabType.STUDY) }
+            isSelected = selectedType == CollabType.RESEARCH,
+            onClick = { onTypeSelected(CollabType.RESEARCH) }
         )
     }
 }
@@ -384,9 +392,9 @@ fun FillDetailsStep(
                 value = roles,
                 onValueChange = onRolesChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Roles looking for") },
+                label = { Text("Requirements / Roles") },
                 placeholder = { Text("UI/UX, Frontend, Backend...") },
-                supportingText = { Text("Separate roles with commas") },
+                supportingText = { Text("Separate items with commas") },
                 shape = RoundedCornerShape(16.dp),
                 leadingIcon = { Icon(painterResource(R.drawable.people_bold), null, Modifier.size(20.dp)) }
             )
@@ -707,8 +715,11 @@ fun PreviewStep(
 
                 if (requirements.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        requirements.take(3).forEach { tag ->
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        requirements.forEach { tag ->
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                                 shape = RoundedCornerShape(8.dp)

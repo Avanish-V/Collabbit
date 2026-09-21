@@ -21,7 +21,7 @@ interface CollabRepository {
 
     suspend fun getCollabRequests(collabId: String): Result<List<CollabConnectRequestResponse>>
 
-    suspend fun updateCollabRequestStatus(requestId: Long, status: String): Result<CollabRequestStatus>
+    suspend fun updateCollabRequestStatus(requestId: String, status: String): Result<CollabRequestStatus>
 
     suspend fun hasAlreadyApplied(collabId: String): Result<CollabRequestStatus>
 

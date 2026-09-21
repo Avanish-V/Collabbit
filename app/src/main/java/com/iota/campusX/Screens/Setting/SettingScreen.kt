@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,15 +23,23 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -45,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,7 +78,8 @@ fun SettingScreen(
     userProfileViewModel: UserProfileViewModel,
     googleSignInViewModel: GoogleSignInViewModel = koinInject()
 ) {
-    val profileState = userProfileViewModel.uiState.collectAsState().value
+    val uiState by userProfileViewModel.uiState.collectAsState()
+    val profile = uiState.profile
     var screenValue by rememberSaveable { mutableStateOf(Setting.SETTING_SCREEN) }
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -80,14 +91,9 @@ fun SettingScreen(
         Setting.SETTING_SCREEN -> {
             Scaffold(
                 topBar = {
-                    CenterAlignedTopAppBar(
-                        title = { 
-                            Text(
-                                "Settings",
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                            ) 
-                        },
-                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    TopAppBar(
+                        title = { },
+                        colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.background,
                         ),
                         navigationIcon = {
@@ -104,60 +110,58 @@ fun SettingScreen(
                         .padding(paddingValues)
                         .background(MaterialTheme.colorScheme.background),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
 
-
-                    // General Section
+                    // System Section
                     item {
-                        SettingSection(title = "General") {
-                            settingList.forEach { item ->
-                                SettingItem(
-                                    title = item.title,
-                                    icon = item.icon,
-                                    onClick = {
-                                        if (item.url != null) {
-                                            uriHandler.openUri(item.url)
-                                        } else {
-                                            screenValue = item.destination
-                                        }
-                                    }
-                                )
-                            }
+                        SettingSection {
+                            SettingItem(
+                                title = "About",
+                                icon = R.drawable.info,
+                                onClick = { screenValue = Setting.ABOUT_SCREEN }
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            SettingItem(
+                                title = "Privacy Policy",
+                                icon = R.drawable.user_lock,
+                                onClick = { screenValue = Setting.PRIVACY_POLICY }
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         }
+                        Spacer(modifier = Modifier.size(24.dp))
                     }
 
-                    // Account Section
+                    // App Actions
                     item {
-                        SettingSection(title = "Account") {
+                        SettingSection(title = "App Actions") {
+
                             SettingItem(
                                 title = "Sign Out",
-                                icon = R.drawable.undo__1_, // Using an undo icon as fallback or standard logout
-                                contentColor = MaterialTheme.colorScheme.error,
+                                icon = R.drawable.undo__1_,
+                                titleColor = MaterialTheme.colorScheme.error,
                                 showArrow = false,
                                 onClick = { showLogoutAlert = true }
                             )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                             SettingItem(
                                 title = "Delete Account",
                                 icon = R.drawable.trash,
-                                contentColor = MaterialTheme.colorScheme.error,
+                                titleColor = MaterialTheme.colorScheme.error,
                                 showArrow = false,
                                 onClick = { showAlert = true }
                             )
                         }
+                        Spacer(modifier = Modifier.size(32.dp))
                     }
 
                     item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Version 1.0.0 (Finder)",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
-                        }
+                        Text(
+                            text = "Version 1.2.4 (Collabbit)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.size(16.dp))
                     }
                 }
 
@@ -171,7 +175,7 @@ fun SettingScreen(
                         negativeButtonText = "Cancel",
                         onPositiveClick = {
                             showAlert = false
-                            uriHandler.openUri("https://campuscircle.in/account/delete")
+                            uriHandler.openUri("https://collabbit.in/account/delete")
                         },
                         showLoading = false
                     )
@@ -206,9 +210,9 @@ fun SettingScreen(
                 else -> "Terms & Conditions"
             }
             val url = when(screenValue) {
-                Setting.ABOUT_SCREEN -> "https://www.campuscircle.in/about"
-                Setting.PRIVACY_POLICY -> "https://www.campuscircle.in/privacy"
-                else -> "https://www.campuscircle.in/term-condition"
+                Setting.ABOUT_SCREEN -> "https://www.collabbit.in/about"
+                Setting.PRIVACY_POLICY -> "https://www.collabbit.in/privacy"
+                else -> "https://www.collabbit.in/term-condition"
             }
 
             SettingPage(
@@ -231,105 +235,95 @@ fun SettingScreen(
     }
 }
 
-data class ProfileSetting(
-    val title: String,
-    val icon: Int,
-    val destination: Setting,
-    val url: String? = null
-)
-
-val settingList = listOf(
-    ProfileSetting(
-        title = "About",
-        icon = R.drawable.info,
-        destination = Setting.ABOUT_SCREEN,
-        url = "https://www.campuscircle.in/about"
-    ),
-
-    ProfileSetting(
-        title = "Privacy Policy",
-        icon = R.drawable.user_lock,
-        destination = Setting.PRIVACY_POLICY,
-        url = "https://www.campuscircle.in/privacy"
-    ),
-
-    ProfileSetting(
-        title = "Term & Conditions",
-        icon = R.drawable.memo_circle_check,
-        destination = Setting.TERMS_AND_CONDITIONS,
-        url = "https://www.campuscircle.in/term-condition"
-    ),
-
-    ProfileSetting(
-        title = "Feedback",
-        icon = R.drawable.feedback_hand,
-        destination = Setting.FEEDBACK,
-        url = "https://www.campuscircle.in/feedback"
-    ),
-)
-
 @Composable
-fun ProfileHeaderItem(
+fun ProfileHeaderCentered(
     name: String,
-    email: String,
-    imageUrl: String?
+    imageUrl: String?,
+    onEditClick: () -> Unit
 ) {
-    Surface(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.size(100.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(64.dp)
+                    .fillMaxSize()
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center
             ) {
-                UserAvatar(
-                    modifier = Modifier.fillMaxSize(),
-                    imageUrl = imageUrl
-                )
+                if (!imageUrl.isNullOrEmpty()) {
+                    UserAvatar(
+                        modifier = Modifier.fillMaxSize(),
+                        imageUrl = imageUrl
+                    )
+                } else {
+                    val initials = if (name.isNotEmpty()) {
+                        name.split(" ").filter { it.isNotEmpty() }.take(2).map { it[0] }.joinToString("").uppercase()
+                    } else "U"
+                    Text(
+                        text = initials,
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                )
-                Text(
-                    text = email,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            
+            // Edit Icon
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(32.dp)
+                    .clickable(onClick = onEditClick),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit Profile",
+                    modifier = Modifier.padding(6.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = name,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
 @Composable
 fun SettingSection(
-    title: String,
+    title: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            ),
-            modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
-        )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (title != null) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column {
                 content()
@@ -341,37 +335,58 @@ fun SettingSection(
 @Composable
 fun SettingItem(
     title: String,
+    subtitle: String? = null,
     icon: Int,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface,
-    showArrow: Boolean = true,
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    iconTint: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+    showArrow: Boolean = false,
+    showChevronDown: Boolean = false,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             painter = painterResource(id = icon),
             contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = contentColor.copy(alpha = 0.8f)
+            modifier = Modifier.size(22.dp),
+            tint = iconTint
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            color = contentColor,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = titleColor
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+        
         if (showArrow) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            )
+        }
+        
+        if (showChevronDown) {
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
             )
         }
     }

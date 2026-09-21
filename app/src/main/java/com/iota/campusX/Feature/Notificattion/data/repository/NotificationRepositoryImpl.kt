@@ -87,10 +87,23 @@ class NotificationRepositoryImpl(
     }
 
     override suspend fun markAllRead() {
-
         api.markAllRead()
         dao.markAllRead()
+    }
 
+    override suspend fun deleteNotification(id: Long) {
+        runCatching { api.deleteNotification(id) }
+        dao.delete(id)
+    }
+
+    override suspend fun respondToConnectRequest(requestId: String, status: String, message: String?): Result<Unit> {
+        return runCatching {
+            api.respondToConnectRequest(requestId, status, message)
+        }
+    }
+
+    override suspend fun markActionDone(id: Long) {
+        dao.markActionDone(id)
     }
 
 }

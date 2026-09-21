@@ -147,7 +147,7 @@ class CollabRepoImpl(
         }
     }
 
-    override suspend fun updateCollabRequestStatus(requestId: Long, status: String): Result<CollabRequestStatus> {
+    override suspend fun updateCollabRequestStatus(requestId: String, status: String): Result<CollabRequestStatus> {
         return runCatching {
             val response: HttpResponse = httpClient.patch("collabs/requests/$requestId") {
                 parameter("status", status)

@@ -37,7 +37,7 @@ data class CollabResponse(
 
 @Serializable
 data class CollabConnectRequestResponse(
-    val id: Long,
+    val id: String,
     val senderId: String,
     val senderName: String,
     val senderImage: String?,

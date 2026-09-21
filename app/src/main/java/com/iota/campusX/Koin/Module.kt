@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.Preferences
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.CredentialAuthDataSource
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleSignInViewModel
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.VerifyUserRepository
@@ -35,7 +34,7 @@ import com.iota.campusX.Utils.ThemeMode.ThemePreference
 import com.iota.campusX.Utils.ThemeMode.dataStore
 import com.iota.campusX.Utils.TokenProvider
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.android.Android
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
@@ -48,14 +47,23 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
+import com.iota.campusX.Feature.Post.data.remote.S3Uploader
+import com.iota.campusX.Feature.Society.presentation.SocietyViewModel
 import org.koin.dsl.module
+import com.iota.campusX.Feature.Society.data.local.SocietyDatabase
+import com.iota.campusX.Feature.Society.data.remote.FirestoreCommunityDataSource
+import com.iota.campusX.Feature.Society.data.repository.CommunityRepositoryImpl
+import com.iota.campusX.Feature.Society.domain.repository.CommunityRepository
+import com.iota.campusX.Feature.Society.domain.usecase.CreateCommunityUseCase
+import com.iota.campusX.Feature.Society.domain.usecase.GetCommunitiesUseCase
+import com.iota.campusX.Feature.Society.domain.usecase.JoinCommunityUseCase
 
 
 val coreModule = module {
 
     single {
         Log.i("networkModule", "Creating HttpClient")
-        HttpClient(Android) {
+        HttpClient(OkHttp) {
             expectSuccess = true
             install(Logging) {
                 logger = object : Logger {
@@ -78,6 +86,13 @@ val coreModule = module {
             }
         }.also { client ->
             client.sendPipeline.intercept(HttpSendPipeline.State) {
+                // DO NOT add Authorization header to S3/AWS requests
+                val host = context.url.host
+                if (host.contains("amazonaws.com") || host.contains("s3")) {
+                    proceed()
+                    return@intercept
+                }
+
                 val currentUser = FirebaseAuth.getInstance().currentUser
                 if (currentUser != null) {
                     try {
@@ -101,7 +116,6 @@ val coreModule = module {
     single { FirebaseFirestore.getInstance() }
     single { FirebaseDatabase.getInstance() }
     single { FirebaseAuth.getInstance() }
-    single { FirebaseStorage.getInstance() }
     single { TokenProvider(get()) }
 
     // DataStore
@@ -157,10 +171,27 @@ val reportModule = module {
 
 val navigationModule = module {
     single { NavigationViewModel() }
-    viewModel { HomeViewModel() }
+    viewModel { HomeViewModel(get(), get()) }
     viewModel { ConnectivityViewModel(connectivityObserver = get()) }
 }
-val themeMode = module {
-    single { ThemePreference }
+
+val societyModule = module {
+    single {
+        Room.databaseBuilder(
+            androidContext(),
+            SocietyDatabase::class.java,
+            "society_database"
+        ).fallbackToDestructiveMigration().build()
+    }
+    single { get<SocietyDatabase>().communityDao() }
+    single { get<SocietyDatabase>().userCacheDao() }
+    single { FirestoreCommunityDataSource(get(), get()) }
+    single<CommunityRepository> { CommunityRepositoryImpl(get(), get(), get(), get(), get()) }
+    
+    factory { CreateCommunityUseCase(get()) }
+    factory { GetCommunitiesUseCase(get()) }
+    factory { JoinCommunityUseCase(get()) }
+
+    viewModel { SocietyViewModel(get(), get(), get(), get(), get(), get()) }
 }
 

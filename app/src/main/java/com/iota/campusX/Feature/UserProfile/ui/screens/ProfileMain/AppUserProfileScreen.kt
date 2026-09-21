@@ -4,11 +4,11 @@ import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,30 +19,28 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -74,25 +73,31 @@ import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuController
 import com.iota.campusX.Feature.Reply.presentation.ReplyBottomSheet
 import com.iota.campusX.Feature.UserProfile.data.remote.response.ProfileResponse
 import com.iota.campusX.Feature.UserProfile.presentation.AuraViewModel
-import com.iota.campusX.Feature.UserProfile.ui.Components.AuraStreakCard
+import com.iota.campusX.Feature.UserProfile.ui.Components.AuraStatsDialog
+import com.iota.campusX.Feature.UserProfile.ui.Components.AuraTransactionsDialog
+import com.iota.campusX.Feature.UserProfile.ui.Components.ProfileCompletionSection
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditEvents.EditProfileActions
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditEvents.EditProfileViewModel
 import com.iota.campusX.Navigation.CollabDetail
 import com.iota.campusX.Navigation.EditProfile
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
+import com.iota.campusX.Feature.Post.domain.attachment.VideoAttachmentDto
+import com.iota.campusX.Feature.Post.domain.attachment.DocumentAttachmentDto
 import com.iota.campusX.Navigation.PostView
+import com.iota.campusX.Navigation.VideoView
+import com.iota.campusX.Navigation.PdfView
 import com.iota.campusX.Navigation.Profile
 import com.iota.campusX.Navigation.Setting
-import com.iota.campusX.Navigation.rememberScrollContext
 import com.iota.campusX.R
 import com.iota.campusX.Utils.ProfileEdit
+import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachmentDto
+import com.iota.campusX.Utils.sharePost
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.BasicDetailRow
 import com.iota.campusX.ui.UIComponents.CampusWidget
-import com.iota.campusX.ui.UIComponents.CompleteProfileSection
 import com.iota.campusX.ui.UIComponents.ProfileSectionCard
 import com.iota.campusX.ui.UIComponents.RedesignedProfileHeader
 import com.iota.campusX.ui.UIComponents.SkillChipRedesigned
@@ -114,19 +119,26 @@ fun AppUserProfile(
     menuController: MenuController,
     menuActionViewModel: MenuActionViewModel
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val editProfileViewModel: EditProfileViewModel = koinViewModel()
 
-   val editProfileViewModel: EditProfileViewModel = koinViewModel()
+    val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
+    val effectiveUserId = userId ?: profileState.profile?.uid
 
-   val profile by profileViewModel.uiState.collectAsState()
+    val pullToRefreshState = rememberPullToRefreshState()
+    val isRefreshing by profileViewModel.isRefreshing.collectAsStateWithLifecycle()
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val snackBarHostState = remember { SnackbarHostState() }
     val postLazyColumnState = rememberLazyListState()
-    val scrollContext = rememberScrollContext(navigationViewModel)
     HideBottomBar(navigationViewModel, postLazyColumnState)
 
     val tabList = remember { listOf("View & Edit", "Activity", "Collabs") }
+
+    LaunchedEffect(userId) {
+        profileViewModel.load(userId)
+    }
 
     LaunchedEffect(Unit) {
         auraViewModel.fetchAuraInfo()
@@ -138,7 +150,11 @@ fun AppUserProfile(
     val userCollabs by collabViewModel.userCollabsState.collectAsStateWithLifecycle()
     val deleteCollabState by collabViewModel.deleteCollabState.collectAsStateWithLifecycle()
 
+    val auraTransactions by auraViewModel.transactions.collectAsStateWithLifecycle()
+
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showAuraStats by remember { mutableStateOf(false) }
+    var showAuraHistory by remember { mutableStateOf(false) }
     var collabToDelete by remember { mutableStateOf<CollabResponse?>(null) }
 
     var showReplyBottomSheet by remember { mutableStateOf(false) }
@@ -149,7 +165,7 @@ fun AppUserProfile(
     LaunchedEffect(deleteCollabState) {
         if (deleteCollabState is UiState.Success) {
             snackBarHostState.showSnackbar("Collaboration deleted successfully")
-            collabViewModel.getCollabsByUserId(userId = userId ?: "")
+            effectiveUserId?.let { collabViewModel.getCollabsByUserId(userId = it) }
             collabViewModel.resetDeleteState()
         } else if (deleteCollabState is UiState.Error) {
             snackBarHostState.showSnackbar((deleteCollabState as UiState.Error).message)
@@ -172,20 +188,15 @@ fun AppUserProfile(
         )
     }
 
-    LaunchedEffect(selectedTabIndex, userId, profile.profile) {
+    LaunchedEffect(selectedTabIndex, effectiveUserId) {
         when(selectedTabIndex){
-            0 -> {
-                profileViewModel.load(userId)
-            }
             1 -> {
-                val targetUserId = userId ?: profile.profile?.uid
-                targetUserId?.let {
+                effectiveUserId?.let {
                     postFeedViewModel.getUserPost(userId = it)
                 }
             }
             2 -> {
-                val targetUserId = userId ?: profile.profile?.uid
-                targetUserId?.let {
+                effectiveUserId?.let {
                     collabViewModel.getCollabsByUserId(userId = it)
                 }
             }
@@ -196,9 +207,19 @@ fun AppUserProfile(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Profile", style = MaterialTheme.typography.headlineMedium
-
-                ) },
+                title = { Text(text = "Profile", style = MaterialTheme.typography.headlineMedium) },
+                navigationIcon = {
+                    profileState.profile?.isCurrentUser?.let {
+                        if(!it){
+                            IconButton(onClick = {navHostController.popBackStack()}) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = null
+                                )
+                            }
+                        }
+                    }
+                },
                 actions = {
                     IconButton(
                         onClick = { navHostController.navigate(Setting) }
@@ -219,148 +240,193 @@ fun AppUserProfile(
             )
         },
         snackbarHost = { SnackbarHost(modifier = Modifier.padding(bottom = 80.dp), hostState = snackBarHostState) },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection).nestedScroll(scrollContext)
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { innerPadding ->
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
-            state = postLazyColumnState
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { profileViewModel.refreshProfile(userId) },
+            state = pullToRefreshState,
+            modifier = Modifier.padding(innerPadding),
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = postLazyColumnState
+            ) {
 
-            item {
-                RedesignedProfileHeader(
-                    modifier = Modifier.fillMaxWidth(),
-                    user = profile.profile?.baseProfile,
-                    onEditNameClick = {
-                        navHostController.navigate(EditProfile())
-                        editProfileViewModel.onEditProfileEvent(EditProfileActions.EditBasicDetails(it))
-                    },
-                    onAddPhotoClick = {
-                        navHostController.navigate(EditProfile(editType = ProfileEdit.PROFILE_SCREEN.name))
-                    },
-                    isCurrentUser = profile.profile?.isCurrentUser ?: false,
-                    auraPoints = profile.profile?.aura
-                )
-            }
-
-            stickyHeader(key = "tab_header") {
-                AppTabRow(
-                    selectedIndex = selectedTabIndex,
-                    tabList = tabList,
-                    isScrollable = true,
-                    onTabSelected = { selectedTabIndex = it }
-                )
-            }
-
-            when (selectedTabIndex) {
-                0 -> {
-
-                    profile.profile?.let {
-                        ViewAndEditTabContent(
-                            user = it,
-                            auraViewModel = auraViewModel,
-                            onEditClick = {
-                                editProfileViewModel.onEditProfileEvent(it)
-                                navHostController.navigate(EditProfile())
-                            }
-                        )
-                    }
-
+                item {
+                    RedesignedProfileHeader(
+                        modifier = Modifier.fillMaxWidth(),
+                        user = profileState.profile?.baseProfile,
+                        onEditNameClick = {
+                            navHostController.navigate(EditProfile())
+                            editProfileViewModel.onEditProfileEvent(EditProfileActions.EditBasicDetails(it))
+                        },
+                        onAddPhotoClick = {
+                            navHostController.navigate(EditProfile(editType = ProfileEdit.PROFILE_SCREEN.name))
+                        },
+                        onAuraClick = {
+                            showAuraStats = true
+                        },
+                        isCurrentUser = profileState.profile?.isCurrentUser ?: false,
+                        auraPoints = profileState.profile?.aura
+                    )
                 }
 
-                1 -> {
-                    if (postState.loadState.refresh is LoadState.Loading) {
-                        items(5) {
-                            FeedShimmerItem()
-                        }
-                    }
-                    items(postState.itemCount) { index ->
-                        val post = postState[index]
-                        if (post != null) {
-                            FeedItem(
-                                feedItem = post,
-                                handlers = { action ->
-                                    if (action is PostAction.ViewPostVisualContent) {
-                                        navHostController.navigate(PostView(postId = post.postId))
-                                    } else {
-                                        postFeedViewModel.onPostEvent(action)
-                                    }
-                                },
-                                onReplyClick = { p ->
-                                    replyPostId = p.postId
-                                    showReplyBottomSheet = true
-                                    scope.launch { replyBottomSheetState.show() }
-                                },
-                                onMoreClick = {
-                                    menuController.show(
-                                        context = MenuContext(
-                                            id = it.postId,
-                                            type = ContentType.POST,
-                                            isOwner = it.author.isCurrentUser
-                                        )
-                                    )
-                                    menuActionViewModel.loadMenu(
-                                        menuContext = MenuContext(
-                                            id = it.postId,
-                                            type = ContentType.POST,
-                                            isOwner = it.author.isCurrentUser
-                                        ),
-                                    )
-                                },
-                                onProfileClick = {
-                                    if (it != userId) {
-                                        navHostController.navigate(Profile(it))
-                                    }
+                stickyHeader(key = "tab_header") {
+                    AppTabRow(
+                        selectedIndex = selectedTabIndex,
+                        tabList = tabList,
+                        isScrollable = true,
+                        onTabSelected = { selectedTabIndex = it }
+                    )
+                }
+
+                when (selectedTabIndex) {
+                    0 -> {
+
+                        profileState.profile?.let {
+                            viewAndEditTabContent(
+                                user = it,
+                                auraViewModel = auraViewModel,
+                                onEditClick = {
+                                    editProfileViewModel.onEditProfileEvent(it)
+                                    navHostController.navigate(EditProfile())
                                 }
                             )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant
-                            )
                         }
+
                     }
-                }
 
-                2 -> {
-
-                    when (userCollabs) {
-                        is UiState.Loading -> {
+                    1 -> {
+                        if (postState.loadState.refresh is LoadState.Loading) {
                             items(5) {
-                                CollabShimmerItem()
+                                FeedShimmerItem()
+                            }
+                        } else if (postState.loadState.refresh is LoadState.Error) {
+                            item {
+                                ActivityErrorState(
+                                    message = (postState.loadState.refresh as LoadState.Error).error.localizedMessage ?: "Failed to load activity",
+                                    onRetry = { postState.retry() }
+                                )
+                            }
+                        } else if (postState.loadState.refresh is LoadState.NotLoading && postState.itemCount == 0) {
+                            item {
+                                ActivityEmptyState(isCurrentUser = profileState.profile?.isCurrentUser ?: false)
                             }
                         }
 
-                        is UiState.Success -> {
-
-                            collabsSection(
-                                posts = (userCollabs as UiState.Success<List<CollabResponse>>).data,
-                                onCardClick = {
-                                    navHostController.navigate(CollabDetail(it))
-                                },
-                                onDeleteClick = { collab ->
-                                    collabToDelete = collab
-                                    showDeleteDialog = true
-                                }
-                            )
-                        }
-
-                        is UiState.Error -> {
-                            item {
-                                Text(
-                                    text = (userCollabs as UiState.Error).message,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(16.dp)
+                        items(postState.itemCount) { index ->
+                            val post = postState[index]
+                            if (post != null) {
+                                FeedItem(
+                                    feedItem = post,
+                                    handlers = { action ->
+                                        when (action) {
+                                            is PostAction.ViewPostVisualContent -> {
+                                                val attachment = post.attachment
+                                                if (attachment is VideoAttachmentDto) {
+                                                    navHostController.navigate(VideoView(videoUrl = attachment.videoUrl, thumbnailUrl = attachment.thumbnailUrl))
+                                                } else if (attachment is DocumentAttachmentDto) {
+                                                    navHostController.navigate(PdfView(pdfUrl = attachment.url, fileName = attachment.name))
+                                                } else {
+                                                    val initialImage = (attachment as? ImageAttachmentDto)?.images?.getOrNull(action.initialIndex)
+                                                    navHostController.navigate(PostView(postId = post.postId, postImage = initialImage, initialIndex = action.initialIndex))
+                                                }
+                                            }
+                                            is PostAction.Share -> {
+                                                val imageUrl = when (val attachment = post.attachment) {
+                                                    is ImageAttachmentDto -> attachment.images.firstOrNull()
+                                                    is VideoAttachmentDto -> attachment.thumbnailUrl
+                                                    is DocumentAttachmentDto -> attachment.thumbnailUrl
+                                                    else -> null
+                                                }
+                                                scope.launch {
+                                                    sharePost(context, post.postId, post.caption, imageUrl)
+                                                }
+                                            }
+                                            else -> {
+                                                postFeedViewModel.onPostEvent(action)
+                                            }
+                                        }
+                                    },
+                                    onReplyClick = { p ->
+                                        replyPostId = p.postId
+                                        showReplyBottomSheet = true
+                                        scope.launch { replyBottomSheetState.show() }
+                                    },
+                                    onMoreClick = {
+                                        menuActionViewModel.showMenu(
+                                            menuController = menuController,
+                                            context = MenuContext(
+                                                id = it.postId,
+                                                type = ContentType.POST,
+                                                isOwner = it.author.isCurrentUser
+                                            )
+                                        )
+                                    },
+                                    onProfileClick = {
+                                        if (it != userId) {
+                                            navHostController.navigate(Profile(it))
+                                        }
+                                    }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
                                 )
                             }
                         }
+                    }
 
-                        else -> {}
+                    2 -> {
+
+                        when (userCollabs) {
+                            is UiState.Loading -> {
+                                items(5) {
+                                    CollabShimmerItem()
+                                }
+                            }
+
+                            is UiState.Success -> {
+                                val collabs = (userCollabs as UiState.Success<List<CollabResponse>>).data
+                                if (collabs.isEmpty()) {
+                                    item {
+                                        CollabEmptyState(isCurrentUser = profileState.profile?.isCurrentUser ?: false)
+                                    }
+                                } else {
+                                    collabsSection(
+                                        posts = collabs,
+                                        onCardClick = {
+                                            navHostController.navigate(CollabDetail(it))
+                                        },
+                                        onDeleteClick = { collab ->
+                                            collabToDelete = collab
+                                            showDeleteDialog = true
+                                        }
+                                    )
+                                }
+                            }
+
+                            is UiState.Error -> {
+                                item {
+                                    ActivityErrorState(
+                                        message = (userCollabs as UiState.Error).message,
+                                        onRetry = { 
+                                            effectiveUserId?.let { collabViewModel.getCollabsByUserId(userId = it) }
+                                        }
+                                    )
+                                }
+                            }
+
+                            else -> {}
+                        }
                     }
                 }
             }
-
         }
+
 
         if (showReplyBottomSheet) {
             replyPostId?.let { postId ->
@@ -372,19 +438,13 @@ fun AppUserProfile(
                     },
                     sheetState = replyBottomSheetState,
                     onMoreClick = {
-                        menuController.show(
-                            MenuContext(
+                        menuActionViewModel.showMenu(
+                            menuController = menuController,
+                            context = MenuContext(
                                 id = it.id,
                                 type = ContentType.REPLY,
                                 isOwner = it.author.isCurrentUser
                             )
-                        )
-                        menuActionViewModel.loadMenu(
-                            MenuContext(
-                                id = it.id,
-                                type = ContentType.REPLY,
-                                isOwner = it.author.isCurrentUser
-                            ),
                         )
                     },
                     onAction = {
@@ -392,6 +452,117 @@ fun AppUserProfile(
                     }
                 )
             }
+        }
+
+        if (showAuraStats && profileState.profile?.aura != null) {
+            AuraStatsDialog(
+                aura = profileState.profile!!.aura,
+                transactions = auraTransactions,
+                onDismiss = { showAuraStats = false },
+                onViewHistory = {
+                    showAuraStats = false
+                    showAuraHistory = true
+                }
+            )
+        }
+
+        if (showAuraHistory) {
+            AuraTransactionsDialog(
+                transactions = auraTransactions,
+                onDismiss = { showAuraHistory = false }
+            )
+        }
+    }
+}
+
+
+@Composable
+fun ActivityEmptyState(isCurrentUser: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.file_text),
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.outline
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = if (isCurrentUser) "No posts yet" else "No posts yet",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = if (isCurrentUser) "Share your thoughts or questions with the community!" else "This user hasn't shared any activity yet.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun CollabEmptyState(isCurrentUser: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.hands_together),
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.outline
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No collabs yet",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = if (isCurrentUser) "Start collaborating on projects and hackathons!" else "This user hasn't joined any collaborations yet.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun ActivityErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("Retry")
         }
     }
 }
@@ -414,27 +585,21 @@ fun LazyListScope.collabsSection(
 }
 
 
-fun LazyListScope.ViewAndEditTabContent(
+fun LazyListScope.viewAndEditTabContent(
     user: ProfileResponse,
     auraViewModel: AuraViewModel,
     onEditClick:(EditProfileActions)-> Unit,
 ) {
-    item { Spacer(modifier = Modifier.padding(6.dp)) }
+    item { Spacer(modifier = Modifier.padding(4.dp)) }
     
-//    if (user.isCurrentUser) {
-//
-//        item {
-//            CompleteProfileSection(
-//                userProfile = user,
-//                onAddScoreClick = {
-//
-//                },
-//                onAddInternshipClick = {
-//
-//                }
-//            )
-//        }
-//    }
+    if (user.isCurrentUser) {
+        item {
+            ProfileCompletionSection(
+                userProfile = user,
+                onActionClick = onEditClick
+            )
+        }
+    }
     // 2. Basic details card
     item {
         ProfileSectionCard(
@@ -447,7 +612,7 @@ fun LazyListScope.ViewAndEditTabContent(
             BasicDetailRow(
                 icon = Icons.Default.Email,
                 text = user.contact.email,
-                isVerified = user.contact.email.isNotEmpty()
+                isVerified = false
             )
 
         }
@@ -467,9 +632,7 @@ fun LazyListScope.ViewAndEditTabContent(
             } else {
                 Text(
                     text = if (user.isCurrentUser) "Add your educational details" else "No educational details added yet",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
@@ -480,21 +643,19 @@ fun LazyListScope.ViewAndEditTabContent(
             title = "Profile summary",
             isCurrentUser = user.isCurrentUser,
             onActionClick = {
-                onEditClick(EditProfileActions.EditSummary(user.summary))
+                onEditClick(EditProfileActions.EditSummary(user.baseProfile.summary))
             }
         ) {
-        val summary = if (user.summary.isNullOrEmpty() && user.isCurrentUser){
-                "Put forward your educational and career journey in a few lines"
-            }else if (!user.summary.isNullOrEmpty() && user.isCurrentUser) {
-                user.summary
+        val summary = if (user.baseProfile.summary.isEmpty() && user.isCurrentUser){
+                "Tell your story — what you’re passionate about, what you enjoy building, what you’re looking to learn, and where you want to go next.\n"
+            }else if (user.baseProfile.summary.isNotEmpty() && user.isCurrentUser) {
+                user.baseProfile.summary
             } else {
                 "No summary added yet"
         }
             Text(
                 text = summary,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
@@ -528,4 +689,50 @@ fun LazyListScope.ViewAndEditTabContent(
             }
         }
     }
+
+    item {
+        val hasOpenTo = !user.matchPreferences.isNullOrEmpty()
+        ProfileSectionCard(
+            title = "Open to",
+            isCurrentUser = user.isCurrentUser,
+            onActionClick = {
+                onEditClick(EditProfileActions.EditOpenTo(user.matchPreferences))
+            }
+        ) {
+            if (hasOpenTo) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    user.matchPreferences.forEach { item ->
+                        SkillChipRedesigned(text = item.title)
+                    }
+                }
+            } else {
+                Text(
+                    text = if (user.isCurrentUser) "What are you looking for? (e.g. Hackathons, Projects, Study)" else "No preferences added yet",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+            }
+        }
+    }
+
+//    item {
+//        ProfileSectionCard(
+//            title = "Internships",
+//            isCurrentUser = user.isCurrentUser,
+//            onActionClick = {
+//                // Future: add internship action
+//            }
+//        ) {
+//            // Since internship field is not yet in ProfileResponse, we show Coming Soon beautifully
+//            com.iota.campusX.ui.UIComponents.ComingSoonWidget(
+//                title = "Professional Experience",
+//                description = "Soon you will be able to add and showcase your internships and work history.",
+//                iconRes = R.drawable.briefcase__1_
+//            )
+//        }
+//    }
 }

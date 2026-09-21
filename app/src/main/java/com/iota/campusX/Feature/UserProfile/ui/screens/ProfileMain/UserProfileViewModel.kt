@@ -13,6 +13,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import com.iota.campusX.Feature.UserProfile.data.remote.response.MatchPreferenceResponse
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -64,6 +65,21 @@ class UserProfileViewModel(
     private val _syncState: MutableStateFlow<UiState<Unit>> = MutableStateFlow(UiState.Idle)
     val syncState: StateFlow<UiState<Unit>> = _syncState.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
+
+    fun refreshProfile(userId: String?) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            if (userId == null) {
+                getProfileUseCase(force = true)
+            } else {
+                profileRepository.getUserProfileById(userId)
+            }
+            _isRefreshing.value = false
+        }
+    }
+
     fun getUserProfile() {
         viewModelScope.launch {
             _syncState.value = UiState.Loading
@@ -71,6 +87,40 @@ class UserProfileViewModel(
                 .fold(
                     onSuccess = { _syncState.value = UiState.Success(Unit) },
                     onFailure = { _syncState.value = UiState.Error(it.message.toString()) }
+                )
+        }
+    }
+
+    suspend fun syncProfileSuspending(): Result<ProfileResponse> {
+        _syncState.value = UiState.Loading
+        val result = getProfileUseCase()
+        result.fold(
+            onSuccess = { _syncState.value = UiState.Success(Unit) },
+            onFailure = { _syncState.value = UiState.Error(it.message.toString()) }
+        )
+        return result
+    }
+
+    private val _matchPreferences = MutableStateFlow<UiState<List<MatchPreferenceResponse>>>(UiState.Idle)
+    val matchPreferences = _matchPreferences.asStateFlow()
+
+    fun fetchMatchPreferences() {
+        viewModelScope.launch {
+            _matchPreferences.value = UiState.Loading
+            profileRepository.getMatchPreferences()
+                .fold(
+                    onSuccess = { _matchPreferences.value = UiState.Success(it) },
+                    onFailure = { _matchPreferences.value = UiState.Error(it.message ?: "Unknown error") }
+                )
+        }
+    }
+
+    fun updateOpenTo(selectedCodes: List<String>) {
+        viewModelScope.launch {
+            profileRepository.updateOpenTo(selectedCodes)
+                .fold(
+                    onSuccess = { getUserProfile() },
+                    onFailure = { Log.e("UserProfileViewModel", "updateOpenTo: ${it.message}") }
                 )
         }
     }

@@ -10,5 +10,7 @@ enum class NotificationType {
     FOLLOW,
     MESSAGE,
     MENTION,
-    SYSTEM
+    SYSTEM,
+    COLLABORATION_REQUEST,
+    CONNECT_REQUEST
 }

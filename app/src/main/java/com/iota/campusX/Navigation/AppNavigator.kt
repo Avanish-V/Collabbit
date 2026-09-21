@@ -5,6 +5,6 @@ interface AppNavigator {
     fun navigateToViewUserProfile(userId: String)
     fun navigateToViewPostVisualContent(imageUrl: String?)
     fun navigateToPostDetail(postId: String)
-    fun navigateToEditPost(postId: String)
+    fun navigateToEditPost(id: String, type: String = "POST")
     fun goBack()
 }

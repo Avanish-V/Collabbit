@@ -1,6 +1,8 @@
 package com.iota.campusX.Feature.Post.presentation.create
 
+import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,9 +25,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,8 +41,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Mood
+import androidx.compose.material.icons.filled.OpenInFull
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,8 +55,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -69,19 +74,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.iota.campusX.Feature.Post.domain.attachment.DocumentAttachment
+import com.iota.campusX.Feature.Post.presentation.components.DocumentAttachmentCard
+import com.iota.campusX.Feature.Post.presentation.components.DocumentHorizontalPager
+import com.iota.campusX.Feature.Post.presentation.components.PdfPageImage
+import com.iota.campusX.Feature.Post.presentation.components.rememberPdfRenderer
 import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachment
 import com.iota.campusX.Feature.Post.domain.attachment.TeamFormationAttachment
+import com.iota.campusX.Feature.Post.domain.attachment.VideoAttachment
 import com.iota.campusX.Feature.UserProfile.data.remote.response.SkillResponse
 import com.iota.campusX.Feature.UserProfile.ui.Components.SearchableDropdown
 import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.UserProfileViewModel
@@ -90,6 +103,14 @@ import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.CustomTextField
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.Utils.vibrate
+import com.iota.campusX.ui.UIComponents.VideoPlayer
+import com.iota.campusX.ui.theme.attachmentDocument
+import com.iota.campusX.ui.theme.attachmentImage
+import com.iota.campusX.ui.theme.attachmentLocation
+import com.iota.campusX.ui.theme.attachmentVideo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -108,11 +129,29 @@ fun CreatePostScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
+    val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4),
         onResult = { uris -> 
             if (uris.isNotEmpty()) {
-                postCreationViewModel.onAttachmentSelected(ImageAttachment(uris.map { it.toString() }))
+                postCreationViewModel.onImagesSelected(context, uris)
+            }
+        }
+    )
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri -> 
+            if (uri != null) {
+                postCreationViewModel.onVideoSelected(context, uri)
+            }
+        }
+    )
+
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri ->
+            if (uri != null) {
+                postCreationViewModel.onDocumentSelected(context, uri)
             }
         }
     )
@@ -135,7 +174,7 @@ fun CreatePostScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        "New Post", 
+                        "Create Post",
                         style = MaterialTheme.typography.titleMedium
                     ) 
                 },
@@ -166,6 +205,9 @@ fun CreatePostScreen(
                         }
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -231,54 +273,95 @@ fun CreatePostScreen(
 
                             // Media Preview
                             AnimatedVisibility(
-                                visible = draft.attachment is ImageAttachment,
+                                visible = draft.attachment is ImageAttachment || draft.attachment is VideoAttachment || draft.attachment is DocumentAttachment,
                                 enter = expandVertically() + fadeIn(),
                                 exit = shrinkVertically() + fadeOut()
                             ) {
-                                (draft.attachment as? ImageAttachment)?.let { attachment ->
-                                    FlowRow(
-                                        modifier = Modifier.padding(top = 16.dp).clip(RoundedCornerShape(12.dp)),
-                                        maxItemsInEachRow = 2,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        attachment.images.forEachIndexed { index, uri ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(200.dp)
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                                            ) {
-                                                AsyncImage(
-                                                    model = uri,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    contentScale = ContentScale.Crop
-                                                )
-                                                Surface(
-                                                    modifier = Modifier
-                                                        .padding(8.dp)
-                                                        .align(Alignment.TopEnd)
-                                                        .size(24.dp)
-                                                        .clickable { 
+                                when (val attachment = draft.attachment) {
+                                    is ImageAttachment -> {
+                                        FlowRow(
+                                            modifier = Modifier.padding(top = 16.dp).clip(RoundedCornerShape(12.dp)),
+                                            maxItemsInEachRow = 2,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            attachment.images.forEachIndexed { index, uri ->
+                                                val ratio = attachment.aspectRatios.getOrNull(index) ?: 1f
+                                                Box(modifier = Modifier.weight(1f)) {
+                                                    MediaPreviewItem(
+                                                        uri = uri,
+                                                        ratio = ratio,
+                                                        onRemove = { 
                                                             context.vibrate()
                                                             postCreationViewModel.removeAttachment() 
-                                                        },
-                                                    shape = CircleShape,
-                                                    color = Color.Black.copy(alpha = 0.6f),
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Close,
-                                                        contentDescription = "Remove",
-                                                        tint = Color.White,
-                                                        modifier = Modifier.padding(4.dp)
+                                                        }
                                                     )
                                                 }
                                             }
                                         }
                                     }
+                                    is VideoAttachment -> {
+                                        Box(modifier = Modifier.padding(top = 16.dp)) {
+                                            MediaPreviewItem(
+                                                uri = attachment.videoUri,
+                                                ratio = attachment.aspectRatio,
+                                                isVideo = true,
+                                                onRemove = { 
+                                                    context.vibrate()
+                                                    postCreationViewModel.removeAttachment() 
+                                                }
+                                            )
+                                        }
+                                    }
+                                    is DocumentAttachment -> {
+                                        Box(modifier = Modifier.padding(top = 16.dp)) {
+                                            val renderer = rememberPdfRenderer(Uri.parse(attachment.uri))
+                                            val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { attachment.pageCount })
+                                            
+                                            DocumentAttachmentCard(
+                                                name = attachment.name,
+                                                headerActions = {
+                                                    IconButton(
+                                                        onClick = {
+                                                            context.vibrate()
+                                                            postCreationViewModel.removeAttachment()
+                                                        },
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Remove",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+                                            ) {
+                                                DocumentHorizontalPager(
+                                                    pageCount = attachment.pageCount,
+                                                    pagerState = pagerState
+                                                ) { pageIndex ->
+                                                    PdfPageImage(
+                                                        renderer = renderer,
+                                                        pageIndex = pageIndex,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else -> {}
                                 }
+                            }
+
+                            if (draft.attachment is TeamFormationAttachment) {
+                                TeamFormationSection(
+                                    attachment = draft.attachment as TeamFormationAttachment,
+                                    creationViewModel = postCreationViewModel,
+                                    onTypeChanged = { postCreationViewModel.onTeamTypeChanged(it) },
+                                    onSkillsChanged = { },
+                                    onRemove = { postCreationViewModel.removeAttachment() }
+                                )
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -289,29 +372,47 @@ fun CreatePostScreen(
 
             // Bottom Toolbar
             Surface(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        IconButton(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically, 
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+
+
+                        AttachmentSelectorButton(
+                            icon = painterResource(R.drawable.image),
+                            tint = attachmentImage,
                             onClick = {
                                 context.vibrate()
-                                photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                             }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.image),
-                                contentDescription = "Add Image",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
+                        )
+
+                        AttachmentSelectorButton(
+                            icon = painterResource(R.drawable.film),
+                            tint = attachmentVideo,
+                            onClick = {
+                                context.vibrate()
+                                videoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+                            }
+                        )
+
+                        AttachmentSelectorButton(
+                            icon = painterResource(R.drawable.file_text),
+                            tint = attachmentDocument,
+                            onClick = {
+                                context.vibrate()
+                                documentPickerLauncher.launch("application/pdf")
+                            }
+                        )
 
                     }
 
@@ -333,6 +434,125 @@ fun CreatePostScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun MediaPreviewItem(
+    uri: String,
+    ratio: Float,
+    isVideo: Boolean = false,
+    onRemove: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .heightIn(max = 420.dp) // Height cap for Threads style
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black.copy(alpha = 0.05f))
+            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        val isPortrait = ratio < 1f
+        val constrainedModifier = if (isPortrait) {
+            Modifier
+                .heightIn(max = 420.dp)
+                .aspectRatio(ratio.coerceIn(0.6f, 1f))
+        } else {
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(ratio.coerceIn(1f, 1.91f))
+        }
+
+        if (isVideo) {
+            VideoPlayer(
+                videoUrl = uri,
+                modifier = constrainedModifier
+            )
+        } else {
+            AsyncImage(
+                model = uri,
+                contentDescription = null,
+                modifier = constrainedModifier,
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        // Aspect Ratio Label
+        Surface(
+            modifier = Modifier
+                .padding(8.dp)
+                .align(Alignment.BottomStart),
+            shape = RoundedCornerShape(4.dp),
+            color = Color.Black.copy(alpha = 0.6f)
+        ) {
+            Text(
+                text = getAspectRatioText(ratio),
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+        }
+
+        Surface(
+            modifier = Modifier
+                .padding(8.dp)
+                .align(Alignment.TopEnd)
+                .size(24.dp)
+                .clickable { onRemove() },
+            shape = CircleShape,
+            color = Color.Black.copy(alpha = 0.6f),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove",
+                tint = Color.White,
+                modifier = Modifier.padding(4.dp)
+            )
+        }
+    }
+}
+
+fun getAspectRatioText(ratio: Float): String {
+    return when {
+        abs(ratio - 1f) < 0.05f -> "1:1"
+        abs(ratio - 0.5625f) < 0.05f -> "9:16"
+        abs(ratio - 1.777f) < 0.05f -> "16:9"
+        abs(ratio - 0.8f) < 0.05f -> "4:5"
+        abs(ratio - 1.25f) < 0.05f -> "5:4"
+        abs(ratio - 0.75f) < 0.05f -> "3:4"
+        abs(ratio - 1.333f) < 0.05f -> "4:3"
+        else -> "%.2f".format(ratio)
+    }
+}
+
+@Composable
+fun AttachmentSelectorButton(
+    icon: Any,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        when (icon) {
+            is ImageVector -> Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(22.dp)
+            )
+            is Painter -> Icon(
+                painter = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }

@@ -9,7 +9,9 @@ import com.iota.campusX.Feature.Opportunities.domain.usecase.GetCourseModulesUse
 import com.iota.campusX.Feature.Opportunities.domain.usecase.GetCoursesUseCase
 import com.iota.campusX.Feature.Opportunities.domain.usecase.GetOpportunitiesUseCase
 import com.iota.campusX.Feature.Opportunities.domain.usecase.GetOpportunityDetailUseCase
+import com.iota.campusX.Feature.Opportunities.presentation.CourseDetailViewModel
 import com.iota.campusX.Feature.Opportunities.presentation.OpportunitiesViewModel
+import com.iota.campusX.Feature.Opportunities.presentation.OpportunityDetailViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -22,15 +24,27 @@ val opportunitiesModule = module {
     single { GetCourseModulesUseCase(get()) }
     single { EnrollInCourseUseCase(get()) }
     single { ApplyForOpportunityUseCase(get()) }
+
     viewModel {
         OpportunitiesViewModel(
             getOpportunitiesUseCase = get(),
+            getCoursesUseCase = get()
+        )
+    }
+
+    viewModel {
+        OpportunityDetailViewModel(
             getOpportunityDetailUseCase = get(),
-            getCoursesUseCase = get(),
+            applyForOpportunityUseCase = get(),
+            userProfileRepository = get()
+        )
+    }
+
+    viewModel {
+        CourseDetailViewModel(
             getCourseDetailUseCase = get(),
             getCourseModulesUseCase = get(),
             enrollInCourseUseCase = get(),
-            applyForOpportunityUseCase = get(),
             userProfileRepository = get()
         )
     }

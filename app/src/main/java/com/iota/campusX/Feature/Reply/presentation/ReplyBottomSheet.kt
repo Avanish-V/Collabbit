@@ -313,7 +313,7 @@ fun ReplyBottomSheet(
                         replyViewModel.createReply(
                             replyRequest = ReplyRequest(
                                 content = replyText,
-                                mediaUrl = null,
+                                imageUrl = null,
                                 parentReplyId = mentionBuilder?.parentId,
                                 mentionedUserId = mentionBuilder?.mentionedUserId
                             ),
@@ -322,6 +322,7 @@ fun ReplyBottomSheet(
                     },
                     isLoading = createReplyState is UiState.Loading,
                     mentionBuilder = mentionBuilder,
+                    onCancelMention = { mentionBuilder = null },
                     onImagePick = { launcher.launch("image/*") },
                 )
             }

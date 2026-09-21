@@ -9,6 +9,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
+import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.flow.Flow
@@ -44,14 +45,15 @@ class UniversitySearchImpl(private val httpClient: HttpClient) : UniversityRepos
 
     override fun searchKeySkills(query: String): Flow<List<SkillResponse>> = flow {
         try {
-            val response: HttpResponse = httpClient.get("api/v1/skills/search?query=$query"){
+            val response: HttpResponse = httpClient.get("skills/search") {
+                parameter("query", query)
                 headers {
                     append(HttpHeaders.Accept, "application/json")
                 }
             }
             val skills = response.body<List<SkillResponse>>()
             emit(skills)
-        }catch (e:Exception){
+        } catch (e: Exception) {
             throw e
         }
     }

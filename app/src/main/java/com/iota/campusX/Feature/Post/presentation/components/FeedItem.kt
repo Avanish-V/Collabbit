@@ -54,8 +54,8 @@ fun FeedItem(
                     FeedBody(
                         caption = feedItem.caption,
                         attachment = feedItem.attachment,
-                        goToFeedViewer = {
-                            handlers(PostAction.ViewPostVisualContent(feedItem))
+                        goToFeedViewer = { index ->
+                            handlers(PostAction.ViewPostVisualContent(feedItem, index))
                         },
                         onPollSelect = { optionId ->
                             handlers(PostAction.VotePoll(feedItem.postId, optionId))
@@ -72,6 +72,9 @@ fun FeedItem(
                                     contentId = feedItem.postId
                                 )
                             )
+                        },
+                        onShareClick = {
+                            handlers(PostAction.Share(feedItem))
                         },
                         onMoreVertClick = {
                             onMoreClick(feedItem)

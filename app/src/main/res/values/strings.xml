@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Finder</string>
+    <string name="app_name">Collabbit</string>
     <string name="upvoted_your_post">upvoted your post</string>
     <string name="replied_your_post">replied to your post</string>
     <string name="accept">✔ Accept</string>
@@ -10,4 +10,31 @@
     <string name="content_unavailable">Content no longer available.</string>
     <string name="and">and</string>
     <string name="others">others</string>
+
+    <!-- Course Detail -->
+    <string name="registration_successful">Registration Successful!</string>
+    <string name="registration_success_message">You\'ve successfully registered for this workshop. We\'ve sent the details to your email.</string>
+    <string name="got_it">Got it</string>
+    <string name="total_seats">Total Seats</string>
+    <string name="total_seats_format">Total: %1$d seats</string>
+    <string name="enrolled">Enrolled</string>
+    <string name="seats_left">Seats Left</string>
+    <string name="availability">Availability</string>
+    <string name="filling_fast">Filling Fast!</string>
+    <string name="what_you_will_learn">Description</string>
+    <string name="workshop_content">Workshop Content</string>
+    <string name="topics_count">%1$d Topics</string>
+    <string name="enroll_now">Enroll Now</string>
+    <string name="join_live">Join Live</string>
+    <string name="host_by">Host • %1$s</string>
+    <string name="duration_min">%1$s min</string>
+    <string name="free">Free</string>
+    <string name="tba">TBA</string>
+    <string name="finder_careers">Finder Careers</string>
+    <string name="india">India</string>
+    <string name="price_format">₹%1$s</string>
+    <string name="bookmark">Bookmark</string>
+    <string name="share">Share</string>
+    <string name="ended">Ended</string>
+    <string name="session_ended">Session Ended</string>
 </resources>

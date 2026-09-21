@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 class GetProfileUseCase(
     private val repository: UserProfileRepository
 ) {
-     suspend operator fun invoke(): Result<ProfileResponse> {
-        return repository.syncUserProfile()
+     suspend operator fun invoke(force: Boolean = false): Result<ProfileResponse> {
+        return repository.syncUserProfile(force = force)
     }
 }

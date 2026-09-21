@@ -18,7 +18,7 @@ val navBarItems = listOf(
         "Explore",
         R.drawable.home,
         R.drawable.home,
-        Home
+        Home()
     ),
     navItems(
         "Collab",
@@ -34,8 +34,8 @@ val navBarItems = listOf(
     ),
     navItems(
         "Opportunities",
-        R.drawable.briefcase,
-        R.drawable.briefcase,
+        R.drawable.compass,
+        R.drawable.compass,
         Opportunities
     ),
     navItems(

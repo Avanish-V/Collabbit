@@ -1,4 +1,4 @@
-package com.iota.campusX.realtime.socket
+ package com.iota.campusX.realtime.socket
 
 import android.util.Log
 import com.iota.campusX.realtime.connection.SocketConnectionState

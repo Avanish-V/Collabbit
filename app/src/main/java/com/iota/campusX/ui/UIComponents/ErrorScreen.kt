@@ -52,7 +52,7 @@ fun ErrorScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = text,
+                text = "Something went wrong!",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

@@ -20,8 +20,8 @@ class AppNavigatorImpl(
         navController.navigate(ReplyPost)
     }
 
-    override fun navigateToEditPost(postId: String) {
-        navController.navigate(EditPost(postId = postId))
+    override fun navigateToEditPost(id: String, type: String) {
+        navController.navigate(EditPost(id = id, type = type))
     }
 
     override fun navigateToOwnerProfile() {

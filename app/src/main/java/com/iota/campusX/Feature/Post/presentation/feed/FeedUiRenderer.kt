@@ -13,6 +13,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -45,12 +48,44 @@ fun FeedUiRenderer(
     feedViewModel: PostFeedViewModel,
     onMoreClick: (Post) -> Unit = {},
     onReplyClick: (Post) -> Unit = {},
-    onImageClick: (Post) -> Unit = {},
+    onShareClick: (Post) -> Unit = {},
+    onImageClick: (Post, Int) -> Unit = { _, _ -> },
     onProfileClick: (String) -> Unit
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val focusedPost by feedViewModel.focusedPost.collectAsState()
+
+    val itemHandlers: (PostAction) -> Unit = { action ->
+        when (action) {
+            is PostAction.ViewPostVisualContent -> {
+                onImageClick(action.post, action.initialIndex)
+            }
+            is PostAction.Share -> {
+                onShareClick(action.post)
+            }
+            else -> {
+                feedViewModel.onPostEvent(event = action)
+            }
+        }
+    }
+
+    // Handle initial scroll/pointing to focused post
+    LaunchedEffect(focusedPost, feed.loadState.refresh) {
+        if (feed.loadState.refresh is LoadState.NotLoading) {
+            focusedPost?.let { focused ->
+                val index = feed.itemSnapshotList.indexOfFirst { it?.postId == focused.postId }
+                if (index != -1) {
+                    lazyState.animateScrollToItem(index)
+                    // Once pointed, we can clear it if we want to avoid re-scrolling
+                    // but keeping it helps in the "show at top if not in list" logic.
+                } else if (feed.itemCount > 0) {
+                    lazyState.animateScrollToItem(0)
+                }
+            }
+        }
+    }
 
     RefreshBox(
         pullToRefreshState = pullToRefreshState,
@@ -100,6 +135,25 @@ fun FeedUiRenderer(
                             .fillMaxSize()
                             .nestedScroll(scrollBehavior.nestedScrollConnection),
                     ) {
+                        focusedPost?.let { focused ->
+                            val isAlreadyInList = feed.itemSnapshotList.any { it?.postId == focused.postId }
+                            if (!isAlreadyInList) {
+                                item(key = focused.postId) {
+                                    FeedItem(
+                                        feedItem = focused,
+                                        handlers = itemHandlers,
+                                        onMoreClick = onMoreClick,
+                                        onReplyClick = onReplyClick,
+                                        onProfileClick = onProfileClick
+                                    )
+                                    HorizontalDivider(
+                                        thickness = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+                        }
+
                         items(
                             count = feed.itemCount,
                             key = { index -> feed.peek(index)?.postId ?: index }
@@ -108,13 +162,7 @@ fun FeedUiRenderer(
                             item?.let {
                                 FeedItem(
                                     feedItem = it,
-                                    handlers = { action ->
-                                        if (action is PostAction.ViewPostVisualContent) {
-                                            onImageClick(action.post)
-                                        } else {
-                                            feedViewModel.onPostEvent(event = action)
-                                        }
-                                    },
+                                    handlers = itemHandlers,
                                     onMoreClick = onMoreClick,
                                     onReplyClick = onReplyClick,
                                     onProfileClick = { authorId ->

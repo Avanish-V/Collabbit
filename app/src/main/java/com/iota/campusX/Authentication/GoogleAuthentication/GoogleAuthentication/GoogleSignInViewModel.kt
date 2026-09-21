@@ -29,9 +29,33 @@ class GoogleSignInViewModel(
     private val _state: MutableStateFlow<AuthResult> = MutableStateFlow(AuthResult.Idle)
     val state: StateFlow<AuthResult> = _state.asStateFlow()
 
+    private val _isLoggedIn = MutableStateFlow<Boolean?>(null)
+    val isLoggedIn = _isLoggedIn.asStateFlow()
+
+    init {
+        FirebaseAuth.getInstance().addAuthStateListener { auth ->
+            Log.d("AuthFlow", "AuthStateListener: user=${auth.currentUser?.uid}, state=${_state.value}")
+            // Only update isLoggedIn if we are not in the middle of a sign-in process.
+            // If we are signing in, the signIn function will handle the state transition
+            // to avoid navigating to Home before backend verification is complete.
+            if (_state.value !is AuthResult.Loading) {
+                val loggedIn = auth.currentUser != null
+                Log.d("AuthFlow", "AuthStateListener: Updating _isLoggedIn to $loggedIn")
+                _isLoggedIn.value = loggedIn
+            } else {
+                Log.d("AuthFlow", "AuthStateListener: Guard triggered, skipping update")
+            }
+        }
+        // Set initial value
+        val initialLoggedIn = FirebaseAuth.getInstance().currentUser != null
+        Log.d("AuthFlow", "init: initialLoggedIn=$initialLoggedIn")
+        _isLoggedIn.value = initialLoggedIn
+    }
+
     fun signIn(context: Context) = viewModelScope.launch {
         Log.d("AuthFlow", "SignIn process started in ViewModel")
         _state.value = AuthResult.Loading
+        _isLoggedIn.value = false // Ensure we are in a signed-out state during the process
 
         val credential = dataSource.signIn(context)
         if (credential == null) {
@@ -50,6 +74,8 @@ class GoogleSignInViewModel(
             val firebaseUser = authResult.user
             if (firebaseUser == null) {
                 Log.e("AuthFlow", "Firebase user is null after sign-in")
+                FirebaseAuth.getInstance().signOut()
+                _isLoggedIn.value = false
                 _state.value = AuthResult.Error("Firebase authentication failed")
                 return@launch
             }
@@ -60,6 +86,8 @@ class GoogleSignInViewModel(
 
             if (firebaseIdToken == null) {
                 Log.e("AuthFlow", "Firebase ID Token is null")
+                FirebaseAuth.getInstance().signOut()
+                _isLoggedIn.value = false
                 _state.value = AuthResult.Error("Failed to retrieve auth token")
                 return@launch
             }
@@ -70,16 +98,20 @@ class GoogleSignInViewModel(
             result.fold(
                 onSuccess = {
                     Log.d("AuthFlow", "Backend verification successful, signed in!")
+                    _isLoggedIn.value = true
                     _state.value = AuthResult.SignedIn
                 },
                 onFailure = {
                     Log.e("AuthFlow", "Backend verification failed: ${it.message}")
+                    FirebaseAuth.getInstance().signOut()
+                    _isLoggedIn.value = false
                     _state.value = AuthResult.Error(it.message ?: "Sign-in failed")
                 }
             )
         } catch (e: Exception) {
             Log.e("AuthFlow", "Exception during Auth flow: ${e.message}", e)
             FirebaseAuth.getInstance().signOut()
+            _isLoggedIn.value = false
             _state.value = AuthResult.Error(e.message ?: "Sign-in failed")
         }
     }

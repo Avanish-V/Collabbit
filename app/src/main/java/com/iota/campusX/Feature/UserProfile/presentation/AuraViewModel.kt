@@ -7,12 +7,17 @@ import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraCheckInResp
 import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraInfoResponse
 import com.iota.campusX.Feature.UserProfile.domain.usecase.ClaimDailyAuraUseCase
 import com.iota.campusX.Feature.UserProfile.domain.usecase.GetAuraInfoUseCase
+import com.iota.campusX.Feature.UserProfile.domain.usecase.ObserveAuraTransactionsUseCase
 import com.iota.campusX.Feature.UserProfile.domain.useCases.ObserveProfileUseCase
 import com.iota.campusX.Utils.UiState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -24,11 +29,13 @@ import kotlinx.coroutines.launch
  * - Fetch and display current aura info
  * - Handle loading, success, and error states
  * - Show one-time events (success dialogs, errors)
+ * - Observe aura transactions for the current user
  * 
  * State Management:
  * - checkInState: Current state of daily check-in operation
  * - auraInfoState: Current state of aura info fetch
  * - checkInEvent: One-time events for showing dialogs/toasts
+ * - transactions: Flow of aura transactions for current user
  * 
  * Usage in Composable:
  * ```
@@ -43,6 +50,7 @@ import kotlinx.coroutines.launch
 class AuraViewModel(
     private val claimDailyAuraUseCase: ClaimDailyAuraUseCase,
     private val getAuraInfoUseCase: GetAuraInfoUseCase,
+    private val observeAuraTransactionsUseCase: ObserveAuraTransactionsUseCase,
     private val observeProfile: ObserveProfileUseCase
 ) : ViewModel() {
 
@@ -70,6 +78,18 @@ class AuraViewModel(
      */
     private val _checkInEvent = MutableSharedFlow<CheckInEvent>()
     val checkInEvent = _checkInEvent.asSharedFlow()
+
+    /**
+     * Observe aura transactions for the current user.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val transactions = observeProfile().flatMapLatest { profile ->
+        observeAuraTransactionsUseCase(profile.uid)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     /**
      * Flag to prevent multiple simultaneous check-in attempts.

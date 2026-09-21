@@ -8,8 +8,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.iota.campusX.R
 
-val lilyScriptFamily = FontFamily(
-    Font(R.font.lily_script, FontWeight.Normal)
+val font = FontFamily(
+    Font(R.font.gilroy_extrabold, FontWeight.Normal)
 )
 
 val AppTypography = Typography(

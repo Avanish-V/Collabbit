@@ -12,7 +12,9 @@ import com.iota.campusX.Feature.Notificattion.presentation.effect.NotificationEf
 import com.iota.campusX.Feature.Notificattion.presentation.event.NotificationUiEvent
 import com.iota.campusX.Feature.Notificattion.presentation.mapper.toUi
 import com.iota.campusX.Feature.Notificattion.presentation.states.NotificationUiState
+import com.iota.campusX.Utils.extractReason
 import com.iotabuild.campuscircle.Notification.entity.EntityType
+import com.iotabuild.campuscircle.Notification.entity.NotificationType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,90 +44,60 @@ class NotificationViewModel(
     val effect = _effect.asSharedFlow()
 
     val unreadCount =
-
-        repository
-
-            .observeUnreadCount()
-
+        repository.observeUnreadCount()
             .stateIn(
-
                 viewModelScope,
-
                 SharingStarted.WhileSubscribed(5000),
-
                 0
-
             )
 
     val notifications = useCases.getNotifications()
         .onEach { Log.d("NotificationVM", "New notifications paging data emitted") }
         .map { pagingData ->
-
             pagingData.map {
-
                 it.toUi()
-
             }
-
         }.cachedIn(viewModelScope)
 
 
     fun markRead(id: Long) {
-
         viewModelScope.launch {
-
             runCatching {
-
                 useCases.markRead(id)
-
             }
-
                 .onSuccess {
-
                     _uiState.update {
-
                         it.copy(
-
                             unreadCount =
-
-                                maxOf(
-
-                                    0,
-
-                                    it.unreadCount - 1
-
-                                )
-
+                            maxOf(
+                                0,
+                                it.unreadCount - 1
+                            )
                         )
-
                     }
-
                 }
-
+                .onFailure { error ->
+                    _effect.emit(NotificationEffect.ShowSnackBar(error.extractReason()))
+                }
         }
-
     }
 
     private fun markAllRead() {
-
         viewModelScope.launch {
-
             runCatching {
-
                 useCases.markAllRead()
-
             }
-
-            _uiState.update {
-
-                it.copy(
-                    unreadCount = 0
-                )
-
-            }
-
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            unreadCount = 0
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _effect.emit(NotificationEffect.ShowSnackBar(error.extractReason()))
+                }
         }
-
     }
 
     private fun refresh() {  }
@@ -143,12 +115,41 @@ class NotificationViewModel(
                 markAllRead()
 
             is NotificationUiEvent.NotificationClicked ->
-                openNotification(
-                    event.notification
-                )
+                openNotification(event.notification)
 
-            is NotificationUiEvent.DeleteNotification ->{}
+            is NotificationUiEvent.DeleteNotification -> {
+                viewModelScope.launch {
+                    repository.deleteNotification(event.notificationId)
+                }
+            }
 
+            is NotificationUiEvent.AcceptConnectRequest -> {
+                viewModelScope.launch {
+                    repository.respondToConnectRequest(event.notification.entityId, "ACCEPTED", event.message)
+                        .onSuccess {
+                            repository.deleteNotification(event.notification.id)
+                        }
+                        .onFailure { error ->
+                            _effect.emit(NotificationEffect.ShowSnackBar(error.extractReason()))
+                        }
+                }
+            }
+
+            is NotificationUiEvent.RejectConnectRequest -> {
+                viewModelScope.launch {
+                    repository.respondToConnectRequest(event.notification.entityId, "REJECTED")
+                        .onSuccess {
+                            repository.deleteNotification(event.notification.id)
+                        }
+                        .onFailure { error ->
+                            _effect.emit(NotificationEffect.ShowSnackBar(error.extractReason()))
+                        }
+                }
+            }
+
+            NotificationUiEvent.DismissReplySheet -> {
+                _uiState.update { it.copy(selectedPostIdForComments = null) }
+            }
 
             is NotificationUiEvent.Retry ->{}
 
@@ -181,19 +182,27 @@ class NotificationViewModel(
 
             }
 
+            if (notification.type == NotificationType.CONNECT_REQUEST && notification.isActionDone) {
+                _effect.emit(
+                    NotificationEffect.NavigateToSendMessage(
+                        userId = notification.senderUid,
+                        userName = notification.senderName,
+                        userImage = notification.senderProfileUrl
+                    )
+                )
+                return@launch
+            }
+
             when(notification.entityType) {
 
-                EntityType.POST ->
-
-                    _effect.emit(
-
-                        NotificationEffect.NavigateToPost(
-
-                            notification.entityId
-
-                        )
-
-                    )
+                EntityType.POST -> {
+                    if (notification.type == NotificationType.COMMENT || 
+                        notification.type == NotificationType.REPLY) {
+                        _uiState.update { it.copy(selectedPostIdForComments = notification.entityId) }
+                    } else if (notification.type != NotificationType.LIKE) {
+                        _effect.emit(NotificationEffect.NavigateToPost(notification.entityId))
+                    }
+                }
 
                 EntityType.USER ->
 
@@ -213,7 +222,9 @@ class NotificationViewModel(
 
                         NotificationEffect.NavigateToChat(
 
-                            notification.entityId.toString()
+                            chatId = notification.senderUid,
+                            name = notification.senderName,
+                            image = notification.senderProfileUrl
 
                         )
 

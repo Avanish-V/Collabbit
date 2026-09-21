@@ -1,6 +1,7 @@
 package com.iota.campusX.ui.UIComponents
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -39,10 +41,6 @@ import com.iota.campusX.Feature.UserProfile.domain.Model.BaseProfile
 import com.iota.campusX.Feature.UserProfile.ui.Components.AuraStreakCard
 import com.iota.campusX.R
 
-// Harmonious palette for profile completion indicators
-val BorderLightGray = Color(0xFFE2E8F0)
-val SectionBg = Color(0xFFFFFFFF)
-
 @Composable
 fun RedesignedProfileHeader(
     modifier: Modifier = Modifier,
@@ -50,6 +48,7 @@ fun RedesignedProfileHeader(
     auraPoints: AuraInfoResponse?,
     onEditNameClick: (BaseProfile) -> Unit = {},
     onAddPhotoClick: () -> Unit = {},
+    onAuraClick: () -> Unit = {},
     isCurrentUser: Boolean = false
 ) {
     Column(
@@ -68,7 +67,8 @@ fun RedesignedProfileHeader(
 
             AuraStreakCard(
                 modifier = Modifier.weight(1f),
-                aura = auraPoints ?: AuraInfoResponse()
+                aura = auraPoints ?: AuraInfoResponse(),
+                onClick = onAuraClick
             )
 
         }
@@ -109,16 +109,83 @@ fun RedesignedProfileHeader(
         Spacer(modifier = Modifier.height(12.dp))
 
         // 3. Tagline below name
-        if (!user?.tagline.isNullOrEmpty()) {
-            Text(
-                text = user.tagline,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
+        user?.tagline?.let {
+            if (it.isNotEmpty()) {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+            }
         }
     }
 }
 
+@Composable
+fun ComingSoonWidget(
+    modifier: Modifier = Modifier,
+    title: String,
+    description: String,
+    iconRes: Int
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "Coming Soon",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            )
+        }
+    }
+}
 
 @Composable
 fun StatItem(
@@ -346,8 +413,8 @@ fun ProfileSectionCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp)
-            .cardShadow(alpha = 0.3f),
-        shape = RoundedCornerShape(16.dp),
+            .cardShadow(alpha = if (MaterialTheme.colorScheme.surface == Color(0xFF171717)) 0.1f else 0.3f),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {

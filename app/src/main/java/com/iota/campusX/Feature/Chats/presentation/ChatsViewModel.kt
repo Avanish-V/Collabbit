@@ -16,6 +16,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+
 class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
     private var receiveMessageJob: Job? = null
@@ -32,6 +36,13 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     private val _userChats = MutableStateFlow<UiState<List<UserChatsDTO>>>(UiState.Loading)
     val userChats: StateFlow<UiState<List<UserChatsDTO>>> = _userChats.asStateFlow()
 
+    val unreadMessageCount: StateFlow<Int> = _userChats.map { state ->
+        when (state) {
+            is UiState.Success -> state.data.sumOf { it.lastMessage.unreadCount }
+            else -> 0
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     private val _chats: MutableStateFlow<List<ChatMessage>> = MutableStateFlow(emptyList())
     val chats:StateFlow<List<ChatMessage>> = _chats.asStateFlow()
 
@@ -40,6 +51,10 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
     private val _isUserTyping: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isUserTyping:StateFlow<Boolean> = _isUserTyping.asStateFlow()
+
+    init {
+        getChats()
+    }
 
 
     fun textMessageInput(inputText: String){

@@ -27,7 +27,11 @@ import com.iota.campusX.Feature.Post.data.remote.S3Uploader
 import com.iota.campusX.Feature.Post.domain.UseCases.GetSinglePostByIdUseCase
 import com.iota.campusX.Feature.Post.domain.attachment.AttachmentHandler
 import com.iota.campusX.Feature.Post.domain.attachment.AttachmentProcessor
+import com.iota.campusX.Feature.Post.domain.attachment.DocumentAttachmentHandler
 import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachmentHandler
+import com.iota.campusX.Feature.Post.domain.attachment.PollAttachmentHandler
+import com.iota.campusX.Feature.Post.domain.attachment.TeamFormationAttachmentHandler
+import com.iota.campusX.Feature.Post.domain.attachment.VideoAttachmentHandler
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuActionViewModel
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuController
 import com.iota.campusX.Feature.Post.presentation.feedmenu.PostMenuRepository
@@ -42,7 +46,13 @@ val postModule = module {
     single { S3Uploader(context = get(), httpClient = get(), auth = get()) }
     // Repositories
     factory<PostRepositoryInterface> { PostRemoteDataSource(httpClient = get(),get(),get(),get() ) }
-    single<ReplyRepository> { ReplyRepoImpl( httpClient = get(), s3Uploader = get()) }
+    single<ReplyRepository> { 
+        ReplyRepoImpl( 
+            httpClient = get(), 
+            s3Uploader = get(),
+            replyDao = get()
+        ) 
+    }
 
 
     single { PostApi(client = get()) }
@@ -54,14 +64,30 @@ val postModule = module {
         ImageAttachmentHandler(get())
     }
 
-    single<AttachmentHandler> {
-        get<ImageAttachmentHandler>()
+    single {
+        PollAttachmentHandler()
+    }
+
+    single {
+        TeamFormationAttachmentHandler()
+    }
+
+    single {
+        VideoAttachmentHandler(get())
+    }
+
+    single {
+        DocumentAttachmentHandler(get())
     }
 
     single {
         AttachmentProcessor(
             handlers = listOf(
-                get<ImageAttachmentHandler>()
+                get<ImageAttachmentHandler>(),
+                get<VideoAttachmentHandler>(),
+                get<DocumentAttachmentHandler>(),
+                get<PollAttachmentHandler>(),
+                get<TeamFormationAttachmentHandler>()
             )
         )
     }
@@ -81,9 +107,9 @@ val postModule = module {
 
     // ViewModels
     viewModel { PostCreationViewModel(createPostUseCase = get(),get()) }
-    viewModel { EditPostViewModel(editPostUseCase = get(), getSinglePostByIdUseCase = get(), postFeedViewModel = get()) }
+    viewModel { EditPostViewModel(editPostUseCase = get(), getSinglePostByIdUseCase = get(), postFeedViewModel = get(), replyRepository = get()) }
     viewModel { ViewUserReplyViewModel(getRepliesUseCase = get(), createReplyUseCase = get(), replyRepository = get()) }
-    viewModel { MenuActionViewModel(repository = get(), deletePostUseCase = get(), postFeedViewModel = get(), replyRepository = get()) }
+    single { MenuActionViewModel(repository = get(), deletePostUseCase = get(), postFeedViewModel = get(), replyRepository = get()) }
 
 
     // Stateful "shared" viewmodels (use `single` carefully!)
@@ -119,5 +145,9 @@ val postModule = module {
 
     single {
         get<CampusDatabase>().remoteKeysDao()
+    }
+
+    single {
+        get<CampusDatabase>().replyDao()
     }
 }

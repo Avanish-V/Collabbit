@@ -14,6 +14,7 @@ import com.iota.campusX.Feature.Post.domain.UseCases.ToggleLikeUseCase
 import com.iota.campusX.Feature.Post.domain.repository.PostRepositoryInterface
 import com.iota.campusX.Feature.Post.presentation.components.PostAction
 import com.iota.campusX.Utils.UiState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +36,11 @@ class PostFeedViewModel(
     private val _allPosts = MutableStateFlow<PagingData<Post>>(PagingData.empty())
     val allPosts: StateFlow<PagingData<Post>> = _allPosts.asStateFlow()
 
+    private val _focusedPost = MutableStateFlow<Post?>(null)
+    val focusedPost: StateFlow<Post?> = _focusedPost.asStateFlow()
+
+    private var userPostJob: Job? = null
+
     init {
         viewModelScope.launch {
             getPostsUseCase()
@@ -46,14 +52,18 @@ class PostFeedViewModel(
     }
 
     fun getUserPost(userId: String) {
+        userPostJob?.cancel()
         _userPosts.value = PagingData.empty() // Clear old posts immediately
-        viewModelScope.launch {
-            postRepositoryInterface.getPostsById(userId)
-                .cachedIn(viewModelScope)
-                .collectLatest { pagingData ->
-                    _userPosts.value = pagingData
-                    Log.d("POST-FEED", "User posts: ${pagingData.map { it.caption}}")
-                }
+        userPostJob = viewModelScope.launch {
+            try {
+                postRepositoryInterface.getPostsById(userId)
+                    .cachedIn(viewModelScope)
+                    .collect { pagingData ->
+                        _userPosts.value = pagingData
+                    }
+            } catch (e: Exception) {
+                Log.e("PostFeedViewModel", "Error fetching posts for user $userId", e)
+            }
         }
     }
 
@@ -65,15 +75,29 @@ class PostFeedViewModel(
     val singlePost: StateFlow<UiState<Post>> = _singlePost
 
 
-    fun fetchSinglePost(postId: String) {
+    fun fetchSinglePost(postId: String, setAsFocused: Boolean = false) {
+        // Reset state before fetching
+        if (!setAsFocused) _singlePost.value = UiState.Loading
         viewModelScope.launch {
-            _singlePost.value = UiState.Loading
             val result = getSinglePostByIdUseCase(postId)
-            _singlePost.value = result.fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error(it.message ?: "Failed to load post") }
+            result.fold(
+                onSuccess = { 
+                    if (setAsFocused) _focusedPost.value = it
+                    else _singlePost.value = UiState.Success(it) 
+                },
+                onFailure = { 
+                    if (!setAsFocused) _singlePost.value = UiState.Error(it.message ?: "Failed to load post") 
+                }
             )
         }
+    }
+
+    fun clearFocusedPost() {
+        _focusedPost.value = null
+    }
+
+    fun clearSinglePost() {
+        _singlePost.value = UiState.Idle
     }
 
 

@@ -36,18 +36,21 @@ class VerifyUserRepoImpl(
                 401, 403 -> {
                     Log.d("VerifyUserRepoImpl", "Status: ${response.status}")
                     // Invalid/expired token
-                    FirebaseAuth.getInstance().signOut()
+                    firebaseAuth.signOut()
                     Result.failure(Exception("Unauthorized: ${response.status}"))
                 }
                 else -> {
                     // Other server errors
+                    Log.d("AuthFlow", "VerifyUserRepoImpl: Calling signOut due to server error ${response.status}")
+                    firebaseAuth.signOut()
                     Result.failure(Exception("Server error: ${response.status}"))
                 }
             }
         } catch (e: Exception) {
             // Network failure, timeout, etc.
-            FirebaseAuth.getInstance().signOut()
-            Log.e("VerifyUserRepoImpl", "Network error: ${e.localizedMessage}", e)
+            Log.e("VerifyUserRepoImpl", "Network error caught in repo: ${e.localizedMessage}", e)
+            Log.d("AuthFlow", "VerifyUserRepoImpl: Calling signOut due to error")
+            firebaseAuth.signOut()
             Result.failure(e)
         }
     }

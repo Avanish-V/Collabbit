@@ -11,3 +11,10 @@ sealed interface AttachmentDto
 data class PollAttachmentDto(
     val options: List<String>
 ): AttachmentDto
+
+@Serializable
+@SerialName("TEAM_FORMATION")
+data class TeamFormationAttachmentDto(
+    val teamType: String,
+    val requiredSkills: List<String>
+): AttachmentDto

@@ -19,4 +19,15 @@ sealed interface NotificationUiEvent {
     data class Retry(
         val notificationId: Long
     ) : NotificationUiEvent
+
+    data class AcceptConnectRequest(
+        val notification: Notification,
+        val message: String
+    ) : NotificationUiEvent
+
+    data class RejectConnectRequest(
+        val notification: Notification
+    ) : NotificationUiEvent
+
+    data object DismissReplySheet : NotificationUiEvent
 }

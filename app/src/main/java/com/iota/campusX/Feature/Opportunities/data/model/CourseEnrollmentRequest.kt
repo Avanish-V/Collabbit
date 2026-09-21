@@ -7,5 +7,7 @@ import kotlinx.serialization.Serializable
 data class CourseEnrollmentRequest(
     @SerialName("externalUserId") val externalUserId: String,
     @SerialName("name") val name: String,
-    @SerialName("email") val email: String
+    @SerialName("email") val email: String,
+    @SerialName("photo") val photo: String
 )
+

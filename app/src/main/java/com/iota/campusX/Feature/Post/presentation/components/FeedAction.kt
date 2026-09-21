@@ -23,22 +23,20 @@ fun FeedAction(
     likesCount: Int,
     isLiked: Boolean,
     onLikeClick: (Boolean) -> Unit,
+    onShareClick: () -> Unit,
     onMoreVertClick: () -> Unit,
     otherActionContent: @Composable () -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp, end = 8.dp)
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(18.dp)
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-
-
 
             AnimatedLikeButton(
                 onLike = { onLikeClick.invoke(it) },
@@ -46,8 +44,11 @@ fun FeedAction(
                 isLiked = isLiked
             )
 
-
             otherActionContent.invoke()
+
+            ShareButtonComponent(
+                onShareClick = onShareClick
+            )
         }
 
         Icon(

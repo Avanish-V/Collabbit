@@ -79,4 +79,10 @@ SELECT EXISTS(
         id: Long
     ): Boolean
 
+    @Query("DELETE FROM notifications WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("UPDATE notifications SET isActionDone = 1 WHERE id = :id")
+    suspend fun markActionDone(id: Long)
+
 }

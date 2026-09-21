@@ -1,7 +1,5 @@
 package com.iota.campusX.Feature.Collab.presentation
 
-import android.util.Log
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,15 +41,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -61,15 +54,14 @@ import com.iota.campusX.Feature.Collab.presentation.components.CollabShimmerItem
 import com.iota.campusX.Navigation.CollabDetail
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
-import com.iota.campusX.Navigation.rememberScrollContext
 import com.iota.campusX.R
 import com.iota.campusX.Screens.Home.RefreshBox
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.FeedUI.Avatar
 import com.iota.campusX.ui.UIComponents.cardShadow
-import com.iota.campusX.ui.theme.collabCobuilder
-import com.iota.campusX.ui.theme.collabHackathon
+import com.iota.campusX.ui.theme.Green
+import com.iota.campusX.ui.theme.Yellow
 import com.iota.campusX.ui.theme.collabStartup
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -94,11 +86,10 @@ fun CollabExploreScreen(
     val pullToRefreshState = rememberPullToRefreshState()
 
     val lazyListState = rememberLazyListState()
-    val scrollContext = rememberScrollContext(navigationViewModel)
     HideBottomBar(navigationViewModel, lazyListState)
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollContext),
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             Column(
                 modifier = Modifier
@@ -237,8 +228,8 @@ fun CollabCard(
     modifier: Modifier = Modifier
 ) {
     val categoryColor = when (collab.collabType) {
-        CollabType.HACKATHON -> collabHackathon
-        CollabType.COBUILDER -> collabCobuilder
+        CollabType.HACKATHON -> Yellow
+        CollabType.COBUILDER -> Green
         CollabType.STUDY -> collabStartup
         CollabType.RESEARCH -> collabStartup
         CollabType.NONE -> collabStartup
@@ -303,7 +294,7 @@ fun CollabCard(
                         Icon(
                             painter = painterResource(id = R.drawable.trash),
                             contentDescription = "Delete",
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -459,19 +450,15 @@ fun EmptyCollabState() {
         Icon(
             painter = painterResource(R.drawable.heart_partner_handshake),
             contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            modifier = Modifier.size(60.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "No collaborations found",
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = "Try adjusting your filters or search query.",
-            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
     }
 }

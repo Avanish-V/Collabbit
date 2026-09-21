@@ -2,6 +2,7 @@ package com.iota.campusX.MessagingService
 
 import android.app.Application
 import android.util.Log
+import com.iota.campusX.Feature.ExploreSwipe.di.exploreSwipeModule
 import com.iota.campusX.Feature.Collab.di.collabModule
 import com.iota.campusX.Feature.Notificattion.di.notificationModule
 import com.iota.campusX.Feature.Opportunities.di.opportunitiesModule
@@ -35,11 +36,12 @@ class CampusCircleApplication : Application() {
                 reportModule,
                 navigationModule,
                 replyModule,
-                themeMode,
                 networkModule,
                 collabModule,
                 opportunitiesModule,
-                realtimeModule
+                realtimeModule,
+                societyModule,
+                exploreSwipeModule
             )
         }
     }

@@ -7,12 +7,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -121,7 +123,7 @@ fun EmptyState(
                     val gapLength = 4.dp.toPx()
 
                     drawRoundRect(
-                        color = color.copy(alpha = 0.3f),
+                        color = color.copy(alpha = 0.4f),
                         size = size,
                         cornerRadius = CornerRadius(12.dp.toPx()),
                         style = Stroke(
@@ -169,14 +171,14 @@ fun CampusWidget(
     campus: Education
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(5.dp)).background(color = MaterialTheme.colorScheme.outline),
+        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(color = MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center){
             AsyncImage(
                 model =  "",
                 contentDescription = null,
                 error = painterResource(R.drawable.school__1_),
                 modifier = Modifier.size(24.dp),
-                colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.onSurface)
+                colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.primary)
 
             )
         }
@@ -184,17 +186,20 @@ fun CampusWidget(
 
             Text(
                 text = campus.college,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = campus.course,
-                style = MaterialTheme.typography.bodyMedium
+                text = "${campus.course}",
+                style = MaterialTheme.typography.bodyMedium,
+
             )
 
             Text(
                 text = campus.specialization,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+
             )
 
 
@@ -207,7 +212,8 @@ fun CampusWidget(
 
             Text(
                 text = "${campus.start} - ${campus.end}",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+
 
             )
 
@@ -224,14 +230,6 @@ fun AppTabRow(
     isScrollable: Boolean = false,
     onTabSelected: (Int) -> Unit
 ) {
-    val divider = @Composable {
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-    }
-
     val indicator = @Composable { tabPositions: List<TabPosition> ->
         if (selectedIndex < tabPositions.size) {
             TabRowDefaults.SecondaryIndicator(
@@ -242,27 +240,34 @@ fun AppTabRow(
         }
     }
 
-    if (isScrollable) {
-        ScrollableTabRow(
-            selectedTabIndex = selectedIndex,
-            modifier = Modifier.fillMaxWidth(),
-            containerColor = Color.Transparent,
-            divider = divider,
-            indicator = indicator,
-            edgePadding = 16.dp
-        ) {
-            TabItems(tabList, selectedIndex, onTabSelected)
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
+        if (isScrollable) {
+            ScrollableTabRow(
+                selectedTabIndex = selectedIndex,
+                modifier = Modifier.fillMaxWidth(),
+                divider = {},
+                indicator = indicator,
+                edgePadding = 16.dp,
+                containerColor = Color.Transparent
+            ) {
+                TabItems(tabList, selectedIndex, onTabSelected)
+            }
+        } else {
+            TabRow(
+                selectedTabIndex = selectedIndex,
+                modifier = Modifier.fillMaxWidth(),
+                divider = {},
+                indicator = indicator,
+                containerColor = Color.Transparent
+            ) {
+                TabItems(tabList, selectedIndex, onTabSelected)
+            }
         }
-    } else {
-        TabRow(
-            selectedTabIndex = selectedIndex,
+        HorizontalDivider(
             modifier = Modifier.fillMaxWidth(),
-            containerColor = Color.Transparent,
-            divider = divider,
-            indicator = indicator
-        ) {
-            TabItems(tabList, selectedIndex, onTabSelected)
-        }
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
     }
 }
 
@@ -336,13 +341,13 @@ fun ConnectionComponent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Text(text = followersCount.toString(), style = MaterialTheme.typography.titleMedium)
-            Text(text = "Followers", style = MaterialTheme.typography.bodyMedium)
+            Text(text = followersCount.toString(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = "Followers", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         }
 
         VerticalDivider(
-            color = MaterialTheme.colorScheme.secondaryContainer,
+            color = MaterialTheme.colorScheme.outlineVariant,
             modifier = Modifier.height(56.dp)
         )
 
@@ -357,13 +362,13 @@ fun ConnectionComponent(
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = connectionCount.toString(), style = MaterialTheme.typography.titleMedium)
-            Text(text = "Connections", style = MaterialTheme.typography.bodyMedium)
+            Text(text = connectionCount.toString(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = "Connections", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         VerticalDivider(
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            modifier =  Modifier.height(56.dp)
+            color = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.height(56.dp)
         )
 
         Column(
@@ -380,8 +385,8 @@ fun ConnectionComponent(
             ,horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Text(text = postsCountCount.toString(), style = MaterialTheme.typography.titleMedium)
-            Text(text = "Posts", style = MaterialTheme.typography.bodyMedium)
+            Text(text = postsCountCount.toString(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = "Posts", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         }
 

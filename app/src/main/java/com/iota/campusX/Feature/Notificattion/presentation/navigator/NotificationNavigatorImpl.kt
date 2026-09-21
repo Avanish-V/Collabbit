@@ -18,8 +18,8 @@ class NotificationNavigatorImpl : NotificationNavigator {
             EntityType.USER ->
                 NotificationEffect.NavigateToProfile(notification.senderName)
 
-            EntityType.CHAT ->
-                NotificationEffect.NavigateToChat(notification.entityId.toString())
+            EntityType.CHAT ->{}
+
 
             else -> {}
         } as NotificationEffect

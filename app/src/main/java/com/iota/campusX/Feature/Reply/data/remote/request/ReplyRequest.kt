@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ReplyRequest(
     val content: String,
-    val mediaUrl: String? = null,
+    val imageUrl: String? = null,
     val parentReplyId: String? = null,
     val mentionedUserId: String? = null
 )

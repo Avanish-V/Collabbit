@@ -6,7 +6,6 @@ import com.iota.campusX.Feature.UserProfile.data.local.entities.AuraTransactionE
 import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraCheckInResponse
 import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraInfoResponse
 import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraLevelResponse
-import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraTransactionResponse
 import com.iota.campusX.Feature.UserProfile.domain.repository.AuraRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -15,6 +14,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -37,17 +37,7 @@ class AuraRepositoryImpl(
             // 1. Check local DB to prevent duplicate request
             val existing = auraTransactionDao.getTransactionByTypeAndDate(userId, ruleCode, dateKey)
             if (existing != null) {
-                // Return a success result indicating 0 points earned today to prevent UI double-trigger
-                val currentProfile = userProfileDao.observeProfile().firstOrNull()
-                return Result.success(
-                    AuraCheckInResponse(
-                        aura = AuraInfoResponse(
-                            auraPoints = currentProfile?.auraPoints ?: 0,
-                            level = AuraLevelResponse.valueOf(currentProfile?.auraLevel ?: "NEWCOMER")
-                        ),
-                        pointsEarnedToday = 0
-                    )
-                )
+                return Result.failure(Throwable("Already claimed!"))
             }
 
             // 2. Hit server if not found locally
@@ -57,7 +47,8 @@ class AuraRepositoryImpl(
             }
 
             if (response.status.value in 200..299) {
-                val transaction = response.body<AuraTransactionResponse>()
+                val checkInResponse = response.body<AuraCheckInResponse>()
+                val transaction = checkInResponse.transaction ?: return Result.failure(Exception("No transaction in response"))
                 
                 // 3. Cache the transaction locally
                 auraTransactionDao.insertTransaction(
@@ -72,30 +63,17 @@ class AuraRepositoryImpl(
                     )
                 )
 
-                // 4. Fetch updated aura info to refresh cache and UI
-                val auraResult = getAura()
-                val auraInfo = auraResult.getOrNull() ?: run {
-                    // Fallback to local profile if fetch fails
-                    val currentProfile = userProfileDao.observeProfile().firstOrNull()
-                    AuraInfoResponse(
-                        auraPoints = (currentProfile?.auraPoints ?: 0) + transaction.amount,
-                        level = AuraLevelResponse.valueOf(currentProfile?.auraLevel ?: "NEWCOMER")
+                // 4. Update local cache using the server's authoritative aura state.
+                // This fixes the drift where local would increase but server wouldn't.
+                // We only update if points were actually earned to avoid redundant DB writes.
+                if (checkInResponse.pointsEarnedToday > 0) {
+                    userProfileDao.updateAura(
+                        auraPoints = checkInResponse.aura.auraPoints,
+                        auraLevel  = checkInResponse.aura.level.name
                     )
                 }
 
-                // 5. Update User Profile Cache
-                userProfileDao.updateAura(
-                    auraPoints = auraInfo.auraPoints,
-                    auraLevel  = auraInfo.level.name
-                )
-
-                Result.success(
-                    AuraCheckInResponse(
-                        aura = auraInfo,
-                        pointsEarnedToday = transaction.amount,
-                        transaction = transaction
-                    )
-                )
+                Result.success(checkInResponse)
             } else {
                 Result.failure(Exception("Award failed: HTTP ${response.status.value}"))
             }
@@ -104,6 +82,7 @@ class AuraRepositoryImpl(
         }
     }
 
+
     /**
      * GET /users/me/aura — returns current aura snapshot, no side effects.
      */
@@ -111,12 +90,24 @@ class AuraRepositoryImpl(
         return try {
             val response = httpClient.get("aura/me")
             if (response.status.value in 200..299) {
-                Result.success(response.body<AuraInfoResponse>())
+                val auraInfo = response.body<AuraInfoResponse>()
+                
+                // Update local profile cache to keep UI in sync
+                userProfileDao.updateAura(
+                    auraPoints = auraInfo.auraPoints,
+                    auraLevel = auraInfo.level.name
+                )
+                
+                Result.success(auraInfo)
             } else {
                 Result.failure(Exception("Failed to fetch aura: HTTP ${response.status.value}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override fun observeTransactions(userId: String): Flow<List<AuraTransactionEntity>> {
+        return auraTransactionDao.observeTransactions(userId)
     }
 }

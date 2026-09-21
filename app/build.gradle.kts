@@ -9,51 +9,127 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
-
 android {
 
     namespace = "com.iota.campusX"
-    compileSdk = 35
+
+    // Android 16 / API 36
+    compileSdk = 36
+
+
+    lint {
+        disable += "NullSafeMutableLiveData"
+    }
+
 
     defaultConfig {
         applicationId = "com.iota.campusX"
-        minSdk = 24
-        targetSdk = 35
-        versionCode = 23
-        versionName = "1.2.3"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        minSdk = 24
+        targetSdk = 36
+
+        // Play Store version
+        versionCode = 30
+        versionName = "1.3.0"
+
+        testInstrumentationRunner =
+            "androidx.test.runner.AndroidJUnitRunner"
+
+        // Only English resources
         resConfigs("en")
     }
 
+    // ---------------------------------------------------------
+    // SIGNING
+    // ---------------------------------------------------------
+
     signingConfigs {
+
+        // DEBUG
         getByName("debug") {
             storeFile = file("debug.keystore")
         }
+
+        /*
+         * PRODUCTION
+         *
+         * IMPORTANT:
+         * Replace these with your actual production/upload keystore.
+         *
+         * Do NOT commit passwords to Git.
+         *
+         * If you already have Google Play App Signing configured,
+         * make sure this is your registered UPLOAD KEY.
+         */
+        create("release") {
+
+            storeFile = file("collabbit-release.jks")
+
+            storePassword =
+                System.getenv("KEYSTORE_PASSWORD")
+
+            keyAlias =
+                System.getenv("KEY_ALIAS")
+
+            keyPassword =
+                System.getenv("KEY_PASSWORD")
+        }
     }
 
+    // ---------------------------------------------------------
+    // BUILD TYPES
+    // ---------------------------------------------------------
+
     buildTypes {
+
         debug {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                signingConfigs.getByName("debug")
         }
+
         release {
-            isMinifyEnabled = false
+
+            // Enable R8
+            isMinifyEnabled = true
+
+            // Remove unused resources
+            isShrinkResources = true
+
+            // Use production/upload key
+           // signingConfig = signingConfigs.getByName("release")
             signingConfig = signingConfigs.getByName("debug")
+
+            // R8 / ProGuard configuration
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
+                getDefaultProguardFile(
+                    "proguard-android-optimize.txt"
+                ),
                 "proguard-rules.pro"
             )
         }
     }
+
+    // ---------------------------------------------------------
+    // JAVA
+    // ---------------------------------------------------------
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // ---------------------------------------------------------
+    // KOTLIN / COMPOSE
+    // ---------------------------------------------------------
 
     buildFeatures {
         compose = true
     }
+
+    // ---------------------------------------------------------
+    // PACKAGING
+    // ---------------------------------------------------------
+
     packaging {
         resources {
             excludes += setOf(
@@ -67,6 +143,10 @@ android {
     }
 }
 
+// ---------------------------------------------------------
+// KOTLIN JVM
+// ---------------------------------------------------------
+
 kotlin {
     compilerOptions {
         jvmTarget.set(
@@ -75,74 +155,249 @@ kotlin {
     }
 }
 
+// ---------------------------------------------------------
+// DEPENDENCIES
+// ---------------------------------------------------------
+
 dependencies {
 
-    implementation(libs.androidx.compose.runtime)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.profileinstaller)
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.firebase.auth)
-    implementation(libs.androidx.credentials)
-    implementation(libs.androidx.credentials.play.services.auth)
-    implementation(libs.googleid)
-    implementation(libs.firebase.database)
-    implementation(libs.firebase.firestore)
-    implementation(libs.firebase.storage)
-    implementation(libs.firebase.messaging)
-    implementation(libs.androidx.foundation)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    "baselineProfile"(project(":baselineprofile"))
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    // =========================================================
+    // ANDROID CORE
+    // =========================================================
 
-    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.core.ktx)
+
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
+    implementation(libs.androidx.activity.compose)
+
     implementation(libs.androidx.core.splashscreen)
 
-    implementation(libs.coil.compose)
-    implementation (libs.koin.androidx.compose)
+    implementation(libs.androidx.exifinterface)
 
-    implementation("io.ktor:ktor-client-android:2.3.12")
+
+    // =========================================================
+    // JETPACK COMPOSE
+    // =========================================================
+
+    implementation(platform(libs.androidx.compose.bom))
+
+    implementation(libs.androidx.compose.runtime)
+
+    implementation(libs.androidx.ui)
+
+    implementation(libs.androidx.ui.graphics)
+
+    implementation(libs.androidx.ui.tooling.preview)
+
+    implementation(libs.androidx.material3)
+
+    implementation("androidx.compose.material:material-icons-extended")
+
+    implementation(libs.androidx.foundation)
+
+    debugImplementation(libs.androidx.ui.tooling)
+
+    debugImplementation(libs.androidx.ui.test.manifest)
+
+
+    // =========================================================
+    // NAVIGATION
+    // =========================================================
+
+    implementation(libs.androidx.navigation.compose)
+
+
+    // =========================================================
+    // FIREBASE
+    // =========================================================
+
+    implementation(libs.firebase.auth)
+
+    implementation(libs.firebase.database)
+
+    implementation(libs.firebase.firestore)
+
+    implementation(libs.firebase.storage)
+
+    implementation(libs.firebase.messaging)
+
+
+    // =========================================================
+    // GOOGLE AUTH
+    // =========================================================
+
+    implementation(libs.androidx.credentials)
+
+    implementation(libs.androidx.credentials.play.services.auth)
+
+    implementation(libs.googleid)
+
+    implementation(libs.play.services.auth)
+
+
+    // =========================================================
+    // KOIN
+    // =========================================================
+
+    implementation(libs.koin.androidx.compose)
+
+
+    // =========================================================
+    // KTOR
+    // =========================================================
+
+    implementation(libs.ktor.client.cio)
+
+    implementation(libs.ktor.client.okhttp)
+
     implementation("io.ktor:ktor-client-websockets:2.3.12")
+
     implementation(libs.ktor.client.core)
-    implementation (libs.ktor.client.content.negotiation)
-    implementation (libs.ktor.serialization.kotlinx.json)
+
+    implementation(libs.ktor.client.content.negotiation)
+
+    implementation(libs.ktor.serialization.kotlinx.json)
+
     implementation(libs.ktor.client.logging)
 
-    implementation (libs.play.services.auth)
+
+    // =========================================================
+    // IMAGE LOADING
+    // =========================================================
+
+    implementation(libs.coil.compose)
+
+
+    // =========================================================
+    // MEDIA3
+    // =========================================================
+
+    implementation(libs.androidx.media3.exoplayer)
+
+    implementation(libs.androidx.media3.ui)
+
+    implementation(libs.androidx.media3.common)
+
+
+    // =========================================================
+    // LOTTIE
+    // =========================================================
 
     implementation(libs.lottie.compose)
 
-    implementation ("androidx.datastore:datastore-preferences:1.0.0")
 
-    implementation("commons-codec:commons-codec:1.9")
-    implementation ("com.airbnb.android:lottie-compose:6.6.6")
+    // =========================================================
+    // DATASTORE
+    // =========================================================
 
-    implementation("com.google.android.play:app-update:2.1.0")
-
-    implementation("io.github.mr0xf00:easycrop:0.1.1")
-
-    implementation("androidx.paging:paging-runtime:3.3.4")
-    implementation("androidx.paging:paging-compose:3.3.4")
+    implementation(
+        "androidx.datastore:datastore-preferences:1.0.0"
+    )
 
 
+    // =========================================================
+    // ROOM
+    // =========================================================
 
-    implementation("io.github.alihaider63:richlinkpreview:1.0.0")
-    
     implementation(libs.androidx.room.runtime)
-    ksp(libs.androidx.room.compiler)
+
     implementation(libs.androidx.room.ktx)
-    implementation("androidx.room:room-paging:2.7.2")
+
+    implementation(
+        "androidx.room:room-paging:2.7.2"
+    )
+
+    ksp(libs.androidx.room.compiler)
 
 
-    debugImplementation ("com.squareup.leakcanary:leakcanary-android:2.13")
-    implementation(libs.androidx.profileinstaller)
+    // =========================================================
+    // PAGING
+    // =========================================================
+
+    implementation(
+        "androidx.paging:paging-runtime:3.3.4"
+    )
+
+    implementation(
+        "androidx.paging:paging-compose:3.3.4"
+    )
+
+
+    // =========================================================
+    // RICH LINK
+    // =========================================================
+
+    implementation(
+        "io.github.alihaider63:richlinkpreview:1.0.0"
+    )
+
+
+    // =========================================================
+    // IMAGE CROPPING
+    // =========================================================
+
+    implementation(
+        "io.github.mr0xf00:easycrop:0.1.1"
+    )
+
+
+    // =========================================================
+    // CODEC
+    // =========================================================
+
+    implementation(
+        "commons-codec:commons-codec:1.9"
+    )
+
+
+    // =========================================================
+    // GOOGLE PLAY
+    // =========================================================
+
+    implementation(
+        "com.google.android.play:app-update:2.1.0"
+    )
+
+
+    // =========================================================
+    // PROFILE / STARTUP OPTIMIZATION
+    // =========================================================
+
+    implementation(
+        libs.androidx.profileinstaller
+    )
+
+    "baselineProfile"(
+        project(":baselineprofile")
+    )
+
+
+    // =========================================================
+    // LEAKCANARY
+    // DEBUG ONLY
+    // =========================================================
+
+    debugImplementation(
+        "com.squareup.leakcanary:leakcanary-android:2.13"
+    )
+
+
+    // =========================================================
+    // TESTING
+    // =========================================================
+
+    testImplementation(libs.junit)
+
+    androidTestImplementation(libs.androidx.junit)
+
+    androidTestImplementation(
+        libs.androidx.espresso.core
+    )
+
+    androidTestImplementation(
+        libs.androidx.ui.test.junit4
+    )
 }

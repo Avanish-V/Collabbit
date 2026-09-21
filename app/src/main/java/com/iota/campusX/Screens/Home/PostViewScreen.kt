@@ -1,15 +1,13 @@
 package com.iota.campusX.Screens.Home
 
+import android.app.Activity
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -17,23 +15,27 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.view.WindowManager
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavHostController
-import androidx.navigation.toRoute
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Post.data.remote.response.Post
 import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachmentDto
+import com.iota.campusX.Feature.Post.domain.attachment.VideoAttachmentDto
+import com.iota.campusX.ui.UIComponents.VideoPlayer
+import com.iota.campusX.Feature.Post.presentation.components.ZoomableBox
 import com.iota.campusX.Feature.Post.presentation.components.PostAction
 import com.iota.campusX.Feature.Post.presentation.feed.PostFeedViewModel
+import com.iota.campusX.Feature.Reply.presentation.ReplyBottomSheet
 import com.iota.campusX.Feature.Reply.presentation.components.ReplyButtonComponent
 import com.iota.campusX.Navigation.PostView
 import com.iota.campusX.R
@@ -41,75 +43,121 @@ import com.iota.campusX.Utils.getTimeAgo
 import com.iota.campusX.Utils.UiState
 import com.iota.campusX.ui.UIComponents.FeedUI.AnimatedLikeButton
 import com.iota.campusX.ui.UIComponents.FeedUI.Avatar
-import com.iota.campusX.ui.UIComponents.FeedUI.ExpandableText
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostViewScreen(
+    routeArgs: PostView,
     navHostController: NavHostController,
-    postFeedViewModel: PostFeedViewModel = koinViewModel()
+    postFeedViewModel: PostFeedViewModel = koinViewModel(),
 ) {
-    val navEntry = remember(navHostController) {
-        navHostController.currentBackStackEntry
-    }
-    val routeArgs = navEntry?.toRoute<PostView>()
-    val postId = routeArgs?.postId
-    val initialImage = routeArgs?.postImage
+    val postId = routeArgs.postId
+    val initialImage = routeArgs.postImage
+    val initialIndex = routeArgs.initialIndex
 
     val singlePostState by postFeedViewModel.singlePost.collectAsState()
 
+    val scope = rememberCoroutineScope()
+    var showReplyBottomSheet by remember { mutableStateOf(value = false) }
+    val replyBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     LaunchedEffect(postId) {
-        postId?.let { postFeedViewModel.fetchSinglePost(it) }
+        if (postId != null) {
+            postFeedViewModel.fetchSinglePost(postId)
+        } else {
+            postFeedViewModel.clearSinglePost()
+        }
     }
 
-    var userScrollEnabled by remember { mutableStateOf(true) }
-
-    Scaffold(
-        containerColor = Color.Black,
-        topBar = {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(
-                        onClick = { navHostController.popBackStack() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.4f),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
-            )
+    DisposableEffect(Unit) {
+        onDispose {
+            postFeedViewModel.clearSinglePost()
         }
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding).background(Color.Black)) {
+    }
+
+    var userScrollEnabled by remember { mutableStateOf(value = true) }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        DisposableEffect(Unit) {
+            val window = (view.context as Activity).window
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            
+            // Allow drawing into the notch area
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+
+            // Hide system bars for immersive experience
+            insetsController.hide(WindowInsetsCompat.Type.statusBars())
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            
+            onDispose {
+                // Restore system bars when leaving
+                insetsController.show(WindowInsetsCompat.Type.statusBars())
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        // Content Area
+        Box(modifier = Modifier.fillMaxSize()) {
             when (val state = singlePostState) {
                 is UiState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Color.White)
+                    // Show initial image while loading post details
+                    if (initialImage != null) {
+                        ZoomableImage(image = initialImage)
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color.White)
+                        }
                     }
                 }
                 is UiState.Success -> {
                     val post = state.data
-                    val images = (post.attachment as? ImageAttachmentDto)?.images ?: listOfNotNull(initialImage)
-                    
-                    PostViewerContent(
-                        post = post,
-                        images = images,
-                        userScrollEnabled = userScrollEnabled,
-                        onZoomChange = { userScrollEnabled = it <= 1.01f },
-                        onPostAction = { postFeedViewModel.onPostEvent(it) }
-                    )
+                    val attachment = post.attachment
+                    if (attachment is VideoAttachmentDto) {
+                        VideoPlayer(
+                            videoUrl = attachment.videoUrl,
+                            thumbnailUrl = attachment.thumbnailUrl,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        val images = (attachment as? ImageAttachmentDto)?.images ?: listOfNotNull(initialImage)
+                        
+                        PostViewerContent(
+                            post = post,
+                            images = images,
+                            initialIndex = initialIndex,
+                            userScrollEnabled = userScrollEnabled,
+                            onZoomChange = { userScrollEnabled = it <= 1.01f },
+                            onPostAction = { postFeedViewModel.onPostEvent(it) },
+                            onReplyClick = {
+                                showReplyBottomSheet = true
+                                scope.launch { replyBottomSheetState.show() }
+                            }
+                        )
+                    }
+
+                    if (showReplyBottomSheet) {
+                        ReplyBottomSheet(
+                            postId = post.postId,
+                            onDismiss = {
+                                scope.launch {
+                                    replyBottomSheetState.hide()
+                                    showReplyBottomSheet = false
+                                }
+                            },
+                            sheetState = replyBottomSheetState,
+                            onMoreClick = { },
+                            onAction = { postFeedViewModel.onPostEvent(it) }
+                        )
+                    }
                 }
                 is UiState.Error -> {
-                    // If we have an initial image, show it even if post details fail to load
                     if (initialImage != null) {
                         ZoomableImage(image = initialImage)
                     } else {
@@ -119,12 +167,31 @@ fun PostViewScreen(
                     }
                 }
                 else -> {
-                    if (initialImage != null) {
-                        ZoomableImage(image = initialImage)
-                    }
+                    initialImage?.let { ZoomableImage(image = it) }
                 }
             }
         }
+
+        // Overlay TopAppBar
+        TopAppBar(
+            title = {},
+            navigationIcon = {
+                IconButton(
+                    onClick = { navHostController.popBackStack() },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.4f),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                scrolledContainerColor = Color.Transparent
+            ),
+            windowInsets = WindowInsets(0, 0, 0, 0)
+        )
     }
 }
 
@@ -133,11 +200,13 @@ fun PostViewScreen(
 fun PostViewerContent(
     post: Post,
     images: List<String>,
+    initialIndex: Int,
     userScrollEnabled: Boolean,
     onZoomChange: (Float) -> Unit,
-    onPostAction: (PostAction) -> Unit
+    onPostAction: (PostAction) -> Unit,
+    onReplyClick: () -> Unit
 ) {
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { images.size })
+    val pagerState = rememberPagerState(initialPage = initialIndex) { images.size }
 
     Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(
@@ -181,115 +250,15 @@ fun PostViewerContent(
                     }
                 }
             }
-
-            // Author and Info
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar(
-                    imageUrl = post.author.authorImage,
-                    onAvatarClick = {}
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = post.author.authorName,
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = "Posted ${getTimeAgo(post.createdAt.toLongOrNull() ?: System.currentTimeMillis())}",
-                        color = Color.White.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Caption
-            Text(
-                text = post.caption,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AnimatedLikeButton(
-                    isLiked = post.isLiked,
-                    likesCount = post.likesCount,
-                    onLike = { isLiked ->
-                        onPostAction(PostAction.Like(isLiked, post.postId))
-                    },
-                    tint = Color.White
-                )
-
-                ReplyButtonComponent(
-                    replyCount = post.commentCount.toString(),
-                    onReplyClick = { },
-                    tint = Color.White
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp)) // Padding for bottom system bars
         }
     }
 }
 
 @Composable
 fun ZoomableImage(image: String, onZoomChange: (Float) -> Unit = {}) {
-    var scale by remember { mutableStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 5f)
-                    if (scale > 1f) {
-                        offset += pan
-                    } else {
-                        offset = Offset.Zero
-                    }
-                    onZoomChange(scale)
-                }
-            }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        if (scale > 1f) {
-                            scale = 1f
-                            offset = Offset.Zero
-                        } else {
-                            scale = 3f
-                        }
-                        onZoomChange(scale)
-                    }
-                )
-            }
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                
-                if (scale > 1f) {
-                    val maxOffsetHorizontal = (scale - 1) * size.width / 2
-                    val maxOffsetVertical = (scale - 1) * size.height / 2
-                    translationX = offset.x.coerceIn(-maxOffsetHorizontal, maxOffsetHorizontal)
-                    translationY = offset.y.coerceIn(-maxOffsetVertical, maxOffsetVertical)
-                } else {
-                    translationX = 0f
-                    translationY = 0f
-                }
-            },
-        contentAlignment = Alignment.Center
+    ZoomableBox(
+        modifier = Modifier.fillMaxSize(),
+        onZoomChange = onZoomChange
     ) {
         AsyncImage(
             model = image,

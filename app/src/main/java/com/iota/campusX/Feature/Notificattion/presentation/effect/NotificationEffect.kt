@@ -11,7 +11,15 @@ sealed interface NotificationEffect {
     ) : NotificationEffect
 
     data class NavigateToChat(
-        val chatId: String
+        val chatId: String,
+        val name: String,
+        val image: String?
+    ) : NotificationEffect
+
+    data class NavigateToSendMessage(
+        val userId: String,
+        val userName: String,
+        val userImage: String?
     ) : NotificationEffect
 
     data class ShowSnackBar(

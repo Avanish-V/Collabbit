@@ -72,14 +72,18 @@ fun AnimatedLikeButton(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier
-            .clip(CircleShape)
-            .clickable { onLike(!isLiked) }
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+        modifier = Modifier.clickable(
+            indication = null,
+            interactionSource = remember { MutableInteractionSource() },
+            onClick = {
+                onLike(!isLiked)
+            }
+        )
+
     ) {
         Icon(
             modifier = Modifier.size(18.dp),
-            painter = painterResource(if (isLiked) R.drawable.up_solid else R.drawable.up_regular),
+            painter = painterResource(if (isLiked) R.drawable.up_solid else R.drawable.up),
             contentDescription = "Like",
             tint = iconTint
         )

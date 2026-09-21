@@ -9,8 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -197,7 +202,7 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                         if (chatItem.lastMessage.lastMessageBy){
                             Icon(
                                 modifier = Modifier.size(20.dp),
-                                painter = painterResource(R.drawable.baseline_done_all_24),
+                                painter = painterResource(R.drawable.eye),
                                 contentDescription = null,
                                 tint = if (chatItem.lastMessage.isRead) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -212,20 +217,27 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    if (chatItem.lastMessage.unreadCount > 0){
-                        Box(
-                            modifier = Modifier.size(20.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary
-                                ),
-                            contentAlignment = Alignment.Center
-                        ){
-                            Text(
-                                text = chatItem.lastMessage.unreadCount.toString(),
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelMedium
-                            )
+                    if (chatItem.lastMessage.unreadCount > 0) {
+                        Surface(
+                            modifier = Modifier
+                                .height(20.dp)
+                                .widthIn(min = 20.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (chatItem.lastMessage.unreadCount > 99) "99+" else chatItem.lastMessage.unreadCount.toString(),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                                        fontSize = 10.sp
+                                    )
+                                )
+                            }
                         }
                     }
                 }

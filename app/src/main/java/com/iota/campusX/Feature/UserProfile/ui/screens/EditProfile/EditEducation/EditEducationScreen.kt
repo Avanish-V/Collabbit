@@ -119,7 +119,7 @@ fun EditEducationScreen(
                         modifier = Modifier.fillMaxWidth(),
                         leadingIcon = {
                             Icon(
-                                painter = painterResource(R.drawable.pencil),
+                                painter = painterResource(R.drawable.user_graduate),
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary

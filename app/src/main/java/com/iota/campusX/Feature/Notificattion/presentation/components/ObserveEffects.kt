@@ -29,7 +29,7 @@ import com.iota.campusX.Feature.Notificattion.presentation.effect.NotificationEf
                 is NotificationEffect.NavigateToPost->{
 
                     navController.navigate(
-                        PostView(postId = effect.postId.toString())
+                        PostView(postId = effect.postId)
                     )
 
                 }
@@ -45,9 +45,19 @@ import com.iota.campusX.Feature.Notificattion.presentation.effect.NotificationEf
                 is NotificationEffect.NavigateToChat->{
 
                     navController.navigate(
-                        SendMessage(userId = effect.chatId, userName = "") // We don't have username here, might need adjustment
+                        SendMessage(userId = effect.chatId, userName = effect.name,userImage = effect.image) // We don't have username here, might need adjustment
                     )
 
+                }
+
+                is NotificationEffect.NavigateToSendMessage -> {
+                    navController.navigate(
+                        SendMessage(
+                            userId = effect.userId,
+                            userName = effect.userName,
+                            userImage = effect.userImage
+                        )
+                    )
                 }
 
                 is NotificationEffect.ShowSnackBar->{

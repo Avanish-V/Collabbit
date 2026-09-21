@@ -1,7 +1,9 @@
 package com.iota.campusX.Feature.UserProfile.domain.repository
 
+import com.iota.campusX.Feature.UserProfile.data.local.entities.AuraTransactionEntity
 import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraCheckInResponse
 import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraInfoResponse
+import kotlinx.coroutines.flow.Flow
 
 interface AuraRepository {
     /** 
@@ -12,4 +14,7 @@ interface AuraRepository {
 
     /** GET /users/me/aura — lightweight read, no side effects. */
     suspend fun getAura(): Result<AuraInfoResponse>
+
+    /** Observe all aura transactions for a user from local database. */
+    fun observeTransactions(userId: String): Flow<List<AuraTransactionEntity>>
 }

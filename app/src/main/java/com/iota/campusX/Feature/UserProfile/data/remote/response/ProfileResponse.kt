@@ -30,7 +30,7 @@ data class ProfileResponse(
     val contact: Contact,
     val education: Education?,
     val skills: List<SkillResponse>?,
-    val summary: String?,
+    val matchPreferences: List<MatchPreferenceResponse>? = emptyList(),
     val isCurrentUser: Boolean,
     val aura: AuraInfoResponse = AuraInfoResponse()
 )

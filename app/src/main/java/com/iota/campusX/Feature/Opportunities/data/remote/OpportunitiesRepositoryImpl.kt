@@ -29,13 +29,18 @@ class OpportunitiesRepositoryImpl(
     private val baseUrl = AppConstants.OPPORTUNITIES_BASE_URL
     private val coursesUrl = AppConstants.COURSES_BASE_URL
 
+    // Thread-safe in-memory memory cache maps for seamless instantly accessible multi-screen data availability
+    private val opportunitiesCache = java.util.concurrent.ConcurrentHashMap<String, OpportunityResponse>()
+    private val coursesCache = java.util.concurrent.ConcurrentHashMap<String, CourseResponse>()
 
     override suspend fun getOpportunities(): Result<List<OpportunityResponse>> {
         return try {
             val response = httpClient.get(baseUrl)
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body())
+                val list = response.body<List<OpportunityResponse>>()
+                list.forEach { opportunitiesCache[it.id] = it }
+                Result.success(list)
             } else {
                 Result.failure(Exception("Failed to fetch opportunities: ${response.status}"))
             }
@@ -45,13 +50,16 @@ class OpportunitiesRepositoryImpl(
     }
 
     override suspend fun getOpportunityById(id: String): Result<OpportunityResponse> {
+        // Return instantly from in-memory cache if available
+        opportunitiesCache[id]?.let { return Result.success(it) }
+        
         return try {
-            val response = httpClient.get("$baseUrl/$id") {
-
-            }
+            val response = httpClient.get("$baseUrl/$id")
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body())
+                val opportunity = response.body<OpportunityResponse>()
+                opportunitiesCache[id] = opportunity
+                Result.success(opportunity)
             } else {
                 Result.failure(Exception("Failed to fetch opportunity details: ${response.status}"))
             }
@@ -64,10 +72,10 @@ class OpportunitiesRepositoryImpl(
         return try {
             val response = httpClient.get(coursesUrl)
             if (response.status == HttpStatusCode.OK) {
-                Log.e("OpportunitiesRepositoryImpl", "Failed to fetch courses: ${response.bodyAsText()}")
-                Result.success(response.body())
+                val list = response.body<List<CourseResponse>>()
+                list.forEach { coursesCache[it.id] = it }
+                Result.success(list)
             } else {
-
                 Result.failure(Exception("Failed to fetch courses: ${response.status}"))
             }
         } catch (e: Exception) {
@@ -77,13 +85,16 @@ class OpportunitiesRepositoryImpl(
     }
 
     override suspend fun getCourseById(id: String): Result<CourseResponse> {
+        // Return instantly from in-memory cache if available
+        coursesCache[id]?.let { return Result.success(it) }
+        
         return try {
-            val response = httpClient.get("$coursesUrl/$id") {
-
-            }
+            val response = httpClient.get("$coursesUrl/$id")
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body())
+                val course = response.body<CourseResponse>()
+                coursesCache[id] = course
+                Result.success(course)
             } else {
                 Result.failure(Exception("Failed to fetch course details: ${response.status}"))
             }

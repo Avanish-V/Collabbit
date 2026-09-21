@@ -13,48 +13,20 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-@LargeTest
-class StartupBenchmarks {
+class StartupBenchmark{
+    @get:Rule val rule = MacrobenchmarkRule()
 
-    @get:Rule
-    val rule = MacrobenchmarkRule()
+    @Test fun startupNoCompilation() = startup(CompilationMode.None())
+    @Test fun startupWithProfile() = startup(CompilationMode.Partial())
 
-    @Test
-    fun startupCompilationNone() =
-        benchmark(CompilationMode.None())
-
-    @Test
-    fun startupCompilationBaselineProfiles() =
-        benchmark(
-            CompilationMode.Partial(
-                BaselineProfileMode.Require
-            )
-        )
-
-    private fun benchmark(compilationMode: CompilationMode) {
-
-        val packageName =
-            InstrumentationRegistry
-                .getArguments()
-                .getString("targetAppId")
-                ?: error("targetAppId not passed as instrumentation runner arg")
-
-        rule.measureRepeated(
-            packageName = packageName,
-            metrics = listOf(
-                StartupTimingMetric()
-            ),
-            compilationMode = compilationMode,
-            startupMode = StartupMode.COLD,
-            iterations = 10,
-
-            setupBlock = {
-                pressHome()
-            },
-
-            measureBlock = {
-                startActivityAndWait()
-            }
-        )
+    private fun startup(mode: CompilationMode) = rule.measureRepeated(
+        packageName = "com.iota.campusX",
+        metrics = listOf(StartupTimingMetric()),
+        compilationMode = mode,
+        startupMode = StartupMode.COLD,
+        iterations = 10
+    ) {
+        pressHome()
+        startActivityAndWait()
     }
 }

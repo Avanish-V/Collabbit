@@ -8,5 +8,8 @@ enum class EntityType {
     COMMENT,
     REPLY,
     USER,
-    CHAT
+    CHAT,
+    COLLABORATION,
+
+
 }

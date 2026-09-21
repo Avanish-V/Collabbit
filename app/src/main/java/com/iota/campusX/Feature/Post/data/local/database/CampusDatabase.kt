@@ -8,13 +8,16 @@ import com.iota.campusX.Feature.Post.data.local.dao.PostDao
 import com.iota.campusX.Feature.Post.data.local.entity.PostEntity
 import com.iota.campusX.Feature.Post.data.local.entity.RemoteKeys
 import com.iota.campusX.Feature.Post.data.local.entity.RemoteKeysDao
+import com.iota.campusX.Feature.Reply.data.local.dao.ReplyDao
+import com.iota.campusX.Feature.Reply.data.local.entity.ReplyEntity
 
 @Database(
     entities = [
         PostEntity::class,
-        RemoteKeys::class
+        RemoteKeys::class,
+        ReplyEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(
@@ -25,4 +28,6 @@ abstract class CampusDatabase : RoomDatabase() {
     abstract fun postDao(): PostDao
 
     abstract fun remoteKeysDao(): RemoteKeysDao
+
+    abstract fun replyDao(): ReplyDao
 }

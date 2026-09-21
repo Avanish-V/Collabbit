@@ -1,10 +1,19 @@
 package com.iota.campusX.Feature.Post.presentation.create
 
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.util.Log
+import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.provider.OpenableColumns
 import com.iota.campusX.Feature.Post.data.remote.response.Post
 import com.iota.campusX.Feature.Post.domain.attachment.Attachment
+import com.iota.campusX.Feature.Post.domain.attachment.DocumentAttachment
+import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachment
+import com.iota.campusX.Feature.Post.domain.attachment.VideoAttachment
 import com.iota.campusX.Feature.Post.domain.attachment.TeamFormationAttachment
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePostUseCase
 import com.iota.campusX.Feature.UserProfile.data.remote.response.SkillResponse
@@ -51,6 +60,112 @@ class PostCreationViewModel(
             it.copy(caption = caption)
         }
 
+    }
+
+    fun onImagesSelected(context: Context, uris: List<Uri>) {
+        val widths = mutableListOf<Int>()
+        val heights = mutableListOf<Int>()
+        val aspectRatios = uris.map { uri ->
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            try {
+                context.contentResolver.openInputStream(uri)?.use { 
+                    BitmapFactory.decodeStream(it, null, options)
+                }
+
+                var width = options.outWidth
+                var height = options.outHeight
+
+                context.contentResolver.openInputStream(uri)?.use { exifStream ->
+                    val exifInterface = ExifInterface(exifStream)
+                    val orientation = exifInterface.getAttributeInt(
+                        ExifInterface.TAG_ORIENTATION,
+                        ExifInterface.ORIENTATION_NORMAL
+                    )
+                    if (orientation == ExifInterface.ORIENTATION_ROTATE_90 || 
+                        orientation == ExifInterface.ORIENTATION_ROTATE_270) {
+                        val temp = width
+                        width = height
+                        height = temp
+                    }
+                }
+
+                if (width > 0 && height > 0) {
+                    widths.add(width)
+                    heights.add(height)
+                    width.toFloat() / height.toFloat()
+                } else {
+                    widths.add(0)
+                    heights.add(0)
+                    1f
+                }
+            } catch (e: Exception) {
+                widths.add(0)
+                heights.add(0)
+                1f
+            }
+        }
+
+        _draft.update {
+            it.copy(attachment = ImageAttachment(uris.map { it.toString() }, widths, heights, aspectRatios))
+        }
+    }
+
+    fun onVideoSelected(context: Context, uri: Uri) {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0
+            
+            if (duration > 15500) { // Slight buffer for rounding
+                _uiState.value = UiState.Error("Video duration must be less than 15 seconds")
+                return
+            }
+
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
+            val aspectRatio = if (height > 0) width.toFloat() / height.toFloat() else 1f
+
+            _draft.update {
+                it.copy(attachment = VideoAttachment(uri.toString(), width, height, aspectRatio))
+            }
+        } catch (e: Exception) {
+            _uiState.value = UiState.Error("Failed to process video")
+        } finally {
+            retriever.release()
+        }
+    }
+
+    fun onDocumentSelected(context: Context, uri: Uri) {
+        try {
+            var fileName = "Document.pdf"
+            var fileSize = 0L
+
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (cursor.moveToFirst()) {
+                    fileName = cursor.getString(nameIndex) ?: "Document.pdf"
+                    fileSize = cursor.getLong(sizeIndex)
+                }
+            }
+
+            var pageCount = 0
+            try {
+                context.contentResolver.openFileDescriptor(uri, "r")?.use { fd ->
+                    val renderer = android.graphics.pdf.PdfRenderer(fd)
+                    pageCount = renderer.pageCount
+                    renderer.close()
+                }
+            } catch (e: Exception) {
+                Log.e("POST_CREATION", "Error getting page count: ${e.message}")
+            }
+
+            _draft.update {
+                it.copy(attachment = DocumentAttachment(uri.toString(), fileName, fileSize, pageCount = pageCount))
+            }
+        } catch (e: Exception) {
+            _uiState.value = UiState.Error("Failed to process document")
+        }
     }
 
     fun onAttachmentSelected(

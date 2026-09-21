@@ -18,3 +18,24 @@ data class ErrorResponse(
     val message: String,
     val timestamp: String
 )
+
+fun Throwable.extractReason(default: String = "An unexpected error occurred"): String {
+    return this.message?.let { msg ->
+        if (msg.contains("\"message\"") || msg.contains("message")) {
+            try {
+                val regex = "\"message\"\\s*:\\s*\"([^\"]*)\"".toRegex()
+                val match = regex.find(msg)
+                if (match != null) {
+                    match.groupValues[1]
+                } else {
+                    msg.substringAfter("message\": \"").substringBefore("\"")
+                        .takeIf { it != msg } ?: msg
+                }
+            } catch (e: Exception) {
+                msg
+            }
+        } else {
+            msg
+        }
+    } ?: default
+}

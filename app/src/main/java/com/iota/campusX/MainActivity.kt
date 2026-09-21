@@ -18,6 +18,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarDuration
@@ -66,14 +67,17 @@ import com.iota.campusX.Feature.Post.presentation.edit.EditPostScreen
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuAction
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuActionViewModel
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuBottomSheet
+import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuController
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuItem
-import com.iota.campusX.Feature.Post.presentation.feedmenu.rememberMenuController
 import com.iota.campusX.Feature.UserProfile.domain.useCases.UpdateFcmTokenUseCase
 import com.iota.campusX.Feature.UserProfile.presentation.AuraViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.CheckInEvent
 import com.iota.campusX.Feature.UserProfile.ui.Components.AlreadyClaimedDialog
 import com.iota.campusX.Feature.UserProfile.ui.Components.DailyAuraCheckInDialog
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditEvents.EditProfileScreen
+import com.iota.campusX.Feature.Society.presentation.SocietyScreen
+import com.iota.campusX.Feature.Society.presentation.SocietyChatScreen
+import com.iota.campusX.Feature.Society.presentation.SocietyInfoScreen
 import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.AppUserProfile
 import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.UserProfileViewModel
 import com.iota.campusX.Navigation.AuthGraph
@@ -97,19 +101,32 @@ import com.iota.campusX.Navigation.Notification
 import com.iota.campusX.Navigation.Opportunities
 import com.iota.campusX.Navigation.OpportunityDetail
 import com.iota.campusX.Navigation.PostView
+import com.iota.campusX.Navigation.VideoView
+import com.iota.campusX.Navigation.PdfView
 import com.iota.campusX.Navigation.Profile
 import com.iota.campusX.Navigation.ReplyPost
 import com.iota.campusX.Navigation.SendMessage
 import com.iota.campusX.Navigation.Setting
 import com.iota.campusX.Navigation.SignIn
 import com.iota.campusX.Navigation.Society
+import com.iota.campusX.Navigation.SocietyHub
+import com.iota.campusX.Navigation.SocietyInfo
 import com.iota.campusX.Navigation.ViewProfile
+import com.iota.campusX.Feature.Society.presentation.SocietyHubScreen
+import com.iota.campusX.Feature.Society.presentation.SocietyScreen
+import androidx.navigation.NavDestination.Companion.hasRoute
+import com.iota.campusX.Navigation.Register
+import com.iota.campusX.Navigation.CreateProfile
+import com.iota.campusX.Navigation.Verification
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.iota.campusX.Navigation.navScreen
 import com.iota.campusX.Navigation.shouldShowBottomBar
 import com.iota.campusX.NetworkMonitor.ConnectivityUiState
 import com.iota.campusX.NetworkMonitor.ConnectivityViewModel
 import com.iota.campusX.Screens.Home.MainScreen
 import com.iota.campusX.Screens.Home.PostViewScreen
+import com.iota.campusX.Screens.Home.VideoViewScreen
+import com.iota.campusX.Screens.Home.PdfViewScreen
 import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Screens.ShowcaseScreen
@@ -162,6 +179,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val authViewModel = koinInject<GoogleSignInViewModel>()
+            val isLoggedIn by authViewModel.isLoggedIn.collectAsStateWithLifecycle()
             val viewModel: ConnectivityViewModel = koinViewModel()
 
             val snackBarHostState = remember { SnackbarHostState() }
@@ -173,7 +191,7 @@ class MainActivity : ComponentActivity() {
             val profileViewModel = koinInject<UserProfileViewModel>()
             val auraViewModel: AuraViewModel = koinViewModel()
             val updateFcmTokenUseCase = koinInject<UpdateFcmTokenUseCase>()
-            val menuController = rememberMenuController()
+            val menuController: MenuController = koinInject()
             val menuActionViewModel: MenuActionViewModel = koinInject()
 
             var showCheckInDialog by remember { mutableStateOf(false) }
@@ -201,9 +219,35 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(authViewModel.getCurrentUser()) {
-                if (authViewModel.getCurrentUser()) {
-                    profileViewModel.getUserProfile()
+            LaunchedEffect(navBackStackEntry, isLoggedIn) {
+                val destination = navBackStackEntry?.destination
+
+                if (destination != null) {
+                    val isAuthRoute = destination.hasRoute(SignIn::class) || 
+                                     destination.hasRoute(Register::class) || 
+                                     destination.hasRoute(CreateProfile::class) || 
+                                     destination.hasRoute(Verification::class) ||
+                                     destination.hasRoute(AuthGraph::class)
+                    
+                    if (isLoggedIn == false && !isAuthRoute) {
+                        navHostController.navigate(SignIn) {
+                            popUpTo(navHostController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    } else if (isLoggedIn == true && isAuthRoute) {
+                        navHostController.navigate(Home()) {
+                            popUpTo(navHostController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            }
+
+            LaunchedEffect(isLoggedIn) {
+                if (isLoggedIn == true) {
+                    // Sequentially sync profile first, then claim daily check-in.
+                    // This prevents the sync logic from overwriting the newly awarded aura points.
+                    profileViewModel.syncProfileSuspending()
                     auraViewModel.claimDailyCheckIn(showAlreadyClaimedMessage = false)
                     FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                         if (task.isSuccessful) {
@@ -221,8 +265,6 @@ class MainActivity : ComponentActivity() {
                 auraViewModel.checkInEvent.collect { event ->
                     when (event) {
                         is CheckInEvent.Success -> {
-                            checkInData = event
-                            showCheckInDialog = true
                         }
                         is CheckInEvent.AlreadyClaimed -> {
                             // showAlreadyClaimedDialog = true
@@ -251,16 +293,28 @@ class MainActivity : ComponentActivity() {
                         }
 
                         navigation<MainGraph>(
-                            startDestination = Home,
+                            startDestination = Home(),
                         ) {
-                            composable<Home> {
+                            navScreen<Home>(
+                                deepLinks = listOf(
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/post/{postId}" },
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/post/{postId}/" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/post/{postId}" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/post/{postId}/" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/post/{postId}" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/post/{postId}/" },
+                                    navDeepLink { uriPattern = "finder://post/{postId}" }
+                                )
+                            ) { backStackEntry ->
+                                val args = backStackEntry.toRoute<Home>()
                                 val notificationViewModel = koinInject<NotificationViewModel>()
                                 MainScreen(
                                     navHostController,
                                     profileViewModel = koinInject(),
                                     menuController = menuController,
                                     menuActionViewModel = menuActionViewModel,
-                                    notificationViewModel = notificationViewModel
+                                    notificationViewModel = notificationViewModel,
+                                    targetPostId = args.postId
                                 )
                             }
 
@@ -302,7 +356,22 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            navScreen<CommunityChat> {
+                            navScreen<CommunityChat>(
+                                deepLinks = listOf(
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/society/{id}" },
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/society/{id}/" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/society/{id}" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/society/{id}/" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/society/{id}" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/society/{id}/" },
+                                    navDeepLink { uriPattern = "finder://society/{id}" }
+                                )
+                            ) { backStackEntry ->
+                                val args = backStackEntry.toRoute<CommunityChat>()
+                                SocietyChatScreen(
+                                    societyId = args.id,
+                                    navHostController = navHostController
+                                )
                             }
 
                             navScreen<SendMessage> {
@@ -324,7 +393,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             composable<ViewProfile> { backStackEntry->
-                                val args = backStackEntry.toRoute<Profile>()
+                                val args = backStackEntry.toRoute<ViewProfile>()
                                 val viewModel: UserProfileViewModel = koinViewModel()
                                 AppUserProfile(
                                     userId = args.userId,
@@ -365,7 +434,8 @@ class MainActivity : ComponentActivity() {
                             navScreen<EditPost> { backStackEntry ->
                                 val args = backStackEntry.toRoute<EditPost>()
                                 EditPostScreen(
-                                    postId = args.postId,
+                                    id = args.id,
+                                    type = args.type,
                                     navHostController = navHostController,
                                     userProfileViewModel = koinInject()
                                 )
@@ -376,7 +446,15 @@ class MainActivity : ComponentActivity() {
 
                             navScreen<PostView> { backStackEntry ->
                                 val args = backStackEntry.toRoute<PostView>()
-                                PostViewScreen(navHostController)
+                                PostViewScreen(args, navHostController)
+                            }
+
+                            navScreen<VideoView> {
+                                VideoViewScreen(navHostController)
+                            }
+
+                            navScreen<PdfView> {
+                                PdfViewScreen(navHostController)
                             }
 
                             composable<Opportunities> { backStackEntry ->
@@ -389,7 +467,17 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            composable<OpportunityDetail> { backStackEntry ->
+                            composable<OpportunityDetail>(
+                                deepLinks = listOf(
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/opportunity/{opportunityId}" },
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/opportunity/{opportunityId}/" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/opportunity/{opportunityId}" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/opportunity/{opportunityId}/" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/opportunity/{opportunityId}" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/opportunity/{opportunityId}/" },
+                                    navDeepLink { uriPattern = "finder://opportunity/{opportunityId}" }
+                                )
+                            ) { backStackEntry ->
                                 val parentEntry = remember(backStackEntry) {
                                     navHostController.getBackStackEntry<MainGraph>()
                                 }
@@ -403,9 +491,15 @@ class MainActivity : ComponentActivity() {
 
                             composable<CourseDetail>(
                                 deepLinks = listOf(
-                                    navDeepLink<CourseDetail>(basePath = "https://www.campuscircle.in/course"),
-                                    navDeepLink<CourseDetail>(basePath = "https://campuscircle.in/course"),
-                                    navDeepLink<CourseDetail>(basePath = "finder://course")
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/course/{courseId}" },
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/course/{courseId}/" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/course/{courseId}" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/course/{courseId}/" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/course/{courseId}" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/course/{courseId}/" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/session/{courseId}" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/session/{courseId}/" },
+                                    navDeepLink { uriPattern = "finder://course/{courseId}" }
                                 )
                             ) { backStackEntry ->
                                 val parentEntry = remember(backStackEntry) {
@@ -419,12 +513,12 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            composable<SocietyHub> {
+                                SocietyHubScreen(navHostController = navHostController)
+                            }
+
                             composable<Society> {
-                                ShowcaseScreen(
-                                    title = "Society",
-                                    navHostController = navHostController,
-                                    type = ShowcaseType.COLLABORATIONS // placeholder type
-                                )
+                                SocietyScreen(navHostController = navHostController)
                             }
 
                             composable<Connection> {
@@ -451,6 +545,14 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            navScreen<SocietyInfo> { backStackEntry ->
+                                val args = backStackEntry.toRoute<SocietyInfo>()
+                                SocietyInfoScreen(
+                                    societyId = args.id,
+                                    openJoinSheet = args.openJoinSheet,
+                                    navHostController = navHostController
+                                )
+                            }
                         }
                     }
 
@@ -462,25 +564,33 @@ class MainActivity : ComponentActivity() {
 
                     SnackbarHost(
                         hostState = snackBarHostState,
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                            .padding(16.dp) // margin from bottom
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = if (shouldShowBottomBar(currentDestination)) 72.dp else 0.dp)
+                            .padding(16.dp)
                     )
 
 
                     val menuBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                    val menuOptions by menuActionViewModel.menuOptions.collectAsState()
+                    val menuOptions = menuController.options
                     val deleteState by menuActionViewModel.deleteState.collectAsState()
 
-                    when(deleteState){
-                        is UiState.Success<*> -> {
-                            menuController.dismissDialog()
-                        }
-                        is UiState.Error -> {
-                            LaunchedEffect(Unit) {
-                                snackBarHostState.showSnackbar("Something wen wrong!")
+                    LaunchedEffect(deleteState) {
+                        when (deleteState) {
+                            is UiState.Success -> {
+                                menuController.dismissDialog()
+                                menuController.dismiss()
+                                menuActionViewModel.resetDeleteState()
                             }
+                            is UiState.Error -> {
+                                snackBarHostState.showSnackbar((deleteState as UiState.Error).message)
+                                menuController.dismissDialog()
+                                menuController.dismiss()
+                                menuActionViewModel.resetDeleteState()
+                            }
+                            else -> {}
                         }
-                        else -> {}
                     }
 
 
@@ -494,18 +604,23 @@ class MainActivity : ComponentActivity() {
                             pendingAction = {
                                 when (it) {
                                     is MenuItem.Delete -> {
-                                        menuController.context?.let {
-                                            menuController.showDialog(
-                                                context = it
-                                            )
+                                        menuController.context?.let { context ->
+                                            menuController.showDialog(context = context)
+                                            menuController.dismiss()
                                         }
                                     }
                                     is MenuItem.Report -> {
-
+                                        menuController.dismiss()
                                     }
                                     is MenuItem.Edit -> {
-                                        menuController.context?.let { post ->
-                                            navHostController.navigate(EditPost(postId = post.id))
+                                        menuController.context?.let { context ->
+                                            navHostController.navigate(
+                                                EditPost(
+                                                    id = context.id,
+                                                    type = context.type.name
+                                                )
+                                            )
+                                            menuController.dismiss()
                                         }
                                     }
 
@@ -617,12 +732,12 @@ class MainActivity : ComponentActivity() {
             AnimatedVisibility(
                 visible = isBottomBarVisible.value,
                 enter = slideInVertically(
-                    initialOffsetY = { fullHeight -> fullHeight }, // slide up from bottom
-                    animationSpec = tween(600)
+                    initialOffsetY = { fullHeight -> fullHeight },
+                    animationSpec = tween(300)
                 ),
                 exit = slideOutVertically(
-                    targetOffsetY = { fullHeight -> fullHeight }, // slide down to bottom
-                    animationSpec = tween(600)
+                    targetOffsetY = { fullHeight -> fullHeight },
+                    animationSpec = tween(300)
                 )
             ) {
                 BottomAppBar(

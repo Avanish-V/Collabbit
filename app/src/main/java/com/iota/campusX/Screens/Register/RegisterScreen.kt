@@ -3,7 +3,6 @@ package com.iota.campusX.Screens.Register
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -39,13 +37,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthResult
@@ -56,7 +55,6 @@ import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardin
 import com.iota.campusX.Navigation.Home
 import com.iota.campusX.R
 import com.iota.campusX.Utils.CircularLoading
-import com.iota.campusX.ui.theme.lilyScriptFamily
 import org.koin.compose.koinInject
 
 @Composable
@@ -116,10 +114,21 @@ fun SignInScreen(navHostController: NavHostController) {
 
 
             Box(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center){
-                Image(
-                    painter = painterResource(R.drawable.finder_icon),
-                    contentDescription = "CampusX",
-                    modifier = Modifier.size(60.dp)
+//                Image(
+//                    painter = painterResource(R.drawable.finder_icon),
+//                    contentDescription = "CampusX",
+//                    modifier = Modifier.size(60.dp)
+//                )
+                val gilroyFontFamily = FontFamily(
+                    Font(R.font.gilroy_extrabold, weight = FontWeight.ExtraBold)
+                )
+
+                Text(
+                    text = "Collabbit",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontFamily = gilroyFontFamily,
+                    color = MaterialTheme.colorScheme.primary
+
                 )
             }
 
@@ -171,7 +180,7 @@ fun SignInScreen(navHostController: NavHostController) {
                                 CircularLoading(Color.White)
                             }
                             is AuthResult.SignedIn -> {
-                                navHostController.navigate(Home)
+                                navHostController.navigate(Home())
                             }
                             is AuthResult.Error -> {
                                 LoginButtonText()

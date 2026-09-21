@@ -14,6 +14,7 @@ import androidx.navigation.NavController
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditBaseProfile.EditBaseProfileScreen
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditEducation.EditEducationScreen
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditEducation.EditEducationViewModel
+import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditOpenTo.EditOpenToScreen
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditSkills.EditSkillsScreen
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditSummary.EditSummaryScreen
 import org.koin.androidx.compose.koinViewModel
@@ -70,6 +71,14 @@ fun EditProfileScreen(
                 navController = navController
             )
 
+        }
+        is EditProfileActions.EditOpenTo->{
+            EditOpenToScreen(
+                editAction = editAction as EditProfileActions.EditOpenTo,
+                navController = navController,
+                viewModel = koinViewModel(),
+                snackBarHostState = snackBarHostState
+            )
         }
 
         else -> {}

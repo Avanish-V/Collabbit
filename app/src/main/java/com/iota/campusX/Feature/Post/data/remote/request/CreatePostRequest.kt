@@ -34,7 +34,7 @@ fun PostRes.toDomain(): Post {
 
 @Serializable
 enum class AttachmentType{
-    IMAGE,VIDEO,POLL
+    IMAGE,VIDEO,POLL,DOCUMENT
 }
 
 

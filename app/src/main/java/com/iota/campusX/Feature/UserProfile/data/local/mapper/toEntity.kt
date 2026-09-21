@@ -13,8 +13,9 @@ fun ProfileResponse.toEntity() = UserProfileEntity(
     contact       = json.encodeToString(contact),
     education     = education?.let { json.encodeToString(it) },
     skills        = skills?.let { json.encodeToString(it) },
-    summary       = summary,
+    matchPreferences = matchPreferences?.let { json.encodeToString(it) },
     isCurrentUser = isCurrentUser,
+    tagline       = baseProfile.tagline,
     auraPoints    = aura.auraPoints,
     auraLevel     = aura.level.name
 )

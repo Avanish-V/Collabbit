@@ -35,7 +35,7 @@ fun ReplyButtonComponent(
         )
     ) {
         Icon(
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(19.dp),
             painter = painterResource(R.drawable.message_circle),
             contentDescription = "Replies",
             tint = contentColor

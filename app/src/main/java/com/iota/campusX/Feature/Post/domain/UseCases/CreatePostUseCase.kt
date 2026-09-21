@@ -24,9 +24,15 @@ class CreatePostUseCase(
         }
 
 
-        val attachmentDto = attachmentProcessor.process(
+        val attachmentResult = attachmentProcessor.process(
             attachment = attachment
         )
+
+        if (attachmentResult.isFailure) {
+            return Result.failure(attachmentResult.exceptionOrNull() ?: Exception("Attachment upload failed"))
+        }
+
+        val attachmentDto = attachmentResult.getOrNull()
 
         val request = CreatePostRequest(
             caption = caption,

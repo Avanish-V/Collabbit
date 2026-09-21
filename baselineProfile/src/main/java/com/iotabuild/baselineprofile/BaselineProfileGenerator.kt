@@ -1,5 +1,6 @@
 package com.iotabuild.baselineprofile
 
+import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
@@ -42,6 +43,7 @@ class BaselineProfileGenerator {
 
     @get:Rule
     val rule = BaselineProfileRule()
+
     @Test
     fun generate() {
         rule.collect(
@@ -53,39 +55,29 @@ class BaselineProfileGenerator {
             pressHome()
             startActivityAndWait()
 
-            device.waitForIdle()
+            // If the app starts up on the Sign In screen, feed_list will not be present.
+            // We only look for and scroll the feed if we successfully bypass the login or if it is already there.
+            val hasFeed = device.wait(Until.hasObject(By.res("feed_list")), 5_000)
 
-            // Wait for feed
-            val feedSelector = By.res("feed_list")
+            if (hasFeed) {
+                // Wait for real content (add testTag("feed_item") to your post items)
+                device.wait(Until.hasObject(By.res("feed_item")), 5_000)
 
-            repeat(5) {
-                val feed = device.wait(
-                    Until.findObject(feedSelector),
-                    5_000
-                )
-
-                if (feed != null) {
-                    try {
-                        feed.fling(Direction.DOWN)
-                    } catch (_: StaleObjectException) {
-                        // Reacquire during the next iteration.
-                    }
-                }
+                scrollFeed(Direction.DOWN, times = 3)
+                scrollFeed(Direction.UP, times = 3)
             }
+        }
+    }
 
-            repeat(5) {
-                val feed = device.wait(
-                    Until.findObject(feedSelector),
-                    5_000
-                )
-
-                if (feed != null) {
-                    try {
-                        feed.fling(Direction.UP)
-                    } catch (_: StaleObjectException) {
-                        // Reacquire during the next iteration.
-                    }
-                }
+    private fun MacrobenchmarkScope.scrollFeed(direction: Direction, times: Int) {
+        repeat(times) {
+            try {
+                val feed = device.findObject(By.res("feed_list")) ?: return@repeat
+                feed.setGestureMargin(device.displayWidth / 5)
+                feed.fling(direction)
+                device.waitForIdle()
+            } catch (_: StaleObjectException) {
+                // list changed while scrolling, retry on the next iteration
             }
         }
     }

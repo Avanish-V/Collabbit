@@ -196,6 +196,7 @@ fun SendMessageScreen(
     }
 
     Scaffold(
+        modifier = Modifier.fillMaxSize().imePadding(),
         topBar = {
             ChatTopBar(userName, userImage, isActive,navHostController) {
                 navHostController.navigate(Profile(userId = userUUID))
@@ -205,8 +206,7 @@ fun SendMessageScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding() // handles nav bar
-                    .imePadding(),           // handles keyboard insets
+                    .navigationBarsPadding(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Divider()
@@ -327,11 +327,10 @@ fun MessageInputBar(modifier :Modifier = Modifier, messageText: String, onMessag
             .height(intrinsicSize = IntrinsicSize.Min)
             .border(
                 width = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
+                color = MaterialTheme.colorScheme.outline,
                 shape = MaterialTheme.shapes.small
             )
             .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(6.dp))
-            .imePadding()
             .padding(horizontal = 12.dp, vertical = 12.dp),
          textStyle = LocalTextStyle.current.copy(
             color = MaterialTheme.colorScheme.onSurface,
@@ -504,7 +503,7 @@ fun ChatBubbleItem(
                     } else {
                         Icon(
                             modifier = Modifier.size(16.dp),
-                            painter = painterResource(R.drawable.baseline_done_all_24),
+                            painter = painterResource(R.drawable.eye),
                             contentDescription = null,
                             tint = if (chat.read) Color.White else Color.White.copy(alpha = 0.6f)
                         )

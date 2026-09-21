@@ -58,7 +58,8 @@ import org.koin.androidx.compose.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPostScreen(
-    postId: String,
+    id: String,
+    type: String,
     navHostController: NavHostController,
     userProfileViewModel: UserProfileViewModel,
     editPostViewModel: EditPostViewModel = koinViewModel()
@@ -72,8 +73,8 @@ fun EditPostScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(postId) {
-        editPostViewModel.loadPost(postId)
+    LaunchedEffect(id, type) {
+        editPostViewModel.loadContent(id, type)
     }
 
     LaunchedEffect(profileState) {
@@ -94,7 +95,7 @@ fun EditPostScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Edit Post",
+                        if (type == "REPLY") "Edit Reply" else "Edit Post",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -107,7 +108,7 @@ fun EditPostScreen(
                     Button(
                         onClick = {
                             keyboardController?.hide()
-                            editPostViewModel.updatePost(postId)
+                            editPostViewModel.updateContent(id, type)
                         },
                         enabled = caption.isNotBlank() && uiState !is UiState.Loading,
                         colors = ButtonDefaults.buttonColors(

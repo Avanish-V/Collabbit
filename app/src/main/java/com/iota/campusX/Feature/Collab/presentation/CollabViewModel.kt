@@ -168,7 +168,7 @@ class CollabViewModel(
     }
 
     fun updateCollabRequestStatus(
-        requestId: Long,
+        requestId: String,
         status: CollabRequestStatus,
         collabId: String
     ) {

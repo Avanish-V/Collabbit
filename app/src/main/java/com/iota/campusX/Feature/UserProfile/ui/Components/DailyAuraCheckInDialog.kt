@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.iota.campusX.ui.theme.*
 import kotlinx.coroutines.delay
 @Composable
 fun DailyAuraCheckInDialog(
@@ -130,7 +131,7 @@ fun DailyAuraCheckInDialog(
                             .background(
                                 Brush.verticalGradient(
                                     colors = listOf(
-                                        Color(0xFF6366F1).copy(alpha = 0.1f),
+                                        brandIndigo.copy(alpha = 0.1f),
                                         Color.Transparent
                                     )
                                 )
@@ -197,7 +198,7 @@ fun DailyAuraCheckInDialog(
                         AnimatedVisibility(visible = showContent) {
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
-                                color = Color(0xFF6366F1).copy(alpha = 0.1f),
+                                color = brandIndigo.copy(alpha = 0.1f),
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             ) {
                                 Row(
@@ -405,7 +406,7 @@ fun AlreadyClaimedDialog(
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = Color(0xFF6366F1)
+                    color = brandIndigo
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))

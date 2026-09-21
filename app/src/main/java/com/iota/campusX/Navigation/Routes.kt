@@ -33,7 +33,7 @@ data object Verification : Route
 data object MainGraph : Route
 
 @Serializable
-data object Home : Route
+data class Home(val postId: String? = null) : Route
 
 @Serializable
 data object Collab : Route
@@ -45,7 +45,10 @@ data object Notification : Route
 data object ChatList : Route
 
 @Serializable
-data object CommunityChat : Route
+data class CommunityChat(val id: String) : Route
+
+@Serializable
+data class SocietyInfo(val id: String, val openJoinSheet: Boolean = false) : Route
 
 @Serializable
 data class SendMessage(
@@ -78,7 +81,7 @@ data class Followers(val userId: String) : Route
 data object CreatePost : Route
 
 @Serializable
-data class EditPost(val postId: String) : Route
+data class EditPost(val id: String, val type: String = "POST") : Route
 
 @Serializable
 data object ReplyPost : Route
@@ -91,6 +94,9 @@ data object Society : Route
 
 @Serializable
 data object CreateSociety : Route
+
+@Serializable
+data object SocietyHub : Route
 
 @Serializable
 data object JoinSociety : Route
@@ -123,7 +129,21 @@ data class CollabDetail(val collabId: String) : Route
 data class CollabRequests(val collabId: String) : Route
 
 @Serializable
-data class PostView(val postId: String? = null, val postImage: String? = null) : Route
+data class PostView(
+    val postId: String? = null,
+    val postImage: String? = null,
+    val initialIndex: Int = 0
+) : Route
+
+@Serializable
+data class VideoView(val videoUrl: String, val thumbnailUrl: String? = null) : Route
+
+@Serializable
+data class PdfView(
+    val pdfUrl: String,
+    val fileName: String? = null,
+    val thumbnailUrl: String? = null
+) : Route
 
 // --- Helper for Bottom Bar ---
 val bottomBarRoutes = listOf(

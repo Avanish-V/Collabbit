@@ -8,9 +8,11 @@ import com.iota.campusX.Feature.Reply.data.remote.request.ReplyRequest
 import com.iota.campusX.Feature.Reply.data.remote.response.ReplyResponse
 import com.iota.campusX.Feature.Reply.domain.repository.ReplyRepository
 import com.iota.campusX.Utils.UiState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class ReplyViewModel(private val replyRepository: ReplyRepository) : ViewModel() {
@@ -35,6 +37,9 @@ class ReplyViewModel(private val replyRepository: ReplyRepository) : ViewModel()
     private val _pickedImage = MutableStateFlow<Uri?>(null)
     val pickedImage: StateFlow<Uri?> = _pickedImage.asStateFlow()
 
+    private var repliesJob: Job? = null
+    private val childJobs = mutableMapOf<String, Job>()
+
     fun onReplyTextChange(text: String) {
         _replyText.value = text
     }
@@ -49,11 +54,7 @@ class ReplyViewModel(private val replyRepository: ReplyRepository) : ViewModel()
             val result = replyRepository.createReply(replyRequest, feedId, _pickedImage.value)
             _createReplyState.value = result.fold(
                 onSuccess = { newReply ->
-                    if (newReply.parentReplyId != null) {
-                        fetchChildReplies(newReply.parentReplyId)
-                    } else {
-                        fetchPostReplies(feedId)
-                    }
+                    // Room will automatically trigger update if we are observing
                     _replyText.value = ""
                     _pickedImage.value = null
                     UiState.Success(newReply)
@@ -64,23 +65,40 @@ class ReplyViewModel(private val replyRepository: ReplyRepository) : ViewModel()
     }
 
     fun fetchPostReplies(feedId: String) {
-        viewModelScope.launch {
+        repliesJob?.cancel()
+        repliesJob = viewModelScope.launch {
             _postReplies.value = UiState.Loading
+            
+            // Observe Room for real-time updates (Optimistic updates will reflect here)
+            replyRepository.observeReplies(feedId).collectLatest { replies ->
+                _postReplies.value = UiState.Success(replies)
+            }
+        }
+
+        // Refresh from network
+        viewModelScope.launch {
             val result = replyRepository.getReplies(feedId)
-            _postReplies.value = result.fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error(it.message ?: "Failed to fetch replies") }
-            )
+            if (result.isFailure && _postReplies.value !is UiState.Success) {
+                _postReplies.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch replies")
+            }
         }
     }
 
     fun fetchChildReplies(parentId: String) {
-        viewModelScope.launch {
+        childJobs[parentId]?.cancel()
+        childJobs[parentId] = viewModelScope.launch {
             _childLoadingStates.value = _childLoadingStates.value + (parentId to true)
+            
+            // Observe Room for child replies
+            launch {
+                replyRepository.observeChildReplies(parentId).collectLatest { children ->
+                    _childReplies.value = _childReplies.value + (parentId to children)
+                }
+            }
+
+            // Fetch from network
             val result = replyRepository.getChildReplies(parentId)
-            result.onSuccess { children ->
-                _childReplies.value = _childReplies.value + (parentId to children)
-            }.onFailure {
+            result.onFailure {
                 Log.e("ReplyVM", "Failed to fetch child replies: ${it.message}")
             }
             _childLoadingStates.value = _childLoadingStates.value - parentId
@@ -89,78 +107,34 @@ class ReplyViewModel(private val replyRepository: ReplyRepository) : ViewModel()
 
     fun toggleReplyLike(repliedById: String, replyId: String, currentLiked: Boolean) {
         viewModelScope.launch {
-            val targetLiked = !currentLiked
-            
-            // Optimistic UI update
-            updateLikeStateLocally(replyId, targetLiked)
-
+            // Note: Optimistic update logic moved to Repository (Room level)
             val result = replyRepository.likeReply(
                 repliedById = repliedById,
-                postId = "", // Not needed by backend if replyId is unique
+                postId = "", 
                 replyId = replyId,
-                isLiked = targetLiked
+                isLiked = !currentLiked
             )
 
             result.onFailure {
-                // Rollback on failure
-                updateLikeStateLocally(replyId, currentLiked)
+                Log.e("ReplyVM", "Like failed: ${it.message}")
             }
         }
-    }
-
-    private fun updateLikeStateLocally(replyId: String, isLiked: Boolean) {
-        val diff = if (isLiked) 1 else -1
-
-        // Update top-level replies
-        val currentTop = _postReplies.value
-        if (currentTop is UiState.Success) {
-            val updated = currentTop.data.map {
-                if (it.id == replyId) {
-                    it.copy(isLiked = isLiked, likesCount = maxOf(0, it.likesCount + diff))
-                } else it
-            }
-            _postReplies.value = UiState.Success(updated)
-        }
-
-        // Update child replies
-        val currentChildren = _childReplies.value
-        val newChildren = currentChildren.mapValues { (_, list) ->
-            list.map {
-                if (it.id == replyId) {
-                    it.copy(isLiked = isLiked, likesCount = maxOf(0, it.likesCount + diff))
-                } else it
-            }
-        }
-        _childReplies.value = newChildren
     }
 
     fun deleteReply(replyId: String) {
         viewModelScope.launch {
-            // Optimistic update
-            removeReplyLocally(replyId)
-
+            // Note: Optimistic update logic moved to Repository (Room level)
             val result = replyRepository.deleteReply("", replyId)
             result.onFailure {
-                // Should probably re-fetch instead of complex rollback
                 Log.e("ReplyVM", "Delete failed: ${it.message}")
             }
         }
     }
 
-    private fun removeReplyLocally(replyId: String) {
-        // Remove from top-level
-        val currentTop = _postReplies.value
-        if (currentTop is UiState.Success) {
-            _postReplies.value = UiState.Success(currentTop.data.filter { it.id != replyId })
-        }
-
-        // Remove from children
-        _childReplies.value = _childReplies.value.mapValues { (_, list) ->
-            list.filter { it.id != replyId }
-        }
-    }
-
     fun clearPostReplies() {
+        repliesJob?.cancel()
+        childJobs.values.forEach { it.cancel() }
+        childJobs.clear()
         _postReplies.value = UiState.Idle
         _childReplies.value = emptyMap()
     }

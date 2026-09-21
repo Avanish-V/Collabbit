@@ -1,9 +1,7 @@
 package com.iota.campusX.Feature.Post.presentation.feedmenu
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 class MenuController {
@@ -14,8 +12,12 @@ class MenuController {
     var dialogContext by mutableStateOf<MenuContext?>(null)
         private set
 
-    fun show(context: MenuContext) {
+    var options by mutableStateOf<List<MenuItem>>(emptyList())
+        private set
+
+    fun show(context: MenuContext, options: List<MenuItem>) {
         this.context = context
+        this.options = options
     }
 
     fun showDialog(context: MenuContext){
@@ -30,9 +32,4 @@ class MenuController {
         context = null
     }
 
-}
-
-@Composable
-fun rememberMenuController() = remember {
-    MenuController()
 }

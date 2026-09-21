@@ -14,7 +14,7 @@ import com.iota.campusX.Feature.Notificattion.data.local.entity.NotificationSync
         NotificationEntity::class,
         NotificationSyncEntity::class
     ],
-    version = 4,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(NotificationConverters::class)

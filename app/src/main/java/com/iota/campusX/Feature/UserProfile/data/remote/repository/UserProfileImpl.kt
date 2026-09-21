@@ -8,6 +8,8 @@ import com.iota.campusX.Feature.UserProfile.data.local.dao.UserProfileDao
 import com.iota.campusX.Feature.UserProfile.data.local.mapper.toDomain
 import com.iota.campusX.Feature.UserProfile.data.local.mapper.toEntity
 import com.iota.campusX.Feature.UserProfile.data.remote.Request.BasicDetailsRequest
+import com.iota.campusX.Feature.UserProfile.data.remote.Request.UpdateMatchPreferencesRequest
+import com.iota.campusX.Feature.UserProfile.data.remote.response.MatchPreferenceResponse
 import com.iota.campusX.Feature.UserProfile.data.remote.response.ProfileResponse
 import com.iota.campusX.Feature.UserProfile.data.remote.response.SkillResponse
 import com.iota.campusX.Feature.UserProfile.domain.Model.Education
@@ -16,6 +18,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -42,13 +45,14 @@ class UserProfileImpl(
 
     }
 
-    override suspend fun syncUserProfile(): Result<ProfileResponse> {
+    override suspend fun syncUserProfile(force: Boolean): Result<ProfileResponse> {
         return try {
             val response = httpClient.get("users/me")
 
             if (response.status.value in 200..299){
                 val profile = response.body<ProfileResponse>()
-                userProfileDao.insertProfile(profile.toEntity())
+                userProfileDao.insertProfile(profile.toEntity(), force = force)
+                userCache[profile.uid] = profile
                 Result.success(profile)
             }
             else{
@@ -110,6 +114,23 @@ class UserProfileImpl(
         }
     }
 
+    override suspend fun updateOpenTo(openTo: List<String>): Result<Boolean> {
+        return try {
+            val response = httpClient.patch("users/me/open-to") {
+                setBody(openTo)
+                contentType(ContentType.Application.Json)
+            }
+            if (response.status.value in 200..299) {
+                syncUserProfile()
+                Result.success(true)
+            } else {
+                Result.failure(Exception("Failed to update open-to: ${response.status}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun updateSummary(summary: String): Result<Boolean> {
         try {
             val response = httpClient.patch("users/me/summary") {
@@ -157,6 +178,7 @@ class UserProfileImpl(
             }
 
             if (response.status.value in 200..299){
+                syncUserProfile()
                 Result.success(Unit)
             }
             else{
@@ -189,4 +211,45 @@ class UserProfileImpl(
 
     }
 
+    override suspend fun getMatchPreferences(): Result<List<MatchPreferenceResponse>> {
+        return try {
+            val response = httpClient.get("users/match-preferences")
+            if (response.status.value in 200..299) {
+                Result.success(response.body())
+            } else {
+                Result.failure(Exception("Failed to fetch preferences: ${response.status}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateMatchPreferences(preferenceIds: List<Long>): Result<List<MatchPreferenceResponse>> {
+        return try {
+            val response = httpClient.put("users/me/match-preferences") {
+                setBody(UpdateMatchPreferencesRequest(preferenceIds))
+                contentType(ContentType.Application.Json)
+            }
+            if (response.status.value in 200..299) {
+                Result.success(response.body())
+            } else {
+                Result.failure(Exception("Failed to update preferences: ${response.status}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getUserMatchPreferences(): Result<List<MatchPreferenceResponse>> {
+        return try {
+            val response = httpClient.get("users/me/match-preferences")
+            if (response.status.value in 200..299) {
+                Result.success(response.body())
+            } else {
+                Result.failure(Exception("Failed to fetch user preferences: ${response.status}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
