@@ -57,6 +57,11 @@ class ReplyViewModel(private val replyRepository: ReplyRepository) : ViewModel()
                     // Room will automatically trigger update if we are observing
                     _replyText.value = ""
                     _pickedImage.value = null
+                    
+                    if (!newReply.parentReplyId.isNullOrEmpty()) {
+                        fetchChildReplies(newReply.parentReplyId)
+                    }
+
                     UiState.Success(newReply)
                 },
                 onFailure = { UiState.Error(it.message ?: "Failed to create reply") }

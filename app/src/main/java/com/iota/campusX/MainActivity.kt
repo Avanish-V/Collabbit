@@ -1,6 +1,7 @@
 package com.iota.campusX
 
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,19 +27,29 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
@@ -48,8 +59,7 @@ import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.firebase.messaging.FirebaseMessaging
-import androidx.navigation.navDeepLink
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleSignInViewModel
+import com.iota.campusX.Feature.Auth.presentation.GoogleSignInViewModel
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Feature.Chats.presentation.ui.ChatScreen
 import com.iota.campusX.Feature.Chats.presentation.ui.SendMessageScreen
@@ -69,15 +79,15 @@ import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuActionViewModel
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuBottomSheet
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuController
 import com.iota.campusX.Feature.Post.presentation.feedmenu.MenuItem
+import com.iota.campusX.Feature.Society.presentation.SocietyChatScreen
+import com.iota.campusX.Feature.Society.presentation.SocietyHubScreen
+import com.iota.campusX.Feature.Society.presentation.SocietyInfoScreen
 import com.iota.campusX.Feature.UserProfile.domain.useCases.UpdateFcmTokenUseCase
 import com.iota.campusX.Feature.UserProfile.presentation.AuraViewModel
 import com.iota.campusX.Feature.UserProfile.presentation.CheckInEvent
 import com.iota.campusX.Feature.UserProfile.ui.Components.AlreadyClaimedDialog
 import com.iota.campusX.Feature.UserProfile.ui.Components.DailyAuraCheckInDialog
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditEvents.EditProfileScreen
-import com.iota.campusX.Feature.Society.presentation.SocietyScreen
-import com.iota.campusX.Feature.Society.presentation.SocietyChatScreen
-import com.iota.campusX.Feature.Society.presentation.SocietyInfoScreen
 import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.AppUserProfile
 import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.UserProfileViewModel
 import com.iota.campusX.Navigation.AuthGraph
@@ -92,6 +102,7 @@ import com.iota.campusX.Navigation.CourseDetail
 import com.iota.campusX.Navigation.Courses
 import com.iota.campusX.Navigation.CreateCollab
 import com.iota.campusX.Navigation.CreatePost
+import com.iota.campusX.Navigation.CreateProfile
 import com.iota.campusX.Navigation.EditPost
 import com.iota.campusX.Navigation.EditProfile
 import com.iota.campusX.Navigation.Home
@@ -100,10 +111,10 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.Navigation.Notification
 import com.iota.campusX.Navigation.Opportunities
 import com.iota.campusX.Navigation.OpportunityDetail
-import com.iota.campusX.Navigation.PostView
-import com.iota.campusX.Navigation.VideoView
 import com.iota.campusX.Navigation.PdfView
+import com.iota.campusX.Navigation.PostView
 import com.iota.campusX.Navigation.Profile
+import com.iota.campusX.Navigation.Register
 import com.iota.campusX.Navigation.ReplyPost
 import com.iota.campusX.Navigation.SendMessage
 import com.iota.campusX.Navigation.Setting
@@ -111,22 +122,17 @@ import com.iota.campusX.Navigation.SignIn
 import com.iota.campusX.Navigation.Society
 import com.iota.campusX.Navigation.SocietyHub
 import com.iota.campusX.Navigation.SocietyInfo
-import com.iota.campusX.Navigation.ViewProfile
-import com.iota.campusX.Feature.Society.presentation.SocietyHubScreen
-import com.iota.campusX.Feature.Society.presentation.SocietyScreen
-import androidx.navigation.NavDestination.Companion.hasRoute
-import com.iota.campusX.Navigation.Register
-import com.iota.campusX.Navigation.CreateProfile
 import com.iota.campusX.Navigation.Verification
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.iota.campusX.Navigation.VideoView
+import com.iota.campusX.Navigation.ViewProfile
 import com.iota.campusX.Navigation.navScreen
 import com.iota.campusX.Navigation.shouldShowBottomBar
 import com.iota.campusX.NetworkMonitor.ConnectivityUiState
 import com.iota.campusX.NetworkMonitor.ConnectivityViewModel
 import com.iota.campusX.Screens.Home.MainScreen
+import com.iota.campusX.Screens.Home.PdfViewScreen
 import com.iota.campusX.Screens.Home.PostViewScreen
 import com.iota.campusX.Screens.Home.VideoViewScreen
-import com.iota.campusX.Screens.Home.PdfViewScreen
 import com.iota.campusX.Screens.Register.SignInScreen
 import com.iota.campusX.Screens.Setting.SettingScreen
 import com.iota.campusX.Screens.ShowcaseScreen
@@ -140,10 +146,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.get
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import org.koin.core.component.KoinComponent
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), KoinComponent {
 
     private lateinit var activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>
     private lateinit var appUpdateManager: AppUpdateManager
@@ -157,6 +165,9 @@ class MainActivity : ComponentActivity() {
         actionBar?.hide()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
+        val authViewModel: GoogleSignInViewModel = get()
+        handleIncomingIntent(intent, authViewModel)
+
         checkForUpdate()
         
         enableEdgeToEdge(
@@ -235,9 +246,18 @@ class MainActivity : ComponentActivity() {
                             launchSingleTop = true
                         }
                     } else if (isLoggedIn == true && isAuthRoute) {
-                        navHostController.navigate(Home()) {
-                            popUpTo(navHostController.graph.id) { inclusive = true }
-                            launchSingleTop = true
+                        val pendingUri = authViewModel.pendingDeepLink.value
+                        if (pendingUri != null) {
+                            authViewModel.clearPendingDeepLink()
+                            navHostController.navigate(pendingUri) {
+                                popUpTo(navHostController.graph.id) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        } else {
+                            navHostController.navigate(Home()) {
+                                popUpTo(navHostController.graph.id) { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
                     }
                 }
@@ -301,6 +321,8 @@ class MainActivity : ComponentActivity() {
                                     navDeepLink { uriPattern = "https://www.campuscircle.in/post/{postId}/" },
                                     navDeepLink { uriPattern = "https://campuscircle.in/post/{postId}" },
                                     navDeepLink { uriPattern = "https://campuscircle.in/post/{postId}/" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/post/{postId}" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/post/{postId}/" },
                                     navDeepLink { uriPattern = "https://collabbit.in/post/{postId}" },
                                     navDeepLink { uriPattern = "https://collabbit.in/post/{postId}/" },
                                     navDeepLink { uriPattern = "finder://post/{postId}" }
@@ -311,8 +333,6 @@ class MainActivity : ComponentActivity() {
                                 MainScreen(
                                     navHostController,
                                     profileViewModel = koinInject(),
-                                    menuController = menuController,
-                                    menuActionViewModel = menuActionViewModel,
                                     notificationViewModel = notificationViewModel,
                                     targetPostId = args.postId
                                 )
@@ -358,13 +378,11 @@ class MainActivity : ComponentActivity() {
 
                             navScreen<CommunityChat>(
                                 deepLinks = listOf(
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/society/{id}" },
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/society/{id}/" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/society/{id}" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/society/{id}/" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/society/{id}" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/society/{id}/" },
-                                    navDeepLink { uriPattern = "finder://society/{id}" }
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/chat/{id}" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/chat/{id}" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/chat/{id}" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/chat/{id}" },
+                                    navDeepLink { uriPattern = "finder://chat/{id}" }
                                 )
                             ) { backStackEntry ->
                                 val args = backStackEntry.toRoute<CommunityChat>()
@@ -473,6 +491,8 @@ class MainActivity : ComponentActivity() {
                                     navDeepLink { uriPattern = "https://www.campuscircle.in/opportunity/{opportunityId}/" },
                                     navDeepLink { uriPattern = "https://campuscircle.in/opportunity/{opportunityId}" },
                                     navDeepLink { uriPattern = "https://campuscircle.in/opportunity/{opportunityId}/" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/opportunity/{opportunityId}" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/opportunity/{opportunityId}/" },
                                     navDeepLink { uriPattern = "https://collabbit.in/opportunity/{opportunityId}" },
                                     navDeepLink { uriPattern = "https://collabbit.in/opportunity/{opportunityId}/" },
                                     navDeepLink { uriPattern = "finder://opportunity/{opportunityId}" }
@@ -495,8 +515,12 @@ class MainActivity : ComponentActivity() {
                                     navDeepLink { uriPattern = "https://www.campuscircle.in/course/{courseId}/" },
                                     navDeepLink { uriPattern = "https://campuscircle.in/course/{courseId}" },
                                     navDeepLink { uriPattern = "https://campuscircle.in/course/{courseId}/" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/course/{courseId}" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/course/{courseId}/" },
                                     navDeepLink { uriPattern = "https://collabbit.in/course/{courseId}" },
                                     navDeepLink { uriPattern = "https://collabbit.in/course/{courseId}/" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/session/{courseId}" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/session/{courseId}/" },
                                     navDeepLink { uriPattern = "https://collabbit.in/session/{courseId}" },
                                     navDeepLink { uriPattern = "https://collabbit.in/session/{courseId}/" },
                                     navDeepLink { uriPattern = "finder://course/{courseId}" }
@@ -517,9 +541,9 @@ class MainActivity : ComponentActivity() {
                                 SocietyHubScreen(navHostController = navHostController)
                             }
 
-                            composable<Society> {
-                                SocietyScreen(navHostController = navHostController)
-                            }
+//                            composable<Society> {
+//                                SocietyScreen(navHostController = navHostController)
+//                            }
 
                             composable<Connection> {
                                 ShowcaseScreen(
@@ -545,11 +569,24 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            navScreen<SocietyInfo> { backStackEntry ->
+                            navScreen<SocietyInfo>(
+                                deepLinks = listOf(
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/society/{id}" },
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/society/{id}/" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/society/{id}" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/society/{id}/" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/society/{id}" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/society/{id}/" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/society/{id}" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/society/{id}/" },
+                                    navDeepLink { uriPattern = "finder://society/{id}" }
+                                )
+                            ) { backStackEntry ->
                                 val args = backStackEntry.toRoute<SocietyInfo>()
                                 SocietyInfoScreen(
                                     societyId = args.id,
                                     openJoinSheet = args.openJoinSheet,
+                                    fromChat = args.fromChat,
                                     navHostController = navHostController
                                 )
                             }
@@ -692,6 +729,25 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val authViewModel: GoogleSignInViewModel = get()
+        handleIncomingIntent(intent, authViewModel)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?, authViewModel: GoogleSignInViewModel) {
+        if (intent == null) return
+        val deepLinkUri = intent.data
+        if (deepLinkUri != null) {
+            if (!authViewModel.getCurrentUser()) {
+                authViewModel.setPendingDeepLink(deepLinkUri)
+                intent.data = null
+                intent.action = null
+            }
+        }
     }
 
     private fun checkForUpdate() {

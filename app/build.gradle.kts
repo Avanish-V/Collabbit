@@ -167,6 +167,9 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
 
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
+
     implementation(libs.androidx.lifecycle.runtime.ktx)
     
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -183,6 +186,8 @@ dependencies {
     // =========================================================
 
     implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    debugImplementation(platform(libs.androidx.compose.bom))
 
     implementation(libs.androidx.compose.runtime)
 
@@ -194,7 +199,7 @@ dependencies {
 
     implementation(libs.androidx.material3)
 
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.material.icons.extended)
 
     implementation(libs.androidx.foundation)
 
@@ -390,8 +395,13 @@ dependencies {
     // =========================================================
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
 
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 
     androidTestImplementation(
         libs.androidx.espresso.core

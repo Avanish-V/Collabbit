@@ -45,8 +45,9 @@ import kotlinx.coroutines.launch
 fun SocietyInfoScreen(
     societyId: String,
     openJoinSheet: Boolean = false,
+    fromChat: Boolean = false,
     navHostController: NavHostController,
-    viewModel: SocietyViewModel = koinInject()
+    viewModel: SocietyInfoViewModel = koinInject()
 ) {
     val allCommunities by viewModel.allCommunities.collectAsStateWithLifecycle()
     val societyFromList = allCommunities.find { it.id == societyId }
@@ -79,6 +80,15 @@ fun SocietyInfoScreen(
     LaunchedEffect(openJoinSheet, isJoined) {
         if (openJoinSheet && !isJoined) {
             showJoinSheet = true
+        }
+    }
+
+    LaunchedEffect(society, isJoined, isOwner, openJoinSheet, fromChat) {
+        if (society != null && (isJoined || isOwner) && !openJoinSheet && !fromChat) {
+            navHostController.navigate(CommunityChat(id = societyId)) {
+                popUpTo<SocietyInfo> { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 
@@ -134,24 +144,40 @@ fun SocietyInfoScreen(
             )
         },
         bottomBar = {
-            if (society != null && !isOwner && !isJoined) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+            if (society != null) {
+                BottomAppBar(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    containerColor = Color.Transparent
                 ) {
-                    Button(
-                        onClick = { viewModel.joinCommunity(society) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = CircleShape,
-                        enabled = joinState !is SocietyUiState.Loading
-                    ) {
-                        if (joinState is SocietyUiState.Loading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                        } else {
-                            Text("Join Society", fontWeight = FontWeight.Bold)
+                    if (isOwner || isJoined) {
+                        Button(
+                            onClick = {
+                                navHostController.navigate(CommunityChat(id = societyId)) {
+                                    popUpTo<SocietyInfo> { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = CircleShape
+                        ) {
+                            Text("Open Chat", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Button(
+                            onClick = { viewModel.joinCommunity(society) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = CircleShape,
+                            enabled = joinState !is SocietyUiState.Loading
+                        ) {
+                            if (joinState is SocietyUiState.Loading) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                            } else {
+                                Text("Join Society", fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

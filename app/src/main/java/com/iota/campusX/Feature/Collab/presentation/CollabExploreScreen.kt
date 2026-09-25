@@ -55,7 +55,7 @@ import com.iota.campusX.Navigation.CollabDetail
 import com.iota.campusX.Navigation.HideBottomBar
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Home.RefreshBox
+import com.iota.campusX.ui.UIComponents.RefreshBox
 import com.iota.campusX.ui.UIComponents.AppTabRow
 import com.iota.campusX.ui.UIComponents.ErrorScreen
 import com.iota.campusX.ui.UIComponents.FeedUI.Avatar

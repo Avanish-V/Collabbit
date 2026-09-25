@@ -31,9 +31,9 @@ import com.iota.campusX.Feature.Post.presentation.components.FeedItem
 import com.iota.campusX.Feature.Post.presentation.components.FeedShimmerItem
 import com.iota.campusX.Feature.Post.presentation.components.PostAction
 import com.iota.campusX.R
-import com.iota.campusX.Screens.Home.PagingListFooter
-import com.iota.campusX.Screens.Home.PagingListHeader
-import com.iota.campusX.Screens.Home.RefreshBox
+import com.iota.campusX.ui.UIComponents.PagingListFooter
+import com.iota.campusX.ui.UIComponents.PagingListHeader
+import com.iota.campusX.ui.UIComponents.RefreshBox
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.vibrate
 import kotlinx.coroutines.launch

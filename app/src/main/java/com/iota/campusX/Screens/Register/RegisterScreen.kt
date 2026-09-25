@@ -47,11 +47,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.AuthResult
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleSignInViewModel
-import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.CustomSegmentedProgressBar
-import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardingContent
-import com.iota.campusX.Authentication.GoogleAuthentication.Onboarding.OnBoardingScreen
+import com.iota.campusX.Feature.Auth.presentation.GoogleSignInViewModel
+import com.iota.campusX.Feature.Auth.presentation.model.AuthResult
+import com.iota.campusX.Feature.Auth.presentation.ui.CustomSegmentedProgressBar
+import com.iota.campusX.Feature.Auth.presentation.ui.OnBoardingContent
+import com.iota.campusX.Feature.Auth.presentation.ui.OnBoardingScreen
+import com.iota.campusX.Navigation.AuthGraph
 import com.iota.campusX.Navigation.Home
 import com.iota.campusX.R
 import com.iota.campusX.Utils.CircularLoading
@@ -100,6 +101,30 @@ fun SignInScreen(navHostController: NavHostController) {
         pageCount = {onboardingList.count()}
     )
     val snackBarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(authState.value) {
+        when (val state = authState.value) {
+            is AuthResult.SignedIn -> {
+                val pendingUri = googleSignInViewModel.pendingDeepLink.value
+                if (pendingUri != null) {
+                    googleSignInViewModel.clearPendingDeepLink()
+                    navHostController.navigate(pendingUri) {
+                        popUpTo<AuthGraph> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                } else {
+                    navHostController.navigate(Home()) {
+                        popUpTo<AuthGraph> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+            is AuthResult.Error -> {
+                snackBarHostState.showSnackbar(state.message)
+            }
+            else -> {}
+        }
+    }
 
     Scaffold(
         snackbarHost = {
@@ -180,11 +205,11 @@ fun SignInScreen(navHostController: NavHostController) {
                                 CircularLoading(Color.White)
                             }
                             is AuthResult.SignedIn -> {
-                                navHostController.navigate(Home())
+                                CircularLoading(Color.White)
                             }
                             is AuthResult.Error -> {
                                 LoginButtonText()
-                                LaunchedEffect(Unit) {
+                                LaunchedEffect(value) {
                                     snackBarHostState.showSnackbar(value.message)
                                 }
                             }

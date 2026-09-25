@@ -48,7 +48,11 @@ data object ChatList : Route
 data class CommunityChat(val id: String) : Route
 
 @Serializable
-data class SocietyInfo(val id: String, val openJoinSheet: Boolean = false) : Route
+data class SocietyInfo(
+    val id: String,
+    val openJoinSheet: Boolean = false,
+    val fromChat: Boolean = false
+) : Route
 
 @Serializable
 data class SendMessage(

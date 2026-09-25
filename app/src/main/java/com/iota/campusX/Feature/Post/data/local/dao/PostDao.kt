@@ -43,6 +43,12 @@ interface PostDao {
     @Query("UPDATE posts SET isLiked = :isLiked, likeCount = :likeCount WHERE postId = :postId")
     suspend fun updateLikeStatus(postId: String, isLiked: Boolean, likeCount: Int)
 
+    @Query("UPDATE posts SET commentCount = commentCount + 1 WHERE postId = :postId")
+    suspend fun incrementCommentCount(postId: String)
+
+    @Query("UPDATE posts SET commentCount = MAX(0, commentCount - 1) WHERE postId = :postId")
+    suspend fun decrementCommentCount(postId: String)
+
     @Query("DELETE FROM posts")
     suspend fun clear()
 

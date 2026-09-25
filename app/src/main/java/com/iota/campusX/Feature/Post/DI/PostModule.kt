@@ -50,7 +50,8 @@ val postModule = module {
         ReplyRepoImpl( 
             httpClient = get(), 
             s3Uploader = get(),
-            replyDao = get()
+            replyDao = get(),
+            postDao = get<CampusDatabase>().postDao()
         ) 
     }
 

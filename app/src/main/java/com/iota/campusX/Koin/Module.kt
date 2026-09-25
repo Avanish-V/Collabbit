@@ -1,16 +1,20 @@
 package com.iota.campusX.Koin
 
 
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.VerifyUserRepoImpl
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.CredentialAuthDataSource
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.GoogleSignInViewModel
-import com.iota.campusX.Authentication.GoogleAuthentication.GoogleAuthentication.VerifyUserRepository
+import com.iota.campusX.Feature.Auth.data.datasource.AuthCredentialDataSource
+import com.iota.campusX.Feature.Auth.data.datasource.CredentialAuthDataSourceImpl
+import com.iota.campusX.Feature.Auth.data.repository.AuthRepositoryImpl
+import com.iota.campusX.Feature.Auth.domain.repository.AuthRepository
+import com.iota.campusX.Feature.Auth.domain.usecase.CheckAuthStateUseCase
+import com.iota.campusX.Feature.Auth.domain.usecase.SignInWithGoogleUseCase
+import com.iota.campusX.Feature.Auth.domain.usecase.SignOutUseCase
+import com.iota.campusX.Feature.Auth.presentation.GoogleSignInViewModel
 import com.iota.campusX.Feature.Chats.data.ChatImpl
 
 import com.iota.campusX.Feature.Chats.domain.ChatRepository
@@ -48,15 +52,13 @@ import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import com.iota.campusX.Feature.Post.data.remote.S3Uploader
-import com.iota.campusX.Feature.Society.presentation.SocietyViewModel
+import com.iota.campusX.Feature.Society.presentation.*
 import org.koin.dsl.module
 import com.iota.campusX.Feature.Society.data.local.SocietyDatabase
 import com.iota.campusX.Feature.Society.data.remote.FirestoreCommunityDataSource
 import com.iota.campusX.Feature.Society.data.repository.CommunityRepositoryImpl
 import com.iota.campusX.Feature.Society.domain.repository.CommunityRepository
-import com.iota.campusX.Feature.Society.domain.usecase.CreateCommunityUseCase
-import com.iota.campusX.Feature.Society.domain.usecase.GetCommunitiesUseCase
-import com.iota.campusX.Feature.Society.domain.usecase.JoinCommunityUseCase
+import com.iota.campusX.Feature.Society.domain.usecase.*
 
 
 val coreModule = module {
@@ -126,15 +128,28 @@ val coreModule = module {
 }
 
 val authModule = module {
-    single<VerifyUserRepository> { VerifyUserRepoImpl( firebaseAuth = get(), httpClint = get(),get()) }
-    single { CredentialAuthDataSource(context = get()) }
-    viewModel { GoogleSignInViewModel(
-        dataSource = get(),
-        verifyUserRepository = get(),
-        chatDatabase = get<ChatDatabase>(),
-        campusDatabase = get<CampusDatabase>(),
-        appDatabase = get<AppDatabase>()
-    ) }
+    single<AuthCredentialDataSource> { CredentialAuthDataSourceImpl(context = androidContext()) }
+    single<AuthRepository> {
+        AuthRepositoryImpl(
+            dataSource = get(),
+            firebaseAuth = get(),
+            httpClient = get(),
+            userProfileDao = get<AppDatabase>().userProfileDao(),
+            chatDatabase = get<ChatDatabase>(),
+            campusDatabase = get<CampusDatabase>(),
+            appDatabase = get<AppDatabase>()
+        )
+    }
+    factory { SignInWithGoogleUseCase(repository = get()) }
+    factory { SignOutUseCase(repository = get()) }
+    factory { CheckAuthStateUseCase(repository = get()) }
+    viewModel {
+        GoogleSignInViewModel(
+            signInWithGoogleUseCase = get(),
+            signOutUseCase = get(),
+            checkAuthStateUseCase = get()
+        )
+    }
 }
 
 val replyModule = module {
@@ -191,7 +206,18 @@ val societyModule = module {
     factory { CreateCommunityUseCase(get()) }
     factory { GetCommunitiesUseCase(get()) }
     factory { JoinCommunityUseCase(get()) }
+    factory { GetCurrentUserIdUseCase(get()) }
+    factory { UpdateCommunityUseCase(get()) }
+    factory { LeaveCommunityUseCase(get()) }
+    factory { DeleteCommunityUseCase(get()) }
+    factory { ListenToMessagesUseCase(get()) }
+    factory { SendSocietyMessageUseCase(get()) }
+    factory { MessageOperationsUseCase(get()) }
+    factory { PresenceUseCase(get()) }
+    factory { ResolveUserUseCase(get()) }
 
-    viewModel { SocietyViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { SocietyHubViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { SocietyChatViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { SocietyInfoViewModel(get(), get(), get(), get(), get(), get(), get()) }
 }
 

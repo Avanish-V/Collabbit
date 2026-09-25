@@ -104,24 +104,14 @@ import java.util.*
 fun SocietyChatScreen(
     societyId: String,
     navHostController: NavHostController,
-    viewModel: SocietyViewModel = koinInject()
+    viewModel: SocietyChatViewModel = koinInject()
 ) {
     val society by viewModel.listenToCommunity(societyId).collectAsStateWithLifecycle(initialValue = null)
     val joinedCommunities by viewModel.joinedCommunities.collectAsStateWithLifecycle()
     val isJoined = joinedCommunities.any { it.id == societyId }
     val isMembershipResolved by viewModel.isMembershipResolved.collectAsStateWithLifecycle()
-    
-    val currentUserId = viewModel.currentUserId
-    if (currentUserId == null) return
 
-    LaunchedEffect(isMembershipResolved, isJoined) {
-        if (isMembershipResolved && !isJoined) {
-            navHostController.navigate(SocietyInfo(id = societyId, openJoinSheet = true)) {
-                popUpTo<CommunityChat> { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-    }
+    val currentUserId = viewModel.currentUserId ?: return
 
     var messageText by remember { mutableStateOf("") }
     var replyingTo by remember { mutableStateOf<SocietyMessage?>(null) }
@@ -351,7 +341,7 @@ fun SocietyChatScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.clickable { 
-                            navHostController.navigate(SocietyInfo(id = societyId))
+                            navHostController.navigate(SocietyInfo(id = societyId, fromChat = true))
                         }
                     ) {
                         Box(
@@ -794,7 +784,7 @@ fun SocietyChatScreen(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(
-                        onClick = { navHostController.navigate(SocietyInfo(id = societyId)) },
+                        onClick = { navHostController.navigate(SocietyInfo(id = societyId, fromChat = true)) },
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("View Society Details")

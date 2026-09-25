@@ -3,8 +3,11 @@ package com.iota.campusX.Koin
 import com.google.firebase.auth.FirebaseAuth
 
 object AppConstants {
+    // Auth Constants
+    const val GOOGLE_SERVER_CLIENT_ID = "221935776129-3v2hk85tbrg9nknpe1oknddqrirc8fvn.apps.googleusercontent.com"
+
     // Current Environment
-     const val IS_PRODUCTION = false
+     const val IS_PRODUCTION = true
 
     // API Base URLs
     val BASE_URL = if (IS_PRODUCTION) {

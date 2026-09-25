@@ -2,6 +2,7 @@ package com.iota.campusX.Feature.Reply.data.remote.repository
 
 import android.net.Uri
 import android.util.Log
+import com.iota.campusX.Feature.Post.data.local.dao.PostDao
 import com.iota.campusX.Feature.Post.data.remote.S3Uploader
 import com.iota.campusX.Feature.Reply.data.local.dao.ReplyDao
 import com.iota.campusX.Feature.Reply.data.local.mapper.toEntity
@@ -26,7 +27,8 @@ import kotlinx.coroutines.flow.map
 class ReplyRepoImpl(
     private val httpClient: HttpClient,
     private val s3Uploader: S3Uploader,
-    private val replyDao: ReplyDao
+    private val replyDao: ReplyDao,
+    private val postDao: PostDao
 ) : ReplyRepository {
 
     override suspend fun createReply(replyRequest: ReplyRequest, feedId: String, uploadImage: Uri?): Result<ReplyResponse> {
@@ -42,6 +44,9 @@ class ReplyRepoImpl(
                 Log.d("ReplyRepo", "Image uploaded successfully: $imageUrl")
             }
 
+            // Optimistic update of comment count
+            postDao.incrementCommentCount(feedId)
+
             val response = httpClient.post("feed/$feedId/replies") {
                 setBody(updatedRequest)
                 contentType(ContentType.Application.Json)
@@ -52,6 +57,9 @@ class ReplyRepoImpl(
                 replyDao.insertReply(reply.toEntity(feedId))
                 Result.success(reply)
             } else {
+                // Rollback comment count on failure
+                postDao.decrementCommentCount(feedId)
+
                 val errorMsg = when (response.status.value) {
                     401 -> "Unauthorized: Please sign in again."
                     403 -> "Forbidden: Permission denied."
@@ -62,6 +70,9 @@ class ReplyRepoImpl(
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            // Rollback comment count on exception
+            postDao.decrementCommentCount(feedId)
+
             Log.e("ReplyRepo", "Network error creating reply: ${e.message}")
             Result.failure(e)
         }

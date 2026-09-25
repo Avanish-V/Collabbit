@@ -43,6 +43,7 @@
                 <data android:scheme="https" android:host="www.campuscircle.in" android:pathPrefix="/course" />
                 <data android:scheme="https" android:host="campuscircle.in" android:pathPrefix="/course" />
                 <data android:scheme="https" android:host="collabbit.in" android:pathPrefix="/course" />
+                <data android:scheme="https" android:host="www.collabbit.in" android:pathPrefix="/course" />
             </intent-filter>
 
             <!-- Deeplink for Posts (HTTPS) -->
@@ -53,6 +54,7 @@
                 <data android:scheme="https" android:host="www.campuscircle.in" android:pathPrefix="/post" />
                 <data android:scheme="https" android:host="campuscircle.in" android:pathPrefix="/post" />
                 <data android:scheme="https" android:host="collabbit.in" android:pathPrefix="/post" />
+                <data android:scheme="https" android:host="www.collabbit.in" android:pathPrefix="/post" />
             </intent-filter>
 
             <!-- Deeplink for Opportunities (HTTPS) -->
@@ -63,6 +65,7 @@
                 <data android:scheme="https" android:host="www.campuscircle.in" android:pathPrefix="/opportunity" />
                 <data android:scheme="https" android:host="campuscircle.in" android:pathPrefix="/opportunity" />
                 <data android:scheme="https" android:host="collabbit.in" android:pathPrefix="/opportunity" />
+                <data android:scheme="https" android:host="www.collabbit.in" android:pathPrefix="/opportunity" />
             </intent-filter>
 
             <!-- Deeplink for Societies (HTTPS) -->
@@ -73,6 +76,7 @@
                 <data android:scheme="https" android:host="www.campuscircle.in" android:pathPrefix="/society" />
                 <data android:scheme="https" android:host="campuscircle.in" android:pathPrefix="/society" />
                 <data android:scheme="https" android:host="collabbit.in" android:pathPrefix="/society" />
+                <data android:scheme="https" android:host="www.collabbit.in" android:pathPrefix="/society" />
             </intent-filter>
 
             <!-- Custom Scheme fallback (reliable for app-only) -->
@@ -84,6 +88,7 @@
                 <data android:scheme="finder" android:host="post" />
                 <data android:scheme="finder" android:host="opportunity" />
                 <data android:scheme="finder" android:host="society" />
+                <data android:scheme="finder" android:host="chat" />
             </intent-filter>
 
             <!-- Deeplink for Collabbit Skills Sessions (HTTPS) -->
@@ -92,6 +97,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="collabbit.in" android:pathPrefix="/session" />
+                <data android:scheme="https" android:host="www.collabbit.in" android:pathPrefix="/session" />
             </intent-filter>
         </activity>
 
