@@ -6,6 +6,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.iota.campusX.Feature.Auth.data.datasource.AuthCredentialDataSource
+import com.iota.campusX.Feature.Auth.domain.model.AuthState
 import com.iota.campusX.Feature.Auth.domain.repository.AuthRepository
 import com.iota.campusX.Feature.Chats.data.local.ChatDatabase
 import com.iota.campusX.Feature.Post.data.local.database.CampusDatabase
@@ -35,33 +36,51 @@ class AuthRepositoryImpl(
     private val appDatabase: AppDatabase
 ) : AuthRepository {
 
-    private val _isLoggedIn = MutableStateFlow<Boolean?>(false)
-    override val isLoggedIn: StateFlow<Boolean?> = _isLoggedIn.asStateFlow()
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Unknown)
+    override val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     init {
         val firebaseUser = firebaseAuth.currentUser
         if (firebaseUser == null) {
-            _isLoggedIn.value = false
+            _authState.value = AuthState.Unauthenticated
         }
 
         firebaseAuth.addAuthStateListener { auth ->
             if (auth.currentUser == null) {
-                _isLoggedIn.value = false
+                _authState.value = AuthState.Unauthenticated
             }
         }
     }
 
-    override suspend fun checkInitialAuthState(): Boolean {
+    override suspend fun checkInitialAuthState(): AuthState {
         return withContext(Dispatchers.IO) {
             val firebaseUser = firebaseAuth.currentUser
-            if (firebaseUser != null) {
-                val profile = userProfileDao.getProfile()
-                val verified = profile != null
-                _isLoggedIn.value = verified
-                verified
-            } else {
-                _isLoggedIn.value = false
-                false
+            if (firebaseUser == null) {
+                _authState.value = AuthState.Unauthenticated
+                return@withContext AuthState.Unauthenticated
+            }
+
+            try {
+                val tokenResult = firebaseUser.getIdToken(false).await()
+                val token = tokenResult.token
+                if (token == null) {
+                    firebaseAuth.signOut()
+                    _authState.value = AuthState.Unauthenticated
+                    return@withContext AuthState.Unauthenticated
+                }
+
+                val verifyResult = verifyUserToken(token)
+                if (verifyResult.isSuccess) {
+                    AuthState.Authenticated
+                } else {
+                    firebaseAuth.signOut()
+                    _authState.value = AuthState.Unauthenticated
+                    AuthState.Unauthenticated
+                }
+            } catch (e: Exception) {
+                firebaseAuth.signOut()
+                _authState.value = AuthState.Unauthenticated
+                AuthState.Unauthenticated
             }
         }
     }
@@ -71,6 +90,7 @@ class AuthRepositoryImpl(
     }
 
     override suspend fun authenticateWithFirebase(credential: GoogleIdTokenCredential): Result<String> {
+        _authState.value = AuthState.Authenticating
         return try {
             val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
             val authResult = firebaseAuth.signInWithCredential(firebaseCredential).await()
@@ -83,11 +103,13 @@ class AuthRepositoryImpl(
 
             Result.success(firebaseIdToken)
         } catch (e: Exception) {
+            _authState.value = AuthState.Error(e.message ?: "Authentication failed")
             Result.failure(e)
         }
     }
 
     override suspend fun verifyUserToken(firebaseIdToken: String): Result<UserProfileEntity> {
+        _authState.value = AuthState.Verifying
         return try {
             val response = httpClient.get("users/me") {
                 header("Authorization", "Bearer $firebaseIdToken")
@@ -98,23 +120,23 @@ class AuthRepositoryImpl(
                     val profileDTO = response.body<ProfileResponse>()
                     val entity = profileDTO.toEntity()
                     userProfileDao.insertProfile(entity)
-                    _isLoggedIn.value = true
+                    _authState.value = AuthState.Authenticated
                     Result.success(entity)
                 }
                 401, 403 -> {
                     firebaseAuth.signOut()
-                    _isLoggedIn.value = false
+                    _authState.value = AuthState.Unauthenticated
                     Result.failure(Exception("Unauthorized: ${response.status}"))
                 }
                 else -> {
                     firebaseAuth.signOut()
-                    _isLoggedIn.value = false
+                    _authState.value = AuthState.Unauthenticated
                     Result.failure(Exception("Server error: ${response.status}"))
                 }
             }
         } catch (e: Exception) {
             firebaseAuth.signOut()
-            _isLoggedIn.value = false
+            _authState.value = AuthState.Error(e.message ?: "Verification failed")
             Result.failure(e)
         }
     }
@@ -133,6 +155,6 @@ class AuthRepositoryImpl(
                 Log.e("AuthRepositoryImpl", "Failed to clear databases on sign-out", e)
             }
         }
-        _isLoggedIn.value = false
+        _authState.value = AuthState.Unauthenticated
     }
 }

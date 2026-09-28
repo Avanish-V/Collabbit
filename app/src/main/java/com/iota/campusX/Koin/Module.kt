@@ -15,6 +15,7 @@ import com.iota.campusX.Feature.Auth.domain.usecase.CheckAuthStateUseCase
 import com.iota.campusX.Feature.Auth.domain.usecase.SignInWithGoogleUseCase
 import com.iota.campusX.Feature.Auth.domain.usecase.SignOutUseCase
 import com.iota.campusX.Feature.Auth.presentation.GoogleSignInViewModel
+import com.iota.campusX.Feature.Auth.presentation.session.SessionViewModel
 import com.iota.campusX.Feature.Chats.data.ChatImpl
 
 import com.iota.campusX.Feature.Chats.domain.ChatRepository
@@ -146,7 +147,11 @@ val authModule = module {
     viewModel {
         GoogleSignInViewModel(
             signInWithGoogleUseCase = get(),
-            signOutUseCase = get(),
+            signOutUseCase = get()
+        )
+    }
+    single {
+        SessionViewModel(
             checkAuthStateUseCase = get()
         )
     }

@@ -59,7 +59,8 @@ import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.firebase.messaging.FirebaseMessaging
-import com.iota.campusX.Feature.Auth.presentation.GoogleSignInViewModel
+import com.iota.campusX.Feature.Auth.presentation.session.SessionState
+import com.iota.campusX.Feature.Auth.presentation.session.SessionViewModel
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Feature.Chats.presentation.ui.ChatScreen
 import com.iota.campusX.Feature.Chats.presentation.ui.SendMessageScreen
@@ -119,7 +120,6 @@ import com.iota.campusX.Navigation.ReplyPost
 import com.iota.campusX.Navigation.SendMessage
 import com.iota.campusX.Navigation.Setting
 import com.iota.campusX.Navigation.SignIn
-import com.iota.campusX.Navigation.Society
 import com.iota.campusX.Navigation.SocietyHub
 import com.iota.campusX.Navigation.SocietyInfo
 import com.iota.campusX.Navigation.Verification
@@ -159,14 +159,17 @@ class MainActivity : ComponentActivity(), KoinComponent {
     @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
         requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         super.onCreate(savedInstanceState)
         actionBar?.hide()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
-        val authViewModel: GoogleSignInViewModel = get()
-        handleIncomingIntent(intent, authViewModel)
+        val sessionViewModel: SessionViewModel = get()
+        splashScreen.setKeepOnScreenCondition {
+            sessionViewModel.sessionState.value is SessionState.Loading
+        }
+        handleIncomingIntent(intent, sessionViewModel)
 
         checkForUpdate()
         
@@ -189,8 +192,9 @@ class MainActivity : ComponentActivity(), KoinComponent {
                 realtimeManager.start()
             }
 
-            val authViewModel = koinInject<GoogleSignInViewModel>()
-            val isLoggedIn by authViewModel.isLoggedIn.collectAsStateWithLifecycle()
+            val sessionViewModel = koinInject<SessionViewModel>()
+            val sessionState by sessionViewModel.sessionState.collectAsStateWithLifecycle()
+            val pendingDeepLink by sessionViewModel.pendingDeepLink.collectAsStateWithLifecycle()
             val viewModel: ConnectivityViewModel = koinViewModel()
 
             val snackBarHostState = remember { SnackbarHostState() }
@@ -230,41 +234,71 @@ class MainActivity : ComponentActivity(), KoinComponent {
                 }
             }
 
-            LaunchedEffect(navBackStackEntry, isLoggedIn) {
-                val destination = navBackStackEntry?.destination
-
-                if (destination != null) {
-                    val isAuthRoute = destination.hasRoute(SignIn::class) || 
-                                     destination.hasRoute(Register::class) || 
-                                     destination.hasRoute(CreateProfile::class) || 
-                                     destination.hasRoute(Verification::class) ||
-                                     destination.hasRoute(AuthGraph::class)
-                    
-                    if (isLoggedIn == false && !isAuthRoute) {
-                        navHostController.navigate(SignIn) {
-                            popUpTo(navHostController.graph.id) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    } else if (isLoggedIn == true && isAuthRoute) {
-                        val pendingUri = authViewModel.pendingDeepLink.value
+            LaunchedEffect(sessionState) {
+                when (sessionState) {
+                    is SessionState.Authenticated -> {
+                        val pendingUri = sessionViewModel.consumePendingDeepLink()
                         if (pendingUri != null) {
-                            authViewModel.clearPendingDeepLink()
                             navHostController.navigate(pendingUri) {
                                 popUpTo(navHostController.graph.id) { inclusive = true }
                                 launchSingleTop = true
                             }
                         } else {
-                            navHostController.navigate(Home()) {
+                            val currentDest = navHostController.currentBackStackEntry?.destination
+                            val isAuthRoute = currentDest?.let { dest ->
+                                dest.hasRoute(SignIn::class) || 
+                                dest.hasRoute(Register::class) || 
+                                dest.hasRoute(CreateProfile::class) || 
+                                dest.hasRoute(Verification::class) ||
+                                dest.hasRoute(AuthGraph::class)
+                            } ?: false
+
+                            if (isAuthRoute) {
+                                navHostController.navigate(Home()) {
+                                    popUpTo(navHostController.graph.id) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
+                    }
+
+                    is SessionState.Unauthenticated -> {
+                        val currentDest = navHostController.currentBackStackEntry?.destination
+                        val isAuthRoute = currentDest?.let { dest ->
+                            dest.hasRoute(SignIn::class) || 
+                            dest.hasRoute(Register::class) || 
+                            dest.hasRoute(CreateProfile::class) || 
+                            dest.hasRoute(Verification::class) ||
+                            dest.hasRoute(AuthGraph::class)
+                        } ?: false
+
+                        if (!isAuthRoute && currentDest != null) {
+                            navHostController.navigate(SignIn) {
                                 popUpTo(navHostController.graph.id) { inclusive = true }
                                 launchSingleTop = true
                             }
                         }
                     }
+
+                    is SessionState.Loading -> {
+                        // Startup session resolution handled under Android SplashScreen
+                    }
                 }
             }
 
-            LaunchedEffect(isLoggedIn) {
-                if (isLoggedIn == true) {
+            LaunchedEffect(pendingDeepLink) {
+                if (pendingDeepLink != null && sessionState is SessionState.Authenticated) {
+                    val uri = sessionViewModel.consumePendingDeepLink()
+                    if (uri != null) {
+                        navHostController.navigate(uri) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            }
+
+            LaunchedEffect(sessionState) {
+                if (sessionState is SessionState.Authenticated) {
                     // Sequentially sync profile first, then claim daily check-in.
                     // This prevents the sync logic from overwriting the newly awarded aura points.
                     profileViewModel.syncProfileSuspending()
@@ -280,28 +314,25 @@ class MainActivity : ComponentActivity(), KoinComponent {
                     }
                 }
             }
-
-            LaunchedEffect(Unit) {
-                auraViewModel.checkInEvent.collect { event ->
-                    when (event) {
-                        is CheckInEvent.Success -> {
-                        }
-                        is CheckInEvent.AlreadyClaimed -> {
-                            // showAlreadyClaimedDialog = true
-                        }
-                        is CheckInEvent.Error -> {
-                            android.util.Log.e("Aura", "Check-in failed: ${event.message}")
-                        }
-                    }
-                }
-            }
+            
 
             AppTheme {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    NavHost(modifier = Modifier.fillMaxSize(), navController = navHostController, startDestination = if (authViewModel.getCurrentUser()) MainGraph else AuthGraph) {
+                    when (sessionState) {
+                        is SessionState.Loading -> {
+                            // Blank container while Android native SplashScreen is active.
+                            // Defer NavHost composition until session is resolved so startDestination
+                            // evaluates directly to MainGraph for authenticated users, avoiding any login flash.
+                        }
+                        else -> {
+                            NavHost(
+                                modifier = Modifier.fillMaxSize(),
+                                navController = navHostController,
+                                startDestination = if (sessionState is SessionState.Authenticated) MainGraph else AuthGraph
+                            ) {
                         navigation<AuthGraph>(
                             startDestination = SignIn,
                         ) {
@@ -598,6 +629,8 @@ class MainActivity : ComponentActivity(), KoinComponent {
                         navigationViewModel = koinInject(),
                         navHostController = navHostController
                     )
+                }
+            }
 
                     SnackbarHost(
                         hostState = snackBarHostState,
@@ -691,9 +724,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
                         )
 
                     }
-
-
-
                 }
                 UpdateSnackBar(
                     snackHostState = snackBarHostState,
@@ -734,20 +764,16 @@ class MainActivity : ComponentActivity(), KoinComponent {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val authViewModel: GoogleSignInViewModel = get()
-        handleIncomingIntent(intent, authViewModel)
+        val sessionViewModel: SessionViewModel = get()
+        handleIncomingIntent(intent, sessionViewModel)
     }
 
-    private fun handleIncomingIntent(intent: Intent?, authViewModel: GoogleSignInViewModel) {
+    private fun handleIncomingIntent(intent: Intent?, sessionViewModel: SessionViewModel) {
         if (intent == null) return
-        val deepLinkUri = intent.data
-        if (deepLinkUri != null) {
-            if (!authViewModel.getCurrentUser()) {
-                authViewModel.setPendingDeepLink(deepLinkUri)
-                intent.data = null
-                intent.action = null
-            }
-        }
+        val deepLinkUri = intent.data ?: return
+        sessionViewModel.setPendingDeepLink(deepLinkUri)
+        intent.data = null
+        intent.action = null
     }
 
     private fun checkForUpdate() {

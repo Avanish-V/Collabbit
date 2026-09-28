@@ -104,21 +104,6 @@ fun SignInScreen(navHostController: NavHostController) {
 
     LaunchedEffect(authState.value) {
         when (val state = authState.value) {
-            is AuthResult.SignedIn -> {
-                val pendingUri = googleSignInViewModel.pendingDeepLink.value
-                if (pendingUri != null) {
-                    googleSignInViewModel.clearPendingDeepLink()
-                    navHostController.navigate(pendingUri) {
-                        popUpTo<AuthGraph> { inclusive = true }
-                        launchSingleTop = true
-                    }
-                } else {
-                    navHostController.navigate(Home()) {
-                        popUpTo<AuthGraph> { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
-            }
             is AuthResult.Error -> {
                 snackBarHostState.showSnackbar(state.message)
             }
