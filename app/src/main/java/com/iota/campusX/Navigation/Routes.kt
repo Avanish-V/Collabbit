@@ -130,7 +130,14 @@ data object CreateCollab : Route
 data class CollabDetail(val collabId: String) : Route
 
 @Serializable
+data class ManageCollab(val collabId: String) : Route
+
+@Serializable
+data class EditCollab(val collabId: String) : Route
+
+@Serializable
 data class CollabRequests(val collabId: String) : Route
+
 
 @Serializable
 data class PostView(

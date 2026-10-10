@@ -67,7 +67,7 @@ val coreModule = module {
     single {
         Log.i("networkModule", "Creating HttpClient")
         HttpClient(OkHttp) {
-            expectSuccess = true
+            expectSuccess = false
             install(Logging) {
                 logger = object : Logger {
                     override fun log(message: String) {
@@ -99,10 +99,15 @@ val coreModule = module {
                 val currentUser = FirebaseAuth.getInstance().currentUser
                 if (currentUser != null) {
                     try {
-                        val token = currentUser.getIdToken(true).await().token
+                        var token = currentUser.getIdToken(false).await().token
+                        if (token == null) {
+                            token = currentUser.getIdToken(true).await().token
+                        }
                         if (token != null) {
                             Log.d("networkModule", "Adding Token to ${context.url.buildString()}: ${token.take(10)}...")
                             context.headers["Authorization"] = "Bearer $token"
+                        } else {
+                            Log.e("networkModule", "Token is null for ${context.url.buildString()}")
                         }
                     } catch (e: Exception) {
                         Log.e("networkModule", "Token fetch failed", e)
@@ -135,10 +140,9 @@ val authModule = module {
             dataSource = get(),
             firebaseAuth = get(),
             httpClient = get(),
-            userProfileDao = get<AppDatabase>().userProfileDao(),
-            chatDatabase = get<ChatDatabase>(),
-            campusDatabase = get<CampusDatabase>(),
-            appDatabase = get<AppDatabase>()
+            chatDatabase = get(),
+            campusDatabase = get(),
+            appDatabase = get()
         )
     }
     factory { SignInWithGoogleUseCase(repository = get()) }

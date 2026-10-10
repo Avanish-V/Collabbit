@@ -846,10 +846,13 @@ fun SocietyChatScreen(
         }
     }
 
+    val isOwner = society?.creatorId == viewModel.currentUserId
+
     SocietyOptionsBottomSheet(
         showOptionsSheet = showOptionsSheet,
         sheetState = sheetState,
         onDismiss = { showOptionsSheet = false },
+        isOwner = isOwner,
         onLeaveClick = {
             showOptionsSheet = false
             showLeaveDialog = true
@@ -1094,6 +1097,7 @@ fun SocietyOptionsBottomSheet(
     showOptionsSheet: Boolean,
     sheetState: SheetState,
     onDismiss: () -> Unit,
+    isOwner: Boolean = false,
     onLeaveClick: () -> Unit,
     onShareClick: () -> Unit
 ) {
@@ -1131,31 +1135,33 @@ fun SocietyOptionsBottomSheet(
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(1.dp))
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(color = MaterialTheme.colorScheme.background)
-                        .clickable { onLeaveClick() }
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        modifier = Modifier.size(24.dp),
-                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                        contentDescription = "Leave Society",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                    Text(
-                        text = "Leave Society",
+                if (!isOwner) {
+                    Spacer(modifier = Modifier.height(1.dp))
+
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                            .background(color = MaterialTheme.colorScheme.background)
+                            .clickable { onLeaveClick() }
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            modifier = Modifier.size(24.dp),
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Leave Society",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = "Leave Society",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))

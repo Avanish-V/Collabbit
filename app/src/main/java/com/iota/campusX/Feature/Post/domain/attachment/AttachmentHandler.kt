@@ -105,7 +105,9 @@ class TeamFormationAttachmentHandler : AttachmentHandler {
         return Result.success(
             TeamFormationAttachmentDto(
                 teamType = attachment.teamType,
-                requiredSkills = attachment.requiredSkills
+                requiredSkills = attachment.requiredSkills,
+                membersNeeded = attachment.membersNeeded,
+                roles = attachment.roles
             )
         )
     }

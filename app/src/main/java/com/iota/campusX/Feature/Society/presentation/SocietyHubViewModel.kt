@@ -51,7 +51,14 @@ class SocietyHubViewModel(
                 _isMembershipResolved.value = true
             }
         }
-        refreshCommunities()
+        syncCommunitiesSilently()
+    }
+
+    fun syncCommunitiesSilently() {
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            repository.syncCommunities(userId)
+        }
     }
 
     fun refreshCommunities() {
@@ -77,7 +84,7 @@ class SocietyHubViewModel(
             val result = createCommunityUseCase(community, logoUri)
             if (result.isSuccess) {
                 _createState.value = SocietyUiState.Success
-                refreshCommunities()
+                syncCommunitiesSilently()
             } else {
                 _createState.value = SocietyUiState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
             }
@@ -88,10 +95,6 @@ class SocietyHubViewModel(
         val userId = currentUserId ?: run {
             Log.e("SOCIETY_DEBUG", "joinCommunity failed: currentUserId is null")
             return
-        }
-        
-        viewModelScope.launch {
-            repository.joinCommunity(community, userId)
         }
 
         viewModelScope.launch {
@@ -104,7 +107,7 @@ class SocietyHubViewModel(
                 Log.d("SOCIETY_DEBUG", "Successfully joined community locally & remotely")
                 _joinState.value = SocietyUiState.Success
                 _joinEvent.emit(SocietyUiEvent.JoinSuccess)
-                refreshCommunities()
+                syncCommunitiesSilently()
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Failed to join society"
                 Log.e("SOCIETY_DEBUG", "Failed to join community: $error")
@@ -112,7 +115,7 @@ class SocietyHubViewModel(
                 _joinEvent.emit(SocietyUiEvent.Error(error))
                 
                 leaveCommunityUseCase(community.id, userId)
-                refreshCommunities()
+                syncCommunitiesSilently()
             }
         }
     }

@@ -15,6 +15,7 @@ import com.iota.campusX.Feature.Post.domain.attachment.DocumentAttachment
 import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachment
 import com.iota.campusX.Feature.Post.domain.attachment.VideoAttachment
 import com.iota.campusX.Feature.Post.domain.attachment.TeamFormationAttachment
+import com.iota.campusX.Feature.Post.domain.attachment.ProjectRoleDto
 import com.iota.campusX.Feature.Post.domain.UseCases.CreatePostUseCase
 import com.iota.campusX.Feature.UserProfile.data.remote.response.SkillResponse
 import com.iota.campusX.Feature.UserProfile.domain.repository.UniversityRepository
@@ -185,11 +186,54 @@ class PostCreationViewModel(
         }
     }
 
+    fun onMembersNeededChanged(count: Int) {
+        _draft.update {
+            val current = it.attachment as? TeamFormationAttachment ?: TeamFormationAttachment("", emptyList())
+            it.copy(attachment = current.copy(membersNeeded = count))
+        }
+    }
+
     fun onRequiredSkillsChanged(skills: List<String>) {
         _draft.update {
             val current = it.attachment as? TeamFormationAttachment ?: TeamFormationAttachment("", emptyList())
             it.copy(attachment = current.copy(requiredSkills = skills))
         }
+    }
+
+    fun onRolesChanged(roles: List<ProjectRoleDto>) {
+        _draft.update {
+            val current = it.attachment as? TeamFormationAttachment ?: TeamFormationAttachment("", emptyList())
+            val allSkills = roles.flatMap { role ->
+                if (role.skills.isNotEmpty()) listOf(role.roleName) + role.skills else listOf(role.roleName)
+            }.distinct().filter { s -> s.isNotBlank() }
+            val totalMembers = roles.sumOf { r -> r.peopleNeeded }.coerceAtLeast(1)
+
+            it.copy(
+                attachment = current.copy(
+                    roles = roles,
+                    requiredSkills = allSkills,
+                    membersNeeded = totalMembers
+                )
+            )
+        }
+    }
+
+    fun addRole(role: ProjectRoleDto) {
+        val current = _draft.value.attachment as? TeamFormationAttachment ?: TeamFormationAttachment("", emptyList())
+        val updatedRoles = current.roles + role
+        onRolesChanged(updatedRoles)
+    }
+
+    fun updateRole(role: ProjectRoleDto) {
+        val current = _draft.value.attachment as? TeamFormationAttachment ?: TeamFormationAttachment("", emptyList())
+        val updatedRoles = current.roles.map { if (it.id == role.id) role else it }
+        onRolesChanged(updatedRoles)
+    }
+
+    fun removeRole(roleId: String) {
+        val current = _draft.value.attachment as? TeamFormationAttachment ?: TeamFormationAttachment("", emptyList())
+        val updatedRoles = current.roles.filterNot { it.id == roleId }
+        onRolesChanged(updatedRoles)
     }
 
     fun removeAttachment() {

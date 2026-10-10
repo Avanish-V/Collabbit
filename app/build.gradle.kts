@@ -29,8 +29,8 @@ android {
         targetSdk = 36
 
         // Play Store version
-        versionCode = 30
-        versionName = "1.3.0"
+        versionCode = 33
+        versionName = "1.3.3"
 
         testInstrumentationRunner =
             "androidx.test.runner.AndroidJUnitRunner"

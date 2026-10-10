@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-09-19T13:31:06.893578600Z">
+        <DropdownSelection timestamp="2026-09-30T17:36:07.234526500Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\ashut\.android\avd\Medium_Phone.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=R9ZT105HL2Z" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -15,12 +15,12 @@
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=ZD2228T8BT" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=R9ZT105HL2Z" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=DISGJBGMCQ9DQSGA" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=ZD2228T8BT" />
               </handle>
             </Target>
           </targets>

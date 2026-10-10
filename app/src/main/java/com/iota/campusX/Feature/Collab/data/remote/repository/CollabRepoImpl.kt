@@ -2,8 +2,10 @@ package com.iota.campusX.Feature.Collab.data.remote.repository
 
 import android.util.Log
 import com.iota.campusX.Feature.Collab.data.model.CollabConnectRequestResponse
+import com.iota.campusX.Feature.Collab.data.model.CollabMemberResponse
 import com.iota.campusX.Feature.Collab.data.model.CollabResponse
 import com.iota.campusX.Feature.Collab.data.model.CreateCollabRequest
+import com.iota.campusX.Feature.Collab.data.model.UpdateCollabRequest
 import com.iota.campusX.Feature.Collab.data.remote.response.CollabPageResponse
 import com.iota.campusX.Feature.Collab.domain.repository.CollabRepository
 import com.iota.campusX.Feature.Collab.data.paging.CollabPagingSource
@@ -11,6 +13,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.iota.campusX.Feature.Collab.data.model.CollabRequestStatus
+import com.iota.campusX.Feature.Collab.data.model.ProjectStatus
 import kotlinx.coroutines.flow.Flow
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -65,7 +68,7 @@ class CollabRepoImpl(
             if (!response.status.isSuccess()) {
                 val error = response.bodyAsText()
                 Log.e(TAG, "getCollabs failed: ${response.status.value} - $error")
-                throw Exception("Failed to fetch collabs: ${response.status}")
+                throw Exception("Failed to fetch collabs: ${response.status.value}${if (error.isNotEmpty()) " - $error" else ""}")
             }
             response.body<CollabPageResponse>().also { pageResponse ->
                 pageResponse.content.forEach { collabCache[it.id] = it }
@@ -87,8 +90,6 @@ class CollabRepoImpl(
     }
 
     override suspend fun getCollabById(collabId: String): Result<CollabResponse> {
-        collabCache[collabId]?.let { return Result.success(it) }
-        
         return runCatching {
             val response: HttpResponse = httpClient.get("collabs/$collabId")
             if (!response.status.isSuccess()) {
@@ -101,6 +102,45 @@ class CollabRepoImpl(
             }
         }.onFailure {
             Log.e(TAG, "Exception in getCollabById: ${it.message}", it)
+        }.recoverCatching {
+            collabCache[collabId] ?: throw it
+        }
+    }
+
+    override suspend fun updateProjectStatus(collabId: String, status: ProjectStatus): Result<CollabResponse> {
+        return runCatching {
+            val response: HttpResponse = httpClient.patch("collabs/$collabId/status") {
+                parameter("status", status.name)
+            }
+            if (!response.status.isSuccess()) {
+                val error = response.bodyAsText()
+                Log.e(TAG, "updateProjectStatus failed: ${response.status.value} - $error")
+                throw Exception("Failed to update status: ${response.status}")
+            }
+            response.body<CollabResponse>().also { collab ->
+                collabCache[collabId] = collab
+            }
+        }.onFailure {
+            Log.e(TAG, "Exception in updateProjectStatus: ${it.message}", it)
+        }
+    }
+
+    override suspend fun updateCollab(collabId: String, request: UpdateCollabRequest): Result<CollabResponse> {
+        return runCatching {
+            val response: HttpResponse = httpClient.patch("collabs/$collabId") {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+            if (!response.status.isSuccess()) {
+                val error = response.bodyAsText()
+                Log.e(TAG, "updateCollab failed: ${response.status.value} - $error")
+                throw Exception("Failed to update collaboration: ${response.status}")
+            }
+            response.body<CollabResponse>().also { collab ->
+                collabCache[collabId] = collab
+            }
+        }.onFailure {
+            Log.e(TAG, "Exception in updateCollab: ${it.message}", it)
         }
     }
 
@@ -192,6 +232,50 @@ class CollabRepoImpl(
             response.body<List<CollabResponse>>()
         }.onFailure {
             Log.e(TAG, "Exception in getCollabsByUserId: ${it.message}", it)
+        }
+    }
+
+    override suspend fun getJoinedCollabsByUserId(userId: String): Result<List<CollabResponse>> {
+        return runCatching {
+            val response: HttpResponse = httpClient.get("collabs/joined") {
+                parameter("userId", userId)
+            }
+            if (!response.status.isSuccess()) {
+                val error = response.bodyAsText()
+                Log.e(TAG, "getJoinedCollabsByUserId failed: ${response.status.value} - $error")
+                throw Exception("Failed to fetch joined collaborations: ${response.status}")
+            }
+            response.body<List<CollabResponse>>()
+        }.onFailure {
+            Log.e(TAG, "Exception in getJoinedCollabsByUserId: ${it.message}", it)
+        }
+    }
+
+    override suspend fun getCollabMembers(collabId: String): Result<List<CollabMemberResponse>> {
+        return runCatching {
+            val response: HttpResponse = httpClient.get("collabs/$collabId/members")
+            if (!response.status.isSuccess()) {
+                val error = response.bodyAsText()
+                Log.e(TAG, "getCollabMembers failed: ${response.status.value} - $error")
+                throw Exception("Failed to fetch collab members: ${response.status}")
+            }
+            response.body<List<CollabMemberResponse>>()
+        }.onFailure {
+            Log.e(TAG, "Exception in getCollabMembers: ${it.message}", it)
+        }
+    }
+
+    override suspend fun removeCollabMember(collabId: String, memberUserId: String): Result<Boolean> {
+        return runCatching {
+            val response: HttpResponse = httpClient.delete("collabs/$collabId/members/$memberUserId")
+            if (!response.status.isSuccess()) {
+                val error = response.bodyAsText()
+                Log.e(TAG, "removeCollabMember failed: ${response.status.value} - $error")
+                throw Exception("Failed to remove team member: ${response.status}")
+            }
+            true
+        }.onFailure {
+            Log.e(TAG, "Exception in removeCollabMember: ${it.message}", it)
         }
     }
 }

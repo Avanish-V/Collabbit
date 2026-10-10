@@ -4,19 +4,9 @@ import android.util.Log
 import com.iota.campusX.realtime.handler.SocketEventHandler
 import com.iota.campusX.realtime.model.SocketEvent
 
-class SocketEventDispatcherImpl(
+class SocketEventDispatcherImpl(handlers: List<SocketEventHandler>) : SocketEventDispatcher {
 
-    handlers: List<SocketEventHandler>
-
-) : SocketEventDispatcher {
-
-    private val handlerMap =
-
-        handlers.associateBy {
-
-            it.eventType
-
-        }
+    private val handlerMap = handlers.associateBy { it.eventType }
 
     override suspend fun dispatch(event: SocketEvent) {
 

@@ -73,30 +73,45 @@ class FirestoreCommunityDataSource(
     // --- Membership Operations ---
 
     suspend fun joinCommunity(communityId: String, userId: String) {
-        firestore.runBatch { batch ->
+        firestore.runTransaction { transaction ->
             val userJoinRef = firestore.collection(userCollection)
                 .document(userId)
                 .collection("joined_societies")
                 .document(communityId)
-            
-            batch.set(userJoinRef, mapOf("joinedAt" to System.currentTimeMillis()))
-            
+
+            val userJoinSnap = transaction.get(userJoinRef)
             val communityRef = communityCollection.document(communityId)
-            batch.update(communityRef, "memberCount", FieldValue.increment(1))
+            val communitySnap = transaction.get(communityRef)
+
+            if (!userJoinSnap.exists()) {
+                transaction.set(userJoinRef, mapOf("joinedAt" to System.currentTimeMillis()))
+                val currentCount = communitySnap.getLong("memberCount")?.toInt() ?: 0
+                val newCount = maxOf(1, currentCount + 1)
+                transaction.update(communityRef, "memberCount", newCount)
+            }
         }.await()
     }
 
     suspend fun leaveCommunity(communityId: String, userId: String) {
-        firestore.runBatch { batch ->
+        firestore.runTransaction { transaction ->
             val userJoinRef = firestore.collection(userCollection)
                 .document(userId)
                 .collection("joined_societies")
                 .document(communityId)
-            
-            batch.delete(userJoinRef)
-            
+
+            val userJoinSnap = transaction.get(userJoinRef)
             val communityRef = communityCollection.document(communityId)
-            batch.update(communityRef, "memberCount", FieldValue.increment(-1))
+            val communitySnap = transaction.get(communityRef)
+
+            val currentCount = communitySnap.getLong("memberCount")?.toInt() ?: 0
+            val newCount = maxOf(0, currentCount - 1)
+
+            if (userJoinSnap.exists()) {
+                transaction.delete(userJoinRef)
+                transaction.update(communityRef, "memberCount", newCount)
+            } else if (currentCount < 0) {
+                transaction.update(communityRef, "memberCount", 0)
+            }
         }.await()
     }
 

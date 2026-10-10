@@ -1,14 +1,15 @@
 package com.iota.campusX.Screens.Home
 
+import android.graphics.Color
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.Font
@@ -29,8 +30,11 @@ import com.iota.campusX.Screens.Home.components.SocietyTabContent
 import org.koin.compose.koinInject
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 
-private val GilroyFontFamily = FontFamily(
+val GilroyFontFamily = FontFamily(
     Font(R.font.gilroy_extrabold, weight = FontWeight.ExtraBold)
 )
 
@@ -97,7 +101,8 @@ fun MainScreen(
                 )
 
                 1 -> SocietyTabContent(
-                    navHostController = navHostController
+                    navHostController = navHostController,
+                    nestedScrollConnection = scrollBehavior.nestedScrollConnection
                 )
             }
         }
@@ -115,12 +120,22 @@ fun HomeTopBar(
 ) {
     TopAppBar(
         title = {
-            Text(
-                text = "Collabbit",
-                style = MaterialTheme.typography.headlineMedium,
-                fontFamily = GilroyFontFamily,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)){
+                Icon(
+                    painter = painterResource(R.drawable.logo_collabbit_g),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+
+                )
+                Text(
+                    text = "Collabbit",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontFamily = GilroyFontFamily,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
         },
         actions = {
             Row(

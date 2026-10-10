@@ -2,11 +2,14 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <!-- Explicitly allow your local computer's IP or development hosts -->
+        <domain includeSubdomains="true">192.168.1.8</domain>
         <domain includeSubdomains="true">192.168.1.13</domain>
         <domain includeSubdomains="true">192.168.0.2</domain>
         <domain includeSubdomains="true">10.74.140.131</domain>
         <!-- Alias for Android Emulator -->
         <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
     </domain-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>

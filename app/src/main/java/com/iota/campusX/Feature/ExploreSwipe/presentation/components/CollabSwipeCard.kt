@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Collab.data.model.CollabResponse
 import com.iota.campusX.Feature.Collab.data.model.CollabType
+import com.iota.campusX.Feature.Collab.presentation.components.ProjectStatusBadge
 import com.iota.campusX.R
 import com.iota.campusX.ui.theme.*
 import com.iota.campusX.ui.UIComponents.cardShadow
@@ -75,30 +76,38 @@ fun CollabSwipeCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Collaboration Type Pill
-                Surface(
-                    color = categoryColor.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, categoryColor.copy(alpha = 0.35f))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Collaboration Type Pill
+                    Surface(
+                        color = categoryColor.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, categoryColor.copy(alpha = 0.35f))
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(categoryColor)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = collab.collabType.name.lowercase()
-                                .replaceFirstChar { it.uppercase() } + " Collab",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = categoryColor
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(categoryColor)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = collab.collabType.name.lowercase()
+                                    .replaceFirstChar { it.uppercase() } + " Collab",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = categoryColor
+                            )
+                        }
                     }
+
+                    // Project Status Badge
+                    ProjectStatusBadge(status = collab.status)
                 }
 
                 // Match Percentage Badge
@@ -164,7 +173,12 @@ fun CollabSwipeCard(
                 )
 
                 // Required Skills & Roles Tags
-                if (collab.requirements.isNotEmpty()) {
+                val displayTags = if (collab.roles.isNotEmpty()) {
+                    collab.roles.map { it.roleName }
+                } else {
+                    collab.requirements
+                }
+                if (displayTags.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(18.dp))
                     Text(
                         text = "LOOKING FOR",
@@ -180,7 +194,7 @@ fun CollabSwipeCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        collab.requirements.forEach { tag ->
+                        displayTags.forEach { tag ->
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant,

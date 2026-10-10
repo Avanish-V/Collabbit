@@ -37,6 +37,10 @@ import com.iota.campusX.ui.UIComponents.RefreshBox
 import com.iota.campusX.Utils.StatusScreen
 import com.iota.campusX.Utils.vibrate
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +60,21 @@ fun FeedUiRenderer(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val focusedPost by feedViewModel.focusedPost.collectAsState()
+
+    // Separate user-triggered refresh from Paging's initial/internal loading
+    var userRefreshing by remember { mutableStateOf(false) }
+
+    val canPullToRefresh by remember {
+        derivedStateOf { !lazyState.canScrollBackward }
+    }
+
+    // Reset user-refresh flag once Paging finishes loading (success or error)
+    LaunchedEffect(feed.loadState.refresh) {
+        if (feed.loadState.refresh is LoadState.NotLoading ||
+            feed.loadState.refresh is LoadState.Error) {
+            userRefreshing = false
+        }
+    }
 
     val itemHandlers: (PostAction) -> Unit = { action ->
         when (action) {
@@ -90,11 +109,16 @@ fun FeedUiRenderer(
     RefreshBox(
         pullToRefreshState = pullToRefreshState,
         onRefresh = {
-            context.vibrate()
-            feed.refresh()
-            scope.launch { lazyState.animateScrollToItem(0) }
+            // Guard: don't trigger a new refresh if paging is already loading
+            if (feed.loadState.refresh !is LoadState.Loading) {
+                userRefreshing = true
+                context.vibrate()
+                feed.refresh()
+                scope.launch { lazyState.animateScrollToItem(0) }
+            }
         },
-        isRefreshing = feed.loadState.refresh is LoadState.Loading
+        isRefreshing = userRefreshing,
+        enabled = canPullToRefresh
     ) {
 
         Column(

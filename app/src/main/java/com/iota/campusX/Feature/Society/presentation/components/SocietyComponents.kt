@@ -1,7 +1,6 @@
 package com.iota.campusX.Feature.Society.presentation.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -13,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -32,9 +35,8 @@ import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Society.domain.model.Community
 import com.iota.campusX.R
 import com.iota.campusX.ui.UIComponents.cardShadow
-import com.iota.campusX.ui.UIComponents.RefreshBox
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SocietyList(
     modifier: Modifier = Modifier,
@@ -44,31 +46,40 @@ fun SocietyList(
     onRefresh: () -> Unit,
     onCreateClick: () -> Unit,
     onDiscoverClick: () -> Unit,
-    onCommunityClick: (Community) -> Unit
+    onCommunityClick: (Community) -> Unit,
+    nestedScrollConnection: NestedScrollConnection? = null
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val lazyListState = rememberLazyListState()
 
-    val isHeaderActive by remember {
-        derivedStateOf {
-            lazyListState.firstVisibleItemIndex > 0 ||
-            (lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset > 0)
-        }
+    val canPullToRefresh by remember {
+        derivedStateOf { !lazyListState.canScrollBackward }
     }
 
-    RefreshBox(
-        pullToRefreshState = pullToRefreshState,
-        isRefreshing = isRefreshing,
-        onRefresh = onRefresh,
-        enabled = !isHeaderActive
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pullToRefresh(
+                state = pullToRefreshState,
+                isRefreshing = isRefreshing,
+                enabled = canPullToRefresh,
+                onRefresh = onRefresh
+            ),
+        contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             state = lazyListState,
-            modifier = modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (nestedScrollConnection != null)
+                        Modifier.nestedScroll(nestedScrollConnection)
+                    else Modifier
+                ),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            stickyHeader {
+            item {
                 Card(
                     onClick = onDiscoverClick,
                     modifier = Modifier
@@ -153,6 +164,15 @@ fun SocietyList(
                 }
             }
         }
+
+        // Pull-to-refresh indicator sits on top of the list
+        Indicator(
+            modifier = Modifier.align(Alignment.TopCenter),
+            state = pullToRefreshState,
+            isRefreshing = isRefreshing,
+            color = MaterialTheme.colorScheme.primary,
+            containerColor = MaterialTheme.colorScheme.onPrimary
+        )
     }
 }
 

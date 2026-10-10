@@ -22,7 +22,8 @@ class SessionViewModel(
             when (authState) {
                 AuthState.Authenticated -> SessionState.Authenticated
                 AuthState.Unauthenticated, is AuthState.Error -> SessionState.Unauthenticated
-                AuthState.Unknown, AuthState.Authenticating, AuthState.Verifying -> SessionState.Loading
+                AuthState.Unknown -> SessionState.Loading
+                AuthState.Authenticating, AuthState.Verifying -> SessionState.Unauthenticated
             }
         }.stateIn(
             scope = viewModelScope,

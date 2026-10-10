@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -93,11 +94,18 @@ import com.iota.campusX.Feature.Post.presentation.components.DocumentHorizontalP
 import com.iota.campusX.Feature.Post.presentation.components.PdfPageImage
 import com.iota.campusX.Feature.Post.presentation.components.rememberPdfRenderer
 import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachment
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.TextButton
+import com.iota.campusX.Feature.Collab.presentation.AddRoleBottomSheet
+import com.iota.campusX.Feature.Collab.presentation.RoleCardItem
+import com.iota.campusX.Feature.Collab.presentation.ProjectRoleUiModel
+import com.iota.campusX.Feature.Post.domain.attachment.ProjectRoleDto
 import com.iota.campusX.Feature.Post.domain.attachment.TeamFormationAttachment
 import com.iota.campusX.Feature.Post.domain.attachment.VideoAttachment
 import com.iota.campusX.Feature.UserProfile.data.remote.response.SkillResponse
 import com.iota.campusX.Feature.UserProfile.ui.Components.SearchableDropdown
 import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.UserProfileViewModel
+import com.iota.campusX.Navigation.CreateCollab
 import com.iota.campusX.R
 import com.iota.campusX.Utils.CircularLoading
 import com.iota.campusX.Utils.CustomTextField
@@ -108,6 +116,7 @@ import com.iota.campusX.ui.theme.attachmentDocument
 import com.iota.campusX.ui.theme.attachmentImage
 import com.iota.campusX.ui.theme.attachmentLocation
 import com.iota.campusX.ui.theme.attachmentVideo
+import com.iota.campusX.ui.theme.collabIndigo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
@@ -354,16 +363,6 @@ fun CreatePostScreen(
                                 }
                             }
 
-                            if (draft.attachment is TeamFormationAttachment) {
-                                TeamFormationSection(
-                                    attachment = draft.attachment as TeamFormationAttachment,
-                                    creationViewModel = postCreationViewModel,
-                                    onTypeChanged = { postCreationViewModel.onTeamTypeChanged(it) },
-                                    onSkillsChanged = { },
-                                    onRemove = { postCreationViewModel.removeAttachment() }
-                                )
-                            }
-
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
@@ -558,16 +557,54 @@ fun AttachmentSelectorButton(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+private fun ProjectRoleDto.toUiModel(): ProjectRoleUiModel = ProjectRoleUiModel(
+    id = id.ifBlank { java.util.UUID.randomUUID().toString() },
+    roleName = roleName,
+    skills = skills,
+    peopleNeeded = peopleNeeded
+)
+
+private fun ProjectRoleUiModel.toDto(): ProjectRoleDto = ProjectRoleDto(
+    id = id,
+    roleName = roleName,
+    skills = skills,
+    peopleNeeded = peopleNeeded
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TeamFormationSection(
     attachment: TeamFormationAttachment,
     creationViewModel: PostCreationViewModel,
     onTypeChanged: (String) -> Unit,
+    onMembersNeededChanged: (Int) -> Unit,
     onSkillsChanged: (List<String>) -> Unit,
     onRemove: () -> Unit
 ) {
 
     var title by remember { mutableStateOf("") }
+    var showAddRoleSheet by remember { mutableStateOf(false) }
+    var editingRole by remember { mutableStateOf<ProjectRoleUiModel?>(null) }
+
+    if (showAddRoleSheet) {
+        AddRoleBottomSheet(
+            initialRole = editingRole,
+            onDismiss = {
+                showAddRoleSheet = false
+                editingRole = null
+            },
+            onSaveRole = { savedRole ->
+                if (editingRole != null) {
+                    creationViewModel.updateRole(savedRole.toDto())
+                } else {
+                    creationViewModel.addRole(savedRole.toDto())
+                }
+                showAddRoleSheet = false
+                editingRole = null
+            }
+        )
+    }
+
     Surface(
         modifier = Modifier
             .padding(top = 16.dp)
@@ -610,7 +647,7 @@ fun TeamFormationSection(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                listOf("Hackathon", "Project", "Startup").forEach { type ->
+                listOf("Hackathon", "Study Group", "Research").forEach { type ->
                     val selected = attachment.teamType == type
                     FilterChip(
                         selected = selected,
@@ -634,6 +671,156 @@ fun TeamFormationSection(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Roles Needed Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Roles Needed",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = {
+                    editingRole = null
+                    showAddRoleSheet = true
+                }) {
+                    Text(
+                        text = "+ Add Role",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            if (attachment.roles.isEmpty()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable {
+                            editingRole = null
+                            showAddRoleSheet = true
+                        },
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Role",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Add team roles (Developer, Designer, etc.)",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    attachment.roles.forEach { roleDto ->
+                        RoleCardItem(
+                            role = roleDto.toUiModel(),
+                            onEdit = {
+                                editingRole = roleDto.toUiModel()
+                                showAddRoleSheet = true
+                            },
+                            onRemove = {
+                                creationViewModel.removeRole(roleDto.id)
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Members Needed Counter
+            Column {
+                Text(
+                    text = "Total Members Needed",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable(enabled = attachment.membersNeeded > 1) {
+                                    if (attachment.membersNeeded > 1) {
+                                        onMembersNeededChanged(attachment.membersNeeded - 1)
+                                    }
+                                },
+                            color = if (attachment.membersNeeded > 1) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "-",
+                                    color = if (attachment.membersNeeded > 1) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "${attachment.membersNeeded} ${if (attachment.membersNeeded == 1) "member" else "members"}",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 15.sp
+                            )
+                        )
+
+                        Surface(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    onMembersNeededChanged(attachment.membersNeeded + 1)
+                                },
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = CircleShape
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "+",
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             CustomTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = title,
@@ -648,7 +835,7 @@ fun TeamFormationSection(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "Required Skills", 
+                text = "Additional Required Skills", 
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -663,7 +850,6 @@ fun TeamFormationSection(
                 is UiState.Success -> state.data
                 else -> emptyList()
             }
-
 
             SearchableDropdown(
                 label = "Search skills...",
@@ -680,41 +866,42 @@ fun TeamFormationSection(
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                skills.forEach {
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                text = it.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        },
-                        border = BorderStroke(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outline
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        trailingIcon = {
-                            Icon(
-                                modifier = Modifier.size(16.dp).clickable(
-                                    onClick = { creationViewModel.removeSkill(it) },
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ),
-                                imageVector = Icons.Default.Close,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    )
+            if (skills.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    skills.forEach {
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    text = it.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            },
+                            border = BorderStroke(
+                                width = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outline
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            trailingIcon = {
+                                Icon(
+                                    modifier = Modifier.size(16.dp).clickable(
+                                        onClick = { creationViewModel.removeSkill(it) },
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ),
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }

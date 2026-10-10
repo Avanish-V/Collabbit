@@ -17,11 +17,22 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -50,6 +61,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
+import androidx.navigation.navOptions
 import androidx.navigation.toRoute
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
@@ -67,6 +79,9 @@ import com.iota.campusX.Feature.Chats.presentation.ui.SendMessageScreen
 import com.iota.campusX.Feature.Collab.presentation.CollabDetailScreen
 import com.iota.campusX.Feature.Collab.presentation.CollabExploreScreen
 import com.iota.campusX.Feature.Collab.presentation.CreateCollabScreen
+import com.iota.campusX.Feature.Collab.presentation.EditCollabScreen
+import com.iota.campusX.Feature.Collab.presentation.ManageCollabScreen
+import com.iota.campusX.Feature.Collab.presentation.CollabRequestsScreen
 import com.iota.campusX.Feature.Notificattion.presentation.NotificationScreen
 import com.iota.campusX.Feature.Notificattion.presentation.NotificationViewModel
 import com.iota.campusX.Feature.Opportunities.presentation.CourseDetailScreen
@@ -96,12 +111,15 @@ import com.iota.campusX.Navigation.BottomAppBar
 import com.iota.campusX.Navigation.ChatList
 import com.iota.campusX.Navigation.Collab
 import com.iota.campusX.Navigation.CollabDetail
+import com.iota.campusX.Navigation.CollabRequests
 import com.iota.campusX.Navigation.Collaborations
 import com.iota.campusX.Navigation.CommunityChat
 import com.iota.campusX.Navigation.Connection
 import com.iota.campusX.Navigation.CourseDetail
 import com.iota.campusX.Navigation.Courses
 import com.iota.campusX.Navigation.CreateCollab
+import com.iota.campusX.Navigation.EditCollab
+import com.iota.campusX.Navigation.ManageCollab
 import com.iota.campusX.Navigation.CreatePost
 import com.iota.campusX.Navigation.CreateProfile
 import com.iota.campusX.Navigation.EditPost
@@ -237,27 +255,19 @@ class MainActivity : ComponentActivity(), KoinComponent {
             LaunchedEffect(sessionState) {
                 when (sessionState) {
                     is SessionState.Authenticated -> {
-                        val pendingUri = sessionViewModel.consumePendingDeepLink()
-                        if (pendingUri != null) {
-                            navHostController.navigate(pendingUri) {
+                        val currentDest = navHostController.currentBackStackEntry?.destination
+                        val isAuthRoute = currentDest?.let { dest ->
+                            dest.hasRoute(SignIn::class) || 
+                            dest.hasRoute(Register::class) || 
+                            dest.hasRoute(CreateProfile::class) || 
+                            dest.hasRoute(Verification::class) ||
+                            dest.hasRoute(AuthGraph::class)
+                        } ?: false
+
+                        if (isAuthRoute) {
+                            navHostController.navigate(Home()) {
                                 popUpTo(navHostController.graph.id) { inclusive = true }
                                 launchSingleTop = true
-                            }
-                        } else {
-                            val currentDest = navHostController.currentBackStackEntry?.destination
-                            val isAuthRoute = currentDest?.let { dest ->
-                                dest.hasRoute(SignIn::class) || 
-                                dest.hasRoute(Register::class) || 
-                                dest.hasRoute(CreateProfile::class) || 
-                                dest.hasRoute(Verification::class) ||
-                                dest.hasRoute(AuthGraph::class)
-                            } ?: false
-
-                            if (isAuthRoute) {
-                                navHostController.navigate(Home()) {
-                                    popUpTo(navHostController.graph.id) { inclusive = true }
-                                    launchSingleTop = true
-                                }
                             }
                         }
                     }
@@ -286,13 +296,27 @@ class MainActivity : ComponentActivity(), KoinComponent {
                 }
             }
 
-            LaunchedEffect(pendingDeepLink) {
-                if (pendingDeepLink != null && sessionState is SessionState.Authenticated) {
-                    val uri = sessionViewModel.consumePendingDeepLink()
-                    if (uri != null) {
-                        navHostController.navigate(uri) {
+            LaunchedEffect(sessionState, pendingDeepLink) {
+                if (sessionState is SessionState.Authenticated && pendingDeepLink != null) {
+                    val uri = sessionViewModel.consumePendingDeepLink() ?: return@LaunchedEffect
+                    // Ensure the NavHost graph is initialized before navigating
+                    while (true) {
+                        val isReady = try {
+                            navHostController.graph
+                            true
+                        } catch (_: Exception) {
+                            false
+                        }
+                        if (isReady) break
+                        kotlinx.coroutines.delay(50)
+                    }
+                    try {
+                        val options = navOptions {
                             launchSingleTop = true
                         }
+                        navHostController.navigate(deepLink = uri, navOptions = options)
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Failed to navigate to deep link: $uri", e)
                     }
                 }
             }
@@ -317,22 +341,51 @@ class MainActivity : ComponentActivity(), KoinComponent {
             
 
             AppTheme {
+                var isSessionInitialized by rememberSaveable { mutableStateOf(false) }
+
+                LaunchedEffect(sessionState) {
+                    if (sessionState !is SessionState.Loading) {
+                        isSessionInitialized = true
+                    }
+                }
+
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    when (sessionState) {
-                        is SessionState.Loading -> {
-                            // Blank container while Android native SplashScreen is active.
-                            // Defer NavHost composition until session is resolved so startDestination
-                            // evaluates directly to MainGraph for authenticated users, avoiding any login flash.
-                        }
-                        else -> {
-                            NavHost(
-                                modifier = Modifier.fillMaxSize(),
-                                navController = navHostController,
-                                startDestination = if (sessionState is SessionState.Authenticated) MainGraph else AuthGraph
+                    if (!isSessionInitialized && sessionState is SessionState.Loading) {
+                        // Startup branded loading screen (prevents white blank screen while resolving session)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.background),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.splash_icon),
+                                    contentDescription = "Collabbit",
+                                    modifier = Modifier.size(72.dp)
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    strokeWidth = 3.dp
+                                )
+                            }
+                        }
+                    } else {
+                        NavHost(
+                            modifier = Modifier.fillMaxSize(),
+                            navController = navHostController,
+                            startDestination = if (sessionState is SessionState.Authenticated) MainGraph else AuthGraph
+                        ) {
                         navigation<AuthGraph>(
                             startDestination = SignIn,
                         ) {
@@ -369,15 +422,66 @@ class MainActivity : ComponentActivity(), KoinComponent {
                                 )
                             }
 
-                            composable<Collab> {
+                            composable<Collab>(
+                                deepLinks = listOf(
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/collab" },
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/collab/" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/collab" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/collab/" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/collab" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/collab/" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/collab" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/collab/" },
+                                    navDeepLink { uriPattern = "finder://collab" }
+                                )
+                            ) {
                                 CollabExploreScreen(
                                     navController = navHostController
                                 )
                             }
 
-                            composable<CollabDetail> { backStackEntry ->
+                            composable<CollabDetail>(
+                                deepLinks = listOf(
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/collab/{collabId}" },
+                                    navDeepLink { uriPattern = "https://www.campuscircle.in/collab/{collabId}/" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/collab/{collabId}" },
+                                    navDeepLink { uriPattern = "https://campuscircle.in/collab/{collabId}/" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/collab/{collabId}" },
+                                    navDeepLink { uriPattern = "https://www.collabbit.in/collab/{collabId}/" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/collab/{collabId}" },
+                                    navDeepLink { uriPattern = "https://collabbit.in/collab/{collabId}/" },
+                                    navDeepLink { uriPattern = "finder://collab/{collabId}" }
+                                )
+                            ) { backStackEntry ->
                                 val args = backStackEntry.toRoute<CollabDetail>()
                                 CollabDetailScreen(
+                                    collabId = args.collabId,
+                                    navController = navHostController,
+                                    viewModel = koinViewModel()
+                                )
+                            }
+
+                            composable<ManageCollab> { backStackEntry ->
+                                val args = backStackEntry.toRoute<ManageCollab>()
+                                ManageCollabScreen(
+                                    collabId = args.collabId,
+                                    navController = navHostController,
+                                    viewModel = koinViewModel()
+                                )
+                            }
+
+                            composable<EditCollab> { backStackEntry ->
+                                val args = backStackEntry.toRoute<EditCollab>()
+                                EditCollabScreen(
+                                    collabId = args.collabId,
+                                    navController = navHostController,
+                                    viewModel = koinViewModel()
+                                )
+                            }
+
+                            composable<CollabRequests> { backStackEntry ->
+                                val args = backStackEntry.toRoute<CollabRequests>()
+                                CollabRequestsScreen(
                                     collabId = args.collabId,
                                     navController = navHostController,
                                     viewModel = koinViewModel()
@@ -387,7 +491,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
                             composable<CreateCollab> {
                                 CreateCollabScreen(
                                     navController = navHostController,
-                                    viewModel = koinViewModel(),
                                     createCollabViewModel = koinViewModel()
                                 )
                             }
@@ -630,7 +733,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
                         navHostController = navHostController
                     )
                 }
-            }
 
                     SnackbarHost(
                         hostState = snackBarHostState,

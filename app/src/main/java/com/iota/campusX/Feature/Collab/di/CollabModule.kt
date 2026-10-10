@@ -1,6 +1,5 @@
 package com.iota.campusX.Feature.Collab.di
 
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iota.campusX.Feature.Collab.data.remote.repository.CollabRepoImpl
 import com.iota.campusX.Feature.Collab.domain.repository.CollabRepository
 import com.iota.campusX.Feature.Collab.domain.usecase.CreateCollabUseCase
@@ -11,13 +10,11 @@ import org.koin.dsl.module
 
 val collabModule = module {
 
-
     single<CollabRepository> { CollabRepoImpl(get()) }
 
     single { CreateCollabUseCase(get()) }
 
-    viewModel { CollabViewModel(get(), get()) }
+    viewModel { CollabViewModel(get(), get(), get()) }
 
-    viewModel { CreateCollabViewModel() }
-
+    viewModel { CreateCollabViewModel(get(), get()) }
 }

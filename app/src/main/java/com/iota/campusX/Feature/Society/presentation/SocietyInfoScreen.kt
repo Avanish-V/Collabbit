@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +61,8 @@ fun SocietyInfoScreen(
     val joinState by viewModel.joinState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
@@ -139,6 +142,24 @@ fun SocietyInfoScreen(
                 navigationIcon = {
                     IconButton(onClick = { navHostController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (society != null) {
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    com.iota.campusX.Utils.shareSociety(
+                                        context = context,
+                                        societyId = society.id,
+                                        societyName = society.name,
+                                        imageUrl = society.logoUrl
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = "Share Society")
+                        }
                     }
                 }
             )

@@ -27,11 +27,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.iota.campusX.Feature.Post.presentation.components.DocumentAttachmentCard
 import com.iota.campusX.Feature.Post.domain.attachment.DocumentAttachmentDto
 import com.iota.campusX.Feature.Post.domain.attachment.ImageAttachmentDto
+import com.iota.campusX.Feature.Post.domain.attachment.TeamFormationAttachmentDto
 import com.iota.campusX.Feature.Post.domain.attachment.VideoAttachmentDto
 import com.iota.campusX.R
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun MediaAttachment(
@@ -67,7 +70,95 @@ fun MediaAttachment(
                     onClick = { onMediaClick(0) }
                 )
             }
+            is TeamFormationAttachmentDto -> {
+                TeamFormationPreviewCard(
+                    teamType = attachment.teamType,
+                    membersNeeded = attachment.membersNeeded,
+                    skills = attachment.requiredSkills
+                )
+            }
             else -> {}
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TeamFormationPreviewCard(
+    teamType: String,
+    membersNeeded: Int,
+    skills: List<String>
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = teamType.ifBlank { "Team Formation" },
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2563EB),
+                            fontSize = 11.5.sp
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text = "👥 $membersNeeded ${if (membersNeeded == 1) "teammate" else "teammates"} needed",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            if (skills.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    skills.forEach { skill ->
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surface
+                        ) {
+                            Text(
+                                text = skill,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 10.5.sp
+                                ),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

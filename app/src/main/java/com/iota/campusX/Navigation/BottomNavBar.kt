@@ -88,18 +88,6 @@ fun BottomAppBar(
             modifier = Modifier.navigationBarsPadding(),
             horizontalAlignment = Alignment.End
         ) {
-            if (destination?.hasRoute(Collab::class) == true) {
-                FloatingActionButton(
-                    modifier = Modifier.padding(16.dp),
-                    onClick = { navController.navigate(CreateCollab) },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White,
-                    shape = CircleShape
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Create Collab")
-                }
-            }
-
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.outline,
                 thickness = 0.5.dp

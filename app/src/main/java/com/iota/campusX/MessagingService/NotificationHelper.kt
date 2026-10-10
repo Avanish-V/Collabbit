@@ -33,7 +33,7 @@ object NotificationHelper {
                 context,
                 NotificationChannelManager.CHANNEL_ID
             )
-                .setSmallIcon(R.drawable.splash_icon)
+                .setSmallIcon(R.drawable.logo_collabbit_g)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)

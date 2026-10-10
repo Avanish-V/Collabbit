@@ -16,5 +16,7 @@ data class PollAttachmentDto(
 @SerialName("TEAM_FORMATION")
 data class TeamFormationAttachmentDto(
     val teamType: String,
-    val requiredSkills: List<String>
+    val requiredSkills: List<String> = emptyList(),
+    val membersNeeded: Int = 1,
+    val roles: List<ProjectRoleDto> = emptyList()
 ): AttachmentDto

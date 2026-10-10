@@ -89,7 +89,8 @@ class CommunityRepositoryImpl(
                 community?.let {
                     val existing = communityDao.getCommunityById(communityId)
                     val isJoined = existing?.isJoined ?: false
-                    communityDao.insertCommunity(it.toLocal(isSynced = true, isJoined = isJoined))
+                    val sanitizedCount = maxOf(0, it.memberCount)
+                    communityDao.insertCommunity(it.copy(memberCount = sanitizedCount).toLocal(isSynced = true, isJoined = isJoined))
                 }
             }
             .flatMapLatest { roomFlow }
@@ -98,7 +99,13 @@ class CommunityRepositoryImpl(
     override suspend fun joinCommunity(community: Community, userId: String): Result<Unit> {
         return try {
             remoteDataSource.joinCommunity(community.id, userId)
-            communityDao.insertCommunity(community.toLocal(isSynced = true, isJoined = true))
+            val existing = communityDao.getCommunityById(community.id)
+            val currentCount = maxOf(0, existing?.memberCount ?: community.memberCount)
+            val newCount = currentCount + 1
+            communityDao.insertCommunity(
+                community.copy(memberCount = newCount)
+                    .toLocal(isSynced = true, isJoined = true)
+            )
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -113,7 +120,9 @@ class CommunityRepositoryImpl(
 
             val localEntities = remoteCommunities.map { community ->
                 val isJoined = remoteJoinedIds.contains(community.id) || community.creatorId == userId
-                community.toLocal(isSynced = true, isJoined = isJoined) 
+                val sanitizedCount = maxOf(0, community.memberCount)
+                community.copy(memberCount = sanitizedCount)
+                    .toLocal(isSynced = true, isJoined = isJoined) 
             }
             
             // 1. Update/Insert all from remote
@@ -139,7 +148,13 @@ class CommunityRepositoryImpl(
     override suspend fun leaveCommunity(communityId: String, userId: String): Result<Unit> {
         return try {
             remoteDataSource.leaveCommunity(communityId, userId)
-            communityDao.leaveCommunity(communityId)
+            val existing = communityDao.getCommunityById(communityId)
+            if (existing != null) {
+                val newCount = maxOf(0, existing.memberCount - 1)
+                communityDao.insertCommunity(existing.copy(memberCount = newCount, isJoined = false))
+            } else {
+                communityDao.leaveCommunity(communityId)
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

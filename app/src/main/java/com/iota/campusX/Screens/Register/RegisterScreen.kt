@@ -55,6 +55,7 @@ import com.iota.campusX.Feature.Auth.presentation.ui.OnBoardingScreen
 import com.iota.campusX.Navigation.AuthGraph
 import com.iota.campusX.Navigation.Home
 import com.iota.campusX.R
+import com.iota.campusX.Screens.Home.GilroyFontFamily
 import com.iota.campusX.Utils.CircularLoading
 import org.koin.compose.koinInject
 
@@ -115,40 +116,45 @@ fun SignInScreen(navHostController: NavHostController) {
         snackbarHost = {
             androidx.compose.material3.SnackbarHost(hostState = snackBarHostState)
         }
-    ) {padding->
+    ) { padding ->
 
-        Column ( modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .background(color = MaterialTheme.colorScheme.background),verticalArrangement = Arrangement.SpaceBetween) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(color = MaterialTheme.colorScheme.background),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+
+            val gilroyFontFamily = FontFamily(
+                Font(R.font.gilroy_extrabold, weight = FontWeight.ExtraBold)
+            )
+            Box(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)){
+                    Icon(
+                        painter = painterResource(R.drawable.logo_collabbit_g),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+
+                    )
+                    Text(
+                        text = "Collabbit",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontFamily = gilroyFontFamily,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
 
 
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center){
-//                Image(
-//                    painter = painterResource(R.drawable.finder_icon),
-//                    contentDescription = "CampusX",
-//                    modifier = Modifier.size(60.dp)
-//                )
-                val gilroyFontFamily = FontFamily(
-                    Font(R.font.gilroy_extrabold, weight = FontWeight.ExtraBold)
-                )
-
-                Text(
-                    text = "Collabbit",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontFamily = gilroyFontFamily,
-                    color = MaterialTheme.colorScheme.primary
-
-                )
             }
 
-            Column (Modifier.weight(1f)){
-
+            Column(Modifier.weight(1f)) {
                 OnBoardingScreen(
                     pagerState = pagerState,
                     onboardingContent = onboardingList
                 )
-
             }
 
             CustomSegmentedProgressBar(
@@ -160,37 +166,44 @@ fun SignInScreen(navHostController: NavHostController) {
                 modifier = Modifier.padding(vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
-            ){
+            ) {
 
                 Button(
                     modifier = Modifier.padding(horizontal = 40.dp).fillMaxWidth().height(48.dp),
                     onClick = {
-                        if (pagerState.currentPage != onboardingList.count()-1){
-                            pagerState.requestScrollToPage(pagerState.currentPage+1)
-                        }else{
+                        if (pagerState.currentPage != onboardingList.count() - 1) {
+                            pagerState.requestScrollToPage(pagerState.currentPage + 1)
+                        } else {
                             googleSignInViewModel.signIn(context)
                         }
                     },
+                    enabled = authState.value !is AuthResult.Loading && authState.value !is AuthResult.SignedIn,
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         contentColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        disabledContentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    if (pagerState.currentPage != onboardingList.count()-1){
+                    if (pagerState.currentPage != onboardingList.count() - 1) {
                         Text("Next")
-                    }else{
-                        when(val value = authState.value){
-
+                    } else {
+                        when (val value = authState.value) {
                             is AuthResult.Idle -> {
                                 LoginButtonText()
                             }
-
-                            is AuthResult.Loading -> {
-                                CircularLoading(Color.White)
-                            }
-                            is AuthResult.SignedIn -> {
-                                CircularLoading(Color.White)
+                            is AuthResult.Loading, is AuthResult.SignedIn -> {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    CircularLoading(Color.White)
+                                    Text(
+                                        text = if (value is AuthResult.SignedIn) "Signing in..." else "Connecting...",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                             is AuthResult.Error -> {
                                 LoginButtonText()
@@ -198,9 +211,7 @@ fun SignInScreen(navHostController: NavHostController) {
                                     snackBarHostState.showSnackbar(value.message)
                                 }
                             }
-                            else -> {
-
-                            }
+                            else -> {}
                         }
                     }
                 }
@@ -208,7 +219,6 @@ fun SignInScreen(navHostController: NavHostController) {
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Column(modifier = Modifier.height(40.dp)) {
-
                     val uriHandler = LocalUriHandler.current
 
                     TermsAndPrivacyText(

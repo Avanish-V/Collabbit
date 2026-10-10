@@ -31,10 +31,20 @@ data class PollAttachment(
 ): Attachment
 
 @Serializable
+data class ProjectRoleDto(
+    val id: String = "",
+    val roleName: String = "",
+    val skills: List<String> = emptyList(),
+    val peopleNeeded: Int = 1
+)
+
+@Serializable
 @SerialName("TEAM_FORMATION")
 data class TeamFormationAttachment(
     val teamType: String,
-    val requiredSkills: List<String>
+    val requiredSkills: List<String> = emptyList(),
+    val membersNeeded: Int = 1,
+    val roles: List<ProjectRoleDto> = emptyList()
 ): Attachment
 
 @Serializable
