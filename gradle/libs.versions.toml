@@ -40,6 +40,13 @@ kotlinxCoroutines = "1.8.1"
 turbine = "1.2.0"
 appcompat = "1.6.1"
 material = "1.10.0"
+datastore = "1.1.1"
+paging = "3.3.5"
+richlinkpreview = "1.0.0"
+easycrop = "0.1.1"
+commonsCodec = "1.16.1"
+playAppUpdate = "2.1.0"
+leakcanary = "2.13"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -66,6 +73,8 @@ androidx-credentials = { group = "androidx.credentials", name = "credentials", v
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentialsPlayServicesAuth" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koinAndroidxCompose" }
+koin-android = { module = "io.insert-koin:koin-android", version.ref = "koinAndroidxCompose" }
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koinAndroidxCompose" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
@@ -95,9 +104,20 @@ mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "moc
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+androidx-room-paging = { group = "androidx.room", name = "room-paging", version.ref = "room" }
+androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
+androidx-paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
+richlinkpreview = { module = "io.github.alihaider63:richlinkpreview", version.ref = "richlinkpreview" }
+easycrop = { module = "io.github.mr0xf00:easycrop", version.ref = "easycrop" }
+commons-codec = { module = "commons-codec:commons-codec", version.ref = "commonsCodec" }
+play-app-update = { module = "com.google.android.play:app-update", version.ref = "playAppUpdate" }
+leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

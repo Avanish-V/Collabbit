@@ -147,7 +147,6 @@ fun BottomAppBar(
                         colors = NavigationBarItemDefaults.colors(
                             indicatorColor = Color.Transparent
                         )
-
                     )
                 }
             }

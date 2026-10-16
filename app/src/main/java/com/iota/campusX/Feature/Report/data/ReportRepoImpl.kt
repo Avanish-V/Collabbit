@@ -3,7 +3,7 @@ package com.iota.campusX.Feature.Report.data
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.Report.domain.ReportRepository
-import com.iota.campusX.ui.UIComponents.ReportReason
+import com.iota.campusX.Feature.Report.domain.model.ReportReason
 import kotlinx.coroutines.tasks.await
 
 class ReportRepoImpl(private val firestore: FirebaseFirestore,private val auth: FirebaseAuth): ReportRepository {

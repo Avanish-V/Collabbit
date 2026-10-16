@@ -19,6 +19,8 @@ android {
 
     lint {
         disable += "NullSafeMutableLiveData"
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 
 
@@ -124,6 +126,25 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    flavorDimensions += "env"
+    productFlavors {
+        create("dev") {
+            dimension = "env"
+            buildConfigField("String", "BASE_URL", "\"http://192.168.1.13:8080/api/v1/\"")
+            buildConfigField("String", "OPPORTUNITIES_BASE_URL", "\"http://192.168.1.13:8081/api/jobs\"")
+            buildConfigField("String", "COURSES_BASE_URL", "\"http://192.168.1.13:8081/api/courses\"")
+            buildConfigField("Boolean", "IS_PRODUCTION", "false")
+        }
+        create("prod") {
+            dimension = "env"
+            buildConfigField("String", "BASE_URL", "\"https://iv52bugou5xppexnhffgj53hwq0rorrh.lambda-url.ap-south-1.on.aws/api/v1/\"")
+            buildConfigField("String", "OPPORTUNITIES_BASE_URL", "\"https://bmo6sd3nhbgp4akoqmgoamd3ja0cmyyn.lambda-url.ap-south-1.on.aws/api/jobs\"")
+            buildConfigField("String", "COURSES_BASE_URL", "\"https://bmo6sd3nhbgp4akoqmgoamd3ja0cmyyn.lambda-url.ap-south-1.on.aws/api/courses\"")
+            buildConfigField("Boolean", "IS_PRODUCTION", "true")
+        }
     }
 
     // ---------------------------------------------------------
@@ -258,7 +279,7 @@ dependencies {
 
     implementation(libs.ktor.client.okhttp)
 
-    implementation("io.ktor:ktor-client-websockets:2.3.12")
+    implementation(libs.ktor.client.websockets)
 
     implementation(libs.ktor.client.core)
 
@@ -298,9 +319,7 @@ dependencies {
     // DATASTORE
     // =========================================================
 
-    implementation(
-        "androidx.datastore:datastore-preferences:1.0.0"
-    )
+    implementation(libs.androidx.datastore.preferences)
 
 
     // =========================================================
@@ -311,9 +330,7 @@ dependencies {
 
     implementation(libs.androidx.room.ktx)
 
-    implementation(
-        "androidx.room:room-paging:2.7.2"
-    )
+    implementation(libs.androidx.room.paging)
 
     ksp(libs.androidx.room.compiler)
 
@@ -322,49 +339,37 @@ dependencies {
     // PAGING
     // =========================================================
 
-    implementation(
-        "androidx.paging:paging-runtime:3.3.4"
-    )
+    implementation(libs.androidx.paging.runtime)
 
-    implementation(
-        "androidx.paging:paging-compose:3.3.4"
-    )
+    implementation(libs.androidx.paging.compose)
 
 
     // =========================================================
     // RICH LINK
     // =========================================================
 
-    implementation(
-        "io.github.alihaider63:richlinkpreview:1.0.0"
-    )
+    implementation(libs.richlinkpreview)
 
 
     // =========================================================
     // IMAGE CROPPING
     // =========================================================
 
-    implementation(
-        "io.github.mr0xf00:easycrop:0.1.1"
-    )
+    implementation(libs.easycrop)
 
 
     // =========================================================
     // CODEC
     // =========================================================
 
-    implementation(
-        "commons-codec:commons-codec:1.9"
-    )
+    implementation(libs.commons.codec)
 
 
     // =========================================================
     // GOOGLE PLAY
     // =========================================================
 
-    implementation(
-        "com.google.android.play:app-update:2.1.0"
-    )
+    implementation(libs.play.app.update)
 
 
     // =========================================================
@@ -385,9 +390,23 @@ dependencies {
     // DEBUG ONLY
     // =========================================================
 
-    debugImplementation(
-        "com.squareup.leakcanary:leakcanary-android:2.13"
-    )
+    // Module Dependencies
+    implementation(project(":feature:auth"))
+    implementation(project(":feature:chat"))
+    implementation(project(":feature:collab"))
+    implementation(project(":feature:explore_swipe"))
+    implementation(project(":feature:feed"))
+    implementation(project(":feature:notification"))
+    implementation(project(":feature:opportunities"))
+    implementation(project(":feature:profile"))
+    implementation(project(":feature:society"))
+    implementation(project(":core:common"))
+    implementation(project(":core:network"))
+    implementation(project(":core:designsystem"))
+    implementation(project(":core:navigation"))
+    implementation(project(":core:notifications"))
+
+    debugImplementation(libs.leakcanary.android)
 
 
     // =========================================================

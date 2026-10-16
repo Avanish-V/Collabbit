@@ -112,11 +112,8 @@ import com.iota.campusX.Navigation.ChatList
 import com.iota.campusX.Navigation.Collab
 import com.iota.campusX.Navigation.CollabDetail
 import com.iota.campusX.Navigation.CollabRequests
-import com.iota.campusX.Navigation.Collaborations
 import com.iota.campusX.Navigation.CommunityChat
-import com.iota.campusX.Navigation.Connection
 import com.iota.campusX.Navigation.CourseDetail
-import com.iota.campusX.Navigation.Courses
 import com.iota.campusX.Navigation.CreateCollab
 import com.iota.campusX.Navigation.EditCollab
 import com.iota.campusX.Navigation.ManageCollab
@@ -145,21 +142,18 @@ import com.iota.campusX.Navigation.VideoView
 import com.iota.campusX.Navigation.ViewProfile
 import com.iota.campusX.Navigation.navScreen
 import com.iota.campusX.Navigation.shouldShowBottomBar
-import com.iota.campusX.NetworkMonitor.ConnectivityUiState
-import com.iota.campusX.NetworkMonitor.ConnectivityViewModel
-import com.iota.campusX.Screens.Home.MainScreen
-import com.iota.campusX.Screens.Home.PdfViewScreen
-import com.iota.campusX.Screens.Home.PostViewScreen
-import com.iota.campusX.Screens.Home.VideoViewScreen
-import com.iota.campusX.Screens.Register.SignInScreen
-import com.iota.campusX.Screens.Setting.SettingScreen
-import com.iota.campusX.Screens.ShowcaseScreen
-import com.iota.campusX.Screens.ShowcaseType
-import com.iota.campusX.Utils.UiState
-import com.iota.campusX.realtime.manager.RealtimeManager
+import com.iota.campusX.core.network.monitor.ConnectivityUiState
+import com.iota.campusX.core.network.monitor.ConnectivityViewModel
+import com.iota.campusX.ui.home.MainScreen
+import com.iota.campusX.Feature.Post.presentation.view.PdfViewScreen
+import com.iota.campusX.Feature.Post.presentation.view.PostViewScreen
+import com.iota.campusX.Feature.Post.presentation.view.VideoViewScreen
+import com.iota.campusX.Feature.Auth.presentation.ui.SignInScreen
+import com.iota.campusX.Feature.UserProfile.ui.screens.Setting.SettingScreen
+import com.iota.campusX.core.common.UiState
+import com.iota.campusX.core.network.websocket.manager.RealtimeManager
 import com.iota.campusX.ui.UIComponents.AlertDialogWidget
 import com.iota.campusX.ui.theme.AppTheme
-import com.jetpack.observeliveconnectivity.connectivityState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -219,7 +213,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
             val navHostController = rememberNavController()
             val navBackStackEntry by navHostController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
-            val connectivityState = connectivityState()
             val state by viewModel.uiState.collectAsState()
             val profileViewModel = koinInject<UserProfileViewModel>()
             val auraViewModel: AuraViewModel = koinViewModel()
@@ -231,7 +224,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
             var showAlreadyClaimedDialog by remember { mutableStateOf(false) }
             var checkInData by remember { mutableStateOf<CheckInEvent.Success?>(null) }
 
-            LaunchedEffect(connectivityState.value) {
+            LaunchedEffect(state) {
                 when (state) {
                     ConnectivityUiState.Offline ->
                         snackBarHostState.showSnackbar(
@@ -568,28 +561,38 @@ class MainActivity : ComponentActivity(), KoinComponent {
                             navScreen<Setting> {
                                 SettingScreen(
                                     navController = navHostController,
-                                    userProfileViewModel = koinInject()
+                                    userProfileViewModel = koinInject(),
+                                    onSignOut = {
+                                        val googleSignInViewModel: com.iota.campusX.Feature.Auth.presentation.GoogleSignInViewModel = get()
+                                        googleSignInViewModel.signOut()
+                                    }
                                 )
                             }
 
                             navScreen<CreatePost> {
                                 val postCreationViewModel: PostCreationViewModel = koinViewModel()
                                 val profileViewModel = koinInject<UserProfileViewModel>()
+                                val profileState = profileViewModel.uiState.collectAsState().value
 
                                 CreatePostScreen(
                                     navHostController = navHostController,
-                                    userProfileViewModel = profileViewModel,
+                                    userProfileImage = profileState.profile?.baseProfile?.image,
+                                    userProfileName = profileState.profile?.baseProfile?.name,
                                     postCreationViewModel = postCreationViewModel,
                                 )
                             }
 
                             navScreen<EditPost> { backStackEntry ->
                                 val args = backStackEntry.toRoute<EditPost>()
+                                val profileViewModel = koinInject<UserProfileViewModel>()
+                                val profileState = profileViewModel.uiState.collectAsState().value
+
                                 EditPostScreen(
                                     id = args.id,
                                     type = args.type,
                                     navHostController = navHostController,
-                                    userProfileViewModel = koinInject()
+                                    userProfileImage = profileState.profile?.baseProfile?.image,
+                                    userProfileName = profileState.profile?.baseProfile?.name
                                 )
                             }
 
@@ -675,33 +678,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
                                 SocietyHubScreen(navHostController = navHostController)
                             }
 
-//                            composable<Society> {
-//                                SocietyScreen(navHostController = navHostController)
-//                            }
-
-                            composable<Connection> {
-                                ShowcaseScreen(
-                                    title = "Connections",
-                                    navHostController = navHostController,
-                                    type = ShowcaseType.COLLABORATIONS // placeholder type
-                                )
-                            }
-
-                            composable<Courses> {
-                                ShowcaseScreen(
-                                    title = "Courses",
-                                    navHostController = navHostController,
-                                    type = ShowcaseType.COURSES
-                                )
-                            }
-
-                            composable<Collaborations> {
-                                ShowcaseScreen(
-                                    title = "Collaborations",
-                                    navHostController = navHostController,
-                                    type = ShowcaseType.COLLABORATIONS
-                                )
-                            }
 
                             navScreen<SocietyInfo>(
                                 deepLinks = listOf(
@@ -750,7 +726,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
                     LaunchedEffect(deleteState) {
                         when (deleteState) {
-                            is UiState.Success -> {
+                            is UiState.Success<*> -> {
                                 menuController.dismissDialog()
                                 menuController.dismiss()
                                 menuActionViewModel.resetDeleteState()

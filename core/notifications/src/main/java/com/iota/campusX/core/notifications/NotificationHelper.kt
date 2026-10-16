@@ -1,0 +1,46 @@
+package com.iota.campusX.core.notifications
+
+import android.Manifest
+import android.content.Context
+import androidx.annotation.RequiresPermission
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import com.google.firebase.messaging.RemoteMessage
+
+object NotificationHelper {
+
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    fun showNotification(
+        context: Context,
+        message: RemoteMessage,
+        activityClass: Class<*>
+    ) {
+        val title = message.notification?.title ?: "Campus Circle"
+        val body = message.notification?.body ?: ""
+
+        val pendingIntent = NotificationClickHandler.createPendingIntent(
+            context,
+            message.data,
+            activityClass
+        )
+
+        val builder = NotificationCompat.Builder(
+            context,
+            NotificationChannelManager.CHANNEL_ID
+        )
+            .setSmallIcon(R.drawable.logo_collabbit_g)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+
+        val notificationId = message.data["notificationId"]?.toIntOrNull()
+            ?: System.currentTimeMillis().toInt()
+
+        NotificationManagerCompat.from(context).notify(
+            notificationId,
+            builder.build()
+        )
+    }
+}

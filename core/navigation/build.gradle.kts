@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -14,19 +16,35 @@ android {
         consumerProguardFiles("consumer-rules.pro")
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
-
+    buildFeatures {
+        compose = true
+    }
 }
 
 dependencies {
-    implementation(libs.androidx.appcompat)
+    implementation(project(":core:common"))
+
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
     implementation(libs.material)
+
+    // Navigation Compose
+    implementation(libs.androidx.navigation.compose)
+
+    // Kotlinx Serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // Compose
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.foundation)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
