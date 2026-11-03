@@ -52,17 +52,6 @@ android {
             storeFile = file("debug.keystore")
         }
 
-        /*
-         * PRODUCTION
-         *
-         * IMPORTANT:
-         * Replace these with your actual production/upload keystore.
-         *
-         * Do NOT commit passwords to Git.
-         *
-         * If you already have Google Play App Signing configured,
-         * make sure this is your registered UPLOAD KEY.
-         */
         create("release") {
 
             storeFile = file("collabbit-release.jks")
@@ -91,17 +80,12 @@ android {
 
         release {
 
-            // Enable R8
             isMinifyEnabled = true
 
-            // Remove unused resources
             isShrinkResources = true
 
-            // Use production/upload key
-           // signingConfig = signingConfigs.getByName("release")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
 
-            // R8 / ProGuard configuration
             proguardFiles(
                 getDefaultProguardFile(
                     "proguard-android-optimize.txt"
