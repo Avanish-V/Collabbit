@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.iota.campusX.Feature.Collab.data.model.CollabFeedbackModelsTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-29T14:42:02.208Z" hostname="DESKTOP-PI25AM7" time="0.029">
+  <properties/>
+  <testcase name="CollabFeedbackRequest serialization payload verifies non-empty content" classname="com.iota.campusX.Feature.Collab.data.model.CollabFeedbackModelsTest" time="0.001"/>
+  <testcase name="parent-child hierarchy filtering correctly identifies top-level comments and replies" classname="com.iota.campusX.Feature.Collab.data.model.CollabFeedbackModelsTest" time="0.027"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

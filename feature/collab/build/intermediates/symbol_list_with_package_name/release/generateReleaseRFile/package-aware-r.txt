@@ -1,0 +1,16 @@
+com.iota.campusX.feature.collab
+drawable baseline_verified_24
+drawable briefcase
+drawable code_simple
+drawable eye
+drawable globe
+drawable heart_partner_handshake
+drawable ideas
+drawable image
+drawable lightbulb_on
+drawable messages__1_
+drawable pencil
+drawable people_bold
+drawable placeholder
+drawable share
+drawable trash

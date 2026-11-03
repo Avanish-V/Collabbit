@@ -1,0 +1,1 @@
+com.iota.campusX.feature.society
