@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Collab.data.model.*
+import com.iota.campusX.Feature.Collab.domain.repository.CollabFeedbackRepository
 import com.iota.campusX.Feature.Collab.domain.repository.CollabRepository
 import com.iota.campusX.Feature.Collab.domain.usecase.CreateCollabUseCase
 import com.iota.campusX.Feature.Post.data.remote.S3Uploader
@@ -19,8 +20,20 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.StateFlow
 
+data class ReplyingTarget(
+    val feedbackId: String,
+    val userName: String
+)
+
+data class RequestUiState(
+    val isAcceptLoading: Boolean = false,
+    val isRejectLoading: Boolean = false,
+    val request: CollabConnectRequestResponse
+)
+
 class CollabViewModel(
     private val repository: CollabRepository,
+    private val feedbackRepository: CollabFeedbackRepository,
     private val createCollabUseCase: CreateCollabUseCase,
     private val s3Uploader: S3Uploader
 ) : ViewModel() {
@@ -49,66 +62,80 @@ class CollabViewModel(
     @OptIn(ExperimentalCoroutinesApi::class)
     val collabPagingData: Flow<PagingData<CollabResponse>> = _filterFlow
         .flatMapLatest { filter ->
-            repository.getCollabsPaging(filter.type, filter.query)
+            repository.getCollabsPaging(
+                type = filter.type,
+                query = filter.query
+            )
         }
         .cachedIn(viewModelScope)
 
-    fun fetchCollabs(type: String? = null, query: String? = null) {
-        val current = _filterFlow.value
-        _filterFlow.value = CollabFilter(
-            type = type ?: current.type,
-            query = query ?: current.query
-        )
+    fun onSearchQueryChanged(query: String) {
+        _filterFlow.value = _filterFlow.value.copy(query = query)
+    }
+
+    fun onFilterTypeChanged(type: String) {
+        _filterFlow.value = _filterFlow.value.copy(type = type)
+    }
+
+    fun fetchCollabs(type: String = "All", query: String = "") {
+        _filterFlow.value = CollabFilter(type = type, query = query)
+    }
+
+    fun fetchUserCollabs(userId: String) {
+        viewModelScope.launch {
+            _userCollabsState.value = UiState.Loading
+            repository.getCollabsByUserId(userId).fold(
+                onSuccess = { _userCollabsState.value = UiState.Success(it) },
+                onFailure = { _userCollabsState.value = UiState.Error(it.message ?: "Failed to fetch user collabs") }
+            )
+        }
+    }
+
+    fun getCollabsByUserId(userId: String) {
+        fetchUserCollabs(userId)
+    }
+
+    fun getJoinedCollabsByUserId(userId: String) {
+        fetchJoinedCollabs(userId)
+    }
+
+    fun fetchJoinedCollabs(userId: String) {
+        viewModelScope.launch {
+            _joinedCollabsState.value = UiState.Loading
+            repository.getJoinedCollabsByUserId(userId).fold(
+                onSuccess = { _joinedCollabsState.value = UiState.Success(it) },
+                onFailure = { _joinedCollabsState.value = UiState.Error(it.message ?: "Failed to fetch joined collabs") }
+            )
+        }
     }
 
     fun fetchCollabById(collabId: String) {
         viewModelScope.launch {
             _selectedCollabState.value = UiState.Loading
             repository.getCollabById(collabId).fold(
+                onSuccess = { _selectedCollabState.value = UiState.Success(it) },
+                onFailure = { _selectedCollabState.value = UiState.Error(it.message ?: "Failed to fetch collab details") }
+            )
+        }
+    }
+
+    fun updateCollabStatus(collabId: String, status: ProjectStatus) {
+        viewModelScope.launch {
+            _updateProjectStatusState.value = UiState.Loading
+            repository.updateProjectStatus(collabId, status).fold(
                 onSuccess = {
-                    _selectedCollabState.value = UiState.Success(it)
+                    _updateProjectStatusState.value = UiState.Success(it)
+                    fetchCollabById(collabId)
                 },
                 onFailure = {
-                    _selectedCollabState.value = UiState.Error(it.message ?: "Failed to fetch collaboration")
+                    _updateProjectStatusState.value = UiState.Error(it.message ?: "Failed to update project status")
                 }
             )
         }
     }
 
     fun updateProjectStatus(collabId: String, status: ProjectStatus) {
-        viewModelScope.launch {
-            _updateProjectStatusState.value = UiState.Loading
-            repository.updateProjectStatus(collabId, status).fold(
-                onSuccess = { updated ->
-                    _updateProjectStatusState.value = UiState.Success(updated)
-                    _selectedCollabState.value = UiState.Success(updated)
-                },
-                onFailure = {
-                    _updateProjectStatusState.value = UiState.Error(it.localizedMessage ?: "Failed to update project status")
-                }
-            )
-        }
-    }
-
-    fun resetUpdateProjectStatusState() {
-        _updateProjectStatusState.value = UiState.Idle
-    }
-
-    fun updateCollab(collabId: String, request: UpdateCollabRequest) {
-        viewModelScope.launch {
-            _updateCollabState.value = UiState.Loading
-            repository.updateCollab(collabId, request).fold(
-                onSuccess = { updated ->
-                    _updateCollabState.value = UiState.Success(updated)
-                    _selectedCollabState.value = UiState.Success(updated)
-                },
-                onFailure = {
-                    _updateCollabState.value = UiState.Error(
-                        it.localizedMessage ?: "Failed to update project"
-                    )
-                }
-            )
-        }
+        updateCollabStatus(collabId, status)
     }
 
     fun updateCollabWithLogo(
@@ -149,19 +176,12 @@ class CollabViewModel(
                 ProjectRole(
                     id = it.id,
                     roleName = it.roleName.trim(),
-                    skills = it.skills,
-                    peopleNeeded = it.peopleNeeded
+                    description = it.description.trim()
                 )
             }
-            val totalNeeded = roles.sumOf { it.peopleNeeded }.coerceAtLeast(1)
+            val totalNeeded = roles.size.coerceAtLeast(1)
 
-            val reqList = roles.flatMap { role ->
-                if (role.skills.isNotEmpty()) {
-                    listOf(role.roleName) + role.skills
-                } else {
-                    listOf(role.roleName)
-                }
-            }.distinct().filter { it.isNotBlank() }
+            val reqList = roles.map { it.roleName.trim() }.distinct().filter { it.isNotBlank() }
 
             val hasRolesChanged = projectRoles != originalCollab.roles
 
@@ -178,14 +198,12 @@ class CollabViewModel(
             )
 
             repository.updateCollab(collabId, request).fold(
-                onSuccess = { updated ->
-                    _updateCollabState.value = UiState.Success(updated)
-                    _selectedCollabState.value = UiState.Success(updated)
+                onSuccess = { updatedCollab ->
+                    _updateCollabState.value = UiState.Success(updatedCollab)
+                    _selectedCollabState.value = UiState.Success(updatedCollab)
                 },
-                onFailure = {
-                    _updateCollabState.value = UiState.Error(
-                        it.localizedMessage ?: "Failed to update project"
-                    )
+                onFailure = { error ->
+                    _updateCollabState.value = UiState.Error(error.localizedMessage ?: "Failed to update project")
                 }
             )
         }
@@ -195,97 +213,84 @@ class CollabViewModel(
         _updateCollabState.value = UiState.Idle
     }
 
-    fun getCollabsByUserId(userId: String) {
-        viewModelScope.launch {
-            _userCollabsState.value = UiState.Loading
-            repository.getCollabsByUserId(userId).fold(
-                onSuccess = {
-                    _userCollabsState.value = UiState.Success(it)
-                },
-                onFailure = {
-                    _userCollabsState.value = UiState.Error(it.message ?: "Failed to fetch your collaborations")
-                }
-            )
-        }
+    fun resetUpdateProjectStatusState() {
+        _updateProjectStatusState.value = UiState.Idle
     }
-
-    fun getJoinedCollabsByUserId(userId: String) {
-        viewModelScope.launch {
-            _joinedCollabsState.value = UiState.Loading
-            repository.getJoinedCollabsByUserId(userId).fold(
-                onSuccess = {
-                    _joinedCollabsState.value = UiState.Success(it)
-                },
-                onFailure = {
-                    _joinedCollabsState.value = UiState.Error(it.message ?: "Failed to fetch joined collaborations")
-                }
-            )
-        }
-    }
-
-    fun createCollab(
-        title: String,
-        description: String,
-        type: CollabType,
-        requirements: List<String>,
-        needed: Int,
-        deadline: Long? = null,
-        projectUrl: String? = null
-    ) {
-        val request = CreateCollabRequest(
-            title = title,
-            description = description,
-            collabType = type,
-            requirements = requirements,
-            participantsNeeded = needed,
-            deadline = deadline,
-            projectUrl = projectUrl
-        )
-        viewModelScope.launch {
-            _createCollabState.value = UiState.Loading
-            createCollabUseCase(request).fold(
-                onSuccess = {
-                    _createCollabState.value = UiState.Success(it)
-                },
-                onFailure = {
-                    _createCollabState.value = UiState.Error(it.message ?: "Failed to create collaboration")
-                }
-            )
-        }
-    }
-
-    private val _collabRequestsState = MutableStateFlow<UiState<List<RequestUiState>>>(UiState.Idle)
-    val collabRequestsState = _collabRequestsState.asStateFlow()
 
     private val _connectState = MutableStateFlow<UiState<CollabRequestStatus>>(UiState.Idle)
     val connectState = _connectState.asStateFlow()
 
-    private val _hasRequestedState = MutableStateFlow<UiState<CollabRequestStatus>>(UiState.Idle)
-    val hasRequested : StateFlow<UiState<CollabRequestStatus>> = _hasRequestedState.asStateFlow()
+    private val _hasRequested = MutableStateFlow<UiState<CollabRequestStatus>>(UiState.Idle)
+    val hasRequested = _hasRequested.asStateFlow()
+
+    private val _collabRequestsState = MutableStateFlow<UiState<List<RequestUiState>>>(UiState.Idle)
+    val collabRequestsState = _collabRequestsState.asStateFlow()
+
+    private val _collabMembersState = MutableStateFlow<UiState<List<CollabMemberResponse>>>(UiState.Idle)
+    val collabMembersState = _collabMembersState.asStateFlow()
+
+    private val _removeMemberState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val removeMemberState = _removeMemberState.asStateFlow()
 
     fun connectToCollab(collabId: String) {
+        val selectedCollab = (_selectedCollabState.value as? UiState.Success)?.data
+        if (selectedCollab != null && selectedCollab.status != ProjectStatus.LOOKING) {
+            _connectState.value = UiState.Error("Project is not accepting applications (${selectedCollab.status.displayName})")
+            return
+        }
         viewModelScope.launch {
-            _hasRequestedState.value = UiState.Loading
+            _connectState.value = UiState.Loading
             repository.requestToCollab(collabId).fold(
-                onSuccess = {
-                    _hasRequestedState.value = UiState.Success(data = CollabRequestStatus.PENDING)
+                onSuccess = { status ->
+                    _connectState.value = UiState.Success(status)
+                    _hasRequested.value = UiState.Success(status)
                 },
-                onFailure = {
-                    _hasRequestedState.value = UiState.Error(it.message ?: "Failed to connect")
+                onFailure = { error ->
+                    _connectState.value = UiState.Error(error.message ?: "Failed to connect to collab")
                 }
             )
         }
     }
 
-    fun hasRequested(collabId: String){
+    fun hasRequested(collabId: String) {
         viewModelScope.launch {
-            _hasRequestedState.value = UiState.Loading
+            _hasRequested.value = UiState.Loading
             repository.hasAlreadyApplied(collabId).fold(
-                onSuccess = {
-                    _hasRequestedState.value = UiState.Success(it)
+                onSuccess = { status ->
+                    _hasRequested.value = UiState.Success(status)
                 },
-                onFailure = {
-                    _hasRequestedState.value = UiState.Error(it.message ?: "Failed to check status")
+                onFailure = { error ->
+                    _hasRequested.value = UiState.Error(error.message ?: "Failed to check application status")
+                }
+            )
+        }
+    }
+
+    fun fetchCollabRequests(collabId: String) {
+        viewModelScope.launch {
+            _collabRequestsState.value = UiState.Loading
+            repository.getCollabRequests(collabId).fold(
+                onSuccess = { requests ->
+                    val uiList = requests.map { RequestUiState(request = it) }
+                    _collabRequestsState.value = UiState.Success(uiList)
+                },
+                onFailure = { error ->
+                    _collabRequestsState.value = UiState.Error(error.message ?: "Failed to fetch requests")
+                }
+            )
+        }
+    }
+
+    fun updateCollabRequestStatus(requestId: String, collabId: String, status: CollabRequestStatus) {
+        viewModelScope.launch {
+            _collabRequestsState.value = UiState.Loading
+            repository.updateCollabRequestStatus(requestId, status.name).fold(
+                onSuccess = {
+                    fetchCollabRequests(collabId)
+                    fetchCollabMembers(collabId)
+                },
+                onFailure = { error ->
+                    _collabRequestsState.value = UiState.Error(error.message ?: "Failed to update request status")
                 }
             )
         }
@@ -295,90 +300,6 @@ class CollabViewModel(
         _connectState.value = UiState.Idle
     }
 
-    fun fetchCollabRequests(collabId: String) {
-        viewModelScope.launch {
-            _collabRequestsState.value = UiState.Loading
-            repository.getCollabRequests(collabId).fold(
-                onSuccess = { requests ->
-                    val uiState = requests.map { RequestUiState(request = it) }
-                    _collabRequestsState.value = UiState.Success(uiState)
-                },
-                onFailure = {
-                    _collabRequestsState.value = UiState.Error(it.message ?: "Failed to fetch requests")
-                }
-            )
-        }
-    }
-
-    fun updateCollabRequestStatus(
-        requestId: String,
-        status: CollabRequestStatus,
-        collabId: String
-    ) {
-        viewModelScope.launch {
-            val currentState = _collabRequestsState.value
-            if (currentState is UiState.Success) {
-                _collabRequestsState.value = UiState.Success(
-                    currentState.data.map { item ->
-                        if (item.request.id == requestId) {
-                            when (status) {
-                                CollabRequestStatus.ACCEPTED -> item.copy(isAcceptLoading = true)
-                                CollabRequestStatus.DECLINED -> item.copy(isRejectLoading = true)
-                                else -> item
-                            }
-                        } else item
-                    }
-                )
-            }
-
-            repository.updateCollabRequestStatus(requestId, status.name).fold(
-                onSuccess = { response ->
-                    val state = _collabRequestsState.value
-                    if (state is UiState.Success) {
-                        val updated = state.data.map { item ->
-                            if (item.request.id == requestId) {
-                                item.copy(
-                                    request = item.request.copy(status = response.name),
-                                    isAcceptLoading = false,
-                                    isRejectLoading = false
-                                )
-                            } else item
-                        }
-                        
-                        _collabRequestsState.value = UiState.Success(
-                            data = if (response == CollabRequestStatus.DECLINED) {
-                                updated.filterNot { it.request.id == requestId }
-                            } else updated
-                        )
-                        if (response == CollabRequestStatus.ACCEPTED) {
-                            fetchCollabMembers(collabId)
-                            fetchCollabById(collabId)
-                        }
-                    }
-                },
-                onFailure = { error ->
-                    val state = _collabRequestsState.value
-                    if (state is UiState.Success) {
-                        _collabRequestsState.value = UiState.Success(
-                            state.data.map { item ->
-                                if (item.request.id == requestId) {
-                                    item.copy(isAcceptLoading = false, isRejectLoading = false)
-                                } else item
-                            }
-                        )
-                    }
-                    _collabRequestsState.value = UiState.Error(error.message ?: "Failed to update status")
-                }
-            )
-        }
-    }
-
-    private val _collabMembersState = MutableStateFlow<UiState<List<CollabMemberResponse>>>(UiState.Idle)
-    val collabMembersState: StateFlow<UiState<List<CollabMemberResponse>>> = _collabMembersState.asStateFlow()
-
-    private val _removeMemberState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val removeMemberState: StateFlow<UiState<Unit>> = _removeMemberState.asStateFlow()
-
     fun fetchCollabMembers(collabId: String) {
         viewModelScope.launch {
             _collabMembersState.value = UiState.Loading
@@ -387,7 +308,7 @@ class CollabViewModel(
                     _collabMembersState.value = UiState.Success(members)
                 },
                 onFailure = { error ->
-                    _collabMembersState.value = UiState.Error(error.message ?: "Failed to fetch team members")
+                    _collabMembersState.value = UiState.Error(error.message ?: "Failed to fetch members")
                 }
             )
         }
@@ -400,8 +321,6 @@ class CollabViewModel(
                 onSuccess = {
                     _removeMemberState.value = UiState.Success(Unit)
                     fetchCollabMembers(collabId)
-                    fetchCollabRequests(collabId)
-                    fetchCollabById(collabId)
                 },
                 onFailure = { error ->
                     _removeMemberState.value = UiState.Error(error.message ?: "Failed to remove member")
@@ -438,10 +357,65 @@ class CollabViewModel(
     fun resetCreateState() {
         _createCollabState.value = UiState.Idle
     }
-}
 
-data class RequestUiState(
-    val isAcceptLoading: Boolean = false,
-    val isRejectLoading: Boolean = false,
-    val request: CollabConnectRequestResponse,
-)
+    private val _feedbackState = MutableStateFlow<UiState<List<CollabFeedback>>>(UiState.Idle)
+    val feedbackState: StateFlow<UiState<List<CollabFeedback>>> = _feedbackState.asStateFlow()
+
+    private val _addFeedbackState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val addFeedbackState: StateFlow<UiState<Unit>> = _addFeedbackState.asStateFlow()
+
+    private val _replyingTarget = MutableStateFlow<ReplyingTarget?>(null)
+    val replyingTarget: StateFlow<ReplyingTarget?> = _replyingTarget.asStateFlow()
+
+    fun setReplyingTarget(target: ReplyingTarget?) {
+        _replyingTarget.value = target
+    }
+
+    fun fetchFeedback(collabId: String) {
+        viewModelScope.launch {
+            _feedbackState.value = UiState.Loading
+            feedbackRepository.getCollabFeedback(collabId).fold(
+                onSuccess = { _feedbackState.value = UiState.Success(it) },
+                onFailure = { _feedbackState.value = UiState.Error(it.message ?: "Failed to load feedback") }
+            )
+        }
+    }
+
+    fun addFeedback(collabId: String, content: String) {
+        if (content.isBlank()) return
+        viewModelScope.launch {
+            _addFeedbackState.value = UiState.Loading
+            feedbackRepository.addCollabFeedback(collabId, content).fold(
+                onSuccess = {
+                    _addFeedbackState.value = UiState.Success(Unit)
+                    _replyingTarget.value = null
+                    fetchFeedback(collabId)
+                },
+                onFailure = {
+                    _addFeedbackState.value = UiState.Error(it.message ?: "Failed to submit feedback")
+                }
+            )
+        }
+    }
+
+    fun replyToFeedback(collabId: String, feedbackId: String, replyText: String) {
+        if (replyText.isBlank()) return
+        viewModelScope.launch {
+            _addFeedbackState.value = UiState.Loading
+            feedbackRepository.replyToCollabFeedback(collabId, feedbackId, replyText).fold(
+                onSuccess = {
+                    _addFeedbackState.value = UiState.Success(Unit)
+                    _replyingTarget.value = null
+                    fetchFeedback(collabId)
+                },
+                onFailure = { error ->
+                    _addFeedbackState.value = UiState.Error(error.message ?: "Failed to reply to feedback")
+                }
+            )
+        }
+    }
+
+    fun resetAddFeedbackState() {
+        _addFeedbackState.value = UiState.Idle
+    }
+}

@@ -26,6 +26,7 @@ class AuthRepositoryImpl(
     private val firebaseAuth: FirebaseAuth,
     private val httpClient: HttpClient,
     private val userProfileDao: UserProfileDao,
+    private val onSignInSuccess: suspend () -> Unit = {},
     private val onSignOut: suspend () -> Unit = {}
 ) : AuthRepository {
 
@@ -55,78 +56,46 @@ class AuthRepositoryImpl(
 
             try {
                 val tokenResult = firebaseUser.getIdToken(false).await()
-                val token = tokenResult.token
-                if (token == null) {
+                val idToken = tokenResult.token
+                if (idToken == null) {
                     signOut()
                     return@withContext AuthState.Unauthenticated
                 }
 
-                // Attempt to reach backend to verify token validity and sync profile
-                val response = try {
-                    httpClient.get("users/me") {
-                        header("Authorization", "Bearer $token")
-                    }
-                } catch (networkEx: Exception) {
-                    Log.w("AuthRepositoryImpl", "Network check failed on launch; checking local cache", networkEx)
-                    null
+                val response = httpClient.get("users/me") {
+                    header("Authorization", "Bearer $idToken")
                 }
 
-                if (response != null) {
-                    when (response.status.value) {
-                        200 -> {
-                            val profileDTO = response.body<ProfileResponse>()
-                            userProfileDao.insertProfile(profileDTO.toEntity())
-                            _authState.value = AuthState.Authenticated
-                            AuthState.Authenticated
-                        }
-                        401, 403 -> {
-                            Log.e("AuthRepositoryImpl", "Session revoked by backend: ${response.status}")
-                            signOut()
-                            AuthState.Unauthenticated
-                        }
-                        else -> {
-                            val cachedProfile = userProfileDao.getProfile()
-                            if (cachedProfile != null) {
-                                Log.w("AuthRepositoryImpl", "Backend error (${response.status}), falling back to cached profile")
-                                _authState.value = AuthState.Authenticated
-                                AuthState.Authenticated
-                            } else {
-                                signOut()
-                                AuthState.Unauthenticated
-                            }
-                        }
-                    }
-                } else {
-                    Log.i("AuthRepositoryImpl", "Offline launch with active Firebase session - staying authenticated")
-                    _authState.value = AuthState.Authenticated
-                    AuthState.Authenticated
-                }
-            } catch (e: Exception) {
-                Log.e("AuthRepositoryImpl", "Error checking initial auth state", e)
-                val cachedProfile = userProfileDao.getProfile()
-                if (cachedProfile != null && firebaseAuth.currentUser != null) {
+                if (response.status.value == 200) {
+                    val profileDTO = response.body<ProfileResponse>()
+                    userProfileDao.insertProfile(profileDTO.toEntity())
                     _authState.value = AuthState.Authenticated
                     AuthState.Authenticated
                 } else {
                     signOut()
                     AuthState.Unauthenticated
                 }
+            } catch (e: Exception) {
+                Log.e("AuthRepositoryImpl", "Failed to check initial auth state", e)
+                signOut()
+                AuthState.Unauthenticated
             }
         }
     }
 
     override suspend fun signInWithGoogle(context: Context): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            _authState.value = AuthState.Authenticating
             try {
-                val credential = dataSource.signIn(context)
+                _authState.value = AuthState.Authenticating
+                val googleIdTokenCredential = dataSource.signIn(context)
                     ?: run {
-                        _authState.value = AuthState.Unauthenticated
-                        return@withContext Result.failure(Exception("Google Sign-In was cancelled or failed."))
+                        signOut()
+                        return@withContext Result.failure(Exception("Google Sign-In failed or cancelled"))
                     }
 
-                val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
-                val authResult = firebaseAuth.signInWithCredential(firebaseCredential).await()
+                val idToken = googleIdTokenCredential.idToken
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                val authResult = firebaseAuth.signInWithCredential(credential).await()
                 val firebaseUser = authResult.user
                     ?: run {
                         signOut()
@@ -150,6 +119,11 @@ class AuthRepositoryImpl(
                         val profileDTO = response.body<ProfileResponse>()
                         userProfileDao.insertProfile(profileDTO.toEntity())
                         _authState.value = AuthState.Authenticated
+                        try {
+                            onSignInSuccess()
+                        } catch (e: Exception) {
+                            Log.e("AuthRepositoryImpl", "onSignInSuccess callback failed", e)
+                        }
                         Result.success(Unit)
                     }
                     401, 403 -> {
@@ -173,6 +147,13 @@ class AuthRepositoryImpl(
     override suspend fun signOut() {
         withContext(Dispatchers.IO) {
             try {
+                onSignOut()
+                Log.d("AuthRepositoryImpl", "onSignOut callback executed")
+            } catch (e: Exception) {
+                Log.e("AuthRepositoryImpl", "Error executing onSignOut callback", e)
+            }
+
+            try {
                 firebaseAuth.signOut()
             } catch (e: Exception) {
                 Log.e("AuthRepositoryImpl", "Error signing out from Firebase", e)
@@ -183,12 +164,6 @@ class AuthRepositoryImpl(
                 Log.e("AuthRepositoryImpl", "Error signing out from CredentialManager", e)
             }
 
-            try {
-                onSignOut()
-                Log.d("AuthRepositoryImpl", "Databases and cache cleared on sign-out")
-            } catch (e: Exception) {
-                Log.e("AuthRepositoryImpl", "Failed to clear databases on sign-out", e)
-            }
             _authState.value = AuthState.Unauthenticated
         }
     }

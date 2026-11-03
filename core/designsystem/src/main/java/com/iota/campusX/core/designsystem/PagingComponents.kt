@@ -57,8 +57,8 @@ fun <T : Any> PagingListHeader(
 ) {
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         when {
-            items.loadState.refresh is LoadState.Loading -> loadingContent?.invoke()
-            items.loadState.refresh is LoadState.Error -> {
+            items.loadState.refresh is LoadState.Loading && items.itemCount == 0 -> loadingContent?.invoke()
+            items.loadState.refresh is LoadState.Error && items.itemCount == 0 -> {
                 val error = (items.loadState.refresh as LoadState.Error).error
                 errorContent?.invoke(error.localizedMessage ?: "Something went wrong")
             }

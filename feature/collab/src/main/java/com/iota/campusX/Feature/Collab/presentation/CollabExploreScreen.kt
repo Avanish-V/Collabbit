@@ -1,14 +1,17 @@
 package com.iota.campusX.Feature.Collab.presentation
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +22,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import com.iota.campusX.Feature.Opportunities.presentation.OpportunitiesViewModel
+import com.iota.campusX.Feature.Opportunities.presentation.components.CourseCard
+import com.iota.campusX.Feature.Opportunities.presentation.components.OpportunityShimmerItem
+import com.iota.campusX.Navigation.CourseDetail
+import com.iota.campusX.core.common.UiState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,9 +47,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,11 +63,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.core.text.buildSpannedString
 import androidx.navigation.NavHostController
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -69,6 +87,7 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.core.designsystem.ErrorScreen
 import com.iota.campusX.core.designsystem.RefreshBox
 import com.iota.campusX.feature.collab.R
+import com.iota.campusX.ui.UIComponents.cardShadow
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -77,19 +96,38 @@ import org.koin.compose.koinInject
 fun CollabExploreScreen(
     navController: NavHostController,
     viewModel: CollabViewModel = koinViewModel(),
+    opportunitiesViewModel: OpportunitiesViewModel = koinViewModel(),
     navigationViewModel: NavigationViewModel = koinInject()
 ) {
     val lazyCollabs = viewModel.collabPagingData.collectAsLazyPagingItems()
+    val coursesState by opportunitiesViewModel.coursesState.collectAsStateWithLifecycle()
     val pullToRefreshState = rememberPullToRefreshState()
     val lazyListState = rememberLazyListState()
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
     HideBottomBar(navigationViewModel, lazyListState)
 
     LaunchedEffect(Unit) {
         viewModel.fetchCollabs(type = "COBUILDER")
+        opportunitiesViewModel.fetchCourses()
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize()
+        topBar = {
+            TopAppBar(
+                title = {
+                    ExploreHeader()
+                },
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { padding ->
         RefreshBox(
             modifier = Modifier.padding(padding),
@@ -112,18 +150,12 @@ fun CollabExploreScreen(
                 )
             } else {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxSize(),
                     state = lazyListState,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item { Spacer(modifier = Modifier.height(4.dp)) }
 
-                    // Header Title
-                    item {
-                        ExploreHeader()
-                    }
 
                     // Hero Banner: "Turn your ideas into real projects"
                     item {
@@ -135,7 +167,8 @@ fun CollabExploreScreen(
                     // Section Title: "Featured Projects" + "See all"
                     item {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(horizontal = 20.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -187,6 +220,75 @@ fun CollabExploreScreen(
                     }
 
                     item { Spacer(modifier = Modifier.height(16.dp)) }
+
+                    // Live Sessions Section Header
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Live Sessions",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            )
+                        }
+                    }
+
+                    // Render Live Sessions Items
+                    when (val cState = coursesState) {
+                        is UiState.Loading -> {
+                            items(2) {
+                                OpportunityShimmerItem()
+                            }
+                        }
+                        is UiState.Success -> {
+                            if (cState.data.isEmpty()) {
+                                item {
+                                    Text(
+                                        text = "No live sessions scheduled right now.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 20.dp)
+                                    )
+                                }
+                            } else {
+                                items(
+                                    items = cState.data,
+                                    key = { "course_${it.id}" }
+                                ) { course ->
+                                    Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                                        CourseCard(
+                                            course = course,
+                                            onClick = {
+                                                navController.navigate(CourseDetail(course.id))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        is UiState.Error -> {
+                            item {
+                                ErrorScreen(
+                                    text = "Something went wrong!",
+                                    image = null,
+                                    onReTry = { opportunitiesViewModel.fetchCourses(forceRefresh = true) },
+                                    buttonText = "ReTry"
+                                )
+                            }
+
+                        }
+                        else -> {}
+                    }
+
+                    item { Spacer(modifier = Modifier.height(24.dp)) }
                 }
             }
         }
@@ -197,7 +299,7 @@ fun CollabExploreScreen(
 fun ExploreHeader() {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Collaborations",
+            text = "Explore",
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 24.sp,
@@ -215,131 +317,202 @@ fun ExploreHeader() {
     }
 }
 
-private val HeroBannerGradient = Brush.horizontalGradient(
-    colors = listOf(
-        Color(0xFF1E3A8A), // Deep Royal Blue
-        Color(0xFF2563EB), // Vibrant Electric Blue
-        Color(0xFF4F46E5)  // Indigo Purple Accent
-    )
-)
-
 @Composable
 fun TurnIdeasHeroBanner(
     onStartProjectClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onStartProjectClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(brush = HeroBannerGradient)
-                .padding(20.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.1f),
+                            MaterialTheme.colorScheme.surface
+                        )
+                    )
+                )
         ) {
+            // Background Student Group Image (ideas.png)
+            Image(
+                painter = painterResource(R.drawable.ideas),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth(0.68f)
+                    .height(290.dp)
+                    .align(Alignment.TopEnd)
+            )
+
+            // Main Banner Content
             Column(
                 modifier = Modifier.fillMaxWidth()
+
             ) {
-                // Top Tag Pill
+                // Top Tag Pill: "Build & Collaborate"
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color.White.copy(alpha = 0.18f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
+                    modifier = Modifier.padding(20.dp),
+                    shape = CircleShape,
+                    color = Color(0xFFE0F7F6),
+                    border = BorderStroke(1.dp, Color(0xFFB2F0EC))
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Surface(
-                            modifier = Modifier.size(6.dp),
-                            shape = CircleShape,
-                            color = Color(0xFF34D399) // Live green indicator
-                        ) {}
+                        Icon(
+                            painter = painterResource(R.drawable.people_bold),
+                            contentDescription = null,
+                            tint = Color(0xFF007A87),
+                            modifier = Modifier.size(16.dp)
+                        )
                         Text(
-                            text = "BUILD & COLLABORATE",
-                            style = MaterialTheme.typography.labelSmall.copy(
+                            text = "Build & Collaborate",
+                            style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 10.5.sp,
-                                color = Color.White,
-                                letterSpacing = 0.5.sp
+                                fontSize = 13.sp,
+                                color = Color(0xFF006873)
                             )
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Headline Title
-                Text(
-                    text = "Turn Your Ideas Into\nReal Projects",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        fontSize = 21.sp,
-                        lineHeight = 26.sp
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Subtitle
-                Text(
-                    text = "Find developers, designers & creators to form your dream team.",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp
-                    ),
-                    modifier = Modifier.fillMaxWidth(0.9f)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Bottom Row: CTA Pill + Floating Icon Badge
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.fillMaxWidth(0.58f).padding(start = 20.dp)
                 ) {
-                    // Action Pill Button
-                    Surface(
+
+                    val colorTitle = buildAnnotatedString {
+                        // append "Hello" with red text color
+                        append("Turn Your Ideas Into\n")
+                        // append "Hello" with blue text color
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("Real Projects") }
+                    }
+                    Text(
+                        text = colorTitle,
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 26.sp,
+                            letterSpacing = (-0.5).sp,
+                        ),
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Action Button: "Start a Project →"
+                    Button(
                         onClick = onStartProjectClick,
-                        shape = RoundedCornerShape(30.dp),
-                        color = Color.White,
-                        shadowElevation = 4.dp
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
                                 text = "Start a Project",
-                                style = MaterialTheme.typography.labelLarge.copy(
+                                style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp,
-                                    color = Color(0xFF1E3A8A)
+                                    fontSize = 14.sp
                                 )
                             )
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
-                                tint = Color(0xFF1E3A8A),
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
+                }
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Bottom Value Proposition Features Bar
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.95f),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+
+                    ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        // Item 1: Find Collaborators
+                        FeatureValueItem(
+                            iconRes = R.drawable.people_bold,
+                            title = "Find\nCollaborators"
+                        )
+
+                        // Divider 1
+                        Box(
+                            modifier = Modifier
+                                .height(28.dp)
+                                .width(1.dp)
+                                .background(Color(0xFFCBD5E1))
+                        )
+
+                        // Item 2: Work on Real Projects
+                        FeatureValueItem(
+                            iconRes = R.drawable.code_simple,
+                            title = "Work on\nReal Projects"
+                        )
+
+                        // Divider 2
+                        Box(
+                            modifier = Modifier
+                                .height(28.dp)
+                                .width(1.dp)
+                                .background(Color(0xFFCBD5E1))
+                        )
+
+                        // Item 3: Grow Your Skills
+                        FeatureValueItem(
+                            iconRes = com.iota.campusX.core.designsystem.R.drawable.trophy_star,
+                            title = "Grow Your\nSkills"
+                        )
+                    }
                 }
             }
         }
+}
+
+@Composable
+private fun FeatureValueItem(
+    iconRes: Int,
+    title: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = Color(0xFF007A87),
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.5.sp,
+                lineHeight = 14.sp
+            ),
+            color = Color(0xFF1E293B)
+        )
     }
 }
 
@@ -355,18 +528,20 @@ fun FeaturedProjectCard(
 ) {
     Card(
         modifier = modifier
+            .padding(horizontal = 20.dp)
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .cardShadow(alpha = 0.3f),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        onClick = {
+            onClick()
+        }
+
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.Top
         ) {
             // ── Left: Project Logo ──────────────────────────────────
@@ -436,35 +611,32 @@ fun FeaturedProjectCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
-                    ProjectStatusBadge(status = collab.status)
-                }
 
-                // Type chip  (e.g. "AI / ML", "App / Web")
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = collab.collabType.name
-                            .lowercase()
-                            .replaceFirstChar { it.uppercase() },
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.5.sp,
-                            color = Color(0xFF2563EB)
-                        ),
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
-                    )
                 }
+                ProjectStatusBadge(status = collab.status)
+
+
+//                Surface(
+//                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+//                    shape = RoundedCornerShape(6.dp)
+//                ) {
+//                    Text(
+//                        text = collab.collabType.name
+//                            .lowercase()
+//                            .replaceFirstChar { it.uppercase() },
+//                        style = MaterialTheme.typography.labelSmall.copy(
+//                            fontWeight = FontWeight.Bold,
+//                            fontSize = 10.5.sp,
+//                            color = Color(0xFF2563EB)
+//                        ),
+//                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+//                    )
+//                }
 
                 // Description — max 2 lines
                 Text(
                     text = collab.description,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp
-                    ),
+                    style = MaterialTheme.typography.bodySmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -481,15 +653,6 @@ fun FeaturedProjectCard(
                         memberImages = collab.memberImages,
                         joinedCount = actualJoinedCount
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "$actualJoinedCount/${collab.participantsNeeded} joined",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    )
                 }
 
                 // Tech / Skills chips row
@@ -505,11 +668,11 @@ fun FeaturedProjectCard(
                     ) {
                         displayTags.take(4).forEach { tag ->
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                color = MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(6.dp),
                                 border = BorderStroke(
                                     0.5.dp,
-                                    MaterialTheme.colorScheme.outlineVariant
+                                    MaterialTheme.colorScheme.outline
                                 )
                             ) {
                                 Text(
@@ -517,11 +680,10 @@ fun FeaturedProjectCard(
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 10.5.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = FontWeight.Medium
                                     ),
                                     modifier = Modifier.padding(
-                                        horizontal = 7.dp,
-                                        vertical = 3.dp
+                                        horizontal = 6.dp,
+                                        vertical = 6.dp
                                     )
                                 )
                             }

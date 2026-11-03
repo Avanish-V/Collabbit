@@ -47,7 +47,12 @@ fun MainScreen(
     chatsViewModel: ChatsViewModel = koinInject(),
     targetPostId: String? = null
 ) {
-    NotificationPermissionRequester()
+    val fcmTokenSyncManager = koinInject<com.iota.campusX.notifications.sync.FcmTokenSyncManager>()
+    NotificationPermissionRequester(
+        onPermissionGranted = {
+            fcmTokenSyncManager.onNotificationPermissionGranted()
+        }
+    )
 
     val lazyState = rememberLazyListState()
     HideBottomBar(navigationViewModel, lazyState)
@@ -59,7 +64,6 @@ fun MainScreen(
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackBarHostState = remember { SnackbarHostState() }
-    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
 
     val onChatClick = remember(navHostController) { { navHostController.navigate(ChatList) } }
     val onNotificationClick =
@@ -85,24 +89,13 @@ fun MainScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            HomeTabRow(
-                selectedTabIndex = selectedTabIndex,
-                onTabSelected = { selectedTabIndex = it }
+            // Temporarily disabled Society tab on Home Screen
+            ForYouTabContent(
+                navHostController = navHostController,
+                lazyState = lazyState,
+                scrollBehavior = scrollBehavior,
+                targetPostId = targetPostId
             )
-
-            when (selectedTabIndex) {
-                0 -> ForYouTabContent(
-                    navHostController = navHostController,
-                    lazyState = lazyState,
-                    scrollBehavior = scrollBehavior,
-                    targetPostId = targetPostId
-                )
-
-                1 -> SocietyTabContent(
-                    navHostController = navHostController,
-                    nestedScrollConnection = scrollBehavior.nestedScrollConnection
-                )
-            }
         }
     }
 }

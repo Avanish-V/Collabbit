@@ -71,6 +71,7 @@ import com.iota.campusX.Navigation.Profile
 import com.iota.campusX.Navigation.SendMessage
 import com.iota.campusX.core.common.UiState
 import com.iota.campusX.feature.collab.R
+import com.iota.campusX.ui.UIComponents.cardShadow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -538,10 +539,13 @@ fun MemberManageCardItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onUserClick),
+            .cardShadow(alpha = 0.5f),
+        onClick = {
+            onUserClick()
+        },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+
     ) {
         Row(
             modifier = Modifier

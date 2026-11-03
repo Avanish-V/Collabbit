@@ -33,8 +33,6 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
-    implementation(project(":feature:explore_swipe"))
-    implementation(project(":feature:profile"))
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)

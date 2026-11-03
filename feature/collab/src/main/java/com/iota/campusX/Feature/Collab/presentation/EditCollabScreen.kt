@@ -1,7 +1,5 @@
 package com.iota.campusX.Feature.Collab.presentation
 
-import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,7 +16,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -38,12 +35,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Collab.data.model.CollabResponse
-import com.iota.campusX.Feature.Collab.data.model.ProjectRole
-import com.iota.campusX.Feature.Collab.data.model.UpdateCollabRequest
 import com.iota.campusX.feature.collab.R
 import com.iota.campusX.core.common.UiState
-import kotlinx.coroutines.launch
-import java.util.UUID
 
 @Immutable
 data class EditCollabUiState(
@@ -94,8 +87,7 @@ fun EditCollabScreen(
                     ProjectRoleUiModel(
                         id = it.id,
                         roleName = it.roleName,
-                        skills = it.skills,
-                        peopleNeeded = it.peopleNeeded
+                        description = it.description
                     )
                 }
             )
@@ -177,7 +169,7 @@ fun EditCollabScreen(
                                 .padding(end = 12.dp)
                                 .size(22.dp),
                             strokeWidth = 2.5.dp,
-                            color = Color(0xFF2563EB)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     } else {
                         TextButton(
@@ -211,7 +203,10 @@ fun EditCollabScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                    actionIconContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         }
@@ -223,7 +218,7 @@ fun EditCollabScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color(0xFF2563EB))
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             return@Scaffold
         }
@@ -232,6 +227,7 @@ fun EditCollabScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(22.dp)
@@ -267,7 +263,7 @@ fun EditCollabScreen(
                     AnimatedVisibility(visible = form.titleError) {
                         Text(
                             text = "Title is required (max 60 characters)",
-                            color = Color(0xFFEF4444),
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 12.sp,
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -305,7 +301,7 @@ fun EditCollabScreen(
                     AnimatedVisibility(visible = form.descError) {
                         Text(
                             text = "Description is required (max 500 characters)",
-                            color = Color(0xFFEF4444),
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 12.sp
                         )
                     }
@@ -350,7 +346,7 @@ fun EditCollabScreen(
                             Text(
                                 text = "+ Add Role",
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF5C56E6),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontSize = 13.sp
                             )
                         }
@@ -404,7 +400,7 @@ private fun LogoPickerRow(
                 .size(76.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
-                .dashedBorder(1.5.dp, Color(0xFFA5B4FC), 14.dp)
+                .dashedBorder(1.5.dp, MaterialTheme.colorScheme.primary, 14.dp)
                 .clickable(onClick = onPickClick),
             contentAlignment = Alignment.Center
         ) {
@@ -437,13 +433,13 @@ private fun LogoPickerRow(
                     Icon(
                         painter = painterResource(id = R.drawable.image),
                         contentDescription = null,
-                        tint = Color(0xFF5C56E6),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(26.dp)
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "+ Add",
-                        color = Color(0xFF5C56E6),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp
                     )
@@ -473,26 +469,26 @@ private fun LogoPickerRow(
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = null,
-                            tint = Color(0xFF5C56E6),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Change", fontSize = 12.sp, color = Color(0xFF5C56E6))
+                        Text("Change", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                     }
                     OutlinedButton(
                         onClick = onRemoveClick,
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        border = BorderStroke(1.dp, Color(0xFFEF4444))
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = null,
-                            tint = Color(0xFFEF4444),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Remove", fontSize = 12.sp, color = Color(0xFFEF4444))
+                        Text("Remove", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
                     }
                 }
             } else {
@@ -539,13 +535,13 @@ private fun AddRoleEmptyCard(onClick: () -> Unit) {
             Surface(
                 modifier = Modifier.size(42.dp),
                 shape = CircleShape,
-                color = Color(0xFFEDE9FE)
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         painter = painterResource(R.drawable.people_bold),
                         contentDescription = null,
-                        tint = Color(0xFF5C56E6),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -569,10 +565,15 @@ private fun AddRoleEmptyCard(onClick: () -> Unit) {
             Button(
                 onClick = onClick,
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5C56E6)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
             ) {
-                Text("+ Add a Role", fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                Text(
+                    text = "+ Add a Role",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.5.sp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             }
         }
     }

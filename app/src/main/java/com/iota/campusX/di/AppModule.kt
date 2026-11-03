@@ -70,6 +70,27 @@ val coreModule = module {
     single { FirebaseDatabase.getInstance() }
     single { FirebaseAuth.getInstance() }
 
+    // FCM Token Syncing
+    single { com.iota.campusX.notifications.sync.FcmTokenStore(androidContext()) }
+    single { com.iota.campusX.notifications.sync.FcmTokenSyncManager(androidContext(), get(), get(), get()) }
+
+    // Auth Repository with FCM token callbacks
+    single<com.iota.campusX.Feature.Auth.domain.repository.AuthRepository> {
+        com.iota.campusX.Feature.Auth.data.repository.AuthRepositoryImpl(
+            dataSource = get(),
+            firebaseAuth = get(),
+            httpClient = get(),
+            userProfileDao = get(),
+            onSignInSuccess = {
+                val syncManager = get<com.iota.campusX.notifications.sync.FcmTokenSyncManager>()
+                syncManager.onLogin()
+            },
+            onSignOut = {
+                val syncManager = get<com.iota.campusX.notifications.sync.FcmTokenSyncManager>()
+                syncManager.onLogout()
+            }
+        )
+    }
 
     // DataStore
     single<DataStore<Preferences>> { androidContext().dataStore }

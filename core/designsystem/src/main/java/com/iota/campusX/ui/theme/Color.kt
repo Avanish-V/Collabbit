@@ -24,7 +24,7 @@ val outlineLight = Color(0xFFE5E5E5)
 val outlineVariantLight = Color(0xFFC4C6D0)
 
 // Dark Theme - Custom Threads/Premium Dark Palette
-val primaryDark = Color(0xFF008EEA) // Blue accent
+val primaryDark = Color(0xFF275DF5) // Blue accent
 val onPrimaryDark = Color(0xFFFFFFFF)
 val primaryContainerDark = Color(0xFF004A77)
 val onPrimaryContainerDark = Color(0xFFD1E4FF)

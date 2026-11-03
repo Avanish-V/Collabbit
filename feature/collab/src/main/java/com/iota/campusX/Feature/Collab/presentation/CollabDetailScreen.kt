@@ -1,8 +1,5 @@
 package com.iota.campusX.Feature.Collab.presentation
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +11,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,10 +26,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -52,24 +39,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Collab.data.model.CollabMemberResponse
+import com.iota.campusX.Feature.Collab.data.model.ProjectStatus
 import com.iota.campusX.Feature.Collab.data.model.CollabRequestStatus
 import com.iota.campusX.Feature.Collab.data.model.CollabResponse
 import com.iota.campusX.Feature.Collab.data.model.ProjectRole
 import com.iota.campusX.Feature.Collab.presentation.components.CollabDetailShimmer
-import com.iota.campusX.Feature.Collab.presentation.components.ProjectStatusBadge
+import com.iota.campusX.Feature.Collab.presentation.components.DetailCardItem
+import com.iota.campusX.Feature.Collab.presentation.components.FeedbackBottomInputBar
+import com.iota.campusX.Feature.Collab.presentation.components.FeedbackTabContent
+import com.iota.campusX.Feature.Collab.presentation.components.ProjectOverviewTabs
+import com.iota.campusX.Feature.Collab.presentation.components.ProjectSummaryCard
+import com.iota.campusX.Feature.Collab.presentation.components.RoleItemCard
+import com.iota.campusX.Feature.Collab.presentation.components.TeamMemberItemCard
 import com.iota.campusX.Navigation.CollabRequests
 import com.iota.campusX.Navigation.ManageCollab
 import com.iota.campusX.Navigation.Profile
@@ -90,6 +80,8 @@ fun CollabDetailScreen(
     val hasRequested by viewModel.hasRequested.collectAsStateWithLifecycle()
     val deleteState by viewModel.deleteCollabState.collectAsStateWithLifecycle()
     val membersState by viewModel.collabMembersState.collectAsStateWithLifecycle()
+    val feedbackState by viewModel.feedbackState.collectAsStateWithLifecycle()
+    val addFeedbackState by viewModel.addFeedbackState.collectAsStateWithLifecycle()
 
     val uriHandler = LocalUriHandler.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -101,6 +93,7 @@ fun CollabDetailScreen(
         viewModel.hasRequested(collabId)
         viewModel.fetchCollabRequests(collabId)
         viewModel.fetchCollabMembers(collabId)
+        viewModel.fetchFeedback(collabId)
     }
 
     LaunchedEffect(connectState) {
@@ -108,7 +101,18 @@ fun CollabDetailScreen(
             snackbarHostState.showSnackbar("Application sent successfully!")
             viewModel.resetConnectState()
         } else if (connectState is UiState.Error) {
-            snackbarHostState.showSnackbar("Failed to send application: ${(connectState as UiState.Error).message}")
+            val errorMsg = (connectState as UiState.Error).message
+            val formattedMsg = if (
+                errorMsg.contains("profile", ignoreCase = true) ||
+                errorMsg.contains("incomplete", ignoreCase = true) ||
+                errorMsg.contains("80", ignoreCase = true) ||
+                errorMsg.contains("complete", ignoreCase = true)
+            ) {
+                "First complete your profile (at least 80%) to send collaboration requests."
+            } else {
+                "Failed to send application: $errorMsg"
+            }
+            snackbarHostState.showSnackbar(formattedMsg)
             viewModel.resetConnectState()
         }
     }
@@ -140,7 +144,7 @@ fun CollabDetailScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { },
@@ -159,86 +163,112 @@ fun CollabDetailScreen(
         },
         bottomBar = {
             if (collab != null) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
-                    shadowElevation = 8.dp,
-                    color = MaterialTheme.colorScheme.surface
-                ) {
-                    Box(modifier = Modifier.padding(16.dp)) {
-                        if (collab.isCurrentUser) {
-                            Button(
-                                onClick = { navController.navigate(ManageCollab(collabId)) },
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
-                            ) {
-                                Text(
-                                    text = "Manage Project",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = Color.White
-                                    )
-                                )
-                            }
-                        } else {
-                            val status = (hasRequested as? UiState.Success)?.data
-                            when (status) {
-                                CollabRequestStatus.PENDING -> {
+                when (selectedTabIndex) {
+                    0 -> {
+                        // Main Action Button ON Overview Tab ONLY
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+                            shadowElevation = 8.dp,
+                            color = MaterialTheme.colorScheme.surface
+                        ) {
+                            Box(modifier = Modifier.padding(16.dp)) {
+                                if (collab.isCurrentUser) {
                                     Button(
-                                        onClick = { },
-                                        enabled = false,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp),
+                                        onClick = { navController.navigate(ManageCollab(collabId)) },
+                                        modifier = Modifier.fillMaxWidth().height(48.dp),
                                         shape = CircleShape,
-                                        colors = ButtonDefaults.buttonColors(disabledContainerColor = Color(0xFFE2E8F0))
-                                    ) {
-                                        Text("Application Pending", color = Color(0xFF64748B))
-                                    }
-                                }
-                                CollabRequestStatus.ACCEPTED -> {
-                                    Button(
-                                        onClick = {
-                                            navController.navigate(
-                                                SendMessage(
-                                                    userId = collab.authorId,
-                                                    userName = collab.authorName,
-                                                    userImage = collab.authorImage
-                                                )
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
-                                    ) {
-                                        Text("Accepted - Message Lead", color = Color.White, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                                else -> {
-                                    Button(
-                                        onClick = { viewModel.connectToCollab(collabId) },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                     ) {
                                         Text(
-                                            text = "Connect",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 15.sp,
-                                                color = Color.White
-                                            )
+                                            text = "Manage Project",
+                                            style = MaterialTheme.typography.titleMedium
                                         )
+                                    }
+                                } else {
+                                    val status = (hasRequested as? UiState.Success)?.data
+                                    when (status) {
+                                        CollabRequestStatus.PENDING -> {
+                                            Button(
+                                                onClick = { },
+                                                enabled = false,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(48.dp),
+                                                shape = CircleShape,
+                                            ) {
+                                                Text("Application Pending")
+                                            }
+                                        }
+                                        CollabRequestStatus.ACCEPTED -> {
+                                            Button(
+                                                onClick = {
+                                                    navController.navigate(
+                                                        SendMessage(
+                                                            userId = collab.authorId,
+                                                            userName = collab.authorName,
+                                                            userImage = collab.authorImage
+                                                        )
+                                                    )
+                                                },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(48.dp),
+                                                shape = CircleShape,
+                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                            ) {
+                                                Text("Accepted - Message Lead", style = MaterialTheme.typography.titleMedium)
+                                            }
+                                        }
+                                        else -> {
+                                            val isLooking = collab.status == ProjectStatus.LOOKING
+                                            Button(
+                                                onClick = {
+                                                    if (isLooking) {
+                                                        viewModel.connectToCollab(collabId)
+                                                    }
+                                                },
+                                                enabled = isLooking,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(48.dp),
+                                                shape = CircleShape,
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.primary,
+                                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                                                )
+                                            ) {
+                                                Text(
+                                                    text = if (isLooking) "Connect" else "Applications Closed (${collab.status.displayName})",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    color = if (isLooking) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+
+                    2 -> {
+                        val replyingTarget by viewModel.replyingTarget.collectAsStateWithLifecycle()
+
+                        FeedbackBottomInputBar(
+                            collabId = collab.id,
+                            replyingTarget = replyingTarget,
+                            addFeedbackState = addFeedbackState,
+                            onCancelReply = { viewModel.setReplyingTarget(null) },
+                            onSendFeedback = { content ->
+                                if (replyingTarget != null) {
+                                    viewModel.replyToFeedback(collab.id, replyingTarget!!.feedbackId, content)
+                                } else {
+                                    viewModel.addFeedback(collab.id, content)
+                                }
+                            }
+                        )
+                    }
+
+                    else -> {} // No bottom bar for Team tab (1)
                 }
             }
         }
@@ -270,9 +300,13 @@ fun CollabDetailScreen(
                 }
 
                 item {
+                    val currentMemberCount = calculateMemberCount(membersState, collab.authorId)
+                    val feedbackCount = (feedbackState as? UiState.Success)?.data?.size ?: 0
                     ProjectOverviewTabs(
                         selectedTabIndex = selectedTabIndex,
-                        onTabSelected = { selectedTabIndex = it }
+                        onTabSelected = { selectedTabIndex = it },
+                        teamCount = if (currentMemberCount > 0) currentMemberCount else null,
+                        feedbackCount = if (feedbackCount > 0) feedbackCount else null
                     )
                 }
 
@@ -298,7 +332,7 @@ fun CollabDetailScreen(
                                         Icon(
                                             painter = painterResource(R.drawable.pencil),
                                             contentDescription = "Edit Details",
-                                            tint = Color(0xFF2563EB),
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -309,7 +343,7 @@ fun CollabDetailScreen(
                         item {
                             DetailCardItem(
                                 iconRes = R.drawable.lightbulb_on,
-                                iconTint = Color(0xFF2563EB),
+                                iconTint = MaterialTheme.colorScheme.primary,
                                 title = "Project Idea",
                                 content = collab.description
                             )
@@ -319,7 +353,7 @@ fun CollabDetailScreen(
                             item {
                                 DetailCardItem(
                                     iconRes = R.drawable.globe,
-                                    iconTint = Color(0xFF2563EB),
+                                    iconTint = MaterialTheme.colorScheme.primary,
                                     title = "Project URL",
                                     content = it,
                                     isClickableUrl = true,
@@ -365,8 +399,7 @@ fun CollabDetailScreen(
                                             role = ProjectRole(
                                                 id = index.toString(),
                                                 roleName = reqName,
-                                                skills = emptyList(),
-                                                peopleNeeded = 1
+                                                description = ""
                                             ),
                                             onClick = {
                                                 if (collab.isCurrentUser) {
@@ -406,7 +439,7 @@ fun CollabDetailScreen(
                                                 text = "Manage Requests",
                                                 style = MaterialTheme.typography.labelLarge.copy(
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF2563EB),
+                                                    color = MaterialTheme.colorScheme.primary,
                                                     fontSize = 12.5.sp
                                                 )
                                             )
@@ -425,7 +458,7 @@ fun CollabDetailScreen(
                                                 .padding(24.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            CircularProgressIndicator(color = Color(0xFF2563EB))
+                                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                                         }
                                     }
                                     is UiState.Success -> {
@@ -501,42 +534,10 @@ fun CollabDetailScreen(
 
                     2 -> {
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                                ) {
-                                    Text(
-                                        text = "Recent Activity",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    )
-
-                                    ActivityTimelineItem(
-                                        time = collab.timeAgo,
-                                        title = "Project Launched",
-                                        description = "${collab.authorName} started '${collab.title}' and opened applications for team members."
-                                    )
-
-                                    HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
-
-                                    ActivityTimelineItem(
-                                        time = "Active Now",
-                                        title = "Accepting Applications",
-                                        description = "Looking for ${collab.requirements.joinToString(", ").ifEmpty { "team members" }}."
-                                    )
-                                }
-                            }
+                            FeedbackTabContent(
+                                collab = collab,
+                                viewModel = viewModel
+                            )
                         }
                     }
                 }
@@ -547,520 +548,19 @@ fun CollabDetailScreen(
     }
 }
 
-@Composable
-fun ProjectOverviewTabs(
-    selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit
-) {
-    val tabs = listOf("Overview", "Team")
-
-    TabRow(
-        selectedTabIndex = selectedTabIndex,
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = Color.Transparent,
-        contentColor = Color(0xFF2563EB),
-        indicator = { tabPositions ->
-            if (selectedTabIndex < tabPositions.size) {
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                    height = 3.dp,
-                    color = Color(0xFF2563EB)
-                )
-            }
-        },
-        divider = {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
-        }
-    ) {
-        tabs.forEachIndexed { index, title ->
-            val isSelected = selectedTabIndex == index
-            Tab(
-                selected = isSelected,
-                onClick = { onTabSelected(index) },
-                text = {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 14.5.sp,
-                            color = if (isSelected) Color(0xFF2563EB) else MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun ActivityTimelineItem(
-    time: String,
-    title: String,
-    description: String
-) {
-    Row(verticalAlignment = Alignment.Top) {
-        Surface(
-            modifier = Modifier
-                .padding(top = 4.dp)
-                .size(10.dp),
-            shape = CircleShape,
-            color = Color(0xFF2563EB)
-        ) {}
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                )
-                Text(
-                    text = time,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = Color(0xFF94A3B8),
-                        fontSize = 11.5.sp
-                    )
-                )
-            }
-            Spacer(modifier = Modifier.height(3.dp))
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.5.sp,
-                    lineHeight = 17.sp
-                )
-            )
-        }
-    }
-}
-
-@Composable
-fun ProjectSummaryCard(
-    collab: CollabResponse,
-    currentMembers: Int = 1,
-    onViewProjectClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) {
-                if (!collab.logoUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = collab.logoUrl,
-                        contentDescription = "Logo",
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Surface(
-                        modifier = Modifier.size(56.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = collab.title.take(2).uppercase().ifBlank { "AI" },
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    fontSize = 18.sp
-                                )
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = collab.title,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-
-                        ProjectStatusBadge(status = collab.status)
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = collab.collabType.name.lowercase().replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                color = Color(0xFF2563EB)
-                            ),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                }
-            }
-
-            Text(
-                text = collab.description,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp
-                )
-            )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    MemberAvatarsRow(
-                        authorImage = collab.authorImage,
-                        memberImages = collab.memberImages,
-                        joinedCount = currentMembers
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "$currentMembers/${collab.participantsNeeded} joined",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DetailCardItem(
-    iconRes: Int,
-    iconTint: Color,
-    title: String,
-    content: String,
-    isClickableUrl: Boolean = false,
-    onUrlClick: () -> Unit = {}
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-            }
-
-            if (isClickableUrl) {
-                Text(
-                    text = content,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = Color(0xFF2563EB),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 13.sp
-                    ),
-                    modifier = Modifier.clickable { onUrlClick() }
-                )
+private fun calculateMemberCount(
+    membersState: UiState<List<CollabMemberResponse>>,
+    leadUserId: String
+): Int {
+    return when (membersState) {
+        is UiState.Success -> {
+            val members = membersState.data
+            if (members.isNotEmpty()) {
+                members.size
             } else {
-                Text(
-                    text = content,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp
-                    )
-                )
+                1
             }
         }
+        else -> 1
     }
-}
-
-fun getRoleIconAndBg(roleName: String): Pair<Int, Pair<Color, Color>> {
-    val nameLower = roleName.lowercase()
-    return when {
-        nameLower.contains("android") || nameLower.contains("mobile") || nameLower.contains("ios") || nameLower.contains("flutter") -> {
-            R.drawable.people_bold to Pair(Color(0xFFFFEDD5), Color(0xFFEA580C))
-        }
-        nameLower.contains("backend") || nameLower.contains("code") || nameLower.contains("developer") || nameLower.contains("fullstack") -> {
-            R.drawable.code_simple to Pair(Color(0xFFEDE9FE), Color(0xFF4F46E5))
-        }
-        nameLower.contains("design") || nameLower.contains("ui") || nameLower.contains("ux") || nameLower.contains("figma") -> {
-            R.drawable.pencil to Pair(Color(0xFFFEF3C7), Color(0xFFD97706))
-        }
-        else -> {
-            R.drawable.briefcase to Pair(Color(0xFFDBEAFE), Color(0xFF2563EB))
-        }
-    }
-}
-
-@Composable
-fun RoleItemCard(
-    index: Int,
-    role: ProjectRole,
-    onClick: () -> Unit
-) {
-    val (iconRes, colors) = getRoleIconAndBg(role.roleName)
-    val (iconBg, iconTint) = colors
-
-    val skillsSubtitle = if (role.skills.isNotEmpty()) {
-        role.skills.joinToString(" • ")
-    } else {
-        "Skills specified on demand"
-    }
-
-    val peopleText = if (role.peopleNeeded <= 1) "1 person needed" else "${role.peopleNeeded} people needed"
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(42.dp),
-                shape = CircleShape,
-                color = iconBg
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painter = painterResource(iconRes),
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = role.roleName,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.5.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = skillsSubtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = peopleText,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = Color(0xFF5C56E6),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.5.sp
-                    )
-                )
-            }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFF94A3B8),
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun TeamMemberItemCard(
-    member: CollabMemberResponse,
-    onMemberClick: () -> Unit,
-    onMessageClick: (() -> Unit)? = null
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onMemberClick),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (!member.image.isNullOrBlank()) {
-                AsyncImage(
-                    model = member.image,
-                    contentDescription = member.name,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Surface(
-                    modifier = Modifier.size(44.dp),
-                    shape = CircleShape,
-                    color = Color(0xFF2563EB).copy(alpha = 0.12f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = member.name.take(1).uppercase().ifBlank { "U" },
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2563EB)
-                            )
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = member.name,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.5.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    )
-
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (member.isLead) Color(0xFF2563EB).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Text(
-                            text = if (member.isLead) "Lead" else "Member",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 10.5.sp,
-                                color = if (member.isLead) Color(0xFF2563EB) else MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                val subtitle = member.tagline?.ifBlank { null } ?: member.role
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            if (!member.isCurrentUser && onMessageClick != null) {
-                IconButton(onClick = onMessageClick) {
-                    Icon(
-                        painter = painterResource(R.drawable.messages__1_),
-                        contentDescription = "Message Teammate",
-                        tint = Color(0xFF2563EB),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            } else if (!member.isCurrentUser) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "View Profile",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
-}
-
-private fun calculateMemberCount(membersState: UiState<List<CollabMemberResponse>>, authorId: String): Int {
-    val membersList = (membersState as? UiState.Success)?.data.orEmpty()
-    return membersList.count { !it.isLead && it.userId != authorId }
 }

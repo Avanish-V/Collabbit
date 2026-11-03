@@ -21,11 +21,6 @@
         <entry key="Android vitals">
           <value>
             <InsightsFilterSettings>
-              <option name="connection">
-                <ConnectionSetting>
-                  <option name="appId" value="com.byteapps.bgmirealgirlsid" />
-                </ConnectionSetting>
-              </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
               <option name="timeIntervalDays" value="SEVEN_DAYS" />
               <option name="visibilityType" value="ALL" />
@@ -35,6 +30,14 @@
         <entry key="Firebase Crashlytics">
           <value>
             <InsightsFilterSettings>
+              <option name="connection">
+                <ConnectionSetting>
+                  <option name="appId" value="com.iota.campusX" />
+                  <option name="mobileSdkAppId" value="1:221935776129:android:d931e08e9fac1c4c2cb880" />
+                  <option name="projectId" value="finder-e088b" />
+                  <option name="projectNumber" value="221935776129" />
+                </ConnectionSetting>
+              </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
               <option name="timeIntervalDays" value="THIRTY_DAYS" />
               <option name="visibilityType" value="ALL" />

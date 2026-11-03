@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:navigation"))
     implementation(project(":core:designsystem"))
+    implementation(project(":feature:opportunities"))
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
@@ -70,6 +71,9 @@ dependencies {
     implementation(libs.androidx.paging.compose)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
 }

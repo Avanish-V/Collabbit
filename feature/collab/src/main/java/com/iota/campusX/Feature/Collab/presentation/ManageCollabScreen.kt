@@ -73,6 +73,7 @@ import com.iota.campusX.Navigation.Profile
 import com.iota.campusX.core.common.UiState
 import com.iota.campusX.core.designsystem.AlertDialogWidget
 import com.iota.campusX.feature.collab.R
+import com.iota.campusX.ui.UIComponents.cardShadow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -228,12 +229,15 @@ fun ManageCollabScreen(
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { showChangeStatusSheet = true },
-                                    shape = RoundedCornerShape(16.dp),
+                                        .cardShadow(alpha = 0.5f),
+                                    shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surface
                                     ),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                    onClick = {
+                                        showChangeStatusSheet = true
+                                    }
+
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -297,12 +301,12 @@ fun ManageCollabScreen(
                                 )
 
                                 Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier.fillMaxWidth().cardShadow(alpha = 0.5f),
+                                    shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surface
                                     ),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+
                                 ) {
                                     Column(modifier = Modifier.fillMaxWidth()) {
                                         QuickActionRow(
@@ -316,7 +320,7 @@ fun ManageCollabScreen(
                                             }
                                         )
 
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
 
                                         QuickActionRow(
                                             iconRes = R.drawable.people_bold,
@@ -329,7 +333,7 @@ fun ManageCollabScreen(
                                             }
                                         )
 
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
 
                                         QuickActionRow(
                                             iconRes = R.drawable.share,
@@ -350,7 +354,7 @@ fun ManageCollabScreen(
                                             }
                                         )
 
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
 
                                         QuickActionRow(
                                             iconRes = R.drawable.eye,
@@ -409,7 +413,7 @@ fun ManageCollabScreen(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     shape = RoundedCornerShape(14.dp),
                                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
                                                 ) {
                                                     Box(
                                                         modifier = Modifier
@@ -454,7 +458,7 @@ fun ManageCollabScreen(
                                     }
                                 }
 
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
 
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Text(
@@ -531,10 +535,10 @@ fun ManageCollabScreen(
                                 )
 
                                 Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier.fillMaxWidth().cardShadow(alpha = 0.5f),
+                                    shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+
                                 ) {
                                     Column(modifier = Modifier.fillMaxWidth()) {
                                         QuickActionRow(
@@ -563,12 +567,12 @@ fun ManageCollabScreen(
 @Composable
 fun ManageProjectHeaderCard(collab: CollabResponse) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth().cardShadow(alpha = 0.5f),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+
     ) {
         Row(
             modifier = Modifier
@@ -648,11 +652,7 @@ fun ManageProjectHeaderCard(collab: CollabResponse) {
 
                 Text(
                     text = collab.description,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp
-                    ),
+                    style = MaterialTheme.typography.bodyMedium,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -676,18 +676,20 @@ fun ManageSegmentedTabs(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(4.dp),
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             tabs.forEachIndexed { index, title ->
                 val isSelected = selectedTabIndex == index
                 Surface(
                     modifier = Modifier
-                        .weight(1f)
-                        .clickable { onTabSelected(index) },
+                        .weight(1f),
+                    onClick = {
+                        onTabSelected(index)
+                    },
                     shape = RoundedCornerShape(8.dp),
                     color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                    border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null
+                    border = if (isSelected) BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline) else null
                 ) {
                     Box(
                         modifier = Modifier.padding(vertical = 8.dp),

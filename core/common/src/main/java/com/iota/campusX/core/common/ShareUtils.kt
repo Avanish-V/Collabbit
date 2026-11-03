@@ -4,13 +4,13 @@ import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
 import java.net.URL
 
 /**
@@ -36,27 +36,28 @@ suspend fun sharePost(context: Context, postId: String, postCaption: String, ima
             putExtra(Intent.EXTRA_STREAM, imageUri)
             putExtra(Intent.EXTRA_TEXT, shareText)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            clipData = ClipData.newUri(context.contentResolver, "Post Image", imageUri)
         } else {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
+            if (!imageUrl.isNullOrBlank()) {
+                try {
+                    clipData = ClipData.newRawUri("Post Image", imageUrl.toUri())
+                } catch (_: Exception) {}
+            }
         }
 
         putExtra(Intent.EXTRA_SUBJECT, "Collabbit Post")
-
         val previewTitle = postCaption.take(60).ifBlank { "Collabbit Post" }
         putExtra(Intent.EXTRA_TITLE, previewTitle)
-
-        if (imageUri != null) {
-            clipData = ClipData.newRawUri("Post Image", imageUri)
-        } else if (!imageUrl.isNullOrBlank()) {
-            try {
-                clipData = ClipData.newRawUri("Post Image", imageUrl.toUri())
-            } catch (_: Exception) {}
-        }
     }
 
-    val chooser = Intent.createChooser(shareIntent, "Share Post")
-    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val chooser = Intent.createChooser(shareIntent, "Share Post").apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (imageUri != null) {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
     context.startActivity(chooser)
 }
 
@@ -76,25 +77,27 @@ suspend fun shareCourse(context: Context, courseId: String, courseTitle: String,
             putExtra(Intent.EXTRA_STREAM, imageUri)
             putExtra(Intent.EXTRA_TEXT, shareText)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            clipData = ClipData.newUri(context.contentResolver, "Course Thumbnail", imageUri)
         } else {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
+            if (!imageUrl.isNullOrBlank()) {
+                try {
+                    clipData = ClipData.newRawUri("Course Thumbnail", imageUrl.toUri())
+                } catch (_: Exception) {}
+            }
         }
 
         putExtra(Intent.EXTRA_SUBJECT, "Collabbit Course: $courseTitle")
         putExtra(Intent.EXTRA_TITLE, "Collabbit Course: $courseTitle")
-
-        if (imageUri != null) {
-            clipData = ClipData.newRawUri("Course Thumbnail", imageUri)
-        } else if (!imageUrl.isNullOrBlank()) {
-            try {
-                clipData = ClipData.newRawUri("Course Thumbnail", imageUrl.toUri())
-            } catch (_: Exception) {}
-        }
     }
 
-    val chooser = Intent.createChooser(shareIntent, "Share Course")
-    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val chooser = Intent.createChooser(shareIntent, "Share Course").apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (imageUri != null) {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
     context.startActivity(chooser)
 }
 
@@ -114,25 +117,27 @@ suspend fun shareOpportunity(context: Context, opportunityId: String, title: Str
             putExtra(Intent.EXTRA_STREAM, imageUri)
             putExtra(Intent.EXTRA_TEXT, shareText)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            clipData = ClipData.newUri(context.contentResolver, "Company Logo", imageUri)
         } else {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
+            if (!imageUrl.isNullOrBlank()) {
+                try {
+                    clipData = ClipData.newRawUri("Company Logo", imageUrl.toUri())
+                } catch (_: Exception) {}
+            }
         }
 
         putExtra(Intent.EXTRA_SUBJECT, "Collabbit Opportunity: $title")
         putExtra(Intent.EXTRA_TITLE, "Collabbit Opportunity: $title")
-
-        if (imageUri != null) {
-            clipData = ClipData.newRawUri("Company Logo", imageUri)
-        } else if (!imageUrl.isNullOrBlank()) {
-            try {
-                clipData = ClipData.newRawUri("Company Logo", imageUrl.toUri())
-            } catch (_: Exception) {}
-        }
     }
 
-    val chooser = Intent.createChooser(shareIntent, "Share Opportunity")
-    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val chooser = Intent.createChooser(shareIntent, "Share Opportunity").apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (imageUri != null) {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
     context.startActivity(chooser)
 }
 
@@ -152,25 +157,27 @@ suspend fun shareSociety(context: Context, societyId: String, societyName: Strin
             putExtra(Intent.EXTRA_STREAM, imageUri)
             putExtra(Intent.EXTRA_TEXT, shareText)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            clipData = ClipData.newUri(context.contentResolver, "Society Logo", imageUri)
         } else {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
+            if (!imageUrl.isNullOrBlank()) {
+                try {
+                    clipData = ClipData.newRawUri("Society Logo", imageUrl.toUri())
+                } catch (_: Exception) {}
+            }
         }
 
         putExtra(Intent.EXTRA_SUBJECT, "Join Society: $societyName")
         putExtra(Intent.EXTRA_TITLE, "Join Society: $societyName")
-
-        if (imageUri != null) {
-            clipData = ClipData.newRawUri("Society Logo", imageUri)
-        } else if (!imageUrl.isNullOrBlank()) {
-            try {
-                clipData = ClipData.newRawUri("Society Logo", imageUrl.toUri())
-            } catch (_: Exception) {}
-        }
     }
 
-    val chooser = Intent.createChooser(shareIntent, "Share Society")
-    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val chooser = Intent.createChooser(shareIntent, "Share Society").apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (imageUri != null) {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
     context.startActivity(chooser)
 }
 
@@ -180,13 +187,16 @@ suspend fun shareSociety(context: Context, societyId: String, societyName: Strin
 suspend fun downloadImageToCache(context: Context, imageUrl: String): Uri? = withContext(Dispatchers.IO) {
     return@withContext try {
         val url = URL(imageUrl)
-        val connection = url.openConnection()
+        val connection = url.openConnection() as HttpURLConnection
         connection.connectTimeout = 10_000
         connection.readTimeout = 10_000
-        val inputStream = connection.getInputStream()
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
+        connection.instanceFollowRedirects = true
+
+        val inputStream = connection.inputStream
 
         val cacheDir = File(context.cacheDir, "shared_images").apply { mkdirs() }
-        val file = File(cacheDir, "post_share_${System.currentTimeMillis()}.jpg")
+        val file = File(cacheDir, "share_${System.currentTimeMillis()}.jpg")
 
         FileOutputStream(file).use { outputStream ->
             inputStream.copyTo(outputStream)
@@ -194,10 +204,11 @@ suspend fun downloadImageToCache(context: Context, imageUrl: String): Uri? = wit
 
         FileProvider.getUriForFile(
             context,
-            "${context.packageName}.fileprovider",
+            "${context.packageName}.provider",
             file
         )
     } catch (e: Exception) {
+        e.printStackTrace()
         null
     }
 }

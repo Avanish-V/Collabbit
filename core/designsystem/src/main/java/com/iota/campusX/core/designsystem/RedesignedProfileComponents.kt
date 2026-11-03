@@ -155,12 +155,11 @@ fun ProfileSectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier = modifier.fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .cardShadow(alpha = 0.3f),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -177,6 +176,15 @@ fun ProfileSectionCard(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                if (isCurrentUser){
+                    IconButton(onClick = { onActionClick() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.edit_2),
+                            contentDescription = "Edit",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

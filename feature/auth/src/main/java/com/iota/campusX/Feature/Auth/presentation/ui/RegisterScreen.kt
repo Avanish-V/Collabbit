@@ -72,6 +72,11 @@ fun SignInScreen(navHostController: NavHostController) {
                     description = "Find students with the skills you need. Collaborate with developers, designers, content creators, and creators to build projects together."
                 ),
                 OnBoardingContent(
+                    image = R.drawable.swipe_match,
+                    heading = "Swipe and Connect \uD83E\uDD1D",
+                    description = "Swipe and discover like-minded students, find people who share your interests, and connect with your next project teammate."
+                ),
+                OnBoardingContent(
                     image = R.drawable.third_onboarding,
                     heading = "Learn Skills. Build Projects. \uD83C\uDF93",
                     description = "Join live skill sessions, learn practical technologies, and immediately apply what you learn to real projects with your team."

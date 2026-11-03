@@ -146,7 +146,7 @@ fun CampusWidget(
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = college,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))

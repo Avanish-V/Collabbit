@@ -36,7 +36,7 @@ data object MainGraph : Route
 data class Home(val postId: String? = null) : Route
 
 @Serializable
-data object Collab : Route
+data object Explore : Route
 
 @Serializable
 data object Notification : Route
@@ -104,7 +104,7 @@ data object JoinSociety : Route
 data object Connection : Route
 
 @Serializable
-data object Opportunities : Route
+data object Collab : Route
 
 @Serializable
 data class OpportunityDetail(val opportunityId: String) : Route
@@ -154,11 +154,11 @@ data class PdfView(
 // --- Helper for Bottom Bar ---
 val bottomBarRoutes = listOf(
     Home::class,
-    Collab::class,
+    Explore::class,
     Connection::class,
     Profile::class,
     Society::class,
-    Opportunities::class
+    Collab::class
 )
 
 fun shouldShowBottomBar(destination: NavDestination?): Boolean {

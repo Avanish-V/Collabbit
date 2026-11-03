@@ -28,6 +28,7 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":core:network"))
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
@@ -43,9 +44,10 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.foundation)
 
-    // Coil & Lottie
+    // Coil & Lottie & RichLinkPreview
     implementation(libs.coil.compose)
     implementation(libs.lottie.compose)
+    api(libs.richlinkpreview)
 
     // Ktor (for PdfThumbnail)
     implementation(libs.ktor.client.core)

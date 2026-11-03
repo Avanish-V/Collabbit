@@ -15,17 +15,18 @@ data class navItems(
 
 val navBarItems = listOf(
     navItems(
-        "Explore",
+        "Home",
         R.drawable.home,
         R.drawable.home,
         Home()
     ),
     navItems(
-        "Collab",
-        R.drawable.heart_partner_handshake,
-        R.drawable.heart_partner_handshake,
-        Collab
+        "Explore",
+        R.drawable.compass,
+        R.drawable.compass,
+        Explore
     ),
+
     navItems(
         "Create",
         R.drawable.plus_square,
@@ -33,11 +34,12 @@ val navBarItems = listOf(
         CreatePost
     ),
     navItems(
-        "Opportunities",
-        R.drawable.compass,
-        R.drawable.compass,
-        Opportunities
+        "Collab",
+        R.drawable.heart_partner_handshake,
+        R.drawable.heart_partner_handshake,
+        Collab
     ),
+
     navItems(
         "Profile",
         R.drawable.user,

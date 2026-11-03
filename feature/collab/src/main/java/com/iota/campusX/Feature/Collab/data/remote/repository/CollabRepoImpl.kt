@@ -159,13 +159,28 @@ class CollabRepoImpl(
 
     override suspend fun requestToCollab(collabId: String): Result<CollabRequestStatus> {
         return runCatching {
+            try {
+                val userResponse: HttpResponse = httpClient.get("users/me")
+                if (userResponse.status.isSuccess()) {
+                    val profile = userResponse.body<com.iota.campusX.Feature.UserProfile.data.remote.response.ProfileResponse>()
+                    val score = com.iota.campusX.Feature.UserProfile.utils.ProfileScoreCalculator.calculateScore(profile)
+                    if (score < 80) {
+                        throw Exception("First complete your profile (at least 80%) to send collaboration requests.")
+                    }
+                }
+            } catch (e: Exception) {
+                if (e.message?.contains("at least 80%") == true) {
+                    throw e
+                }
+            }
+
             val response: HttpResponse = httpClient.post("collabs/$collabId/connect") {
                 contentType(ContentType.Application.Json)
             }
             if (!response.status.isSuccess()) {
                 val error = response.bodyAsText()
                 Log.e(TAG, "requestToCollab failed: ${response.status.value} - $error")
-                throw Exception("Failed to request collaboration: ${response.status}")
+                throw Exception("First complete your profile (at least 80%) to send collaboration requests.")
             }
             response.body<CollabRequestStatus>()
         }.onFailure {

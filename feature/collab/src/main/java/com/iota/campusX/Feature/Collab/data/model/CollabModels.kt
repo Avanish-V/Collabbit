@@ -16,8 +16,7 @@ enum class ProjectStatus(val displayName: String) {
 data class ProjectRole(
     val id: String = "",
     val roleName: String = "",
-    val skills: List<String> = emptyList(),
-    val peopleNeeded: Int = 1
+    val description: String = ""
 )
 
 @Immutable
@@ -37,7 +36,7 @@ data class CreateCollabRequest(
 
 @Serializable
 enum class CollabType {
-    HACKATHON, COBUILDER, STUDY,RESEARCH,NONE
+    HACKATHON, COBUILDER, STUDY, RESEARCH, NONE
 }
 
 @Immutable

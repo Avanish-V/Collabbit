@@ -19,8 +19,7 @@ import java.util.UUID
 data class ProjectRoleUiModel(
     val id: String = UUID.randomUUID().toString(),
     val roleName: String = "",
-    val skills: List<String> = emptyList(),
-    val peopleNeeded: Int = 1
+    val description: String = ""
 )
 
 data class CreateProjectUiState(
@@ -102,15 +101,8 @@ class CreateCollabViewModel(
         val currentState = _uiState.value
         if (!currentState.isFormValid || currentState.isLoading) return
 
-        val reqList = currentState.roles.flatMap { role ->
-            if (role.skills.isNotEmpty()) {
-                listOf(role.roleName) + role.skills
-            } else {
-                listOf(role.roleName)
-            }
-        }.distinct().filter { it.isNotBlank() }
-
-        val totalNeeded = currentState.roles.sumOf { it.peopleNeeded }.coerceAtLeast(1)
+        val reqList = currentState.roles.map { it.roleName.trim() }.distinct().filter { it.isNotBlank() }
+        val totalNeeded = currentState.roles.size.coerceAtLeast(1)
 
         _uiState.update { it.copy(isLoading = true, error = null) }
 
@@ -153,8 +145,7 @@ class CreateCollabViewModel(
                 com.iota.campusX.Feature.Collab.data.model.ProjectRole(
                     id = it.id,
                     roleName = it.roleName.trim(),
-                    skills = it.skills,
-                    peopleNeeded = it.peopleNeeded
+                    description = it.description.trim()
                 )
             }
 

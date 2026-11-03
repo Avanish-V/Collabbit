@@ -2,22 +2,24 @@ package com.iota.campusX
 
 import android.app.Application
 import android.util.Log
+import com.iota.campusX.Feature.Auth.di.authModule
 import com.iota.campusX.Feature.Collab.di.collabModule
 import com.iota.campusX.Feature.ExploreSwipe.di.exploreSwipeModule
 import com.iota.campusX.Feature.Notificattion.di.notificationModule
 import com.iota.campusX.Feature.Opportunities.di.opportunitiesModule
 import com.iota.campusX.Feature.Post.di.postModule
 import com.iota.campusX.Feature.UserProfile.di.profileModule
-import com.iota.campusX.Feature.Auth.di.authModule
 import com.iota.campusX.Koin.chatModule
 import com.iota.campusX.Koin.coreModule
 import com.iota.campusX.Koin.firebaseModule
 import com.iota.campusX.Koin.navigationModule
+import com.iota.campusX.Koin.realtimeModule
 import com.iota.campusX.Koin.replyModule
 import com.iota.campusX.Koin.reportModule
 import com.iota.campusX.Koin.societyModule
 import com.iota.campusX.core.notifications.NotificationChannelManager
-import com.iota.campusX.Koin.realtimeModule
+import com.iota.campusX.notifications.sync.FcmTokenSyncManager
+import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
@@ -49,6 +51,13 @@ class CampusCircleApplication : Application() {
                 societyModule,
                 exploreSwipeModule
             )
+        }
+
+        try {
+            val fcmTokenSyncManager: FcmTokenSyncManager = get()
+            fcmTokenSyncManager.onAppStart()
+        } catch (e: Exception) {
+            Log.e("CampusXApp", "Failed to start FcmTokenSyncManager on app start", e)
         }
     }
 }

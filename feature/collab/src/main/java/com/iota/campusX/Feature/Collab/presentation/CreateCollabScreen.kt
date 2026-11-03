@@ -10,8 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,7 +31,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,7 +39,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,7 +54,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -85,9 +80,10 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.iota.campusX.Feature.Collab.data.model.ProjectStatus
 import com.iota.campusX.Feature.Collab.presentation.components.ProjectStatusBadge
-import com.iota.campusX.Navigation.Collab
+import com.iota.campusX.Navigation.Explore
 import com.iota.campusX.Navigation.CollabDetail
 import com.iota.campusX.feature.collab.R
+import com.iota.campusX.ui.UIComponents.cardShadow
 import java.util.UUID
 
 fun Modifier.dashedBorder(
@@ -120,7 +116,7 @@ fun HeroIllustration(modifier: Modifier = Modifier) {
                 .align(Alignment.BottomEnd)
                 .graphicsLayer(rotationZ = -6f),
             shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF5C56E6),
+            color = MaterialTheme.colorScheme.primary,
             shadowElevation = 4.dp
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -185,11 +181,7 @@ fun FieldLabel(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 15.sp
-                )
+                style = MaterialTheme.typography.titleSmall
             )
             if (isRequired) {
                 Text(
@@ -205,10 +197,7 @@ fun FieldLabel(
         if (subtitle != null) {
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp
-                )
+                style = MaterialTheme.typography.labelMedium
             )
         }
     }
@@ -231,19 +220,19 @@ fun StyledTextField(
         onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(
-                width = 1.dp,
-                color = if (isError) Color(0xFFEF4444) else MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(16.dp)
+                width = 0.5.dp,
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(12.dp)
             )
             .padding(horizontal = 16.dp, vertical = 14.dp),
         textStyle = MaterialTheme.typography.bodyMedium.copy(
             color = MaterialTheme.colorScheme.onSurface,
             fontSize = 15.sp
         ),
-        cursorBrush = SolidColor(Color(0xFF5C56E6)),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         singleLine = singleLine,
         minLines = minLines,
         maxLines = maxLines,
@@ -254,7 +243,7 @@ fun StyledTextField(
                     Text(
                         text = placeholder,
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             fontSize = 15.sp
                         )
                     )
@@ -271,14 +260,12 @@ fun RoleCardItem(
     onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val (iconRes, colors) = getRoleIconAndBg(role.roleName)
-    val (bgColor, iconColor) = colors
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
     ) {
         Row(
             modifier = Modifier
@@ -290,13 +277,12 @@ fun RoleCardItem(
                 modifier = Modifier
                     .size(46.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(bgColor),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = iconRes),
+                    painter = painterResource(id = com.iota.campusX.core.designsystem.R.drawable.user),
                     contentDescription = null,
-                    tint = iconColor,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -312,15 +298,16 @@ fun RoleCardItem(
                         fontSize = 15.sp
                     )
                 )
-                if (role.skills.isNotEmpty()) {
+                if (role.description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = role.skills.joinToString(" • "),
+                        text = role.description,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            color = Color(0xFF5C56E6),
-                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
-                        )
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -328,23 +315,6 @@ fun RoleCardItem(
             Spacer(modifier = Modifier.width(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "x${role.peopleNeeded}",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = Color(0xFF64748B),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 13.sp
-                    )
-                )
-
-                Text(
-                    text = " | ",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = Color(0xFFCBD5E1),
-                        fontSize = 13.sp
-                    )
-                )
-
                 Text(
                     text = "Edit",
                     style = MaterialTheme.typography.bodySmall.copy(
@@ -355,15 +325,13 @@ fun RoleCardItem(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
                         .clickable { onEdit() }
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
                 )
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Icon(
-                    imageVector = Icons.Default.Delete,
+                    imageVector = Icons.Default.Close,
                     contentDescription = "Remove",
-                    tint = Color(0xFFEF4444),
                     modifier = Modifier
                         .size(20.dp)
                         .clip(CircleShape)
@@ -458,7 +426,7 @@ fun CreateCollabScreen(
                         if (collabId != null) {
                             createCollabViewModel.resetFlow()
                             navController.navigate(CollabDetail(collabId = collabId)) {
-                                popUpTo(Collab) { inclusive = false }
+                                popUpTo(Explore) { inclusive = false }
                             }
                         } else {
                             showProjectPreviewModal = true
@@ -891,10 +859,7 @@ fun ProjectIdeaSection(
             }
             Text(
                 text = "${idea.length}/500",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    color = Color(0xFF94A3B8),
-                    fontSize = 12.sp
-                )
+                style = MaterialTheme.typography.labelSmall
             )
         }
     }
@@ -949,9 +914,9 @@ fun ProjectRolesSection(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
         ) {
             if (roles.isEmpty()) {
                 Column(
@@ -961,20 +926,6 @@ fun ProjectRolesSection(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Surface(
-                        modifier = Modifier.size(44.dp),
-                        shape = CircleShape,
-                        color = Color.Transparent
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.people_bold),
-                                contentDescription = null,
-                                tint = Color(0xFF2563EB),
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -989,10 +940,12 @@ fun ProjectRolesSection(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Button(
+                    OutlinedButton(
                         onClick = onAddRoleClick,
                         shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5C56E6)),
+                        colors = ButtonDefaults.buttonColors(
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        ),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                     ) {
                         Text(
@@ -1022,7 +975,7 @@ fun ProjectRolesSection(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Button(
+                    OutlinedButton(
                         onClick = onAddRoleClick,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1041,40 +994,13 @@ fun ProjectRolesSection(
                         )
                     }
 
-                    OutlinedButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = CircleShape,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2563EB))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.people_bold),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "Back to Collaborations",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            )
-                        }
-                    }
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddRoleBottomSheet(
     initialRole: ProjectRoleUiModel? = null,
@@ -1088,24 +1014,7 @@ fun AddRoleBottomSheet(
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         var roleName by remember { mutableStateOf(initialRole?.roleName ?: "") }
-        var selectedSkills by remember { mutableStateOf(initialRole?.skills ?: emptyList()) }
-        var skillInput by remember { mutableStateOf("") }
-        var peopleNeeded by remember { mutableIntStateOf(initialRole?.peopleNeeded ?: 1) }
-
-        val presetSkills = remember {
-            listOf(
-                "Kotlin", "Jetpack Compose", "Java", "React", "Node.js", "Python",
-                "AI / ML", "Figma", "Firebase", "Swift", "Flutter", "UI/UX",
-                "Spring Boot", "PostgreSQL", "SQL", "Git"
-            )
-        }
-
-        val filteredPresets = remember(skillInput, selectedSkills) {
-            presetSkills.filter { preset ->
-                !selectedSkills.contains(preset) &&
-                (skillInput.isBlank() || preset.contains(skillInput.trim(), ignoreCase = true))
-            }
-        }
+        var description by remember { mutableStateOf(initialRole?.description ?: "") }
 
         Column(
             modifier = Modifier
@@ -1138,7 +1047,7 @@ fun AddRoleBottomSheet(
             }
 
             Column {
-                FieldLabel(label = "Role name", isRequired = true)
+                FieldLabel(label = "Role title", isRequired = true)
                 StyledTextField(
                     value = roleName,
                     onValueChange = { roleName = it },
@@ -1146,141 +1055,13 @@ fun AddRoleBottomSheet(
                 )
             }
 
-            if (filteredPresets.isNotEmpty()) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    filteredPresets.forEach { preset ->
-                        FilterChip(
-                            selected = false,
-                            onClick = {
-                                if (!selectedSkills.contains(preset)) {
-                                    selectedSkills = selectedSkills + preset
-                                }
-                            },
-                            label = { Text("+ $preset", style = MaterialTheme.typography.labelSmall) },
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                    }
-                }
-            }
-
-            if (selectedSkills.isNotEmpty()) {
-                Column {
-                    Text(
-                        text = "Selected skills",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 15.sp
-                        ),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        selectedSkills.forEach { skill ->
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.clickable {
-                                    selectedSkills = selectedSkills - skill
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = skill,
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
-                                        )
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Remove skill",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             Column {
-                FieldLabel(label = "People needed", isRequired = true)
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .clickable(enabled = peopleNeeded > 1) {
-                                    if (peopleNeeded > 1) peopleNeeded--
-                                },
-                            color = if (peopleNeeded > 1) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                            shape = CircleShape
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "-",
-                                    color = if (peopleNeeded > 1) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = "$peopleNeeded",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 16.sp
-                            )
-                        )
-
-                        Surface(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .clickable { peopleNeeded++ },
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = CircleShape
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "+",
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                )
-                            }
-                        }
-                    }
-                }
+                FieldLabel(label = "Role description", isRequired = false)
+                StyledTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    placeholder = "e.g. Responsible for building Compose UI, state, and integrating APIs..."
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1290,8 +1071,7 @@ fun AddRoleBottomSheet(
                     val newRole = ProjectRoleUiModel(
                         id = initialRole?.id ?: UUID.randomUUID().toString(),
                         roleName = roleName.trim(),
-                        skills = selectedSkills,
-                        peopleNeeded = peopleNeeded
+                        description = description.trim()
                     )
                     onSaveRole(newRole)
                 },
@@ -1301,7 +1081,7 @@ fun AddRoleBottomSheet(
                     .height(52.dp),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2563EB),
+                    containerColor = MaterialTheme.colorScheme.primary,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
@@ -1324,11 +1104,9 @@ fun CreatedProjectCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        modifier = modifier.fillMaxWidth().cardShadow(alpha = 0.3f),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1480,13 +1258,13 @@ fun CreatedProjectCard(
                         )
                     )
 
-                    val totalSpots = state.roles.sumOf { it.peopleNeeded }.coerceAtLeast(1)
+                    val totalSpots = state.roles.size.coerceAtLeast(1)
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
-                            text = "$totalSpots ${if (totalSpots == 1) "spot" else "spots"} open",
+                            text = "$totalSpots ${if (totalSpots == 1) "role" else "roles"} open",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1498,7 +1276,6 @@ fun CreatedProjectCard(
                 }
 
                 state.roles.forEach { role ->
-                    val (iconRes, colors) = getRoleIconAndBg(role.roleName)
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -1514,13 +1291,12 @@ fun CreatedProjectCard(
                             Surface(
                                 modifier = Modifier.size(34.dp),
                                 shape = RoundedCornerShape(8.dp),
-                                color = colors.first
+                                color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        painter = painterResource(id = iconRes),
+                                        painter = painterResource(id = com.iota.campusX.core.designsystem.R.drawable.user),
                                         contentDescription = null,
-                                        tint = colors.second,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -1529,43 +1305,25 @@ fun CreatedProjectCard(
                             Spacer(modifier = Modifier.width(10.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = role.roleName,
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 13.sp
-                                        )
+                                Text(
+                                    text = role.roleName,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 13.sp
                                     )
-                                    Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = Color(0xFFE2E8F0)
-                                    ) {
-                                        Text(
-                                            text = "×${role.peopleNeeded}",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF475569),
-                                                fontSize = 10.sp
-                                            ),
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                        )
-                                    }
-                                }
+                                )
 
-                                if (role.skills.isNotEmpty()) {
+                                if (role.description.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = role.skills.joinToString(" • "),
+                                        text = role.description,
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            color = Color(0xFF5C56E6),
-                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 11.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -1610,7 +1368,7 @@ fun ProjectCreatedSuccessScreen(
                         text = "PROJECT PUBLISHED!",
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF5C56E6),
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 12.sp,
                             letterSpacing = 0.5.sp
                         )
@@ -1654,7 +1412,7 @@ fun ProjectCreatedSuccessScreen(
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5C56E6))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text(
                     text = "View in Feed",
@@ -1673,7 +1431,7 @@ fun ProjectCreatedSuccessScreen(
                     .height(52.dp),
                 shape = CircleShape,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2563EB))
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text(
                     text = "Back to Collaborations",

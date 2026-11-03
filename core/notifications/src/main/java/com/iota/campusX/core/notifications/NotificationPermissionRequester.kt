@@ -11,13 +11,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 
 @Composable
-fun NotificationPermissionRequester() {
+fun NotificationPermissionRequester(
+    onPermissionGranted: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
             Toast.makeText(context, "Notification permission granted", Toast.LENGTH_SHORT).show()
+            onPermissionGranted?.invoke()
         } else {
             Toast.makeText(context, "Notification permission denied", Toast.LENGTH_SHORT).show()
         }
@@ -27,9 +30,13 @@ fun NotificationPermissionRequester() {
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+                onPermissionGranted?.invoke()
+            } else {
                 launcher.launch(permission)
             }
+        } else {
+            onPermissionGranted?.invoke()
         }
     }
 }

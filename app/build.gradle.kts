@@ -31,8 +31,8 @@ android {
         targetSdk = 36
 
         // Play Store version
-        versionCode = 33
-        versionName = "1.3.3"
+        versionCode = 38
+        versionName = "1.3.8"
 
         testInstrumentationRunner =
             "androidx.test.runner.AndroidJUnitRunner"
@@ -133,16 +133,16 @@ android {
     productFlavors {
         create("dev") {
             dimension = "env"
-            buildConfigField("String", "BASE_URL", "\"http://192.168.1.13:8080/api/v1/\"")
-            buildConfigField("String", "OPPORTUNITIES_BASE_URL", "\"http://192.168.1.13:8081/api/jobs\"")
-            buildConfigField("String", "COURSES_BASE_URL", "\"http://192.168.1.13:8081/api/courses\"")
+            buildConfigField("String", "BASE_URL", "\"http://192.168.1.9:8080/api/v1/\"")
+            buildConfigField("String", "OPPORTUNITIES_BASE_URL", "\"http://192.168.1.9:8081/api/jobs\"")
+            buildConfigField("String", "COURSES_BASE_URL", "\"http://192.168.1.9:8081/api/live-sessions\"")
             buildConfigField("Boolean", "IS_PRODUCTION", "false")
         }
         create("prod") {
             dimension = "env"
             buildConfigField("String", "BASE_URL", "\"https://iv52bugou5xppexnhffgj53hwq0rorrh.lambda-url.ap-south-1.on.aws/api/v1/\"")
             buildConfigField("String", "OPPORTUNITIES_BASE_URL", "\"https://bmo6sd3nhbgp4akoqmgoamd3ja0cmyyn.lambda-url.ap-south-1.on.aws/api/jobs\"")
-            buildConfigField("String", "COURSES_BASE_URL", "\"https://bmo6sd3nhbgp4akoqmgoamd3ja0cmyyn.lambda-url.ap-south-1.on.aws/api/courses\"")
+            buildConfigField("String", "COURSES_BASE_URL", "\"https://bmo6sd3nhbgp4akoqmgoamd3ja0cmyyn.lambda-url.ap-south-1.on.aws/api/live-sessions\"")
             buildConfigField("Boolean", "IS_PRODUCTION", "true")
         }
     }
@@ -190,6 +190,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(libs.androidx.lifecycle.runtime.ktx)
     
