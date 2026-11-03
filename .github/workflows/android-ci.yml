@@ -60,6 +60,12 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew bundleRelease
 
+         # Get generated ABB
+      - name: Find Generated AAB
+        run: |
+          echo "Searching for AAB files..."
+          find . -type f -name "*.aab"  
+
       # 5. Upload AAB to GitHub
       - name: Upload Release AAB
         uses: actions/upload-artifact@v4
