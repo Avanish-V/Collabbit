@@ -59,8 +59,16 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew bundleRelease
+      # Debug Release output
+      - name: Debug Release Output
+        if: always()
+        run: |
+          echo "Checking AAB files..."
+          find . -type f -name "*.aab"
 
-         # Get generated ABB
+          echo "Checking bundle directories..."
+          find . -type d -path "*/outputs/bundle/*"
+      # Get generated ABB
       - name: Find Generated AAB
         run: |
           echo "Searching for AAB files..."
