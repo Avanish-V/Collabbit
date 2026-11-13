@@ -2,7 +2,7 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <!-- Explicitly allow your local computer's IP or development hosts -->
-        <domain includeSubdomains="true">192.168.1.9</domain>
+        <domain includeSubdomains="true">192.168.1.12</domain>
         <domain includeSubdomains="true">192.168.1.8</domain>
         <domain includeSubdomains="true">192.168.1.13</domain>
         <domain includeSubdomains="true">192.168.0.2</domain>

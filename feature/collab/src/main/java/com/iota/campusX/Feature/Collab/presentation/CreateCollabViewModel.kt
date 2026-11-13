@@ -42,7 +42,7 @@ data class CreateProjectUiState(
         get() = title.trim().isNotBlank() && title.length <= 60
 
     val isIdeaValid: Boolean
-        get() = idea.trim().isNotBlank() && idea.length <= 500
+        get() = idea.trim().isNotBlank() && idea.length <= 5000
 
     val isUrlValid: Boolean
         get() {

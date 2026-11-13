@@ -87,9 +87,18 @@ import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.core.designsystem.ErrorScreen
 import com.iota.campusX.core.designsystem.RefreshBox
 import com.iota.campusX.feature.collab.R
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.iota.campusX.core.designsystem.AppTabRow
 import com.iota.campusX.ui.UIComponents.cardShadow
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+
+enum class ExploreTab(val title: String) {
+    PROJECT("Ideas"),
+    EVENTS("Events")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,6 +113,7 @@ fun CollabExploreScreen(
     val pullToRefreshState = rememberPullToRefreshState()
     val lazyListState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    var selectedTab by rememberSaveable { mutableStateOf(ExploreTab.PROJECT) }
 
     HideBottomBar(navigationViewModel, lazyListState)
 
@@ -114,16 +124,25 @@ fun CollabExploreScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    ExploreHeader()
-                },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background
+            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+                TopAppBar(
+                    title = {
+                        ExploreHeader()
+                    },
+                    scrollBehavior = scrollBehavior,
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background
+                    )
                 )
-            )
+                AppTabRow(
+                    selectedIndex = ExploreTab.entries.indexOf(selectedTab),
+                    tabList = ExploreTab.entries.map { it.title },
+                    onTabSelected = { index ->
+                        selectedTab = ExploreTab.entries[index]
+                    }
+                )
+            }
         },
         modifier = Modifier
             .fillMaxSize()
@@ -132,163 +151,190 @@ fun CollabExploreScreen(
         RefreshBox(
             modifier = Modifier.padding(padding),
             pullToRefreshState = pullToRefreshState,
-            onRefresh = { lazyCollabs.refresh() },
-            isRefreshing = lazyCollabs.loadState.refresh is LoadState.Loading && lazyCollabs.itemCount > 0
-        ) {
-            val refreshState = lazyCollabs.loadState.refresh
-            val isInitialLoading = refreshState is LoadState.Loading && lazyCollabs.itemCount == 0
-            val isError = refreshState is LoadState.Error && lazyCollabs.itemCount == 0
-
-            if (isInitialLoading) {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(6) { CollabShimmerItem() }
+            onRefresh = {
+                when (selectedTab) {
+                    ExploreTab.PROJECT -> lazyCollabs.refresh()
+                    ExploreTab.EVENTS -> opportunitiesViewModel.fetchCourses(forceRefresh = true)
                 }
-            } else if (isError) {
-                ErrorScreen(
-                    text = (refreshState as LoadState.Error).error.localizedMessage ?: "Failed to load collaborations",
-                    onReTry = { lazyCollabs.retry() }
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    state = lazyListState,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item { Spacer(modifier = Modifier.height(4.dp)) }
+            },
+            isRefreshing = when (selectedTab) {
+                ExploreTab.PROJECT -> lazyCollabs.loadState.refresh is LoadState.Loading && lazyCollabs.itemCount > 0
+                ExploreTab.EVENTS -> coursesState is UiState.Loading
+            }
+        ) {
+            when (selectedTab) {
+                ExploreTab.PROJECT -> {
+                    val refreshState = lazyCollabs.loadState.refresh
+                    val isInitialLoading = refreshState is LoadState.Loading && lazyCollabs.itemCount == 0
+                    val isError = refreshState is LoadState.Error && lazyCollabs.itemCount == 0
 
-
-                    // Hero Banner: "Turn your ideas into real projects"
-                    item {
-                        TurnIdeasHeroBanner(
-                            onStartProjectClick = { navController.navigate(CreateCollab) }
+                    if (isInitialLoading) {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(6) { CollabShimmerItem() }
+                        }
+                    } else if (isError) {
+                        ErrorScreen(
+                            text = (refreshState as LoadState.Error).error.localizedMessage ?: "Failed to load collaborations",
+                            onReTry = { lazyCollabs.retry() }
                         )
-                    }
-
-                    // Section Title: "Featured Projects" + "See all"
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .padding(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Featured Projects",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                            )
-                        }
-                    }
-
-                    if (lazyCollabs.itemCount == 0) {
-                        item {
-                            EmptyCollabState(
-                                onStartProjectClick = { navController.navigate(CreateCollab) }
-                            )
-                        }
                     } else {
-                        items(
-                            count = lazyCollabs.itemCount,
-                            key = lazyCollabs.itemKey { it.id }
-                        ) { index ->
-                            val collab = lazyCollabs[index]
-                            if (collab != null) {
-                                FeaturedProjectCard(
-                                    collab = collab,
-                                    onClick = {
-                                        navController.navigate(CollabDetail(collabId = collab.id))
-                                    }
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            state = lazyListState,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            item { Spacer(modifier = Modifier.height(4.dp)) }
+
+                            // Hero Banner: "Turn your ideas into real projects"
+                            item {
+                                TurnIdeasHeroBanner(
+                                    onStartProjectClick = { navController.navigate(CreateCollab) }
                                 )
                             }
-                        }
 
-                        if (lazyCollabs.loadState.append is LoadState.Loading) {
+                            // Section Title: "Featured Projects"
                             item {
-                                Box(
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(8.dp),
-                                    contentAlignment = Alignment.Center
+                                        .padding(horizontal = 20.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    CircularProgressIndicator(color = Color(0xFF2563EB))
+                                    Text(
+                                        text = "Featured Projects",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 18.sp,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
+                                    )
                                 }
                             }
-                        }
-                    }
 
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
-
-                    // Live Sessions Section Header
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Live Sessions",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                            )
-                        }
-                    }
-
-                    // Render Live Sessions Items
-                    when (val cState = coursesState) {
-                        is UiState.Loading -> {
-                            items(2) {
-                                OpportunityShimmerItem()
-                            }
-                        }
-                        is UiState.Success -> {
-                            if (cState.data.isEmpty()) {
+                            if (lazyCollabs.itemCount == 0) {
                                 item {
-                                    Text(
-                                        text = "No live sessions scheduled right now.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = 20.dp)
+                                    EmptyCollabState(
+                                        onStartProjectClick = { navController.navigate(CreateCollab) }
                                     )
                                 }
                             } else {
                                 items(
-                                    items = cState.data,
-                                    key = { "course_${it.id}" }
-                                ) { course ->
-                                    Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                                        CourseCard(
-                                            course = course,
+                                    count = lazyCollabs.itemCount,
+                                    key = lazyCollabs.itemKey { it.id }
+                                ) { index ->
+                                    val collab = lazyCollabs[index]
+                                    if (collab != null) {
+                                        FeaturedProjectCard(
+                                            collab = collab,
                                             onClick = {
-                                                navController.navigate(CourseDetail(course.id))
+                                                navController.navigate(CollabDetail(collabId = collab.id))
                                             }
                                         )
                                     }
                                 }
-                            }
-                        }
-                        is UiState.Error -> {
-                            item {
-                                ErrorScreen(
-                                    text = "Something went wrong!",
-                                    image = null,
-                                    onReTry = { opportunitiesViewModel.fetchCourses(forceRefresh = true) },
-                                    buttonText = "ReTry"
-                                )
+
+                                if (lazyCollabs.loadState.append is LoadState.Loading) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(color = Color(0xFF2563EB))
+                                        }
+                                    }
+                                }
                             }
 
+                            item { Spacer(modifier = Modifier.height(24.dp)) }
                         }
+                    }
+                }
+
+                ExploreTab.EVENTS -> {
+                    when (val cState = coursesState) {
+                        is UiState.Loading -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                item { Spacer(modifier = Modifier.height(4.dp)) }
+                                items(3) {
+                                    OpportunityShimmerItem()
+                                }
+                            }
+                        }
+
+                        is UiState.Success -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                state = lazyListState,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                item { Spacer(modifier = Modifier.height(4.dp)) }
+
+                                // Live Sessions Section Header
+                                item {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Live Sessions & Events",
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 18.sp,
+                                                color = MaterialTheme.colorScheme.onBackground
+                                            )
+                                        )
+                                    }
+                                }
+
+                                if (cState.data.isEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "No live sessions scheduled right now.",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 20.dp)
+                                        )
+                                    }
+                                } else {
+                                    items(
+                                        items = cState.data,
+                                        key = { "course_${it.id}" }
+                                    ) { course ->
+                                        Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                                            CourseCard(
+                                                course = course,
+                                                onClick = {
+                                                    navController.navigate(CourseDetail(course.id))
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                item { Spacer(modifier = Modifier.height(24.dp)) }
+                            }
+                        }
+
+                        is UiState.Error -> {
+                            ErrorScreen(
+                                text = cState.message.ifBlank { "Failed to load events" },
+                                image = null,
+                                onReTry = { opportunitiesViewModel.fetchCourses(forceRefresh = true) },
+                                buttonText = "ReTry"
+                            )
+                        }
+
                         else -> {}
                     }
-
-                    item { Spacer(modifier = Modifier.height(24.dp)) }
                 }
             }
         }
@@ -304,14 +350,6 @@ fun ExploreHeader() {
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 24.sp,
                 color = MaterialTheme.colorScheme.onBackground
-            )
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = "Discover projects. Find your people.",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp
             )
         )
     }
