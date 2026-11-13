@@ -102,10 +102,9 @@ class ChatImpl(
     }
 
     override fun receiveMessage(participantId: String, roomId: String): Flow<ResultState<List<ChatMessage>>> = callbackFlow {
-        // Ensure WebSocket is connected
+
         socketManager.connect()
 
-        // 1. Collect from local DB flow and emit to UI
         val dbJob = scope.launch {
             chatDao.getMessagesForRoom(roomId).collect { entities ->
                 val chatMessages = entities.map { entity ->
@@ -212,7 +211,7 @@ class ChatImpl(
     }
 
     override fun getChats(): Flow<ResultState<List<UserChatsDTO>>> = callbackFlow {
-        // 1. Collect from local DB
+
         val dbJob = scope.launch {
             chatDao.getAllChatRooms().collect { entities ->
                 val dtos = entities.map { entity ->
@@ -234,7 +233,6 @@ class ChatImpl(
             }
         }
 
-        // 2. Fetch from network and sync
         scope.launch {
             try {
                 val response: HttpResponse = httpClient.get("chat/rooms")
@@ -431,6 +429,6 @@ data class ChatMessageCreatedPayload(
 
 @Serializable
 data class MessageSentAck(
-    val localId: String,    // client-side temp id (empty string if not used)
-    val messageId: String   // the server-assigned official message id
+    val localId: String,
+    val messageId: String
 )

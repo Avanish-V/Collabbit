@@ -16,3 +16,28 @@
 local.properties
 *.aab
 .kotlin/
+
+
+# Android Studio
+.idea/
+
+
+# Gradle
+.gradle/
+**/.gradle/
+**/build/
+
+# Kotlin
+**/.kotlin/
+
+# Local configuration
+
+# Native build
+.externalNativeBuild/
+.cxx/
+
+# Generated packages
+*.apk
+*.class
+
+# OS files

@@ -84,7 +84,7 @@ android {
 
             isShrinkResources = true
 
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("debug")
 
             proguardFiles(
                 getDefaultProguardFile(
@@ -117,9 +117,9 @@ android {
     productFlavors {
         create("dev") {
             dimension = "env"
-            buildConfigField("String", "BASE_URL", "\"http://192.168.1.9:8080/api/v1/\"")
-            buildConfigField("String", "OPPORTUNITIES_BASE_URL", "\"http://192.168.1.9:8081/api/jobs\"")
-            buildConfigField("String", "COURSES_BASE_URL", "\"http://192.168.1.9:8081/api/live-sessions\"")
+            buildConfigField("String", "BASE_URL", "\"http://192.168.1.12:8080/api/v1/\"")
+            buildConfigField("String", "OPPORTUNITIES_BASE_URL", "\"http://192.168.1.12:8081/api/jobs\"")
+            buildConfigField("String", "COURSES_BASE_URL", "\"http://192.168.1.12:8081/api/live-sessions\"")
             buildConfigField("Boolean", "IS_PRODUCTION", "false")
         }
         create("prod") {
