@@ -22,6 +22,10 @@ import kotlinx.coroutines.flow.stateIn
 
 class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
+    init {
+        getChats()
+    }
+
     private var receiveMessageJob: Job? = null
     private var isActiveJob: Job? = null
     private var isTypingJob: Job? = null
@@ -36,12 +40,9 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     private val _userChats = MutableStateFlow<UiState<List<UserChatsDTO>>>(UiState.Loading)
     val userChats: StateFlow<UiState<List<UserChatsDTO>>> = _userChats.asStateFlow()
 
-    val unreadMessageCount: StateFlow<Int> = _userChats.map { state ->
-        when (state) {
-            is UiState.Success -> state.data.sumOf { it.lastMessage.unreadCount }
-            else -> 0
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val unreadMessageCount: StateFlow<Int> = chatRepository
+        .observeUnreadCount()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     private val _chats: MutableStateFlow<List<ChatMessage>> = MutableStateFlow(emptyList())
     val chats:StateFlow<List<ChatMessage>> = _chats.asStateFlow()
@@ -52,10 +53,6 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     private val _isUserTyping: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isUserTyping:StateFlow<Boolean> = _isUserTyping.asStateFlow()
 
-    init {
-        getChats()
-    }
-
 
     fun textMessageInput(inputText: String){
         _textMessage.value = inputText
@@ -63,11 +60,13 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
 
     fun sendMessages(
         message: String,
-        messageId: String,
-        timestamp: Any,
         receiverId: String,
         roomId: String
-    ) = chatRepository.sendMessage(message,messageId,timestamp,receiverId,roomId)
+    ){
+        viewModelScope.launch {
+            chatRepository.sendMessage(message,receiverId,roomId)
+        }
+    }
 
     fun receiveMessage(participantId: String,roomId: String){
         receiveMessageJob?.cancel()
@@ -133,42 +132,31 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
         }
     }
 
-    fun deleteChatRoomData(chatId: String,roomId: String){
+    fun deleteChatRoomData(chatId: String, roomId: String) {
         viewModelScope.launch {
-            chatRepository.deleteChat(chatId,roomId).collect {
-                when(it){
-                    is ResultState.Loading->{}
-                    is ResultState.Success->{
-                        Log.d("ChatImpl", "deleteChatRoomData: ${it.data}")
-                    }
-                    is ResultState.Error->{
-                        Log.d("ChatImpl", "deleteChatRoomData: ${it.message}")
-                    }
+            chatRepository.deleteChat(chatId, roomId)
+                .onSuccess {
+                    Log.d("ChatImpl", "deleteChatRoomData: $it")
                 }
-            }
+                .onFailure {
+                    Log.d("ChatImpl", "deleteChatRoomData: ${it.message}")
+                }
         }
     }
 
-    suspend fun markMessagesAsReed(participantId: String, roomId: String){
-        chatRepository.markMessagesAsReed(participantId,roomId).collect {
-
-        }
+    suspend fun markMessagesAsReed(participantId: String, roomId: String) {
+        chatRepository.markMessagesAsReed(participantId, roomId)
     }
 
-    fun fetchRoomID(userId:String){
+    fun fetchRoomID(userId: String) {
         viewModelScope.launch {
-            chatRepository.fetchChatRoomId(userId).collect{
-                when(it){
-                    is ResultState.Loading->{
-                    }
-                    is ResultState.Success->{
-                        _hasMessage.value = it.data
-                    }
-                    is ResultState.Error->{
-
-                    }
+            chatRepository.fetchChatRoomId(userId)
+                .onSuccess { roomId ->
+                    _hasMessage.value = roomId
                 }
-            }
+                .onFailure { error ->
+                    Log.e("ChatsViewModel", "fetchRoomID failed", error)
+                }
         }
     }
 

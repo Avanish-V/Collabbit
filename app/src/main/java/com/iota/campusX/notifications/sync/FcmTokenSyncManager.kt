@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 class FcmTokenSyncManager(
     private val context: Context,
@@ -65,7 +66,7 @@ class FcmTokenSyncManager(
         }
 
         try {
-            withTimeoutOrNull(3000L) {
+            withTimeoutOrNull(3000L.milliseconds) {
                 userProfileRepository.updateFcmToken("")
             }
         } catch (e: Exception) {

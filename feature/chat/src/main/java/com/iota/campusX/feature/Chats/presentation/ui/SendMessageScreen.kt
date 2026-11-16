@@ -3,6 +3,10 @@ package com.iota.campusX.Feature.Chats.presentation.ui
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,13 +44,16 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -64,6 +72,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Green
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -203,56 +212,83 @@ fun SendMessageScreen(
             }
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding(),
-                verticalArrangement = Arrangement.SpaceBetween
+            Surface(
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+                color = MaterialTheme.colorScheme.surface,
             ) {
-                Divider()
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    MessageInputBar(
-                        modifier = Modifier.weight(1f),
-                        messageText = messageText,
-                        onMessageChange = { messageText = it },
-                        onSendClick = {}
+                Column {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        thickness = 0.5.dp
                     )
-
-                    FilledIconButton(
-                        onClick = {
-                            if (messageText.isBlank()) return@FilledIconButton
-
-                            val messageId = FirestoreIdGenerator.generate()
-                            val serverTime = ServerValue.TIMESTAMP
-                            val localTime = System.currentTimeMillis()
-                            val message = messageText
-                            messageText = ""
-
-                            scope.launch {
-                                chatsViewModel.sendMessages(
-                                    message = message,
-                                    messageId = messageId,
-                                    roomId = roomId,
-                                    timestamp = serverTime,
-                                    receiverId = userUUID
-                                ).collect {
-                                    // Removed fetchRoomID call that caused UI reset
-                                }
-                            }
-                        },
-                        enabled = messageText.isNotBlank()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Bottom
                     ) {
-                        Icon(
-                            modifier = Modifier.size(18.dp).padding(start = 2.dp),
-                            painter = painterResource(R.drawable.send_solid),
-                            contentDescription = null,
+                        MessageInputBar(
+                            modifier = Modifier.weight(1f),
+                            messageText = messageText,
+                            onMessageChange = { messageText = it }
                         )
+
+                        val isSendEnabled = messageText.isNotBlank()
+                        val sendButtonScale by animateFloatAsState(
+                            targetValue = if (isSendEnabled) 1f else 0.88f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            ),
+                            label = "SendButtonScale"
+                        )
+                        val context = LocalContext.current
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Bottom)
+                                .size(46.dp)
+                                .graphicsLayer {
+                                    scaleX = sendButtonScale
+                                    scaleY = sendButtonScale
+                                }
+                                .clip(CircleShape)
+                                .background(
+                                    color = if (isSendEnabled) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                    }
+                                )
+                                .clickable(enabled = isSendEnabled) {
+                                    val message = messageText
+                                    messageText = ""
+                                    context.vibrate()
+
+                                    scope.launch {
+                                        chatsViewModel.sendMessages(
+                                            message = message,
+                                            roomId = roomId,
+                                            receiverId = userUUID
+                                        )
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .padding(start = 2.dp),
+                                painter = painterResource(R.drawable.send_solid),
+                                contentDescription = "Send Message",
+                                tint = if (isSendEnabled) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -319,40 +355,32 @@ fun ChatTopBar(name: String, image: String, isActive: Boolean, navHostController
 }
 
 @Composable
-fun MessageInputBar(modifier :Modifier = Modifier, messageText: String, onMessageChange: (String) -> Unit, onSendClick: () -> Unit) {
-    BasicTextField(
+fun MessageInputBar(
+    modifier: Modifier = Modifier,
+    messageText: String,
+    onMessageChange: (String) -> Unit
+) {
+    OutlinedTextField(
         value = messageText,
-        onValueChange = { onMessageChange.invoke(it) },
-        modifier = modifier
-            .height(intrinsicSize = IntrinsicSize.Min)
-            .border(
-                width = 0.5.dp,
-                color = MaterialTheme.colorScheme.outline,
-                shape = MaterialTheme.shapes.small
-            )
-            .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(6.dp))
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-         textStyle = LocalTextStyle.current.copy(
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 16.sp
-        ),
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-        decorationBox = { innerTextField ->
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                if (messageText.isEmpty()) {
-                    Text(
-                        text = "Write.....",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 16.sp
-                    )
-                }
-                innerTextField()
-            }
+        onValueChange = onMessageChange,
+        placeholder = {
+            Text("Type a message..", color = MaterialTheme.colorScheme.outline)
         },
-        maxLines = 5
+        modifier = modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)
+            .border(width = 0.5.dp, color = MaterialTheme.colorScheme.outline, shape = CircleShape),
+        textStyle = LocalTextStyle.current.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 15.sp,
+            lineHeight = 20.sp
+        ),
+        shape = CircleShape,
+        colors = TextFieldDefaults.colors(
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent
+        ),
+        maxLines = 10
     )
 }
 
@@ -430,7 +458,7 @@ fun ReceivedMessageBubble(chat: ChatMessage) {
         ) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(chat.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                Text(convertTimestampToTime(chat.timestamp), style = MaterialTheme.typography.labelMedium,color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Text(convertTimestampToTime(chat.timestamp), style = MaterialTheme.typography.labelSmall,color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
         }
     }

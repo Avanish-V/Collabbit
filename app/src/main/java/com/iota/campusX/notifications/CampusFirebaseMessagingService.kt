@@ -4,6 +4,7 @@ import android.Manifest
 import androidx.annotation.RequiresPermission
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.iota.campusX.Feature.Chats.domain.ChatRepository
 import com.iota.campusX.Feature.Notificattion.sync.NotificationSyncManager
 import com.iota.campusX.core.network.websocket.connection.SocketConnectionState
 import com.iota.campusX.core.network.websocket.socket.RealtimeSocketManager
@@ -19,6 +20,7 @@ class CampusFirebaseMessagingService : FirebaseMessagingService(), KoinComponent
     private val fcmTokenSyncManager: FcmTokenSyncManager by inject()
     private val realtimeSocketManager: RealtimeSocketManager by inject()
     private val notificationSyncManager by inject<NotificationSyncManager>()
+    private val chatRepository by inject<ChatRepository>()
 
     override fun onNewToken(token: String) {
         fcmTokenSyncManager.onNewToken(token)
@@ -29,6 +31,17 @@ class CampusFirebaseMessagingService : FirebaseMessagingService(), KoinComponent
         message: RemoteMessage
     ) {
         super.onMessageReceived(message)
+
+        // Handle chat data messages (offline delivery)
+        val msgType = message.data["type"]
+        if (msgType == "CHAT_MESSAGE") {
+            val messageId = message.data["messageId"] ?: return
+            val roomId = message.data["roomId"] ?: return
+            CoroutineScope(Dispatchers.IO).launch {
+                chatRepository.fetchAndSaveIncomingMessage(messageId, roomId)
+            }
+            return
+        }
 
         val id = message.data["notificationId"]
             ?.toLongOrNull()

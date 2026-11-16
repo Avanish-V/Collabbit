@@ -2,15 +2,24 @@
 package com.iota.campusX.Feature.Chats.data
 
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
+import com.iota.campusX.Feature.Chats.data.local.ChatDao
+import com.iota.campusX.Feature.Chats.data.local.ChatMessageEntity
+import com.iota.campusX.Feature.Chats.data.local.ChatRoomEntity
+import com.iota.campusX.Feature.Chats.data.local.LastMessageEntity
 import com.iota.campusX.Feature.Chats.domain.ChatRepository
 import com.iota.campusX.core.common.ResultState
-import com.google.firebase.auth.FirebaseAuth
+import com.iota.campusX.core.network.websocket.model.SocketEvent
+import com.iota.campusX.core.network.websocket.model.SocketEventType
+import com.iota.campusX.core.network.websocket.socket.RealtimeSocketManager
+import com.iota.campusX.Feature.Chats.domain.ChatSendMessagePayload
+import com.iota.campusX.Feature.Chats.domain.MessagesReadPayload
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.*
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,16 +29,9 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
-
-import com.iota.campusX.Feature.Chats.data.local.ChatDao
-import com.iota.campusX.Feature.Chats.data.local.ChatMessageEntity
-import com.iota.campusX.Feature.Chats.data.local.ChatRoomEntity
-import com.iota.campusX.Feature.Chats.data.local.LastMessageEntity
-import com.iota.campusX.core.network.websocket.socket.RealtimeSocketManager
-import com.iota.campusX.core.network.websocket.model.SocketEvent
-import com.iota.campusX.core.network.websocket.model.SocketEventType
+import kotlinx.serialization.json.encodeToJsonElement
+import java.util.UUID
 
 class ChatImpl(
     private val httpClient: HttpClient,
@@ -41,71 +43,58 @@ class ChatImpl(
     private val scope = CoroutineScope(Dispatchers.IO)
     private val json = Json { ignoreUnknownKeys = true }
 
-    override fun sendMessage(
-        message: String,
-        messageId: String,
-        timestamp: Any,
-        receiverId: String,
-        roomId: String
-    ): Flow<ResultState<Boolean>> = callbackFlow {
-        val currentUserId = auth.currentUser?.uid ?: ""
-        val tempMsgId = messageId.ifBlank { "temp_${System.currentTimeMillis()}" }
+    override suspend fun sendMessage(message: String, receiverId: String, roomId: String): Result<Boolean> {
 
-        // 1. Optimistic local insert
+        val currentUserId = auth.currentUser?.uid ?: ""
+
+        val timestamp = System.currentTimeMillis()
+
+        val clientMessageId = UUID.randomUUID().toString()
+
         val localMsg = ChatMessageEntity(
-            messageId = tempMsgId,
+            messageId = clientMessageId,
             roomId = roomId,
             senderId = currentUserId,
             text = message,
             attachmentUrl = null,
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestamp,
             read = false,
             isPending = true,
             isFailed = false
         )
-        chatDao.insertMessage(localMsg)
-        trySend(ResultState.Success(true)) // notify UI that optimistic update succeeded
 
-        // 2. Perform network request
+        chatDao.insertMessage(localMsg)
+
+        val payload = ChatSendMessagePayload(
+            messageId = clientMessageId,
+            recipientId = receiverId,
+            roomId = roomId,
+            text = message
+        )
+
+        val event = SocketEvent(
+            eventType = SocketEventType.CHAT_MESSAGE,
+            payload = Json.encodeToJsonElement(payload)
+        )
+
         try {
-            val response: HttpResponse = httpClient.post("chat/rooms/$roomId/messages") {
-                contentType(ContentType.Application.Json)
-                setBody(SendMessageRequest(text = message, attachmentUrl = null))
-            }
-            if (response.status.isSuccess()) {
-                val serverMsg = response.body<ChatMessage>()
-                // Replace the temporary message with the official message to avoid duplication
-                chatDao.deleteMessage(tempMsgId)
-                
-                val officialEntity = ChatMessageEntity(
-                    messageId = serverMsg.messageId,
-                    roomId = roomId,
-                    senderId = currentUserId,
-                    text = serverMsg.text,
-                    attachmentUrl = serverMsg.attachmentUrl,
-                    timestamp = serverMsg.timestamp,
-                    read = serverMsg.read,
-                    isPending = false,
-                    isFailed = false
-                )
-                chatDao.insertMessage(officialEntity)
-            } else {
-                // Mark as failed
-                chatDao.updateMessageStatus(tempMsgId, isPending = false, isFailed = true)
-            }
+
+            socketManager.send(event)
+
         } catch (e: Exception) {
-            Log.e("ChatImpl", "Failed to send message: ${e.message}", e)
-            // Mark as failed on error
-            chatDao.updateMessageStatus(tempMsgId, isPending = false, isFailed = true)
+            chatDao.updateMessageStatus(messageId = clientMessageId, isPending = false, isFailed = true)
+            return Result.failure(e)
         }
-        awaitClose { }
+
+        return Result.success(true)
+
     }
 
-    override fun receiveMessage(participantId: String, roomId: String): Flow<ResultState<List<ChatMessage>>> = callbackFlow {
+    override fun receiveMessage(participantId: String, roomId: String): Flow<ResultState<List<ChatMessage>>> = callbackFlow  {
 
         socketManager.connect()
 
-        val dbJob = scope.launch {
+        val dbJob = launch {
             chatDao.getMessagesForRoom(roomId).collect { entities ->
                 val chatMessages = entities.map { entity ->
                     ChatMessage(
@@ -123,10 +112,9 @@ class ChatImpl(
             }
         }
 
-        // 2. Sync history via REST in background and insert into Room
-        scope.launch {
+        launch {
             try {
-                val response: HttpResponse = httpClient.get("chat/rooms/$roomId/messages?page=0&size=100")
+                val response: HttpResponse = httpClient.get("chat/rooms/$roomId/messages?page=0&size=30")
                 if (response.status.isSuccess()) {
                     val history = response.body<List<ChatMessage>>()
                     val entities = history.map { msg ->
@@ -149,9 +137,6 @@ class ChatImpl(
             }
         }
 
-        // 3. Listen to WebSocket incoming messages and insert into Room.
-        // IMPORTANT: Use collect (not collectLatest) so DB writes are never cancelled mid-flight
-        // when a second socket event arrives immediately after (e.g. PING after CHAT_MESSAGE).
         val wsJob = scope.launch {
             socketManager.incomingEvents.collect { event ->
                 when (event.eventType) {
@@ -159,44 +144,61 @@ class ChatImpl(
                         try {
                             val newMsg = json.decodeFromJsonElement<ChatMessageCreatedPayload>(event.payload)
                             if (newMsg.roomId == roomId) {
-                                val currentUserId = auth.currentUser?.uid
 
-                                // Delete matching pending message if it's from us
-                                if (newMsg.senderUid == currentUserId) {
-                                    chatDao.deletePendingMessage(roomId, newMsg.senderUid, newMsg.text)
-                                }
-
-                                // Delete by messageId in case it was already inserted
-                                chatDao.deleteMessage(newMsg.messageId)
-
-                                // Insert the official server message
                                 val entity = ChatMessageEntity(
                                     messageId = newMsg.messageId,
                                     roomId = roomId,
                                     senderId = newMsg.senderUid,
-                                    text = newMsg.text,
+                                    text = newMsg.text ?: "",
                                     attachmentUrl = newMsg.attachmentUrl,
                                     timestamp = newMsg.timestamp,
                                     read = newMsg.read,
                                     isPending = false,
                                     isFailed = false
                                 )
+                                Log.e("ChatImpl", "Incoming CHAT_MESSAGE $entity")
                                 chatDao.insertMessage(entity)
+
+                                if(!newMsg.read){
+                                    markMessagesAsReed(newMsg.senderUid,newMsg.roomId)
+                                }
+
                             }
                         } catch (e: Exception) {
                             Log.e("ChatImpl", "Incoming CHAT_MESSAGE processing failed", e)
                         }
                     }
                     SocketEventType.MESSAGE_SENT -> {
-                        // Server ack: our REST flow already replaced the temp message, but
-                        // if the REST response hasn't been processed yet, clean up any lingering
-                        // pending messages for this room using the server-assigned messageId.
                         try {
                             val ack = json.decodeFromJsonElement<MessageSentAck>(event.payload)
-                            // Remove any pending placeholder that might still exist
-                            chatDao.deleteMessage(ack.messageId)
+                            Log.e("ChatImpl", "ACK CHAT_MESSAGE $ack")
+                            chatDao.updateMessageStatus(
+                                messageId = ack.messageId,
+                                isPending = false,
+                                isFailed = false
+                            )
                         } catch (e: Exception) {
                             Log.e("ChatImpl", "Incoming MESSAGE_SENT processing failed", e)
+                        }
+                    }
+
+                    SocketEventType.MESSAGES_READ -> {
+                        try {
+                            val payload =
+                                json.decodeFromJsonElement<MessagesReadPayload>(
+                                    event.payload
+                                )
+
+                            if (payload.roomId == roomId) {
+                                chatDao.markMessagesAsRead(
+                                    messageIds = payload.messageIds
+                                )
+                            }
+
+                            Log.e("ChatImpl", "READ CHAT_MESSAGE $payload")
+
+                        } catch (e: Exception) {
+                            Log.e("ChatImpl", "Read receipt failed", e)
                         }
                     }
                     else -> Unit
@@ -259,19 +261,23 @@ class ChatImpl(
                 Log.e("ChatImpl", "Failed to fetch chats", e)
             }
         }
+
         awaitClose { dbJob.cancel() }
     }
-
-    override fun markMessagesAsReed(participantId: String, roomId: String): Flow<Unit> = callbackFlow {
+    override suspend fun markMessagesAsReed(participantId: String, roomId: String){
         try {
-            val response: HttpResponse = httpClient.post("chat/rooms/$roomId/read")
-            if (response.status.isSuccess()) {
-                trySend(Unit)
-            }
+            val currentUserId = auth.currentUser?.uid ?: return
+            // 1. Zero room-level unread counter in Room DB immediately → badge updates
+            chatDao.clearUnreadCountForRoom(roomId)
+            // 2. Mark all messages in this room as read locally → chat_messages.read = 1
+            //    This ensures observeUnreadMessagesCount() also returns 0 immediately,
+            //    without waiting for the MESSAGES_READ WebSocket round-trip.
+            chatDao.markRoomMessagesAsRead(roomId, currentUserId)
+            // 3. Notify backend (which will also publish MESSAGES_READ WS event to sender)
+            httpClient.post("chat/rooms/$roomId/read")
         } catch (e: Exception) {
             Log.e("ChatImpl", "Failed to mark read: ${e.message}")
         }
-        awaitClose { }
     }
 
     override fun updateIsUserActive(isActive: Boolean, roomId: String) {
@@ -347,60 +353,126 @@ class ChatImpl(
         awaitClose { job.cancel() }
     }
 
-    override fun getRoomId(participantId: String): Flow<ResultState<String>> {
+    override suspend fun getRoomId(participantId: String): Result<String> {
         return fetchChatRoomId(participantId)
     }
 
-    override fun deleteChat(chatId: String, roomId: String): Flow<ResultState<Boolean>> = callbackFlow {
-        trySend(ResultState.Loading)
-        try {
+    override suspend fun deleteChat(chatId: String, roomId: String): Result<Boolean> {
+        return try {
             val response: HttpResponse = httpClient.delete("chat/messages/$chatId")
             if (response.status.isSuccess()) {
-                trySend(ResultState.Success(true))
+                Result.success(true)
             } else {
-                trySend(ResultState.Error("Failed to delete: ${response.status.value}"))
+                Result.failure(Exception("Failed to delete: ${response.status.value}"))
             }
         } catch (e: Exception) {
-            trySend(ResultState.Error(e.message ?: "Network error"))
+            Result.failure(e)
         }
-        awaitClose { }
     }
-
-    override fun fetchChatRoomId(userId: String): Flow<ResultState<String>> = callbackFlow {
-        trySend(ResultState.Loading)
-        
-        // 1. Check local DB first for instant response
+    override suspend fun fetchChatRoomId(userId: String): Result<String> {
         val localRoomId = chatDao.getRoomIdByReceiverId(userId)
         if (!localRoomId.isNullOrBlank()) {
-            trySend(ResultState.Success(localRoomId))
+            return Result.success(localRoomId)
         }
 
-        // 2. Always fetch from network to ensure we have the latest/correct one
-        try {
+        return try {
             val response: HttpResponse = httpClient.get("chat/rooms/private/$userId")
             if (response.status.isSuccess()) {
                 val body = response.body<Map<String, String>>()
                 val roomId = body["roomId"] ?: ""
                 if (roomId.isNotEmpty()) {
-                    trySend(ResultState.Success(roomId))
+                    Result.success(roomId)
+                } else {
+                    Result.failure(Exception("Empty roomId"))
                 }
             } else {
-                // Only emit error if we don't have a local one
-                if (localRoomId.isNullOrBlank()) {
-                    trySend(ResultState.Error("Server error: ${response.status.value}"))
+                if (!localRoomId.isNullOrBlank()) {
+                    Result.success(localRoomId)
+                } else {
+                    Result.failure(Exception("Server error: ${response.status.value}"))
                 }
             }
         } catch (e: Exception) {
-            if (localRoomId.isNullOrBlank()) {
-                trySend(ResultState.Error(e.message ?: "Unknown error"))
+            if (!localRoomId.isNullOrBlank()) {
+                Result.success(localRoomId)
+            } else {
+                Result.failure(e)
             }
         }
-        awaitClose { }
+    }
+
+    override suspend fun fetchAndSaveIncomingMessage(messageId: String, roomId: String) {
+        try {
+            val response: HttpResponse = httpClient.get("chat/messages/$messageId")
+            if (response.status.isSuccess()) {
+                val msg = response.body<ChatMessageNetworkDto>()
+                val resolvedSenderId = if (msg.senderId.isNotEmpty()) msg.senderId else msg.senderUid
+                val entity = ChatMessageEntity(
+                    messageId = msg.messageId.ifEmpty { messageId },
+                    roomId = msg.roomId.ifEmpty { roomId },
+                    senderId = resolvedSenderId,
+                    text = msg.text,
+                    attachmentUrl = msg.attachmentUrl,
+                    timestamp = if (msg.timestamp > 0) msg.timestamp else System.currentTimeMillis(),
+                    read = msg.read,
+                    isPending = false,
+                    isFailed = false
+                )
+                val effectiveRoomId = entity.roomId
+                // Insert only if not already present (IGNORE strategy)
+                val currentUserId = auth.currentUser?.uid ?: ""
+                val isIncoming = resolvedSenderId != currentUserId
+                chatDao.upsertIncomingMessage(entity)
+                // Bump the room unread count so the badge updates immediately,
+                // even when the chat screen is not open.
+                // Only increment for messages not sent by us.
+                if (isIncoming && !msg.read) {
+                    chatDao.incrementUnreadCount(effectiveRoomId)
+                }
+            } else {
+                Log.w("ChatImpl", "fetchAndSaveIncomingMessage: HTTP ${response.status.value} for messageId=$messageId")
+            }
+        } catch (e: Exception) {
+            Log.e("ChatImpl", "fetchAndSaveIncomingMessage failed for messageId=$messageId", e)
+        }
+    }
+
+    override fun observeUnreadCount(): Flow<Int> {
+        val currentUserId = auth.currentUser?.uid ?: ""
+        // Primary source: sum of unreadCount across all chat_rooms.
+        // This is set from the backend API (chat/rooms) and cleared by markMessagesAsReed().
+        // Secondary source: count of chat_messages where read=0 and senderId != me.
+        // We take the MAX so that:
+        //   - Incoming messages saved globally (via ChatMessageEventHandler) bump the per-room
+        //     unreadCount via incrementUnreadCount(), which propagates to badge immediately.
+        //   - After marking read, both sources drop to 0.
+        return kotlinx.coroutines.flow.combine(
+            chatDao.observeUnreadMessagesCount(currentUserId),
+            chatDao.observeRoomsUnreadCount()
+        ) { msgCount, roomCount ->
+            maxOf(msgCount, roomCount)
+        }
     }
 }
 
 @Serializable
-data class SendMessageRequest(val text: String, val attachmentUrl: String?)
+data class ChatMessageNetworkDto(
+    val messageId: String = "",
+    val roomId: String = "",
+    val senderId: String = "",
+    val senderUid: String = "",
+    val text: String = "",
+    val attachmentUrl: String? = null,
+    val timestamp: Long = 0L,
+    val read: Boolean = false
+)
+
+@Serializable
+data class SendMessageRequest(
+    val messageId: String,
+    val text: String,
+    val attachmentUrl: String?
+)
 
 @Serializable
 data class PresencePayload(
@@ -418,13 +490,13 @@ data class TypingPayload(
 
 @Serializable
 data class ChatMessageCreatedPayload(
-    val messageId: String,
-    val roomId: String,
-    val senderUid: String,
-    val text: String,
-    val attachmentUrl: String?,
-    val timestamp: Long,
-    val read: Boolean
+    val messageId: String = "",
+    val roomId: String = "",
+    val senderUid: String = "",
+    val text: String? = "",
+    val attachmentUrl: String? = null,
+    val timestamp: Long = 0L,
+    val read: Boolean = false
 )
 
 @Serializable
