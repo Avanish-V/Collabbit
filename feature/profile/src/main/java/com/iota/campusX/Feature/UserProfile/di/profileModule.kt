@@ -1,7 +1,6 @@
 package com.iota.campusX.Feature.UserProfile.di
 
 import androidx.room.Room
-import com.google.firebase.firestore.FirebaseFirestore
 import com.iota.campusX.Feature.UserProfile.data.local.database.AppDatabase
 import com.iota.campusX.Feature.UserProfile.data.local.database.MIGRATION_3_4
 import com.iota.campusX.Feature.UserProfile.data.local.database.MIGRATION_4_5
@@ -31,7 +30,6 @@ import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditSkills.Ed
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditSummary.EditSummaryViewModel
 import com.iota.campusX.Feature.UserProfile.ui.screens.EditProfile.EditLookingFor.EditLookingForViewModel
 import com.iota.campusX.Feature.UserProfile.ui.screens.ProfileMain.UserProfileViewModel
-import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -54,12 +52,6 @@ val profileModule = module {
     // DAO
     single { get<AppDatabase>().userProfileDao() }
     single { get<AppDatabase>().auraTransactionDao() }
-
-    // Firebase Firestore
-    single { FirebaseFirestore.getInstance() }
-
-    // Kotlinx Serialization Json
-    single { Json { ignoreUnknownKeys = true } }
 
     // Repository bindings
     single<UserProfileRepository> {

@@ -7,6 +7,7 @@ enum class SocketEventType {
     NOTIFICATION_CREATED,
     CHAT_MESSAGE,
     MESSAGE_SENT,
+    MESSAGES_READ,
     CHAT_UPDATED,
     USER_TYPING,
     USER_ONLINE,

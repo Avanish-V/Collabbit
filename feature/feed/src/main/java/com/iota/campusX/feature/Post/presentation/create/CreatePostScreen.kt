@@ -175,14 +175,6 @@ fun CreatePostScreen(
                         .navigationBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Text(
-                        text = "Add to your post",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        modifier = Modifier.padding(bottom = 10.dp, start = 2.dp)
-                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -408,34 +400,14 @@ private fun AttachmentOptionChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = containerColor,
-        modifier = modifier.height(44.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = label,
-                tint = contentColor,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor,
-                    fontSize = 12.sp
-                )
-            )
-        }
+
+    IconButton(onClick = {onClick()}) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = label,
+            tint = contentColor,
+            modifier = Modifier.size(24.dp)
+        )
     }
+
 }

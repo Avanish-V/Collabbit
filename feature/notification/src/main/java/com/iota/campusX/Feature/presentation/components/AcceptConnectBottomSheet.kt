@@ -217,49 +217,6 @@ fun AcceptConnectBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Quick Icebreaker Chips
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                icebreakers.forEach { chip ->
-                    val isSelected = messageText == chip
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (isSelected)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isSelected)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                        ),
-                        modifier = Modifier.clickable {
-                            messageText = chip
-                        }
-                    ) {
-                        Text(
-                            text = chip,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            ),
-                            color = if (isSelected)
-                                MaterialTheme.colorScheme.onPrimary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
             // Message Input Field
             OutlinedTextField(
                 value = messageText,

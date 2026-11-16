@@ -52,14 +52,14 @@ private fun generateBody(
     }
 
     return when (type) {
-        NotificationType.LIKE -> "${upvoterText} upvoted your post$postRef"
+        NotificationType.LIKE -> "$upvoterText upvoted your post$postRef"
         NotificationType.COMMENT -> "commented$postRef"
         NotificationType.REPLY -> "replied to your post$postRef"
         NotificationType.FOLLOW -> "started following you"
         NotificationType.MESSAGE -> "sent you a message"
         NotificationType.MENTION -> "mentioned you in a post"
         NotificationType.COLLABORATION_REQUEST -> "sent you a collab request"
-        NotificationType.CONNECT_REQUEST -> note ?: "wants to connect with you"
+        NotificationType.CONNECT_REQUEST ->"wants to connect with you"
         else -> "sent you a notification"
     }
 }

@@ -49,6 +49,7 @@ import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -66,7 +67,6 @@ val coreModule = module {
     includes(com.iota.campusX.core.network.di.networkModule)
 
     // Firebase services
-    single { FirebaseFirestore.getInstance() }
     single { FirebaseDatabase.getInstance() }
     single { FirebaseAuth.getInstance() }
 
@@ -187,16 +187,17 @@ val realtimeModule = module {
         com.iota.campusX.Feature.Notificattion.sync.NotificationSyncManagerImpl(get())
     }
 
-    single<SocketEventHandler> {
-        com.iota.campusX.core.notifications.websocket.NotificationEventHandler(
+    single<SocketEventDispatcher> {
+        val notificationHandler = com.iota.campusX.core.notifications.websocket.NotificationEventHandler(
             syncManager = get(),
             json = get()
         )
-    }
-
-    single<SocketEventDispatcher> {
+        val chatMessageHandler = com.iota.campusX.Feature.Chats.data.ChatMessageEventHandler(
+            chatRepositoryLazy = lazy { get() },
+            json = get()
+        )
         SocketEventDispatcherImpl(
-            handlers = getAll()
+            handlers = listOf(notificationHandler, chatMessageHandler)
         )
     }
 

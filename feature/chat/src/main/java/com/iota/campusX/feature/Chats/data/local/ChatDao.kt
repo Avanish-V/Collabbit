@@ -17,6 +17,9 @@ interface ChatDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessages(messages: List<ChatMessageEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun upsertIncomingMessage(message: ChatMessageEntity)
+
     @Query("DELETE FROM chat_messages WHERE messageId = :messageId")
     suspend fun deleteMessage(messageId: String)
 
@@ -43,4 +46,32 @@ interface ChatDao {
 
     @Query("SELECT receiverId FROM chat_rooms WHERE roomId = :roomId LIMIT 1")
     suspend fun getReceiverIdByRoomId(roomId: String): String?
+    @Query("""
+    UPDATE chat_messages
+    SET read = 1
+    WHERE messageId IN (:messageIds)
+""")
+    suspend fun markMessagesAsRead(messageIds: List<String>)
+
+    @Query("UPDATE chat_rooms SET unreadCount = 0 WHERE roomId = :roomId")
+    suspend fun clearUnreadCountForRoom(roomId: String)
+
+    @Query("SELECT COUNT(*) FROM chat_messages WHERE read = 0 AND senderId != :currentUserId")
+    fun observeUnreadMessagesCount(currentUserId: String): Flow<Int>
+
+    @Query("SELECT COALESCE(SUM(unreadCount), 0) FROM chat_rooms")
+    fun observeRoomsUnreadCount(): Flow<Int>
+
+    /**
+     * Mark all messages in a room as read locally (called when user opens the chat screen).
+     * Excludes messages sent by currentUser (they are already "read" on their side).
+     */
+    @Query("UPDATE chat_messages SET read = 1 WHERE roomId = :roomId AND senderId != :currentUserId")
+    suspend fun markRoomMessagesAsRead(roomId: String, currentUserId: String)
+
+    /**
+     * Increment unread count for a chat room when a new message arrives globally (while screen is closed).
+     */
+    @Query("UPDATE chat_rooms SET unreadCount = unreadCount + 1 WHERE roomId = :roomId")
+    suspend fun incrementUnreadCount(roomId: String)
 }

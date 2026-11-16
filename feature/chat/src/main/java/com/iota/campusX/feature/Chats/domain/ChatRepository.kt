@@ -8,13 +8,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface ChatRepository {
 
-    fun sendMessage(
-        message: String,
-        messageId: String,
-        timestamp: Any,
-        receiverId: String,
-        roomId: String
-    ):Flow<ResultState<Boolean>>
+    suspend fun sendMessage(message: String, receiverId: String, roomId: String):Result<Boolean>
 
     fun updateIsUserActive(isActive:Boolean,roomId: String)
 
@@ -28,12 +22,16 @@ interface ChatRepository {
 
     fun getChats(): Flow<ResultState<List<UserChatsDTO>>>
 
-    fun markMessagesAsReed(participantId: String,roomId: String): Flow<Unit>
+    suspend fun markMessagesAsReed(participantId: String, roomId: String)
 
-    fun getRoomId(participantId: String):Flow<ResultState<String>>
+    suspend fun getRoomId(participantId: String): Result<String>
 
-    fun deleteChat(chatId:String,roomId: String):Flow<ResultState<Boolean>>
+    suspend fun deleteChat(chatId: String, roomId: String): Result<Boolean>
 
-    fun fetchChatRoomId(userId: String): Flow<ResultState<String>>
+    suspend fun fetchChatRoomId(userId: String): Result<String>
+
+    suspend fun fetchAndSaveIncomingMessage(messageId: String, roomId: String)
+
+    fun observeUnreadCount(): Flow<Int>
 
 }

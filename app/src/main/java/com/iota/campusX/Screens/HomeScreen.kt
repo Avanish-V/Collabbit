@@ -60,8 +60,6 @@ fun MainScreen(
     val notificationBadge by notificationViewModel.unreadCount.collectAsStateWithLifecycle()
     val chatBadge by chatsViewModel.unreadMessageCount.collectAsStateWithLifecycle()
 
-    val unreadNotifications = remember { derivedStateOf { notificationBadge.toInt() } }
-
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackBarHostState = remember { SnackbarHostState() }
 
@@ -74,7 +72,7 @@ fun MainScreen(
         topBar = {
             HomeTopBar(
                 chatCount = chatBadge,
-                notificationCount = unreadNotifications.value,
+                notificationCount = notificationBadge.toInt(),
                 onChatClick = onChatClick,
                 onNotificationClick = onNotificationClick,
                 scrollBehavior = scrollBehavior

@@ -58,6 +58,11 @@ class AuthRepositoryImpl(
                 val tokenResult = firebaseUser.getIdToken(false).await()
                 val idToken = tokenResult.token
                 if (idToken == null) {
+                    val localProfile = userProfileDao.getProfile()
+                    if (localProfile != null || firebaseUser.uid.isNotEmpty()) {
+                        _authState.value = AuthState.Authenticated
+                        return@withContext AuthState.Authenticated
+                    }
                     signOut()
                     return@withContext AuthState.Unauthenticated
                 }
@@ -71,14 +76,31 @@ class AuthRepositoryImpl(
                     userProfileDao.insertProfile(profileDTO.toEntity())
                     _authState.value = AuthState.Authenticated
                     AuthState.Authenticated
+                } else if (response.status.value == 401 || response.status.value == 403) {
+                    signOut()
+                    AuthState.Unauthenticated
+                } else {
+                    val localProfile = userProfileDao.getProfile()
+                    if (localProfile != null || firebaseUser.uid.isNotEmpty()) {
+                        Log.w("AuthRepositoryImpl", "Server error ${response.status.value}, maintaining offline authenticated state")
+                        _authState.value = AuthState.Authenticated
+                        AuthState.Authenticated
+                    } else {
+                        signOut()
+                        AuthState.Unauthenticated
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AuthRepositoryImpl", "Failed to check initial auth state (possibly offline)", e)
+                val localProfile = userProfileDao.getProfile()
+                if (localProfile != null || firebaseUser.uid.isNotEmpty()) {
+                    Log.i("AuthRepositoryImpl", "Offline mode: Firebase user or local profile present, retaining Authenticated state")
+                    _authState.value = AuthState.Authenticated
+                    AuthState.Authenticated
                 } else {
                     signOut()
                     AuthState.Unauthenticated
                 }
-            } catch (e: Exception) {
-                Log.e("AuthRepositoryImpl", "Failed to check initial auth state", e)
-                signOut()
-                AuthState.Unauthenticated
             }
         }
     }
