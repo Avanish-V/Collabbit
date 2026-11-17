@@ -3,6 +3,7 @@ package com.iota.campusX.Feature.Chats.data.local
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.iota.campusX.Feature.Chats.domain.ChatRequestStatus
 
 @Entity(tableName = "chat_rooms")
 data class ChatRoomEntity(
@@ -10,6 +11,8 @@ data class ChatRoomEntity(
     val receiverId: String,
     val userName: String,
     val userImage: String?,
+    val status: String = ChatRequestStatus.ACCEPTED.name,
+    val initiatedByUid: String? = null,
     @Embedded val lastMessage: LastMessageEntity
 )
 

@@ -6,7 +6,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.iota.campusX.Feature.Auth.data.datasource.AuthCredentialDataSource
 import com.iota.campusX.Feature.Auth.domain.model.AuthState
+import com.iota.campusX.Feature.Auth.domain.repository.AuthEventListener
 import com.iota.campusX.Feature.Auth.domain.repository.AuthRepository
+import com.iota.campusX.Feature.Chats.data.local.ChatDao
 import com.iota.campusX.Feature.UserProfile.data.local.dao.UserProfileDao
 import com.iota.campusX.Feature.UserProfile.data.local.mapper.toEntity
 import com.iota.campusX.Feature.UserProfile.data.remote.response.ProfileResponse
@@ -26,8 +28,8 @@ class AuthRepositoryImpl(
     private val firebaseAuth: FirebaseAuth,
     private val httpClient: HttpClient,
     private val userProfileDao: UserProfileDao,
-    private val onSignInSuccess: suspend () -> Unit = {},
-    private val onSignOut: suspend () -> Unit = {}
+    private val chatDao: ChatDao,
+    private val authEventListener: AuthEventListener? = null
 ) : AuthRepository {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unknown)
@@ -142,9 +144,9 @@ class AuthRepositoryImpl(
                         userProfileDao.insertProfile(profileDTO.toEntity())
                         _authState.value = AuthState.Authenticated
                         try {
-                            onSignInSuccess()
+                            authEventListener?.onSignInSuccess()
                         } catch (e: Exception) {
-                            Log.e("AuthRepositoryImpl", "onSignInSuccess callback failed", e)
+                            Log.e("AuthRepositoryImpl", "authEventListener onSignInSuccess failed", e)
                         }
                         Result.success(Unit)
                     }
@@ -169,10 +171,21 @@ class AuthRepositoryImpl(
     override suspend fun signOut() {
         withContext(Dispatchers.IO) {
             try {
-                onSignOut()
-                Log.d("AuthRepositoryImpl", "onSignOut callback executed")
+                userProfileDao.clearProfile()
             } catch (e: Exception) {
-                Log.e("AuthRepositoryImpl", "Error executing onSignOut callback", e)
+                Log.e("AuthRepositoryImpl", "Error clearing profile", e)
+            }
+            try {
+                chatDao.clearChatRooms()
+                chatDao.clearAllMessages()
+            } catch (e: Exception) {
+                Log.e("AuthRepositoryImpl", "Error clearing chat db", e)
+            }
+            try {
+                authEventListener?.onSignOut()
+                Log.d("AuthRepositoryImpl", "authEventListener onSignOut executed")
+            } catch (e: Exception) {
+                Log.e("AuthRepositoryImpl", "Error executing authEventListener onSignOut", e)
             }
 
             try {

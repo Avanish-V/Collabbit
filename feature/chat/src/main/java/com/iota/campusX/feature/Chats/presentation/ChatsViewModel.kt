@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iota.campusX.Feature.Chats.data.ChatMessage
 import com.iota.campusX.Feature.Chats.data.UserChatsDTO
+import com.iota.campusX.Feature.Chats.domain.ChatRequestStatus
 import com.iota.campusX.Feature.Chats.domain.ChatRepository
 import com.iota.campusX.core.common.ResultState
 import com.iota.campusX.core.common.UiState
@@ -29,6 +30,10 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     private var receiveMessageJob: Job? = null
     private var isActiveJob: Job? = null
     private var isTypingJob: Job? = null
+    private var roomStatusJob: Job? = null
+
+    private val _roomStatus = MutableStateFlow<ChatRequestStatus>(ChatRequestStatus.ACCEPTED)
+    val roomStatus: StateFlow<ChatRequestStatus> = _roomStatus.asStateFlow()
 
 
     private val _hasMessage: MutableStateFlow<String> = MutableStateFlow("")
@@ -163,6 +168,30 @@ class ChatsViewModel(private val chatRepository: ChatRepository):ViewModel() {
     fun resetChatState() {
         _hasMessage.value = ""
         _chats.value = emptyList()
+        _roomStatus.value = ChatRequestStatus.ACCEPTED
+    }
+
+    fun observeRoomStatus(roomId: String) {
+        roomStatusJob?.cancel()
+        if (roomId.isEmpty()) return
+        roomStatusJob = viewModelScope.launch {
+            chatRepository.observeRoomStatus(roomId).collect { status ->
+                _roomStatus.value = ChatRequestStatus.fromString(status)
+            }
+        }
+    }
+
+    fun fetchRoomStatus(roomId: String) {
+        if (roomId.isEmpty()) return
+        viewModelScope.launch {
+            chatRepository.fetchRoomStatus(roomId)
+        }
+    }
+
+    fun swipeRightAction(targetUserId: String, roomId: String?, action: String = "ACCEPT", note: String? = null) {
+        viewModelScope.launch {
+            chatRepository.swipeRightAction(targetUserId, roomId, action, note)
+        }
     }
 }
 

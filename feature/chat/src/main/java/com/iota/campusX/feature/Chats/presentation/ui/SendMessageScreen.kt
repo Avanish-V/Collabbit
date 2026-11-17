@@ -41,6 +41,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -49,7 +51,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -94,6 +98,7 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.ServerValue
 import com.iota.campusX.Feature.Chats.data.ChatMessage
+import com.iota.campusX.Feature.Chats.domain.ChatRequestStatus
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Navigation.Profile
 import com.iota.campusX.Navigation.SendMessage
@@ -140,6 +145,7 @@ fun SendMessageScreen(
     val chats by chatsViewModel.chats.collectAsStateWithLifecycle()
     val isActive by chatsViewModel.isActive.collectAsStateWithLifecycle()
     val isUserTyping by chatsViewModel.isUserTyping.collectAsStateWithLifecycle()
+    val roomStatus by chatsViewModel.roomStatus.collectAsStateWithLifecycle()
 
     var messageText by remember { mutableStateOf("") }
     var isTyping by remember { mutableStateOf(false) }
@@ -151,7 +157,10 @@ fun SendMessageScreen(
     DisposableEffect(lifecycleOwner, roomId) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> chatsViewModel.updateIsUserActive(true, roomId)
+                Lifecycle.Event.ON_RESUME -> {
+                    chatsViewModel.updateIsUserActive(true, roomId)
+                    if (roomId.isNotEmpty()) chatsViewModel.fetchRoomStatus(roomId)
+                }
                 Lifecycle.Event.ON_PAUSE -> {
                     chatsViewModel.updateIsUserActive(false, roomId)
                     chatsViewModel.updateIsUserTyping(false, roomId)
@@ -163,7 +172,6 @@ fun SendMessageScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // --- Initial Setup ---
     LaunchedEffect(userUUID) {
         chatsViewModel.resetChatState()
         chatsViewModel.fetchRoomID(userUUID)
@@ -177,6 +185,8 @@ fun SendMessageScreen(
 
     LaunchedEffect(roomId, userUUID) {
         if (roomId.isNotEmpty()) {
+            chatsViewModel.observeRoomStatus(roomId)
+            chatsViewModel.fetchRoomStatus(roomId)
             chatsViewModel.receiveMessage(userUUID, roomId)
             chatsViewModel.getIsActive(userUUID, roomId)
             chatsViewModel.getUserIsTyping(userUUID, roomId)
@@ -212,82 +222,163 @@ fun SendMessageScreen(
             }
         },
         bottomBar = {
+            val isUnlocked = roomStatus != ChatRequestStatus.PENDING
+            val firstSenderId = chats.firstOrNull()?.senderId
+            val isRecipient = firstSenderId != null && firstSenderId != currentUser
+
             Surface(
-                modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
-                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+                color = MaterialTheme.colorScheme.surface
             ) {
                 Column {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                         thickness = 0.5.dp
                     )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        MessageInputBar(
-                            modifier = Modifier.weight(1f),
-                            messageText = messageText,
-                            onMessageChange = { messageText = it }
-                        )
 
-                        val isSendEnabled = messageText.isNotBlank()
-                        val sendButtonScale by animateFloatAsState(
-                            targetValue = if (isSendEnabled) 1f else 0.88f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "SendButtonScale"
-                        )
-                        val context = LocalContext.current
-
-                        Box(
+                    if (!isUnlocked) {
+                        Row(
                             modifier = Modifier
-                                .align(Alignment.Bottom)
-                                .size(46.dp)
-                                .graphicsLayer {
-                                    scaleX = sendButtonScale
-                                    scaleY = sendButtonScale
-                                }
-                                .clip(CircleShape)
-                                .background(
-                                    color = if (isSendEnabled) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHigh
-                                    }
-                                )
-                                .clickable(enabled = isSendEnabled) {
-                                    val message = messageText
-                                    messageText = ""
-                                    context.vibrate()
-
-                                    scope.launch {
-                                        chatsViewModel.sendMessages(
-                                            message = message,
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isRecipient) {
+                                OutlinedButton(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    ),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                                    onClick = {
+                                        chatsViewModel.swipeRightAction(
+                                            targetUserId = userUUID,
                                             roomId = roomId,
-                                            receiverId = userUUID
+                                            action = "REJECT"
                                         )
                                     }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .padding(start = 2.dp),
-                                painter = painterResource(R.drawable.send_solid),
-                                contentDescription = "Send Message",
-                                tint = if (isSendEnabled) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                ) {
+                                    Text("Decline", fontWeight = FontWeight.Bold)
                                 }
+
+                                Button(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
+                                    onClick = {
+                                        chatsViewModel.swipeRightAction(
+                                            targetUserId = userUUID,
+                                            roomId = roomId,
+                                            action = "ACCEPT"
+                                        )
+                                    }
+                                ) {
+                                    Text("Accept", fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.clock),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.outline
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Waiting for $userName to accept message request..",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            MessageInputBar(
+                                modifier = Modifier.weight(1f),
+                                messageText = messageText,
+                                enabled = true,
+                                onMessageChange = { messageText = it }
                             )
+
+                            val isSendEnabled = messageText.isNotBlank()
+                            val sendButtonScale by animateFloatAsState(
+                                targetValue = if (isSendEnabled) 1f else 0.88f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                ),
+                                label = "SendButtonScale"
+                            )
+                            val context = LocalContext.current
+
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.Bottom)
+                                    .size(46.dp)
+                                    .graphicsLayer {
+                                        scaleX = sendButtonScale
+                                        scaleY = sendButtonScale
+                                    }
+                                    .clip(CircleShape)
+                                    .background(
+                                        color = if (isSendEnabled) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceContainerHigh
+                                        }
+                                    )
+                                    .clickable(enabled = isSendEnabled) {
+                                        val message = messageText
+                                        messageText = ""
+                                        context.vibrate()
+
+                                        scope.launch {
+                                            chatsViewModel.sendMessages(
+                                                message = message,
+                                                roomId = roomId,
+                                                receiverId = userUUID
+                                            )
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .padding(start = 2.dp),
+                                    painter = painterResource(R.drawable.send_solid),
+                                    contentDescription = "Send Message",
+                                    tint = if (isSendEnabled) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -358,13 +449,15 @@ fun ChatTopBar(name: String, image: String, isActive: Boolean, navHostController
 fun MessageInputBar(
     modifier: Modifier = Modifier,
     messageText: String,
+    enabled: Boolean = true,
     onMessageChange: (String) -> Unit
 ) {
     OutlinedTextField(
         value = messageText,
         onValueChange = onMessageChange,
+        enabled = enabled,
         placeholder = {
-            Text("Type a message..", color = MaterialTheme.colorScheme.outline)
+            Text(if (enabled) "Type a message.." else "Waiting for acceptance..", color = MaterialTheme.colorScheme.outline)
         },
         modifier = modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)
             .border(width = 0.5.dp, color = MaterialTheme.colorScheme.outline, shape = CircleShape),

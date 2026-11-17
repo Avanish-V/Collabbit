@@ -196,7 +196,7 @@ fun NotificationScreenContent(
                                         pendingAcceptNotification = it
                                     },
                                     onReject = {
-                                        onEvent(NotificationUiEvent.RejectConnectRequest(it.toDomain()))
+
                                     },
                                     onMessage = {
                                         onEvent(NotificationUiEvent.NotificationClicked(it.toDomain()))
@@ -248,12 +248,6 @@ fun NotificationScreenContent(
             notification = notif,
             onDismiss = { pendingAcceptNotification = null },
             onAccept = { message ->
-                onEvent(
-                    NotificationUiEvent.AcceptConnectRequest(
-                        notification = notif.toDomain(),
-                        message = message
-                    )
-                )
                 pendingAcceptNotification = null
             }
         )

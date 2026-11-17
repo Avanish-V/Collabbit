@@ -19,7 +19,7 @@ fun NotificationResponse.toEntity() = NotificationEntity(
     entityType = entityType ?: EntityType.POST,
     entityId = entityId ?: "",
     title = title,
-    body = body ?: generateBody(type, note, postTitle, upvoters.size),
+    body = body ?: generateBody(type, postTitle, upvoters.size),
     note = note,
     deepLink = deepLink,
     isRead = isRead ?: false,
@@ -58,8 +58,7 @@ fun Notification.toEntity() = NotificationEntity(
 )
 
 private fun generateBody(
-    type: NotificationType?, 
-    note: String? = null, 
+    type: NotificationType?,
     postTitle: String? = null,
     upvoterCount: Int = 0
 ): String {
@@ -76,7 +75,7 @@ private fun generateBody(
         NotificationType.MESSAGE -> "sent you a message"
         NotificationType.MENTION -> "mentioned you in a post"
         NotificationType.COLLABORATION_REQUEST -> "sent you a collab request"
-        NotificationType.CONNECT_REQUEST -> note ?: "wants to connect with you"
+        NotificationType.CONNECT_REQUEST -> "wants to connect with you"
         else -> "sent you a notification"
     }
 }

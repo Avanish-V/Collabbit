@@ -2,6 +2,9 @@ package com.iota.campusX.Feature.Chats.presentation.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,12 +13,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -45,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.iota.campusX.Feature.Chats.domain.ChatRequestStatus
 import com.iota.campusX.Feature.Chats.data.UserChatsDTO
 import com.iota.campusX.Feature.Chats.presentation.ChatsViewModel
 import com.iota.campusX.Navigation.SendMessage
@@ -107,16 +121,33 @@ fun ChatScreen(
                 }
 
                 LazyColumn (modifier = Modifier.fillMaxSize().padding(paddingValues)){
-                    items(usersChat){
-                        MentorSingleCard(chatItem = it) {
-                            navHostController.navigate(
-                                SendMessage(
-                                    userId = it.receiverId,
-                                    userName = it.userName,
-                                    userImage = it.userImage,
+                    items(usersChat){ chatItem ->
+                        MentorSingleCard(
+                            chatItem = chatItem,
+                            onSwipeRightAccept = {
+                                chatsViewModel.swipeRightAction(
+                                    targetUserId = chatItem.receiverId,
+                                    roomId = chatItem.roomId,
+                                    action = "ACCEPT"
                                 )
-                            )
-                        }
+                            },
+                            onSwipeRightReject = {
+                                chatsViewModel.swipeRightAction(
+                                    targetUserId = chatItem.receiverId,
+                                    roomId = chatItem.roomId,
+                                    action = "REJECT"
+                                )
+                            },
+                            onClick = {
+                                navHostController.navigate(
+                                    SendMessage(
+                                        userId = chatItem.receiverId,
+                                        userName = chatItem.userName,
+                                        userImage = chatItem.userImage,
+                                    )
+                                )
+                            }
+                        )
                         Divider()
                     }
                 }
@@ -141,17 +172,42 @@ fun ChatScreen(
 }
 
 @Composable
-fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
+fun MentorSingleCard(
+    chatItem: UserChatsDTO,
+    onSwipeRightAccept: () -> Unit,
+    onSwipeRightReject: () -> Unit,
+    onClick: () -> Unit
+) {
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var showConfirmActions by remember { mutableStateOf(false) }
 
-    Column {
-
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta ->
+                    if (delta > 0 || offsetX > 0) {
+                        offsetX = (offsetX + delta).coerceIn(0f, 300f)
+                        if (offsetX > 150f) {
+                            showConfirmActions = true
+                        }
+                    }
+                },
+                onDragStopped = {
+                    if (offsetX < 150f) {
+                        offsetX = 0f
+                        showConfirmActions = false
+                    }
+                }
+            )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .offset { IntOffset(offsetX.roundToInt(), 0) }
                 .clickable(
-                    onClick = {
-                        onClick.invoke()
-                    },
+                    onClick = { onClick.invoke() },
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 )
@@ -177,29 +233,40 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = chatItem.userName,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = chatItem.userName,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (chatItem.status == ChatRequestStatus.PENDING.name) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.tertiaryContainer
+                            ) {
+                                Text(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    text = "Pending",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+                    }
 
                     AppLabelText(
                         text = convertTimestampToTime(chatItem.lastMessage.timeStamp)
                     )
-
                 }
 
-                Row (
+                Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
-                ){
-
-                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-
-                        if (chatItem.lastMessage.lastMessageBy){
+                ) {
+                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (chatItem.lastMessage.lastMessageBy) {
                             Icon(
                                 modifier = Modifier.size(20.dp),
                                 painter = painterResource(R.drawable.eye),
@@ -209,7 +276,6 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                         }
 
                         Text(
-                            modifier = Modifier,
                             text = chatItem.lastMessage.lastMessage,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -217,6 +283,7 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+
                     if (chatItem.lastMessage.unreadCount > 0) {
                         Surface(
                             modifier = Modifier
@@ -233,7 +300,7 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                                     text = if (chatItem.lastMessage.unreadCount > 99) "99+" else chatItem.lastMessage.unreadCount.toString(),
                                     color = Color.White,
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                                        fontWeight = FontWeight.ExtraBold,
                                         fontSize = 10.sp
                                     )
                                 )
@@ -242,9 +309,37 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
                     }
                 }
 
+                if (showConfirmActions) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                offsetX = 0f
+                                showConfirmActions = false
+                                onSwipeRightAccept()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text("Accept")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                offsetX = 0f
+                                showConfirmActions = false
+                                onSwipeRightReject()
+                            }
+                        ) {
+                            Text("Reject")
+                        }
+                    }
+                }
             }
-
-
         }
 
         HorizontalDivider(
@@ -252,5 +347,4 @@ fun MentorSingleCard(chatItem: UserChatsDTO, onClick: () -> Unit) {
             color = MaterialTheme.colorScheme.background
         )
     }
-
 }

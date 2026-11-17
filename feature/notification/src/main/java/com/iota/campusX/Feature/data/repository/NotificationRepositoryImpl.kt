@@ -96,11 +96,6 @@ class NotificationRepositoryImpl(
         dao.delete(id)
     }
 
-    override suspend fun respondToConnectRequest(requestId: String, status: String, message: String?): Result<Unit> {
-        return runCatching {
-            api.respondToConnectRequest(requestId, status, message)
-        }
-    }
 
     override suspend fun markActionDone(id: Long) {
         dao.markActionDone(id)

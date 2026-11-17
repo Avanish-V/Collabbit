@@ -66,5 +66,8 @@ interface UserProfileDao {
          WHERE isCurrentUser = 1
     """)
     suspend fun _updateAura(auraPoints: Int, auraLevel: String)
+
+    @Query("DELETE FROM user_profile")
+    suspend fun clearProfile()
 }
 

@@ -40,7 +40,6 @@ import com.iota.campusX.Feature.Society.presentation.SocietyInfoViewModel
 import com.iota.campusX.Navigation.NavigationViewModel
 import com.iota.campusX.core.network.websocket.dispatcher.SocketEventDispatcher
 import com.iota.campusX.core.network.websocket.dispatcher.SocketEventDispatcherImpl
-import com.iota.campusX.core.network.websocket.handler.SocketEventHandler
 import com.iota.campusX.core.network.websocket.manager.RealtimeManager
 import com.iota.campusX.core.network.websocket.manager.RealtimeManagerImpl
 import com.iota.campusX.core.network.websocket.socket.RealtimeSocketManager
@@ -49,7 +48,6 @@ import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
-import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -75,20 +73,18 @@ val coreModule = module {
     single { com.iota.campusX.notifications.sync.FcmTokenSyncManager(androidContext(), get(), get(), get()) }
 
     // Auth Repository with FCM token callbacks
+    single<com.iota.campusX.Feature.Auth.domain.repository.AuthEventListener> {
+        com.iota.campusX.notifications.sync.FcmAuthEventListener(get())
+    }
+
     single<com.iota.campusX.Feature.Auth.domain.repository.AuthRepository> {
         com.iota.campusX.Feature.Auth.data.repository.AuthRepositoryImpl(
             dataSource = get(),
             firebaseAuth = get(),
             httpClient = get(),
             userProfileDao = get(),
-            onSignInSuccess = {
-                val syncManager = get<com.iota.campusX.notifications.sync.FcmTokenSyncManager>()
-                syncManager.onLogin()
-            },
-            onSignOut = {
-                val syncManager = get<com.iota.campusX.notifications.sync.FcmTokenSyncManager>()
-                syncManager.onLogout()
-            }
+            chatDao = get(),
+            authEventListener = get()
         )
     }
 

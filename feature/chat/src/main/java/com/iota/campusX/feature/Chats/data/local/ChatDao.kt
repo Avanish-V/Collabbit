@@ -32,6 +32,9 @@ interface ChatDao {
     @Query("DELETE FROM chat_messages WHERE roomId = :roomId")
     suspend fun clearRoomMessages(roomId: String)
 
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearAllMessages()
+
     @Query("SELECT * FROM chat_rooms ORDER BY timeStamp DESC")
     fun getAllChatRooms(): Flow<List<ChatRoomEntity>>
 
@@ -40,6 +43,21 @@ interface ChatDao {
 
     @Query("DELETE FROM chat_rooms")
     suspend fun clearChatRooms()
+
+    @Query("SELECT * FROM chat_rooms WHERE receiverId = :receiverId LIMIT 1")
+    suspend fun getRoomByReceiverId(receiverId: String): ChatRoomEntity?
+
+    @Query("SELECT status FROM chat_rooms WHERE roomId = :roomId LIMIT 1")
+    fun observeRoomStatus(roomId: String): Flow<String?>
+
+    @Query("SELECT status FROM chat_rooms WHERE roomId = :roomId LIMIT 1")
+    suspend fun getRoomStatusDirect(roomId: String): String?
+
+    @Query("UPDATE chat_rooms SET status = :status WHERE roomId = :roomId")
+    suspend fun updateRoomStatus(roomId: String, status: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertChatRoom(room: ChatRoomEntity)
 
     @Query("SELECT roomId FROM chat_rooms WHERE receiverId = :receiverId LIMIT 1")
     suspend fun getRoomIdByReceiverId(receiverId: String): String?

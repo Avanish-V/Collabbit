@@ -123,29 +123,6 @@ class NotificationViewModel(
                 }
             }
 
-            is NotificationUiEvent.AcceptConnectRequest -> {
-                viewModelScope.launch {
-                    repository.respondToConnectRequest(event.notification.entityId, "ACCEPTED", event.message)
-                        .onSuccess {
-                            repository.deleteNotification(event.notification.id)
-                        }
-                        .onFailure { error ->
-                            _effect.emit(NotificationEffect.ShowSnackBar(error.extractReason()))
-                        }
-                }
-            }
-
-            is NotificationUiEvent.RejectConnectRequest -> {
-                viewModelScope.launch {
-                    repository.respondToConnectRequest(event.notification.entityId, "REJECTED")
-                        .onSuccess {
-                            repository.deleteNotification(event.notification.id)
-                        }
-                        .onFailure { error ->
-                            _effect.emit(NotificationEffect.ShowSnackBar(error.extractReason()))
-                        }
-                }
-            }
 
             NotificationUiEvent.DismissReplySheet -> {
                 _uiState.update { it.copy(selectedPostIdForComments = null) }

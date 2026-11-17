@@ -5,7 +5,7 @@ import com.iota.campusX.Feature.UserProfile.data.local.dao.UserProfileDao
 import com.iota.campusX.Feature.UserProfile.data.local.entities.AuraTransactionEntity
 import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraCheckInResponse
 import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraInfoResponse
-import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraLevelResponse
+import com.iota.campusX.Feature.UserProfile.data.remote.response.AuraTransactionType
 import com.iota.campusX.Feature.UserProfile.domain.repository.AuraRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -15,7 +15,6 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -44,29 +43,40 @@ class AuraRepositoryImpl(
             val response = httpClient.post("aura/check-in") {
                 contentType(ContentType.Application.Json)
                 setBody(mapOf("rule_code" to ruleCode))
-
             }
 
             if (response.status.value in 200..299) {
                 val checkInResponse = response.body<AuraCheckInResponse>()
-                val transaction = checkInResponse.transaction ?: return Result.failure(Exception("No transaction in response"))
-                
-                // 3. Cache the transaction locally
-                auraTransactionDao.insertTransaction(
-                    AuraTransactionEntity(
-                        id = transaction.id,
-                        userId = transaction.userId,
-                        amount = transaction.amount,
-                        type = transaction.type.name,
-                        referenceId = transaction.referenceId,
-                        createdAt = transaction.createdAt,
-                        dateKey = dateKey
+                val transaction = checkInResponse.transaction
+
+                // 3. Cache the transaction locally if present or construct fallback
+                if (transaction != null) {
+                    auraTransactionDao.insertTransaction(
+                        AuraTransactionEntity(
+                            id = transaction.id.ifEmpty { "tx_${userId}_$dateKey" },
+                            userId = transaction.userId.ifEmpty { userId },
+                            amount = if (transaction.amount > 0) transaction.amount else checkInResponse.pointsEarnedToday,
+                            type = transaction.type.name,
+                            referenceId = transaction.referenceId,
+                            createdAt = transaction.createdAt.ifEmpty { dateKey },
+                            dateKey = dateKey
+                        )
                     )
-                )
+                } else if (checkInResponse.pointsEarnedToday > 0) {
+                    auraTransactionDao.insertTransaction(
+                        AuraTransactionEntity(
+                            id = "tx_${userId}_$dateKey",
+                            userId = userId,
+                            amount = checkInResponse.pointsEarnedToday,
+                            type = AuraTransactionType.DAILY_CHECK_IN.name,
+                            referenceId = null,
+                            createdAt = dateKey,
+                            dateKey = dateKey
+                        )
+                    )
+                }
 
                 // 4. Update local cache using the server's authoritative aura state.
-                // This fixes the drift where local would increase but server wouldn't.
-                // We only update if points were actually earned to avoid redundant DB writes.
                 if (checkInResponse.pointsEarnedToday > 0) {
                     userProfileDao.updateAura(
                         auraPoints = checkInResponse.aura.auraPoints,

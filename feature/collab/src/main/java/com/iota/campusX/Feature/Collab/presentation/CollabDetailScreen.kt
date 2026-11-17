@@ -181,7 +181,7 @@ fun CollabDetailScreen(
                                     ) {
                                         Text(
                                             text = "Manage Project",
-                                            style = MaterialTheme.typography.titleMedium
+                                            style = MaterialTheme.typography.bodyMedium
                                         )
                                     }
                                 } else {
@@ -216,7 +216,7 @@ fun CollabDetailScreen(
                                                 shape = CircleShape,
                                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                             ) {
-                                                Text("Accepted - Message Lead", style = MaterialTheme.typography.titleMedium)
+                                                Text("Accepted - Message Lead", style = MaterialTheme.typography.bodyMedium)
                                             }
                                         }
                                         else -> {

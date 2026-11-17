@@ -22,7 +22,6 @@ interface NotificationRepository {
 
     suspend fun deleteNotification(id: Long)
 
-    suspend fun respondToConnectRequest(requestId: String, status: String, message: String? = null): Result<Unit>
 
     suspend fun markActionDone(id: Long)
 }

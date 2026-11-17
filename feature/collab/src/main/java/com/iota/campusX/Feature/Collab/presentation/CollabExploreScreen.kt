@@ -693,41 +693,6 @@ fun FeaturedProjectCard(
                     )
                 }
 
-                // Tech / Skills chips row
-                val displayTags = when {
-                    collab.roles.isNotEmpty() -> collab.roles.map { it.roleName }
-                    collab.requirements.isNotEmpty() -> collab.requirements
-                    else -> emptyList()
-                }
-                if (displayTags.isNotEmpty()) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        displayTags.take(4).forEach { tag ->
-                            Surface(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(
-                                    0.5.dp,
-                                    MaterialTheme.colorScheme.outline
-                                )
-                            ) {
-                                Text(
-                                    text = tag,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 10.5.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    ),
-                                    modifier = Modifier.padding(
-                                        horizontal = 6.dp,
-                                        vertical = 6.dp
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.width(8.dp))
