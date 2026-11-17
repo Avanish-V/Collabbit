@@ -35,6 +35,8 @@ dependencies {
     implementation(project(":core:navigation"))
     implementation(project(":feature:collab"))
     implementation(project(":feature:profile"))
+    implementation(project(":feature:chat"))
+    implementation(libs.firebase.auth)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
@@ -73,6 +75,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
 }

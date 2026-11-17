@@ -102,21 +102,4 @@ class NotificationApi(
         client.delete("/notifications/$id")
     }
 
-    suspend fun respondToConnectRequest(
-        requestId: String,
-        status: String,
-        message: String? = null
-    ) {
-        if (status.equals("ACCEPTED", ignoreCase = true)) {
-            client.post("/connections/request/$requestId/accept") {
-                if (!message.isNullOrBlank()) {
-                    contentType(ContentType.Application.Json)
-                    setBody(mapOf("message" to message))
-                }
-            }
-        } else {
-            client.post("/connections/request/$requestId/decline")
-        }
-    }
-
 }

@@ -9,7 +9,10 @@ import org.koin.dsl.module
 
 val exploreSwipeModule = module {
     single<SwipeMatchRepository> {
-        SwipeMatchRepoImpl(httpClient = get())
+        SwipeMatchRepoImpl(
+            httpClient = get(),
+            chatDao = get()
+        )
     }
 
     viewModel {

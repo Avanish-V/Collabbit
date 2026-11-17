@@ -20,8 +20,14 @@ import io.ktor.http.isSuccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import com.google.firebase.auth.FirebaseAuth
+import com.iota.campusX.Feature.Chats.data.local.ChatDao
+import com.iota.campusX.Feature.Chats.data.local.ChatRoomEntity
+import com.iota.campusX.Feature.Chats.data.local.LastMessageEntity
+
 class SwipeMatchRepoImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
+    private val chatDao: ChatDao
 ) : SwipeMatchRepository {
 
     private val TAG = "SwipeMatchRepoImpl"
@@ -85,8 +91,7 @@ class SwipeMatchRepoImpl(
                 contentType(ContentType.Application.Json)
                 setBody(
                     SwipeActionRequest(
-                        cardId = cardId,
-                        type = SwipeCardType.PROFILE,
+                        targetUserId = cardId,
                         action = action,
                         note = note
                     )
@@ -94,7 +99,29 @@ class SwipeMatchRepoImpl(
             }
 
             if (response.status.isSuccess()) {
-                response.body<SwipeActionResult>()
+                val actionResult = response.body<SwipeActionResult>()
+                val returnedRoomId = actionResult.roomId
+                val returnedStatus = actionResult.status ?: "PENDING"
+                if (!returnedRoomId.isNullOrBlank()) {
+                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                    val entity = ChatRoomEntity(
+                        roomId = returnedRoomId,
+                        receiverId = cardId,
+                        userName = "",
+                        userImage = null,
+                        status = returnedStatus,
+                        initiatedByUid = currentUserId,
+                        lastMessage = LastMessageEntity(
+                            lastMessageText = note ?: "",
+                            timeStamp = System.currentTimeMillis(),
+                            unreadCount = 0,
+                            isRead = true,
+                            lastMessageBy = true
+                        )
+                    )
+                    chatDao.insertChatRoom(entity)
+                }
+                actionResult
             } else {
                 if (action.equals("CONNECT", ignoreCase = true) || action.equals("SUPER_LIKE", ignoreCase = true)) {
                     httpClient.post("connections/request/$cardId") {

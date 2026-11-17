@@ -34,4 +34,10 @@ interface ChatRepository {
 
     fun observeUnreadCount(): Flow<Int>
 
+    suspend fun swipeRightAction(targetUserId: String, roomId: String?, action: String, note: String? = null): Result<SwipeActionResponse>
+
+    fun observeRoomStatus(roomId: String): Flow<String?>
+
+    suspend fun fetchRoomStatus(roomId: String): Result<String>
+
 }

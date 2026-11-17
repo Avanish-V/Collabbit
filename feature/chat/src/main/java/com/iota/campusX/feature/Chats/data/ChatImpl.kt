@@ -16,7 +16,13 @@ import com.iota.campusX.Feature.Chats.domain.ChatSendMessagePayload
 import com.iota.campusX.Feature.Chats.domain.MessagesReadPayload
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import com.iota.campusX.Feature.Chats.domain.ChatRequestStatus
+import com.iota.campusX.Feature.Chats.domain.SwipeActionRequest
+import com.iota.campusX.Feature.Chats.domain.SwipeActionResponse
 import io.ktor.client.request.delete
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
@@ -199,6 +205,20 @@ class ChatImpl(
 
                         } catch (e: Exception) {
                             Log.e("ChatImpl", "Read receipt failed", e)
+                        }
+                    }
+
+                    SocketEventType.CHAT_UPDATED -> {
+                        try {
+                            val payload = json.decodeFromJsonElement<ChatUpdatedPayload>(event.payload)
+                            if (payload.roomId.isNotEmpty()) {
+                                val localStatus = chatDao.getRoomStatusDirect(payload.roomId)
+                                if (localStatus != payload.status) {
+                                    chatDao.updateRoomStatus(payload.roomId, payload.status)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ChatImpl", "CHAT_UPDATED processing failed", e)
                         }
                     }
                     else -> Unit
@@ -439,18 +459,86 @@ class ChatImpl(
 
     override fun observeUnreadCount(): Flow<Int> {
         val currentUserId = auth.currentUser?.uid ?: ""
-        // Primary source: sum of unreadCount across all chat_rooms.
-        // This is set from the backend API (chat/rooms) and cleared by markMessagesAsReed().
-        // Secondary source: count of chat_messages where read=0 and senderId != me.
-        // We take the MAX so that:
-        //   - Incoming messages saved globally (via ChatMessageEventHandler) bump the per-room
-        //     unreadCount via incrementUnreadCount(), which propagates to badge immediately.
-        //   - After marking read, both sources drop to 0.
         return kotlinx.coroutines.flow.combine(
             chatDao.observeUnreadMessagesCount(currentUserId),
             chatDao.observeRoomsUnreadCount()
         ) { msgCount, roomCount ->
             maxOf(msgCount, roomCount)
+        }
+    }
+
+    override fun observeRoomStatus(roomId: String): Flow<String?> {
+        return chatDao.observeRoomStatus(roomId)
+    }
+
+    override suspend fun fetchRoomStatus(roomId: String): Result<String> {
+        return try {
+            val response: HttpResponse = httpClient.get("chat/rooms/$roomId/status")
+            if (response.status.isSuccess()) {
+                val body = response.body<Map<String, String>>()
+                val serverStatus = body["status"] ?: ChatRequestStatus.ACCEPTED.name
+                val localStatus = chatDao.getRoomStatusDirect(roomId)
+                if (localStatus != serverStatus) {
+                    chatDao.updateRoomStatus(roomId, serverStatus)
+                }
+                Result.success(serverStatus)
+            } else {
+                Result.failure(Exception("Failed status sync: ${response.status.value}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun swipeRightAction(
+        targetUserId: String,
+        roomId: String?,
+        action: String,
+        note: String?
+    ): Result<SwipeActionResponse> {
+        val existingRoom = chatDao.getRoomByReceiverId(targetUserId)
+        if (existingRoom != null && existingRoom.status == ChatRequestStatus.ACCEPTED.name) {
+            return Result.success(SwipeActionResponse(status = ChatRequestStatus.ACCEPTED.name, roomId = existingRoom.roomId))
+        }
+
+        return try {
+            val requestPayload = SwipeActionRequest(
+                targetUserId = targetUserId,
+                action = action,
+                roomId = roomId ?: existingRoom?.roomId,
+                note = note
+            )
+            val response: HttpResponse = httpClient.post("explore/swipe-match/action") {
+                contentType(ContentType.Application.Json)
+                setBody(requestPayload)
+            }
+            if (response.status.isSuccess()) {
+                val result = response.body<SwipeActionResponse>()
+                if (existingRoom != null) {
+                    chatDao.updateRoomStatus(result.roomId, result.status)
+                } else {
+                    val newEntity = ChatRoomEntity(
+                        roomId = result.roomId,
+                        receiverId = targetUserId,
+                        userName = "",
+                        userImage = null,
+                        status = result.status,
+                        lastMessage = LastMessageEntity(
+                            lastMessageText = "",
+                            timeStamp = System.currentTimeMillis(),
+                            unreadCount = 0,
+                            isRead = true,
+                            lastMessageBy = true
+                        )
+                    )
+                    chatDao.insertChatRoom(newEntity)
+                }
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Swipe action failed: ${response.status.value}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }
@@ -503,4 +591,10 @@ data class ChatMessageCreatedPayload(
 data class MessageSentAck(
     val localId: String,
     val messageId: String
+)
+
+@Serializable
+data class ChatUpdatedPayload(
+    val roomId: String = "",
+    val status: String = "ACCEPTED"
 )

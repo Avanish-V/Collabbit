@@ -22,6 +22,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -37,6 +38,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -48,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -164,6 +167,7 @@ import org.koin.android.ext.android.get
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.component.KoinComponent
+import kotlin.time.Duration.Companion.milliseconds
 
 class MainActivity : ComponentActivity(), KoinComponent {
 
@@ -178,7 +182,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
         super.onCreate(savedInstanceState)
         actionBar?.hide()
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        
+
         val sessionViewModel: SessionViewModel = get()
         splashScreen.setKeepOnScreenCondition {
             sessionViewModel.sessionState.value is SessionState.Loading
@@ -186,7 +190,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
         handleIncomingIntent(intent, sessionViewModel)
 
         checkForUpdate()
-        
+
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(
                 android.graphics.Color.TRANSPARENT,
@@ -201,6 +205,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
         setContent {
 
+            // Remmove this fprmmmmm mAIIN ACTIVITY
             val realtimeManager = koinInject<RealtimeManager>()
             LaunchedEffect(Unit) {
                 realtimeManager.start()
@@ -222,41 +227,16 @@ class MainActivity : ComponentActivity(), KoinComponent {
             val menuController: MenuController = koinInject()
             val menuActionViewModel: MenuActionViewModel = koinInject()
 
-            var showCheckInDialog by remember { mutableStateOf(false) }
-            var showAlreadyClaimedDialog by remember { mutableStateOf(false) }
-            var checkInData by remember { mutableStateOf<CheckInEvent.Success?>(null) }
-
-            LaunchedEffect(state) {
-                when (state) {
-                    ConnectivityUiState.Offline ->
-                        snackBarHostState.showSnackbar(
-                            "No network connection",
-                            withDismissAction = true
-                        )
-
-                    ConnectivityUiState.ConnectedNoInternet ->
-                        snackBarHostState.showSnackbar(
-                            "Wi-Fi connected but no internet",
-                            withDismissAction = true
-                        )
-
-                    ConnectivityUiState.CaptivePortal ->
-                        snackBarHostState.showSnackbar("Captive portal — sign in required")
-
-                    ConnectivityUiState.Online -> {}
-                }
-            }
-
             LaunchedEffect(sessionState) {
                 when (sessionState) {
                     is SessionState.Authenticated -> {
                         val currentDest = navHostController.currentBackStackEntry?.destination
                         val isAuthRoute = currentDest?.let { dest ->
-                            dest.hasRoute(SignIn::class) || 
-                            dest.hasRoute(Register::class) || 
-                            dest.hasRoute(CreateProfile::class) || 
-                            dest.hasRoute(Verification::class) ||
-                            dest.hasRoute(AuthGraph::class)
+                            dest.hasRoute(SignIn::class) ||
+                                    dest.hasRoute(Register::class) ||
+                                    dest.hasRoute(CreateProfile::class) ||
+                                    dest.hasRoute(Verification::class) ||
+                                    dest.hasRoute(AuthGraph::class)
                         } ?: false
 
                         if (isAuthRoute) {
@@ -266,15 +246,14 @@ class MainActivity : ComponentActivity(), KoinComponent {
                             }
                         }
                     }
-
                     is SessionState.Unauthenticated -> {
                         val currentDest = navHostController.currentBackStackEntry?.destination
                         val isAuthRoute = currentDest?.let { dest ->
-                            dest.hasRoute(SignIn::class) || 
-                            dest.hasRoute(Register::class) || 
-                            dest.hasRoute(CreateProfile::class) || 
-                            dest.hasRoute(Verification::class) ||
-                            dest.hasRoute(AuthGraph::class)
+                            dest.hasRoute(SignIn::class) ||
+                                    dest.hasRoute(Register::class) ||
+                                    dest.hasRoute(CreateProfile::class) ||
+                                    dest.hasRoute(Verification::class) ||
+                                    dest.hasRoute(AuthGraph::class)
                         } ?: false
 
                         if (!isAuthRoute && currentDest != null) {
@@ -284,7 +263,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
                             }
                         }
                     }
-
                     is SessionState.Loading -> {
                         // Startup session resolution handled under Android SplashScreen
                     }
@@ -294,7 +272,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
             LaunchedEffect(sessionState, pendingDeepLink) {
                 if (sessionState is SessionState.Authenticated && pendingDeepLink != null) {
                     val uri = sessionViewModel.consumePendingDeepLink() ?: return@LaunchedEffect
-                    // Ensure the NavHost graph is initialized before navigating
                     while (true) {
                         val isReady = try {
                             navHostController.graph
@@ -303,7 +280,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
                             false
                         }
                         if (isReady) break
-                        kotlinx.coroutines.delay(50)
+                        kotlinx.coroutines.delay(50.milliseconds)
                     }
                     try {
                         val options = navOptions {
@@ -311,15 +288,17 @@ class MainActivity : ComponentActivity(), KoinComponent {
                         }
                         navHostController.navigate(deepLink = uri, navOptions = options)
                     } catch (e: Exception) {
-                        android.util.Log.e("MainActivity", "Failed to navigate to deep link: $uri", e)
+                        android.util.Log.e(
+                            "MainActivity",
+                            "Failed to navigate to deep link: $uri",
+                            e
+                        )
                     }
                 }
             }
 
             LaunchedEffect(sessionState) {
                 if (sessionState is SessionState.Authenticated) {
-                    // Sequentially sync profile first, then claim daily check-in.
-                    // This prevents the sync logic from overwriting the newly awarded aura points.
                     profileViewModel.syncProfileSuspending()
                     auraViewModel.claimDailyCheckIn(showAlreadyClaimedMessage = false)
                     FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
@@ -333,9 +312,9 @@ class MainActivity : ComponentActivity(), KoinComponent {
                     }
                 }
             }
-            
 
             AppTheme {
+
                 var isSessionInitialized by rememberSaveable { mutableStateOf(false) }
 
                 LaunchedEffect(sessionState) {
@@ -344,499 +323,591 @@ class MainActivity : ComponentActivity(), KoinComponent {
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    if (!isSessionInitialized && sessionState is SessionState.Loading) {
-                        // Startup branded loading screen (prevents white blank screen while resolving session)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.background),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.splash_icon),
-                                    contentDescription = "Collabbit",
-                                    modifier = Modifier.size(72.dp)
-                                )
-                                Spacer(modifier = Modifier.height(24.dp))
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(32.dp),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    strokeWidth = 3.dp
-                                )
+                Column() {
+                    when (state) {
+                        ConnectivityUiState.Offline -> {
+                            Row(modifier = Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("No Internet Connection ! ", color = Color.Black)
                             }
                         }
-                    } else {
+                        ConnectivityUiState.ConnectedNoInternet ->{
+                            Row(modifier = Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("No Internet Connection ! ")
+                            }
+                        }
+                        ConnectivityUiState.CaptivePortal ->{}
+                        ConnectivityUiState.Online -> {}
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+
                         NavHost(
                             modifier = Modifier.fillMaxSize(),
                             navController = navHostController,
                             startDestination = if (sessionState is SessionState.Authenticated) MainGraph else AuthGraph
                         ) {
-                        navigation<AuthGraph>(
-                            startDestination = SignIn,
-                        ) {
-                            composable<SignIn> {
-                                SignInScreen(
-                                    navHostController = navHostController,
-                                )
-                            }
-                        }
-
-                        navigation<MainGraph>(
-                            startDestination = Home(),
-                        ) {
-                            navScreen<Home>(
-                                deepLinks = listOf(
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/post/{postId}" },
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/post/{postId}/" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/post/{postId}" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/post/{postId}/" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/post/{postId}" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/post/{postId}/" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/post/{postId}" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/post/{postId}/" },
-                                    navDeepLink { uriPattern = "finder://post/{postId}" }
-                                )
-                            ) { backStackEntry ->
-                                val args = backStackEntry.toRoute<Home>()
-                                val notificationViewModel = koinInject<NotificationViewModel>()
-                                MainScreen(
-                                    navHostController,
-                                    profileViewModel = koinInject(),
-                                    notificationViewModel = notificationViewModel,
-                                    targetPostId = args.postId
-                                )
-                            }
-
-                            composable<Explore>(
-                                deepLinks = listOf(
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/collab" },
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/collab/" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/collab" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/collab/" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/collab" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/collab/" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/collab" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/collab/" },
-                                    navDeepLink { uriPattern = "finder://collab" }
-                                )
-                            ) {
-                                CollabExploreScreen(
-                                    navController = navHostController
-                                )
-                            }
-
-                            composable<CollabDetail>(
-                                deepLinks = listOf(
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/collab/{collabId}" },
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/collab/{collabId}/" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/collab/{collabId}" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/collab/{collabId}/" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/collab/{collabId}" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/collab/{collabId}/" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/collab/{collabId}" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/collab/{collabId}/" },
-                                    navDeepLink { uriPattern = "finder://collab/{collabId}" }
-                                )
-                            ) { backStackEntry ->
-                                val args = backStackEntry.toRoute<CollabDetail>()
-                                CollabDetailScreen(
-                                    collabId = args.collabId,
-                                    navController = navHostController,
-                                    viewModel = koinViewModel()
-                                )
-                            }
-
-                            composable<ManageCollab> { backStackEntry ->
-                                val args = backStackEntry.toRoute<ManageCollab>()
-                                ManageCollabScreen(
-                                    collabId = args.collabId,
-                                    navController = navHostController,
-                                    viewModel = koinViewModel()
-                                )
-                            }
-
-                            composable<EditCollab> { backStackEntry ->
-                                val args = backStackEntry.toRoute<EditCollab>()
-                                EditCollabScreen(
-                                    collabId = args.collabId,
-                                    navController = navHostController,
-                                    viewModel = koinViewModel()
-                                )
-                            }
-
-                            composable<CollabRequests> { backStackEntry ->
-                                val args = backStackEntry.toRoute<CollabRequests>()
-                                CollabRequestsScreen(
-                                    collabId = args.collabId,
-                                    navController = navHostController,
-                                    viewModel = koinViewModel()
-                                )
-                            }
-
-                            composable<CreateCollab> {
-                                CreateCollabScreen(
-                                    navController = navHostController,
-                                    createCollabViewModel = koinViewModel()
-                                )
-                            }
-
-
-                            composable<Notification> {
-                                NotificationScreen(
-                                    navController = navHostController
-                                )
-                            }
-
-                            navScreen<ChatList> {
-                                val chatsViewModel = koinViewModel<ChatsViewModel>()
-                                ChatScreen(
-                                    navHostController = navHostController,
-                                    chatsViewModel = chatsViewModel
-                                )
-                            }
-
-                            navScreen<CommunityChat>(
-                                deepLinks = listOf(
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/chat/{id}" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/chat/{id}" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/chat/{id}" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/chat/{id}" },
-                                    navDeepLink { uriPattern = "finder://chat/{id}" }
-                                )
-                            ) { backStackEntry ->
-                                val args = backStackEntry.toRoute<CommunityChat>()
-                                SocietyChatScreen(
-                                    societyId = args.id,
-                                    navHostController = navHostController
-                                )
-                            }
-
-                            navScreen<SendMessage> {
-                                SendMessageScreen(
-                                    navHostController = navHostController,
-                                )
-                            }
-                            composable<Profile> { backStackEntry->
-                                val args = backStackEntry.toRoute<Profile>()
-                                val viewModel: UserProfileViewModel = koinViewModel()
-                                AppUserProfile(
-                                    userId = args.userId,
-                                    navHostController = navHostController,
-                                    navigationViewModel = koinInject(),
-                                    profileViewModel = viewModel,
-                                    menuController = menuController,
-                                    menuActionViewModel = menuActionViewModel
-                                )
-                            }
-
-                            composable<ViewProfile> { backStackEntry->
-                                val args = backStackEntry.toRoute<ViewProfile>()
-                                val viewModel: UserProfileViewModel = koinViewModel()
-                                AppUserProfile(
-                                    userId = args.userId,
-                                    navHostController = navHostController,
-                                    navigationViewModel = koinInject(),
-                                    profileViewModel = viewModel,
-                                    menuController = menuController,
-                                    menuActionViewModel = menuActionViewModel
-                                )
-                            }
-
-                            navScreen<EditProfile> { backStackEntry ->
-                                val args = backStackEntry.toRoute<EditProfile>()
-                                EditProfileScreen(
-                                    navController = navHostController,
-                                    editProfileViewModel = koinViewModel()
-                                )
-                            }
-
-                            navScreen<Setting> {
-                                SettingScreen(
-                                    navController = navHostController,
-                                    userProfileViewModel = koinInject(),
-                                    onSignOut = {
-                                        val googleSignInViewModel: com.iota.campusX.Feature.Auth.presentation.GoogleSignInViewModel = get()
-                                        googleSignInViewModel.signOut()
-                                    }
-                                )
-                            }
-
-                            navScreen<CreatePost> {
-                                val postCreationViewModel: PostCreationViewModel = koinViewModel()
-                                val profileViewModel = koinInject<UserProfileViewModel>()
-                                val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
-
-                                LaunchedEffect(Unit) {
-                                    profileViewModel.load(null)
-                                }
-
-                                CreatePostScreen(
-                                    navHostController = navHostController,
-                                    userProfileImage = profileState.profile?.baseProfile?.image,
-                                    userProfileName = profileState.profile?.baseProfile?.name,
-                                    postCreationViewModel = postCreationViewModel,
-                                )
-                            }
-
-                            navScreen<EditPost> { backStackEntry ->
-                                val args = backStackEntry.toRoute<EditPost>()
-                                val profileViewModel = koinInject<UserProfileViewModel>()
-                                val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
-
-                                LaunchedEffect(Unit) {
-                                    profileViewModel.load(null)
-                                }
-
-                                EditPostScreen(
-                                    id = args.id,
-                                    type = args.type,
-                                    navHostController = navHostController,
-                                    userProfileImage = profileState.profile?.baseProfile?.image,
-                                    userProfileName = profileState.profile?.baseProfile?.name
-                                )
-                            }
-
-                            navScreen<ReplyPost> {
-                            }
-
-                            navScreen<PostView> { backStackEntry ->
-                                val args = backStackEntry.toRoute<PostView>()
-                                PostViewScreen(args, navHostController)
-                            }
-
-                            navScreen<VideoView> {
-                                VideoViewScreen(navHostController)
-                            }
-
-                            navScreen<PdfView> {
-                                PdfViewScreen(navHostController)
-                            }
-
-                            composable<Collab> {
-                                ExploreSwipeDeckScreen(
-                                    onProfileClick = { userId ->
-                                        navHostController.navigate(
-                                            ViewProfile(userId = userId)
-                                        )
-                                    },
-                                )
-                            }
-
-                            composable<OpportunityDetail>(
-                                deepLinks = listOf(
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/opportunity/{opportunityId}" },
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/opportunity/{opportunityId}/" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/opportunity/{opportunityId}" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/opportunity/{opportunityId}/" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/opportunity/{opportunityId}" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/opportunity/{opportunityId}/" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/opportunity/{opportunityId}" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/opportunity/{opportunityId}/" },
-                                    navDeepLink { uriPattern = "finder://opportunity/{opportunityId}" }
-                                )
-                            ) { backStackEntry ->
-                                val parentEntry = remember(backStackEntry) {
-                                    navHostController.getBackStackEntry<MainGraph>()
-                                }
-                                val args = backStackEntry.toRoute<OpportunityDetail>()
-                                OpportunityDetailScreen(
-                                    opportunityId = args.opportunityId,
-                                    navController = navHostController,
-                                    viewModel = koinViewModel(viewModelStoreOwner = parentEntry)
-                                )
-                            }
-
-                            composable<CourseDetail>(
-                                deepLinks = listOf(
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/course/{courseId}" },
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/course/{courseId}/" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/course/{courseId}" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/course/{courseId}/" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/course/{courseId}" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/course/{courseId}/" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/course/{courseId}" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/course/{courseId}/" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/session/{courseId}" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/session/{courseId}/" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/session/{courseId}" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/session/{courseId}/" },
-                                    navDeepLink { uriPattern = "finder://course/{courseId}" }
-                                )
-                            ) { backStackEntry ->
-                                val parentEntry = remember(backStackEntry) {
-                                    navHostController.getBackStackEntry<MainGraph>()
-                                }
-                                val args = backStackEntry.toRoute<CourseDetail>()
-                                CourseDetailScreen(
-                                    courseId = args.courseId,
-                                    navController = navHostController,
-                                    viewModel = koinViewModel(viewModelStoreOwner = parentEntry)
-                                )
-                            }
-
-                            composable<SocietyHub> {
-                                SocietyHubScreen(navHostController = navHostController)
-                            }
-
-
-                            navScreen<SocietyInfo>(
-                                deepLinks = listOf(
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/society/{id}" },
-                                    navDeepLink { uriPattern = "https://www.campuscircle.in/society/{id}/" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/society/{id}" },
-                                    navDeepLink { uriPattern = "https://campuscircle.in/society/{id}/" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/society/{id}" },
-                                    navDeepLink { uriPattern = "https://www.collabbit.in/society/{id}/" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/society/{id}" },
-                                    navDeepLink { uriPattern = "https://collabbit.in/society/{id}/" },
-                                    navDeepLink { uriPattern = "finder://society/{id}" }
-                                )
-                            ) { backStackEntry ->
-                                val args = backStackEntry.toRoute<SocietyInfo>()
-                                SocietyInfoScreen(
-                                    societyId = args.id,
-                                    openJoinSheet = args.openJoinSheet,
-                                    fromChat = args.fromChat,
-                                    navHostController = navHostController
-                                )
-                            }
-                        }
-                    }
-
-                    BottomBar(
-                        showBottomBar = shouldShowBottomBar(currentDestination),
-                        navigationViewModel = koinInject(),
-                        navHostController = navHostController
-                    )
-                }
-
-                    SnackbarHost(
-                        hostState = snackBarHostState,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
-                            .padding(bottom = if (shouldShowBottomBar(currentDestination)) 72.dp else 0.dp)
-                            .padding(16.dp)
-                    )
-
-
-                    val menuBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                    val menuOptions = menuController.options
-                    val deleteState by menuActionViewModel.deleteState.collectAsState()
-
-                    LaunchedEffect(deleteState) {
-                        when (deleteState) {
-                            is UiState.Success<*> -> {
-                                menuController.dismissDialog()
-                                menuController.dismiss()
-                                menuActionViewModel.resetDeleteState()
-                            }
-                            is UiState.Error -> {
-                                snackBarHostState.showSnackbar((deleteState as UiState.Error).message)
-                                menuController.dismissDialog()
-                                menuController.dismiss()
-                                menuActionViewModel.resetDeleteState()
-                            }
-                            else -> {}
-                        }
-                    }
-
-
-                    menuController.context?.let {context ->
-                        MenuBottomSheet(
-                            onDismiss = {
-                                menuController.dismiss()
-                            },
-                            sheetState = menuBottomSheetState,
-                            menuOptions = menuOptions,
-                            pendingAction = {
-                                when (it) {
-                                    is MenuItem.Delete -> {
-                                        menuController.context?.let { context ->
-                                            menuController.showDialog(context = context)
-                                            menuController.dismiss()
-                                        }
-                                    }
-                                    is MenuItem.Report -> {
-                                        menuController.dismiss()
-                                    }
-                                    is MenuItem.Edit -> {
-                                        menuController.context?.let { context ->
-                                            navHostController.navigate(
-                                                EditPost(
-                                                    id = context.id,
-                                                    type = context.type.name
-                                                )
-                                            )
-                                            menuController.dismiss()
-                                        }
-                                    }
-
+                            navigation<AuthGraph>(startDestination = SignIn) {
+                                composable<SignIn> {
+                                    SignInScreen(
+                                        navHostController = navHostController,
+                                    )
                                 }
                             }
-                        )
-                    }
-
-
-                    menuController.dialogContext?.let {
-
-                        AlertDialogWidget(
-                            onDismiss = {
-                                menuController.dismissDialog()
-                            },
-                            title = "Delete",
-                            description = "Are you sure you want to delete this post?",
-                            positiveButtonText = "Delete",
-                            negativeButtonText = "Cancel",
-                            onPositiveClick = {
-                                menuController.dialogContext?.let {menuContext ->
-                                    menuActionViewModel.onMenuActionEvent(
-                                        MenuAction.Delete(
-                                            context = menuContext
-                                        )
+                            navigation<MainGraph>(startDestination = Home()) {
+                                navScreen<Home>(
+                                    deepLinks = listOf(
+                                        navDeepLink {
+                                            uriPattern = "https://www.campuscircle.in/post/{postId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.campuscircle.in/post/{postId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/post/{postId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/post/{postId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.collabbit.in/post/{postId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.collabbit.in/post/{postId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/post/{postId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/post/{postId}/"
+                                        },
+                                        navDeepLink { uriPattern = "finder://post/{postId}" }
+                                    )
+                                ) { backStackEntry ->
+                                    val args = backStackEntry.toRoute<Home>()
+                                    val notificationViewModel = koinInject<NotificationViewModel>()
+                                    MainScreen(
+                                        navHostController,
+                                        profileViewModel = koinInject(),
+                                        notificationViewModel = notificationViewModel,
+                                        targetPostId = args.postId
                                     )
                                 }
 
-                            },
-                            showLoading = deleteState is UiState.Loading
+                                composable<Explore>(
+                                    deepLinks = listOf(
+                                        navDeepLink {
+                                            uriPattern = "https://www.campuscircle.in/collab"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.campuscircle.in/collab/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/collab"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/collab/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.collabbit.in/collab"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.collabbit.in/collab/"
+                                        },
+                                        navDeepLink { uriPattern = "https://collabbit.in/collab" },
+                                        navDeepLink { uriPattern = "https://collabbit.in/collab/" },
+                                        navDeepLink { uriPattern = "finder://collab" }
+                                    )
+                                ) {
+                                    CollabExploreScreen(
+                                        navController = navHostController
+                                    )
+                                }
+
+                                composable<CollabDetail>(
+                                    deepLinks = listOf(
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.campuscircle.in/collab/{collabId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.campuscircle.in/collab/{collabId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/collab/{collabId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://campuscircle.in/collab/{collabId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.collabbit.in/collab/{collabId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.collabbit.in/collab/{collabId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/collab/{collabId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/collab/{collabId}/"
+                                        },
+                                        navDeepLink { uriPattern = "finder://collab/{collabId}" }
+                                    )
+                                ) { backStackEntry ->
+                                    val args = backStackEntry.toRoute<CollabDetail>()
+                                    CollabDetailScreen(
+                                        collabId = args.collabId,
+                                        navController = navHostController,
+                                        viewModel = koinViewModel()
+                                    )
+                                }
+
+                                composable<ManageCollab> { backStackEntry ->
+                                    val args = backStackEntry.toRoute<ManageCollab>()
+                                    ManageCollabScreen(
+                                        collabId = args.collabId,
+                                        navController = navHostController,
+                                        viewModel = koinViewModel()
+                                    )
+                                }
+
+                                composable<EditCollab> { backStackEntry ->
+                                    val args = backStackEntry.toRoute<EditCollab>()
+                                    EditCollabScreen(
+                                        collabId = args.collabId,
+                                        navController = navHostController,
+                                        viewModel = koinViewModel()
+                                    )
+                                }
+
+                                composable<CollabRequests> { backStackEntry ->
+                                    val args = backStackEntry.toRoute<CollabRequests>()
+                                    CollabRequestsScreen(
+                                        collabId = args.collabId,
+                                        navController = navHostController,
+                                        viewModel = koinViewModel()
+                                    )
+                                }
+
+                                composable<CreateCollab> {
+                                    CreateCollabScreen(
+                                        navController = navHostController,
+                                        createCollabViewModel = koinViewModel()
+                                    )
+                                }
+
+
+                                composable<Notification> {
+                                    NotificationScreen(
+                                        navController = navHostController
+                                    )
+                                }
+
+                                navScreen<ChatList> {
+                                    val chatsViewModel = koinViewModel<ChatsViewModel>()
+                                    ChatScreen(
+                                        navHostController = navHostController,
+                                        chatsViewModel = chatsViewModel
+                                    )
+                                }
+
+                                navScreen<CommunityChat>(
+                                    deepLinks = listOf(
+                                        navDeepLink {
+                                            uriPattern = "https://www.campuscircle.in/chat/{id}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/chat/{id}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.collabbit.in/chat/{id}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/chat/{id}"
+                                        },
+                                        navDeepLink { uriPattern = "finder://chat/{id}" }
+                                    )
+                                ) { backStackEntry ->
+                                    val args = backStackEntry.toRoute<CommunityChat>()
+                                    SocietyChatScreen(
+                                        societyId = args.id,
+                                        navHostController = navHostController
+                                    )
+                                }
+
+                                navScreen<SendMessage> {
+                                    SendMessageScreen(
+                                        navHostController = navHostController,
+                                    )
+                                }
+                                composable<Profile> { backStackEntry ->
+                                    val args = backStackEntry.toRoute<Profile>()
+                                    val viewModel: UserProfileViewModel = koinViewModel()
+                                    AppUserProfile(
+                                        userId = args.userId,
+                                        navHostController = navHostController,
+                                        navigationViewModel = koinInject(),
+                                        profileViewModel = viewModel,
+                                        menuController = menuController,
+                                        menuActionViewModel = menuActionViewModel
+                                    )
+                                }
+
+                                composable<ViewProfile> { backStackEntry ->
+                                    val args = backStackEntry.toRoute<ViewProfile>()
+                                    val viewModel: UserProfileViewModel = koinViewModel()
+                                    AppUserProfile(
+                                        userId = args.userId,
+                                        navHostController = navHostController,
+                                        navigationViewModel = koinInject(),
+                                        profileViewModel = viewModel,
+                                        menuController = menuController,
+                                        menuActionViewModel = menuActionViewModel
+                                    )
+                                }
+
+                                navScreen<EditProfile> { backStackEntry ->
+                                    val args = backStackEntry.toRoute<EditProfile>()
+                                    EditProfileScreen(
+                                        navController = navHostController,
+                                        editProfileViewModel = koinViewModel()
+                                    )
+                                }
+
+                                navScreen<Setting> {
+                                    SettingScreen(
+                                        navController = navHostController,
+                                        userProfileViewModel = koinInject(),
+                                        onSignOut = {
+                                            val googleSignInViewModel: com.iota.campusX.Feature.Auth.presentation.GoogleSignInViewModel =
+                                                get()
+                                            googleSignInViewModel.signOut()
+                                        }
+                                    )
+                                }
+
+                                navScreen<CreatePost> {
+                                    val postCreationViewModel: PostCreationViewModel =
+                                        koinViewModel()
+                                    val profileViewModel = koinInject<UserProfileViewModel>()
+                                    val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
+
+                                    LaunchedEffect(Unit) {
+                                        profileViewModel.load(null)
+                                    }
+
+                                    CreatePostScreen(
+                                        navHostController = navHostController,
+                                        userProfileImage = profileState.profile?.baseProfile?.image,
+                                        userProfileName = profileState.profile?.baseProfile?.name,
+                                        postCreationViewModel = postCreationViewModel,
+                                    )
+                                }
+
+                                navScreen<EditPost> { backStackEntry ->
+                                    val args = backStackEntry.toRoute<EditPost>()
+                                    val profileViewModel = koinInject<UserProfileViewModel>()
+                                    val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
+
+                                    LaunchedEffect(Unit) {
+                                        profileViewModel.load(null)
+                                    }
+
+                                    EditPostScreen(
+                                        id = args.id,
+                                        type = args.type,
+                                        navHostController = navHostController,
+                                        userProfileImage = profileState.profile?.baseProfile?.image,
+                                        userProfileName = profileState.profile?.baseProfile?.name
+                                    )
+                                }
+
+                                navScreen<ReplyPost> {
+                                }
+
+                                navScreen<PostView> { backStackEntry ->
+                                    val args = backStackEntry.toRoute<PostView>()
+                                    PostViewScreen(args, navHostController)
+                                }
+
+                                navScreen<VideoView> {
+                                    VideoViewScreen(navHostController)
+                                }
+
+                                navScreen<PdfView> {
+                                    PdfViewScreen(navHostController)
+                                }
+
+                                composable<Collab> {
+                                    ExploreSwipeDeckScreen(
+                                        onProfileClick = { userId ->
+                                            navHostController.navigate(
+                                                ViewProfile(userId = userId)
+                                            )
+                                        },
+                                    )
+                                }
+
+                                composable<OpportunityDetail>(
+                                    deepLinks = listOf(
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.campuscircle.in/opportunity/{opportunityId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.campuscircle.in/opportunity/{opportunityId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://campuscircle.in/opportunity/{opportunityId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://campuscircle.in/opportunity/{opportunityId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.collabbit.in/opportunity/{opportunityId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.collabbit.in/opportunity/{opportunityId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://collabbit.in/opportunity/{opportunityId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://collabbit.in/opportunity/{opportunityId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "finder://opportunity/{opportunityId}"
+                                        }
+                                    )
+                                ) { backStackEntry ->
+                                    val parentEntry = remember(backStackEntry) {
+                                        navHostController.getBackStackEntry<MainGraph>()
+                                    }
+                                    val args = backStackEntry.toRoute<OpportunityDetail>()
+                                    OpportunityDetailScreen(
+                                        opportunityId = args.opportunityId,
+                                        navController = navHostController,
+                                        viewModel = koinViewModel(viewModelStoreOwner = parentEntry)
+                                    )
+                                }
+
+                                composable<CourseDetail>(
+                                    deepLinks = listOf(
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.campuscircle.in/course/{courseId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.campuscircle.in/course/{courseId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/course/{courseId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://campuscircle.in/course/{courseId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.collabbit.in/course/{courseId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.collabbit.in/course/{courseId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/course/{courseId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/course/{courseId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.collabbit.in/session/{courseId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern =
+                                                "https://www.collabbit.in/session/{courseId}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/session/{courseId}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/session/{courseId}/"
+                                        },
+                                        navDeepLink { uriPattern = "finder://course/{courseId}" }
+                                    )
+                                ) { backStackEntry ->
+                                    val parentEntry = remember(backStackEntry) {
+                                        navHostController.getBackStackEntry<MainGraph>()
+                                    }
+                                    val args = backStackEntry.toRoute<CourseDetail>()
+                                    CourseDetailScreen(
+                                        courseId = args.courseId,
+                                        navController = navHostController,
+                                        viewModel = koinViewModel(viewModelStoreOwner = parentEntry)
+                                    )
+                                }
+
+                                composable<SocietyHub> {
+                                    SocietyHubScreen(navHostController = navHostController)
+                                }
+
+
+                                navScreen<SocietyInfo>(
+                                    deepLinks = listOf(
+                                        navDeepLink {
+                                            uriPattern = "https://www.campuscircle.in/society/{id}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.campuscircle.in/society/{id}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/society/{id}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://campuscircle.in/society/{id}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.collabbit.in/society/{id}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://www.collabbit.in/society/{id}/"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/society/{id}"
+                                        },
+                                        navDeepLink {
+                                            uriPattern = "https://collabbit.in/society/{id}/"
+                                        },
+                                        navDeepLink { uriPattern = "finder://society/{id}" }
+                                    )
+                                ) { backStackEntry ->
+                                    val args = backStackEntry.toRoute<SocietyInfo>()
+                                    SocietyInfoScreen(
+                                        societyId = args.id,
+                                        openJoinSheet = args.openJoinSheet,
+                                        fromChat = args.fromChat,
+                                        navHostController = navHostController
+                                    )
+                                }
+                            }
+                        }
+
+                        BottomBar(
+                            showBottomBar = shouldShowBottomBar(currentDestination),
+                            navigationViewModel = koinInject(),
+                            navHostController = navHostController
                         )
 
+                        val menuBottomSheetState =
+                            rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                        val menuOptions = menuController.options
+                        val deleteState by menuActionViewModel.deleteState.collectAsState()
+
+                        LaunchedEffect(deleteState) {
+                            when (deleteState) {
+                                is UiState.Success<*> -> {
+                                    menuController.dismissDialog()
+                                    menuController.dismiss()
+                                    menuActionViewModel.resetDeleteState()
+                                }
+
+                                is UiState.Error -> {
+                                    snackBarHostState.showSnackbar((deleteState as UiState.Error).message)
+                                    menuController.dismissDialog()
+                                    menuController.dismiss()
+                                    menuActionViewModel.resetDeleteState()
+                                }
+
+                                else -> {}
+                            }
+                        }
+
+                        menuController.context?.let { context ->
+                            MenuBottomSheet(
+                                onDismiss = {
+                                    menuController.dismiss()
+                                },
+                                sheetState = menuBottomSheetState,
+                                menuOptions = menuOptions,
+                                pendingAction = {
+                                    when (it) {
+                                        is MenuItem.Delete -> {
+                                            menuController.context?.let { context ->
+                                                menuController.showDialog(context = context)
+                                                menuController.dismiss()
+                                            }
+                                        }
+
+                                        is MenuItem.Report -> {
+                                            menuController.dismiss()
+                                        }
+
+                                        is MenuItem.Edit -> {
+                                            menuController.context?.let { context ->
+                                                navHostController.navigate(
+                                                    EditPost(
+                                                        id = context.id,
+                                                        type = context.type.name
+                                                    )
+                                                )
+                                                menuController.dismiss()
+                                            }
+                                        }
+
+                                    }
+                                }
+                            )
+                        }
+
+                        menuController.dialogContext?.let {
+
+                            AlertDialogWidget(
+                                onDismiss = {
+                                    menuController.dismissDialog()
+                                },
+                                title = "Delete",
+                                description = "Are you sure you want to delete this post?",
+                                positiveButtonText = "Delete",
+                                negativeButtonText = "Cancel",
+                                onPositiveClick = {
+                                    menuController.dialogContext?.let { menuContext ->
+                                        menuActionViewModel.onMenuActionEvent(
+                                            MenuAction.Delete(
+                                                context = menuContext
+                                            )
+                                        )
+                                    }
+
+                                },
+                                showLoading = deleteState is UiState.Loading
+                            )
+
+                        }
                     }
                 }
                 UpdateSnackBar(
                     snackHostState = snackBarHostState,
                     appUpdateManager = appUpdateManager
                 )
-
-                if (showCheckInDialog && checkInData != null) {
-                    DailyAuraCheckInDialog(
-                        pointsEarned = checkInData!!.pointsEarned,
-                        totalPoints = checkInData!!.totalPoints,
-                        level = checkInData!!.level,
-                        // streakDays = 0, // Default is 0
-                        onDismiss = {
-                            showCheckInDialog = false
-                            checkInData = null
-                        }
-                    )
-                }
-
-                if (showAlreadyClaimedDialog) {
-                    AlreadyClaimedDialog(
-                        totalPoints = 0, // Should be fetched if needed
-                        onDismiss = { showAlreadyClaimedDialog = false }
-                    )
-                }
             }
         }
     }
@@ -883,7 +954,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
         activityResultLauncher =
             registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result: ActivityResult ->
                 if (result.resultCode != RESULT_OK) {
-                    // handle callback
+
                 }
             }
     }
@@ -924,8 +995,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
         snackHostState: SnackbarHostState,
         appUpdateManager: AppUpdateManager
     ) {
-        // Collect update status
-        val context = LocalContext.current
 
         DisposableEffect(Unit) {
             val listener = InstallStateUpdatedListener { state ->

@@ -77,9 +77,8 @@ fun SettingScreen(
     onSignOut: () -> Unit = {}
 ) {
     val uiState by userProfileViewModel.uiState.collectAsState()
-    val profile = uiState.profile
+
     var screenValue by rememberSaveable { mutableStateOf(Setting.SETTING_SCREEN) }
-    val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     
     var showAlert by remember { mutableStateOf(false) }
